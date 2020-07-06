@@ -1,0 +1,9 @@
+[submodule "DRAMSys/library/src/common/third_party/DRAMPower"]
+	path = DRAMSys/library/src/common/third_party/DRAMPower
+	url = https://github.com/tukl-msd/DRAMPower.git
+[submodule "DRAMSys/library/src/common/third_party/systemc"]
+	path = DRAMSys/library/src/common/third_party/systemc
+	url = https://github.com/accellera-official/systemc.git
+[submodule "DRAMSys/library/src/common/third_party/nlohmann"]
+	path = DRAMSys/library/src/common/third_party/nlohmann
+	url = https://github.com/nlohmann/json

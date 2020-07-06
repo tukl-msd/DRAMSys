@@ -1,0 +1,14 @@
+{
+    "mcconfig": {
+        "PagePolicy": "Open", 
+        "Scheduler": "FrFcfsGrp", 
+        "RequestBufferSize": 8, 
+        "CmdMux": "Oldest", 
+        "RespQueue": "Fifo", 
+        "RefreshPolicy": "Rankwise", 
+        "RefreshMaxPostponed": 8, 
+        "RefreshMaxPulledin": 8, 
+        "PowerDownPolicy": "NoPowerDown", 
+        "PowerDownTimeout": 100
+    }
+}

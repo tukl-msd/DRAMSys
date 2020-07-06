@@ -1,0 +1,16 @@
+{
+    "simulation": {
+        "addressmapping": "am_ddr4_8x4Gbx8_dimm_p1KB_brc.json",
+        "mcconfig": "fifoStrict.json",
+        "memspec": "JEDEC_4Gb_DDR4-1866_8bit_A.json",
+        "simconfig": "ddr4.json",
+        "simulationid": "ddr4-example",
+        "thermalconfig": "config.json",
+        "tracesetup": [
+            {
+                "clkMhz": 200,
+                "name": "ddr3_example.stl"
+            }
+        ]
+    }
+}
