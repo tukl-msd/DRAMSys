@@ -147,7 +147,7 @@ void RefreshManagerRankwise::updateState(Command command, tlm_generic_payload *)
     case Command::ACT:
         activatedBanks++;
         break;
-    case Command::PRE:
+    case Command::PRE: case Command::RDA: case Command::WRA:
         activatedBanks--;
         break;
     case Command::PREA:

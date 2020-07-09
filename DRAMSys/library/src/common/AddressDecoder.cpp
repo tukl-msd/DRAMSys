@@ -124,13 +124,13 @@ AddressDecoder::AddressDecoder(std::string pathToAddressMapping)
     vColumnBits = getAttrToVectorFromJson(mapping,"COLUMN_BIT");
     vByteBits = getAttrToVectorFromJson(mapping,"BYTE_BIT");
 
-    unsigned channels = pow(2.0, vChannelBits.size());
-    unsigned ranks = pow(2.0, vRankBits.size());
-    unsigned bankgroups = pow(2.0, vBankGroupBits.size());
-    unsigned banks = pow(2.0, vBankBits.size());
-    unsigned rows = pow(2.0, vRowBits.size());
-    unsigned columns = pow(2.0, vColumnBits.size());
-    unsigned bytes = pow(2.0, vByteBits.size());
+    uint64_t channels = (uint64_t)(pow(2.0, vChannelBits.size()) + 0.5);
+    uint64_t ranks = (uint64_t)(pow(2.0, vRankBits.size()) + 0.5);
+    uint64_t bankgroups = (uint64_t)(pow(2.0, vBankGroupBits.size()) + 0.5);
+    uint64_t banks = (uint64_t)(pow(2.0, vBankBits.size()) + 0.5);
+    uint64_t rows = (uint64_t)(pow(2.0, vRowBits.size()) + 0.5);
+    uint64_t columns = (uint64_t)(pow(2.0, vColumnBits.size()) + 0.5);
+    uint64_t bytes = (uint64_t)(pow(2.0, vByteBits.size()) + 0.5);
 
     maximumAddress = bytes * columns * rows * banks * bankgroups * ranks * channels - 1;
 
@@ -160,34 +160,34 @@ DecodedAddress AddressDecoder::decodeAddress(uint64_t encAddr)
     //   Get the first bit and second bit. Apply a bitwise xor operator and save it back to the first bit.
     for (auto it = vXor.begin(); it != vXor.end(); it++)
     {
-        unsigned xoredBit;
-        xoredBit = (((encAddr >> it->first) & 1) ^ ((encAddr >> it->second) & 1));
-        encAddr &= ~(1 << it->first);
+        uint64_t xoredBit;
+        xoredBit = (((encAddr >> it->first) & UINT64_C(1)) ^ ((encAddr >> it->second) & UINT64_C(1)));
+        encAddr &= ~(UINT64_C(1) << it->first);
         encAddr |= xoredBit << it->first;
     }
 
     DecodedAddress decAddr;
 
     for (unsigned it = 0; it < vChannelBits.size(); it++)
-        decAddr.channel |= ((encAddr >> vChannelBits[it]) & 1) << it;
+        decAddr.channel |= ((encAddr >> vChannelBits[it]) & UINT64_C(1)) << it;
 
     for (unsigned it = 0; it < vRankBits.size(); it++)
-        decAddr.rank |= ((encAddr >> vRankBits[it]) & 1) << it;
+        decAddr.rank |= ((encAddr >> vRankBits[it]) & UINT64_C(1)) << it;
 
     for (unsigned it = 0; it < vBankGroupBits.size(); it++)
-        decAddr.bankgroup |= ((encAddr >> vBankGroupBits[it]) & 1) << it;
+        decAddr.bankgroup |= ((encAddr >> vBankGroupBits[it]) & UINT64_C(1)) << it;
 
     for (unsigned it = 0; it < vBankBits.size(); it++)
-        decAddr.bank |= ((encAddr >> vBankBits[it]) & 1) << it;
+        decAddr.bank |= ((encAddr >> vBankBits[it]) & UINT64_C(1)) << it;
 
     for (unsigned it = 0; it < vRowBits.size(); it++)
-        decAddr.row |= ((encAddr >> vRowBits[it]) & 1) << it;
+        decAddr.row |= ((encAddr >> vRowBits[it]) & UINT64_C(1)) << it;
 
     for (unsigned it = 0; it < vColumnBits.size(); it++)
-        decAddr.column |= ((encAddr >> vColumnBits[it]) & 1) << it;
+        decAddr.column |= ((encAddr >> vColumnBits[it]) & UINT64_C(1)) << it;
 
     for (unsigned it = 0; it < vByteBits.size(); it++)
-        decAddr.byte |= ((encAddr >> vByteBits[it]) & 1) << it;
+        decAddr.byte |= ((encAddr >> vByteBits[it]) & UINT64_C(1)) << it;
 
     decAddr.bankgroup = decAddr.bankgroup + decAddr.rank * bankgroupsPerRank;
     decAddr.bank = decAddr.bank + decAddr.bankgroup * banksPerGroup;
@@ -203,77 +203,77 @@ void AddressDecoder::print()
 
     for (int it = vChannelBits.size() - 1; it >= 0; it--)
     {
-        uint64_t addressBits = (1 << vChannelBits[it]);
+        uint64_t addressBits = (UINT64_C(1) << vChannelBits[it]);
         for (auto it2 : vXor)
         {
             if (it2.first == vChannelBits[it])
-                addressBits |= (1 << it2.second);
+                addressBits |= (UINT64_C(1) << it2.second);
         }
         std::cout << " Ch " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
     }
 
     for (int it = vRankBits.size() - 1; it >= 0; it--)
     {
-        uint64_t addressBits = (1 << vRankBits[it]);
+        uint64_t addressBits = (UINT64_C(1) << vRankBits[it]);
         for (auto it2 : vXor)
         {
             if (it2.first == vRankBits[it])
-                addressBits |= (1 << it2.second);
+                addressBits |= (UINT64_C(1) << it2.second);
         }
         std::cout << " Ra " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
     }
 
     for (int it = vBankGroupBits.size() - 1; it >= 0; it--)
     {
-        uint64_t addressBits = (1 << vBankGroupBits[it]);
+        uint64_t addressBits = (UINT64_C(1) << vBankGroupBits[it]);
         for (auto it2 : vXor)
         {
             if (it2.first == vBankGroupBits[it])
-                addressBits |= (1 << it2.second);
+                addressBits |= (UINT64_C(1) << it2.second);
         }
         std::cout << " Bg " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
     }
 
     for (int it = vBankBits.size() - 1; it >= 0; it--)
     {
-        uint64_t addressBits = (1 << vBankBits[it]);
+        uint64_t addressBits = (UINT64_C(1) << vBankBits[it]);
         for (auto it2 : vXor)
         {
             if (it2.first == vBankBits[it])
-                addressBits |= (1 << it2.second);
+                addressBits |= (UINT64_C(1) << it2.second);
         }
         std::cout << " Ba " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
     }
 
     for (int it = vRowBits.size() - 1; it >= 0; it--)
     {
-        uint64_t addressBits = (1 << vRowBits[it]);
+        uint64_t addressBits = (UINT64_C(1) << vRowBits[it]);
         for (auto it2 : vXor)
         {
             if (it2.first == vRowBits[it])
-                addressBits |= (1 << it2.second);
+                addressBits |= (UINT64_C(1) << it2.second);
         }
         std::cout << " Ro " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
     }
 
     for (int it = vColumnBits.size() - 1; it >= 0; it--)
     {
-        uint64_t addressBits = (1 << vColumnBits[it]);
+        uint64_t addressBits = (UINT64_C(1) << vColumnBits[it]);
         for (auto it2 : vXor)
         {
             if (it2.first == vColumnBits[it])
-                addressBits |= (1 << it2.second);
+                addressBits |= (UINT64_C(1) << it2.second);
         }
         std::cout << " Co " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
     }
 
     for (int it = vByteBits.size() - 1; it >= 0; it--)
     {
-        uint64_t addressBits = (1 << vByteBits[it]);
+        uint64_t addressBits = (UINT64_C(1) << vByteBits[it]);
         for (auto it2 : vXor)
         {
             if (it2.first == vByteBits[it])
-                addressBits |= (1 << it2.second);
+                addressBits |= (UINT64_C(1) << it2.second);
         }
         std::cout << " By " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
     }

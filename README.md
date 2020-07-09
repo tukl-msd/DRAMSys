@@ -1,16 +1,28 @@
 DRAMSys4.0
 ===========
 
-**DRAMSys4.0** [1] [2] [3] is a flexible DRAM subsystem design space exploration framework that consists of models reflecting the DRAM functionality, power consumption, temperature behavior and retention time errors.
+**DRAMSys4.0** [1] [2] [3] is a flexible DRAM subsystem design space exploration framework based on SystemC TLM-2.0.
+
+## Key Features
+
+- **standalone** simulator with trace players, **gem5**-coupled simulator and **TLM-AT-compliant library**
+- support for **DDR3/4**, **LPDDR4**, **Wide I/O 1/2**, **GDDR5/5X/6** and **HBM2**
+- automatic source code generation for new JEDEC standards [3] [9] from the domain-specific language DRAMml
+- FIFO, FR-FCFS and FR-FCFS with read/write grouping scheduling policies
+- open, closed, open adaptive and closed adaptive page policy [8]
+- all-bank refresh and per-bank refresh with pulled-in and postponed refresh commands
+- staggered power down [5]
+- coupling to **DRAMPower** [4] and **3D-ICE** [8] for power and thermal simulation
+- **Trace Analyzer** for visual and metric-based result analysis
 
 ## Basic Setup
 
 Start using DRAMSys by cloning the repository.
-Use the *--recursive* flag to initialize all submodules within the repository, namely **DRAMPower** [4], **SystemC** and **nlohmann json**.
+Use the *--recursive* flag to initialize all submodules within the repository, namely **DRAMPower**, **SystemC** and **nlohmann json**.
 
 ### Dependencies
 
-DRAMSys is based on the SystemC library. SystemC is included as a submodule and will be build automatically with the DRAMSys project. If you want to use an external SystemC version you have to export the environment variables `SYSTEMC_HOME` (SystemC root directory), `SYSTEMC_TARGET_ARCH` (e.g. linux64) and add the path of the library to `LD_LIBRARY_PATH`.
+DRAMSys is based on the SystemC library. SystemC is included as a submodule and will be build automatically with the DRAMSys project. If you want to use an external SystemC version, export the environment variables `SYSTEMC_HOME` (SystemC root directory) and `SYSTEMC_TARGET_ARCH` (e.g. linux64) and add the path of the library to `LD_LIBRARY_PATH`.
 
 ### Building DRAMSys
 DRAMSys uses CMake for the build process, the minimum required version is **CMake 3.10**.
@@ -25,7 +37,7 @@ $ cmake ../DRAMSys/
 $ make
 ```
 
-If you plan to integrate DRAMSys into your own SystemC/TLM project you can build the DRAMSys library only:
+If you plan to integrate DRAMSys into your own SystemC TLM-2.0 project you can build the DRAMSys library only:
 
 ```bash
 $ cd DRAMSys
@@ -36,6 +48,8 @@ $ make
 ```
 
 To build DRAMSys on Windows 10 we recommend to use the **Windows Subsystem for Linux (WSL)**.
+
+Information on how to couple DRAMSys with **gem5** can be found [here](DRAMSys/gem5/README.md). 
 
 ### Executing DRAMSys
 
@@ -89,13 +103,13 @@ The JSON code below shows an example configuration:
 }
 ```
 Fields Description:
-- "simulationid": Simulation file identifier
-- "simconfig": Configuration file for the DRAMSys Simulator
-- "thermalconfig": Temperature Simulator Configuration File
-- "memspec": Memory Device Specification File
-- "addressmapping": Addressmapping Configuration of the Memory Controller File.
-- "mcconfig": Memory Controller Configuration File.
-- "tracesetup": The trace setup is only used in standalone mode. In library mode the trace setup is ignored. Each device should be added as a json object inside the "tracesetup" array. 
+- "simulationid": simulation file identifier
+- "simconfig": configuration file for the DRAMSys simulator
+- "thermalconfig": thermal simulation configuration file
+- "memspec": memory device configuration file
+- "addressmapping": address mapping configuration file
+- "mcconfig": memory controller configuration file
+- "tracesetup": The trace setup is only used in standalone mode. In library mode or gem5 mode the trace setup is ignored. Each device should be added as a json object inside the "tracesetup" array. 
 
 Each **trace setup** device configuration consists of two parameters, **clkMhz** (operation frequency of the **trace player**) and a trace file **name**. Most configuration fields reference other JSON files which contain more specialized chunks of the configuration like a memory specification, an address mapping and a memory controller configuration.
 
@@ -106,11 +120,11 @@ A **trace file** is a prerecorded file containing memory transactions. Each memo
 
 There are two different kinds of trace files. They differ in their timing behavior and are distinguished by their file extension.
 
-##### STL Trace (.stl)
+##### STL Traces (.stl)
 
-The times tamp corresponds to the time the request is to be issued and it is given in cycles of the bus master device. Example: the device is an FPGA with a frequency of 200 MHz (clock period of 5 ns). If the time stamp is 10 it means that the request is to be issued when time is 50 ns.
+The time stamp corresponds to the time the request is to be issued and it is given in cycles of the bus master device. Example: The device is an FPGA with a frequency of 200 MHz (clock period of 5 ns). If the time stamp is 10 the request is to be issued when time is 50 ns.
 
-Here is an example syntax:
+Syntax example:
 
 ```
 # Comment lines begin with #
@@ -123,9 +137,9 @@ Here is an example syntax:
 
 ##### Relative STL Traces (.rstl)
 
-The time stamp corresponds to the time the request is to be issued relative to the end of the transaction before or the beginning of the trace. This results in a simulation in which the trace player is able to react to possible delays due to DRAM bottlenecks.
+The time stamp corresponds to the time the request is to be issued relative to the end of the previous transaction. This results in a simulation in which the trace player is able to react to possible delays due to DRAM bottlenecks.
 
-Here is an example syntax:
+Syntax example:
 
 ```
 # Comment lines begin with #
@@ -136,15 +150,17 @@ Here is an example syntax:
 25:	read	0x400180
 ```
 
+##### Elastic Traces
+
+More information about elastic traces can be found in the [gem5 readme](DRAMSys/gem5/README.md).
+
 #### Trace Player
 
-A **trace player** is **equivalent** to a bus master **device** (processor, FPGA, etc.). It reads an input trace file and translates each line into a new memory request. By adding a new device element into the trace setup section one can specify a new trace player, its operating frequency and the trace file for that trace player.
+A trace player is equivalent to a bus master device (processor, FPGA, etc.). It reads an input trace file and translates each line into a new memory request. By adding a new device element into the trace setup section one can specify a new trace player, its operating frequency and its trace file.
 
 #### Configuration File Sections
 
-The main configuration file is divided into self-contained sections. Each of these sections refers to sub-configuration files.
-
-Below, the sub-configurations are listed and explained.
+The main configuration file is divided into self-contained sections. Each of these sections refers to sub-configuration files. Below, the sub-configurations are listed and explained.
 
 ##### Simulator Configuration
 
@@ -214,64 +230,15 @@ The content of [ddr3.json](DRAMSys/library/resources/configs/simulator/ddr3.json
     - "Store": store data without error model
     - "ErrorModel": store data with error model [6]
 
-##### Temperature Simulator Configuration
+##### Thermal Simulation
 
-The content of [config.json](DRAMSys/library/resources/configs/thermalsim/config.json) is presented below as an example.
-
-```json
-{
-    "thermalsimconfig": {
-        "TemperatureScale": "Celsius",
-        "StaticTemperatureDefaultValue": 89,
-        "ThermalSimPeriod": 100,
-        "ThermalSimUnit": "us",
-        "PowerInfoFile": "powerInfo.json",
-        "IceServerIp": "127.0.0.1",
-        "IceServerPort": 11880,
-        "SimPeriodAdjustFactor": 10,
-        "NPowStableCyclesToIncreasePeriod": 5,
-        "GenerateTemperatureMap": true,
-        "GeneratePowerMap": true
-    }
-}
-```
-  - *TemperatureScale* (string)
-    - "Celsius"
-    - "Fahrenheit"
-    - "Kelvin"
-  - *StaticTemperatureDefaultValue* (int)    
-    - Temperature value for simulations with static temperature
-  - *ThermalSimPeriod* (double)   
-    - Period of the thermal simulation
-  - *ThermalSimUnit* (string)
-    - "s": seconds
-    - "ms": millisecond
-    - "us": microseconds
-    - "ns": nanoseconds
-    - "ps": picoseconds
-    - "fs": femtoseconds
-  - *PowerInfoFile* (string)    
-    - File containing power related information: devices identifiers, initial power values and power thresholds.
-  - *IceServerIp* (string)    
-    - 3D-ICE server IP address
-  - *IceServerPort* (unsigned int)    
-    - 3D-ICE server port
-  - *SimPeriodAdjustFactor* (unsigned int)    
-    - When substantial changes in power occur (i.e., changes that exceed the thresholds), then the simulation period will be divided by this number causing the thermal simulation to be executed more often.
-  - *NPowStableCyclesToIncreasePeriod* (unsigned int)    
-    - Wait this number of thermal simulation cycles with power stability (i.e., changes that do not exceed the thresholds) to start increasing the simulation period back to its configured value.
-  - *GenerateTemperatureMap* (boolean)
-    - true: generate temperature map files during thermal simulation
-    - false: do not generate temperature map files during thermal simulation
-  - *GeneratePowerMap* (boolean)
-    - true: generate power map files during thermal simulation
-    - false: do not generate power map files during thermal simulation
+The thermal simulation configuration can be found [here](#thermal-simulation-configuration).
 
 
 ##### Memory Specification
 
-A file with memory specifications. Timings and currents come from data sheets and measurements, and usually do not change.  
-The fields inside "mempowerspec" can be written directly as a **double** type. "memoryId" and "memoryType" are **string**. The others are **unsigned int**.
+A file with memory specifications. Timings and currents come from data sheets and measurements and usually do not change.  
+The fields inside "mempowerspec" can be written directly as a **double** type, "memoryId" and "memoryType" are **string**, all other fields are **unsigned int**.
 
 ##### Address Mapping
 
@@ -305,7 +272,7 @@ Used fields:
 
 ```
 
-##### Memory Controller Configuration
+##### Memory Controller
 
 An example follows.
 
@@ -458,19 +425,97 @@ $ cd DRAMSys/build/simulator/
 $ ./DRAMSys ../../DRAMSys/library/resources/simulations/wideio-thermal.json
 ```
 
-## DRAMSys with gem5
+#### Thermal Simulation Configuration
 
-Further information about the usage of DRAMSys with gem5 can be found [here](DRAMSys/gem5/README.md). 
+The content of [config.json](DRAMSys/library/resources/configs/thermalsim/config.json) is presented below as an example.
+
+```json
+{
+    "thermalsimconfig": {
+        "TemperatureScale": "Celsius",
+        "StaticTemperatureDefaultValue": 89,
+        "ThermalSimPeriod": 100,
+        "ThermalSimUnit": "us",
+        "PowerInfoFile": "powerInfo.json",
+        "IceServerIp": "127.0.0.1",
+        "IceServerPort": 11880,
+        "SimPeriodAdjustFactor": 10,
+        "NPowStableCyclesToIncreasePeriod": 5,
+        "GenerateTemperatureMap": true,
+        "GeneratePowerMap": true
+    }
+}
+```
+
+  - *TemperatureScale* (string)
+    - "Celsius"
+    - "Fahrenheit"
+    - "Kelvin"
+  - *StaticTemperatureDefaultValue* (int)    
+    - Temperature value for simulations with static temperature
+  - *ThermalSimPeriod* (double)   
+    - Period of the thermal simulation
+  - *ThermalSimUnit* (string)
+    - "s": seconds
+    - "ms": millisecond
+    - "us": microseconds
+    - "ns": nanoseconds
+    - "ps": picoseconds
+    - "fs": femtoseconds
+  - *PowerInfoFile* (string)    
+    - File containing power related information: devices identifiers, initial power values and power thresholds.
+  - *IceServerIp* (string)    
+    - 3D-ICE server IP address
+  - *IceServerPort* (unsigned int)    
+    - 3D-ICE server port
+  - *SimPeriodAdjustFactor* (unsigned int)    
+    - When substantial changes in power occur (i.e., changes that exceed the thresholds), then the simulation period will be divided by this number causing the thermal simulation to be executed more often.
+  - *NPowStableCyclesToIncreasePeriod* (unsigned int)    
+    - Wait this number of thermal simulation cycles with power stability (i.e., changes that do not exceed the thresholds) to start increasing the simulation period back to its configured value.
+  - *GenerateTemperatureMap* (boolean)
+    - true: generate temperature map files during thermal simulation
+    - false: do not generate temperature map files during thermal simulation
+  - *GeneratePowerMap* (boolean)
+    - true: generate power map files during thermal simulation
+    - false: do not generate power map files during thermal simulation
 
 ## Trace Analyzer
 
-If you want to use the database recording feature and the Trace Analyzer tool for result analysis please contact [Matthias Jung](mailto:matthias.jung@iese.fraunhofer.de).
+To provide better analysis capabilities for DRAM subsystem design space exploration than the usual performance-related outputs to the console, DRAMSys offers the Trace Analyzer. 
+
+All requests, responses and DRAM commands can be recorded in an SQLite trace database during a simulation and visualized with the tool afterwards. An evaluation of the trace databases can be performed with the powerful Python interface of the Trace Analyzer. Different metrics are described as SQL statements and formulas in Python, which can be customized or extended without recompilation.
+
+The Trace Analyzer's main window is shown below.
+
+If you are interested in the database recording feature and the Trace Analyzer please contact [Matthias Jung](mailto:matthias.jung@iese.fraunhofer.de).
+
+![Trace Analyzer Main Window](DRAMSys/docs/images/traceanalyzer.png) 
+
+## List of Contributors
+
+Shama Bhosale  
+Luiza Correa  
+Peter Ehses  
+Johannes Feldmann  
+Robert Gernhardt  
+Doris Gulai  
+Matthias Jung  
+Frederik Lauer  
+Ana Mativi  
+Felipe S. Prado  
+Janik Schlemminger  
+Lukas Steiner  
+Thanh C. Tran  
+Tran Anh Quoc  
+Éder F. Zulian
 
 ## Disclaimer
 
 This is the public read-only mirror of an internal DRAMSys repository. Pull requests will not be merged but the changes might be added internally and published with a future commit. The repositories are synchronized from time to time.
 
 The user DOES NOT get ANY WARRANTIES when using this tool. This software is released under the BSD 3-Clause License. By using this software, the user implicitly agrees to the licensing terms.
+
+If you decide to use DRAMSys in your research please cite the paper [3].
 
 ## References
 
@@ -492,5 +537,11 @@ M. Jung, M. Sadri, C. Weis, N. Wehn, L. Benini. VLSI-SoC, October, 2014, Playa d
 [6] Retention Time Measurements and Modelling of Bit Error Rates of WIDE-I/O DRAM in MPSoCs  
 C. Weis, M. Jung, P. Ehses, C. Santos, P. Vivet, S. Goossens, M. Koedam, N. Wehn. IEEE Conference Design, Automation and Test in Europe (DATE), March, 2015, Grenoble, France.
 
-[7] ConGen: An Application Specific DRAM Memory Controller Generator
+[7] ConGen: An Application Specific DRAM Memory Controller Generator  
 M. Jung, I. Heinrich, M. Natale, D. M. Mathew, C. Weis, S. Krumke, N. Wehn. International Symposium on Memory Systems (MEMSYS 2016), October, 2016, Washington, DC, USA.
+
+[8] Simulating DRAM controllers for future system architecture exploration  
+A. Hansson, N. Agarwal, A. Kolli, T. Wenisch, A. N. Udipi. IEEE International Symposium on Performance Analysis of Systems and Software (ISPASS), 2014, Monterey, USA.
+
+[9] Fast Validation of DRAM Protocols with Timed Petri Nets  
+M. Jung, K. Kraft, T. Soliman, C. Sudarshan, C. Weis, N. Wehn. ACM International Symposium on Memory Systems (MEMSYS 2019), October, 2019, Washington, DC, USA.
