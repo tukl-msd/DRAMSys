@@ -33,35 +33,72 @@
 # Authors: 
 #    Matthias Jung
 #    Eder F. Zulian
+#    Lukas Steiner
 
 use warnings;
 use strict;
 
 # Assuming this address mapping:
-#   <addressmapping>
-#        <channel from="27" to="28" />
-#        <row   from="14" to="26" />
-#        <column from="7" to="13" />
-#        <bank  from="4" to="6" />
-#        <bytes from="0" to="3" />
-#   </addressmapping>
+# {
+#     "CONGEN": {
+#         "BYTE_BIT": [
+#             0,
+#             1,
+#             2,
+#             3
+#         ],
+#         "BANK_BIT": [
+#             4,
+#             5
+#         ],
+#         "COLUMN_BIT": [
+#             6,
+#             7,
+#             8,
+#             9,
+#             10,
+#             11,
+#             12
+#         ],
+#         "ROW_BIT": [
+#             13,
+#             14,
+#             15,
+#             16,
+#             17,
+#             18,
+#             19,
+#             20,
+#             21,
+#             22,
+#             23,
+#             24
+#         ],
+#         "CHANNEL_BIT": [
+#             25,
+#             26
+#         ]
+#     }
+# }
 
 # This is how it should look like later:
-# 31:     write   0x0     ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+# 31:     write   0x0     0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
 
-my $numberOfRows = 8192;
-my $numberOfColumnsPerRow = 128;
+my $numberOfChannels = 4;
+my $numberOfRows = 4096;
+my $numberOfColumns = 128;
 my $bytesPerColumn = 16;
 my $burstLength = 4; # burst length of 4 columns --> 4 columns written or read per access
 my $dataLength = $bytesPerColumn * $burstLength;
 
-my $rowOffset = 0x4000;
-my $colOffset = 0x80;
+my $channelOffset = 0x2000000;
+my $rowOffset = 0x2000;
+my $columnOffset = 0x40;
 
 # Generate Data Pattern:
 my $dataPatternByte = "ff";
 
-my $dataPattern = "";
+my $dataPattern = "0x";
 for(my $i = 0; $i < $dataLength; $i++)
 {
     $dataPattern .= $dataPatternByte;
@@ -71,28 +108,34 @@ my $clkCounter = 0;
 my $addr = 0;
 
 # Generate Trace file (writes):
-for(my $row = 0; $row < ($numberOfRows * $rowOffset); $row = $row + $rowOffset)
+for(my $cha = 0; $cha < ($numberOfChannels * $channelOffset); $cha = $cha + $channelOffset)
 {
-    for(my $col = 0; $col < ($numberOfColumnsPerRow * $colOffset); $col = $col + ($colOffset * $burstLength))
+    for(my $row = 0; $row < ($numberOfRows * $rowOffset); $row = $row + $rowOffset)
     {
-        my $addrHex = sprintf("0x%x", $addr);
-        print "$clkCounter:\twrite\t$addrHex\t$dataPattern\n";
-        $clkCounter++;
-        $addr += $colOffset * $burstLength;
+        for(my $col = 0; $col < ($numberOfColumns * $columnOffset); $col = $col + ($columnOffset * $burstLength))
+        {
+            my $addrHex = sprintf("0x%x", $addr);
+            print "$clkCounter:\twrite\t$addrHex\t$dataPattern\n";
+            $clkCounter++;
+            $addr += $columnOffset * $burstLength;
+        }
     }
 }
 
-$clkCounter = 350000000;
+$clkCounter = 50000000;
 $addr = 0;
 
 # Generate Trace file (reads):
-for(my $row = 0; $row < ($numberOfRows * $rowOffset); $row = $row + $rowOffset)
+for(my $cha = 0; $cha < ($numberOfChannels * $channelOffset); $cha = $cha + $channelOffset)
 {
-    for(my $col = 0; $col < ($numberOfColumnsPerRow * $colOffset); $col = $col + ($colOffset * $burstLength))
+    for(my $row = 0; $row < ($numberOfRows * $rowOffset); $row = $row + $rowOffset)
     {
-        my $addrHex = sprintf("0x%x", $addr);
-        print "$clkCounter:\tread\t$addrHex\t$dataPattern\n";
-        $clkCounter++;
-        $addr += $colOffset * $burstLength;
+        for(my $col = 0; $col < ($numberOfColumns * $columnOffset); $col = $col + ($columnOffset * $burstLength))
+        {
+            my $addrHex = sprintf("0x%x", $addr);
+            print "$clkCounter:\tread\t$addrHex\n";
+            $clkCounter++;
+            $addr += $columnOffset * $burstLength;
+        }
     }
 }

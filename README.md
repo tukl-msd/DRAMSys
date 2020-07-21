@@ -1,7 +1,14 @@
-DRAMSys4.0
-===========
+<img src="DRAMSys/docs/images/dramsys4_0.png" width="350" style="float: left;"/>  
 
-**DRAMSys4.0** [1] [2] [3] is a flexible DRAM subsystem design space exploration framework based on SystemC TLM-2.0.
+**DRAMSys4.0** is a flexible DRAM subsystem design space exploration framework based on SystemC TLM-2.0.
+
+## Disclaimer
+
+This is the public read-only mirror of an internal DRAMSys repository. Pull requests will not be merged but the changes might be added internally and published with a future commit. The repositories are synchronized from time to time.
+
+The user DOES NOT get ANY WARRANTIES when using this tool. This software is released under the BSD 3-Clause License. By using this software, the user implicitly agrees to the licensing terms.
+
+If you decide to use DRAMSys in your research please cite the papers [2] [3]. To cite the TLM methodology of DRAMSys use the paper [1].
 
 ## Key Features
 
@@ -15,10 +22,16 @@ DRAMSys4.0
 - coupling to **DRAMPower** [4] and **3D-ICE** [8] for power and thermal simulation
 - **Trace Analyzer** for visual and metric-based result analysis
 
+## Architecture and Functionality
+
+A UML diagram of the software architecture is presented below; different component implementations are left out for simplicity. More information about the architecture and functionality can be found in the papers [1] [2] [3] and in the introduction video on [Youtube](https://www.youtube.com/watch?v=8EkC3mYWpQY).
+
+<img src="DRAMSys/docs/images/dramsys_uml.png" alt="UML"  />
+
 ## Basic Setup
 
 Start using DRAMSys by cloning the repository.
-Use the *--recursive* flag to initialize all submodules within the repository, namely **DRAMPower**, **SystemC** and **nlohmann json**.
+Use the `--recursive` flag to initialize all submodules within the repository, namely **DRAMPower**, **SystemC** and **nlohmann json**.
 
 ### Dependencies
 
@@ -131,7 +144,7 @@ Syntax example:
 # [clock-cyle]: [write|read] [hex-address] [hex-data (optional)]
 31:	read	0x400140
 33:	read	0x400160
-56:	write	0x7fff8000 0x123456789abcdef
+56:	write	0x7fff8000 0x123456789abcdef...
 81:	read	0x400180
 ```
 
@@ -146,7 +159,7 @@ Syntax example:
 # [clock-cyle]: [write|read] [hex-address] [hex-data (optional)]
 31:	read	0x400140
 2:	read	0x400160
-23:	write	0x7fff8000 0x123456789abcdef
+23:	write	0x7fff8000 0x123456789abcdef...
 25:	read	0x400180
 ```
 
@@ -181,8 +194,8 @@ The content of [ddr3.json](DRAMSys/library/resources/configs/simulator/ddr3.json
         "ECCControllerMode": "Disabled",
         "UseMalloc": false,
         "AddressOffset": 0,
-        "ErrorCSVFile": "",
         "ErrorChipSeed": 42,
+        "ErrorCSVFile": "",
         "StoreMode": "NoStorage"
     }
 }
@@ -223,12 +236,12 @@ The content of [ddr3.json](DRAMSys/library/resources/configs/simulator/ddr3.json
   - Address offset of the DRAM subsystem (required for the gem5 coupling).
 - *ErrorChipSeed* (unsigned int)
   - Seed to initialize the random error generator.
-  - *ErrorCSVFile* (string)
-    - CSV file with error injection information.
-  - *StoreMode* (string)
-    - "NoStorage": no storage
-    - "Store": store data without error model
-    - "ErrorModel": store data with error model [6]
+- *ErrorCSVFile* (string)
+  - CSV file with error injection information.
+- *StoreMode* (string)
+  - "NoStorage": no storage
+  - "Store": store data without error model
+  - "ErrorModel": store data with error model [6]
 
 ##### Thermal Simulation
 
@@ -479,7 +492,7 @@ The content of [config.json](DRAMSys/library/resources/configs/thermalsim/config
     - true: generate power map files during thermal simulation
     - false: do not generate power map files during thermal simulation
 
-## Trace Analyzer
+## Trace Analyzer Consulting and Custom-Tailored Modifications
 
 To provide better analysis capabilities for DRAM subsystem design space exploration than the usual performance-related outputs to the console, DRAMSys offers the Trace Analyzer. 
 
@@ -487,7 +500,7 @@ All requests, responses and DRAM commands can be recorded in an SQLite trace dat
 
 The Trace Analyzer's main window is shown below.
 
-If you are interested in the database recording feature and the Trace Analyzer please contact [Matthias Jung](mailto:matthias.jung@iese.fraunhofer.de).
+If you are interested in the database recording feature and the Trace Analyzer, if you need support on how to setup DRAMSys in a virtual platform of your company, or if you require custom modifications of the simulator please contact [Matthias Jung](mailto:matthias.jung@iese.fraunhofer.de).
 
 ![Trace Analyzer Main Window](DRAMSys/docs/images/traceanalyzer.png) 
 
@@ -508,14 +521,6 @@ Lukas Steiner
 Thanh C. Tran  
 Tran Anh Quoc  
 Éder F. Zulian
-
-## Disclaimer
-
-This is the public read-only mirror of an internal DRAMSys repository. Pull requests will not be merged but the changes might be added internally and published with a future commit. The repositories are synchronized from time to time.
-
-The user DOES NOT get ANY WARRANTIES when using this tool. This software is released under the BSD 3-Clause License. By using this software, the user implicitly agrees to the licensing terms.
-
-If you decide to use DRAMSys in your research please cite the paper [3].
 
 ## References
 

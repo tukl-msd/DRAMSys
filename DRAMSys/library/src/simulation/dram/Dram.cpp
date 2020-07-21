@@ -117,11 +117,9 @@ Dram::~Dram()
 
 void Dram::reportPower()
 {
-    static bool alreadyCalled = false;
-
-    if (!alreadyCalled)
+    if (!powerReported)
     {
-        alreadyCalled = true;
+        powerReported = true;
         DRAMPower->calcEnergy();
 
         // Print the final total energy and the average power for

@@ -51,6 +51,7 @@ class Dram : public sc_module
 {
 private:
     unsigned int bytesPerBurst = Configuration::getInstance().getBytesPerBurst();
+    bool powerReported = false;
 
 protected:
     Dram(sc_module_name);

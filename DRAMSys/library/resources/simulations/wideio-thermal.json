@@ -1,6 +1,6 @@
 {
     "simulation": {
-        "addressmapping": "am_wideio_4x256Mb_rbc.json",
+        "addressmapping": "am_wideio_thermal.json",
         "mcconfig": "fr_fcfs.json",
         "memspec": "JEDEC_256Mb_WIDEIO-200_128bit.json",
         "simconfig": "wideio_thermal.json",

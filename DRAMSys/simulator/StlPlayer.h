@@ -140,15 +140,15 @@ public:
                                 ("Malformed trace file. Data information could not be found (line " + std::to_string(
                                      lineCnt) + ").").c_str());
 
-            // Check if data length in the trace file is correct. We need two characters to represent 1 byte in hexadecimal.
-            if (dataStr.length() != (dataLength * 2))
+            // Check if data length in the trace file is correct. We need two characters to represent 1 byte in hexadecimal. Offset for 0x prefix.
+            if (dataStr.length() != (dataLength * 2 + 2))
                 SC_REPORT_FATAL("StlPlayer",
                                 ("Data in the trace file has an invalid length (line " + std::to_string(
                                      lineCnt) + ").").c_str());
 
             // Set data
             for (unsigned i = 0; i < dataLength; i++)
-                data[i] = (unsigned char)std::stoi(dataStr.substr(i * 2, 2).c_str(), 0, 16);
+                data[i] = (unsigned char)std::stoi(dataStr.substr(i * 2 + 2, 2).c_str(), 0, 16);
         }
 
         // Fill up the payload.
