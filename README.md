@@ -1,10 +1,10 @@
 <img src="DRAMSys/docs/images/dramsys4_0.png" width="350" style="float: left;"/>  
 
-**DRAMSys4.0** is a flexible DRAM subsystem design space exploration framework based on SystemC TLM-2.0.
+**DRAMSys4.0** is a flexible DRAM subsystem design space exploration framework based on SystemC TLM-2.0. It was developed at the [Microelectronic Systems Design Research Group](https://ems.eit.uni-kl.de/en/start/) and [Fraunhofer IESE](https://www.iese.fraunhofer.de/en.html).
 
 ## Disclaimer
 
-This is the public read-only mirror of an internal DRAMSys repository. Pull requests will not be merged but the changes might be added internally and published with a future commit. The repositories are synchronized from time to time.
+This is the public read-only mirror of an internal DRAMSys repository. Pull requests will not be merged but the changes might be added internally and published with a future commit. Both repositories are synchronized from time to time.
 
 The user DOES NOT get ANY WARRANTIES when using this tool. This software is released under the BSD 3-Clause License. By using this software, the user implicitly agrees to the licensing terms.
 
@@ -232,16 +232,16 @@ The content of [ddr3.json](DRAMSys/library/resources/configs/simulator/ddr3.json
   - *UseMalloc* (boolean)
     - false: model storage using mmap() (DEFAULT)
     - true: allocate memory for modeling storage using malloc()
-- *AddressOffset* (unsigned int)
-  - Address offset of the DRAM subsystem (required for the gem5 coupling).
-- *ErrorChipSeed* (unsigned int)
-  - Seed to initialize the random error generator.
-- *ErrorCSVFile* (string)
-  - CSV file with error injection information.
-- *StoreMode* (string)
-  - "NoStorage": no storage
-  - "Store": store data without error model
-  - "ErrorModel": store data with error model [6]
+  - *AddressOffset* (unsigned int)
+    - Address offset of the DRAM subsystem (required for the gem5 coupling).
+  - *ErrorChipSeed* (unsigned int)
+    - Seed to initialize the random error generator.
+  - *ErrorCSVFile* (string)
+    - CSV file with error injection information.
+  - *StoreMode* (string)
+    - "NoStorage": no storage
+    - "Store": store data without error model
+    - "ErrorModel": store data with error model [6]
 
 ##### Thermal Simulation
 
@@ -390,13 +390,24 @@ $ unzip 3d-ice-latest.zip
 $ cd 3d-ice-latest/3d-ice-2.2.6
 ```
 
-Open the file makefile.def and set some variables.
+Open the makefile.def and set the following variables properly, e.g.: 
 
 ```bash
 SLU_MAIN = $(HOME)/SuperLU_$(SLU_VERSION)
 YACC = bison-2.4.1
-SYSTEMC_ARCH = linux64
-SYSTEMC_MAIN = $(HOME)/systemc-2.3.x
+
+SYSTEMC_VERSION = 2.3.4
+SYSTEMC_ARCH    = linux64
+SYSTEMC_MAIN    = $(HOME)/systemc-$(SYSTEMC_VERSION)
+SYSTEMC_INCLUDE = $(SYSTEMC_MAIN)/include
+SYSTEMC_LIB     = $(SYSTEMC_MAIN)/lib-$(SYSTEMC_ARCH)
+```
+
+In case you are using the SystemC submodule and DRAMSys is located in your home directory the variables should be set as follows:
+
+```bash
+SYSTEMC_INCLUDE = $(HOME)/DRAMSys/DRAMSys/library/src/common/third_party/systemc/src
+SYSTEMC_LIB     = $(HOME)/DRAMSys/build/library/src/common/third_party/systemc/src
 ```
 
 Compile 3D-ICE with SystemC TLM-2.0 support:
@@ -504,7 +515,9 @@ If you are interested in the database recording feature and the Trace Analyzer, 
 
 ![Trace Analyzer Main Window](DRAMSys/docs/images/traceanalyzer.png) 
 
-## List of Contributors
+## Acknowledgements
+
+The development of DRAMSys was supported by the German Research Foundation (DFG) as part of the priority program [Dependable Embedded Systems SPP1500](http://spp1500.itec.kit.edu) and the DFG grant no. [WE2442/10-1](https://www.uni-kl.de/en/3d-dram/). Furthermore, it was supported within the Fraunhofer and DFG cooperation program (grant no. [WE2442/14-1](https://www.iese.fraunhofer.de/en/innovation_trends/autonomous-systems/memtonomy.html)) and by the [Fraunhofer High Performance Center for Simulation- and Software-Based Innovation](https://www.leistungszentrum-simulation-software.de/en.html). Special thanks go to all listed contributors for their work and commitment during seven years of development. 
 
 Shama Bhosale  
 Luiza Correa  
@@ -516,10 +529,12 @@ Matthias Jung
 Frederik Lauer  
 Ana Mativi  
 Felipe S. Prado  
+Tran Anh Quoc   
 Janik Schlemminger  
 Lukas Steiner  
 Thanh C. Tran  
-Tran Anh Quoc  
+Norbert Wehn  
+Christian Weis  
 Éder F. Zulian
 
 ## References

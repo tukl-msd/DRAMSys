@@ -1,7 +1,7 @@
 {
     "simulation": {
         "addressmapping": "am_ddr3_8x1Gbx8_dimm_p1KB_rbc.json",
-        "mcconfig": "fifoStrict.json",
+        "mcconfig": "fr_fcfs.json",
         "memspec": "MICRON_1Gb_DDR3-1600_8bit_G.json",
         "simconfig": "ddr3.json",
         "simulationid": "ddr3-example",
