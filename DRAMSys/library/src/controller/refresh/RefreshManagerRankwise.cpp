@@ -46,23 +46,21 @@ RefreshManagerRankwise::RefreshManagerRankwise(std::vector<BankMachine *> &bankM
     Configuration &config = Configuration::getInstance();
     memSpec = config.memSpec;
     timeForNextTrigger = memSpec->getRefreshIntervalAB();
-    setUpDummy(refreshPayload, rank);
+    setUpDummy(refreshPayload, 0, rank);
 
     maxPostponed = config.refreshMaxPostponed;
     maxPulledin = -config.refreshMaxPulledin;
 }
 
-std::pair<Command, tlm_generic_payload *> RefreshManagerRankwise::getNextCommand()
+std::tuple<Command, tlm_generic_payload *, sc_time> RefreshManagerRankwise::getNextCommand()
 {
-    if (sc_time_stamp() == timeToSchedule)
-        return std::pair<Command, tlm_generic_payload *>(nextCommand, &refreshPayload);
-    else
-        return std::pair<Command, tlm_generic_payload *>(Command::NOP, nullptr);
+    return std::tuple<Command, tlm_generic_payload *, sc_time>(nextCommand, &refreshPayload, timeToSchedule);
 }
 
 sc_time RefreshManagerRankwise::start()
 {
     timeToSchedule = sc_max_time();
+    nextCommand = Command::NOP;
 
     if (sc_time_stamp() >= timeForNextTrigger)
     {
@@ -130,7 +128,7 @@ sc_time RefreshManagerRankwise::start()
             }
             else
             {
-                // nextCommand stays Command::REFA
+                nextCommand = Command::REFA;
                 timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank, BankGroup(0), Bank(0));
                 return timeToSchedule;
             }
@@ -140,7 +138,7 @@ sc_time RefreshManagerRankwise::start()
         return timeForNextTrigger;
 }
 
-void RefreshManagerRankwise::updateState(Command command, tlm_generic_payload *)
+void RefreshManagerRankwise::updateState(Command command)
 {
     switch (command)
     {

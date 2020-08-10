@@ -58,7 +58,7 @@ class BankMachine
 public:
     virtual ~BankMachine() {}
     virtual sc_time start() = 0;
-    std::pair<Command, tlm::tlm_generic_payload *> getNextCommand();
+    std::tuple<Command, tlm::tlm_generic_payload *, sc_time> getNextCommand();
     void updateState(Command);
     void block();
 
@@ -74,7 +74,7 @@ protected:
     tlm::tlm_generic_payload *currentPayload = nullptr;
     SchedulerIF *scheduler;
     CheckerIF *checker;
-    Command nextCommand;
+    Command nextCommand = Command::NOP;
     BmState currentState = BmState::Precharged;
     Row currentRow;
     sc_time timeToSchedule = sc_max_time();

@@ -60,35 +60,35 @@ public:
                              / Configuration::getInstance().memSpec->dataRate
                              * Configuration::getInstance().memSpec->tCK;
 
-        double bandwidth = (activeTime / sc_time_stamp() * 100);
-        double bandwidthWoIdle = ((activeTime) / (sc_time_stamp() - idleTimeCollector.getIdleTime()) * 100);
+        double bandwidth = activeTime / sc_time_stamp();
+        double bandwidthWoIdle = activeTime / (sc_time_stamp() - idleTimeCollector.getIdleTime());
 
         double maxBandwidth = (
-                                  // fCK in Mhz e.g. 800 [MHz]:
-                                  (1000000 / Configuration::getInstance().memSpec->tCK.to_double())
+                                  // fCK in GHz e.g. 1 [GHz] (tCK in ps):
+                                  (1000 / Configuration::getInstance().memSpec->tCK.to_double())
                                   // DataRate e.g. 2
                                   * Configuration::getInstance().memSpec->dataRate
                                   // BusWidth e.g. 8 or 64
                                   * Configuration::getInstance().memSpec->bitWidth
                                   //   Number of devices on a DIMM e.g. 8
-                                  * Configuration::getInstance().memSpec->numberOfDevicesOnDIMM ) / ( 1024 );
+                                  * Configuration::getInstance().memSpec->numberOfDevicesOnDIMM );
 
         std::cout << name() << std::string("  Total Time:     ")
              << sc_time_stamp().to_string()
              << std::endl;
         std::cout << name() << std::string("  AVG BW:         ")
              << std::fixed << std::setprecision(2)
-             << ((bandwidth / 100) * maxBandwidth)
-             << " Gibit/s (" << bandwidth << " %)"
+             << (bandwidth * maxBandwidth)
+             << " Gb/s (" << (bandwidth * 100) << " %)"
              << std::endl;
         std::cout << name() << std::string("  AVG BW\\IDLE:    ")
              << std::fixed << std::setprecision(2)
-             << ((bandwidthWoIdle / 100) * maxBandwidth)
-             << " Gibit/s (" << bandwidthWoIdle << " %)"
+             << (bandwidthWoIdle * maxBandwidth)
+             << " Gb/s (" << (bandwidthWoIdle * 100) << " %)"
              << endl;
         std::cout << name() << std::string("  MAX BW:         ")
              << std::fixed << std::setprecision(2)
-             << maxBandwidth << " Gibit/s"
+             << maxBandwidth << " Gb/s"
              << std::endl;
     }
 

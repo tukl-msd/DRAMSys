@@ -28,6 +28,18 @@ A UML diagram of the software architecture is presented below; different compone
 
 <img src="DRAMSys/docs/images/dramsys_uml.png" alt="UML"  />
 
+## Trace Analyzer Consulting and Custom-Tailored Modifications
+
+To provide better analysis capabilities for DRAM subsystem design space exploration than the usual performance-related outputs to the console, DRAMSys offers the Trace Analyzer. 
+
+All requests, responses and DRAM commands can be recorded in an SQLite trace database during a simulation and visualized with the tool afterwards. An evaluation of the trace databases can be performed with the powerful Python interface of the Trace Analyzer. Different metrics are described as SQL statements and formulas in Python, which can be customized or extended without recompilation.
+
+The Trace Analyzer's main window is shown below.
+
+If you are interested in the database recording feature and the Trace Analyzer, if you need support on how to setup DRAMSys in a virtual platform of your company, or if you require custom modifications of the simulator please contact [Matthias Jung](mailto:matthias.jung@iese.fraunhofer.de).
+
+![Trace Analyzer Main Window](DRAMSys/docs/images/traceanalyzer.png) 
+
 ## Basic Setup
 
 Start using DRAMSys by cloning the repository.
@@ -201,7 +213,7 @@ The content of [ddr3.json](DRAMSys/library/resources/configs/simulator/ddr3.json
 }
 ```
 
-  - *SimulationName* (boolean)
+  - *SimulationName* (string)
     - Give the name of the simulation for distinguishing from other simulations.
   - *Debug* (boolean)
     - true: enables debug output on console (only supported by a debug build)
@@ -339,7 +351,7 @@ An example follows.
 
 ## DRAMSys with Thermal Simulation
 
-The thermal simulation is performed by a **3D-ICE** [8] server accessed through the network. Therefore users interested in thermal simulation during their DRAMSys simulations need to make sure they have a 3D-ICE server up and running before starting. For more information about 3D-ICE visit the [official website](https://www.epfl.ch/labs/esl/open-source-software-projects/3d-ice/).
+The thermal simulation is performed by a **3D-ICE** [8] server accessed through the network. Therefore users interested in thermal simulation during their DRAMSys simulations need to make sure they have a 3D-ICE server up and running before starting. For more information about 3D-ICE visit the [official website](https://www.epfl.ch/labs/esl/open-source-software-projects/3d-ice/). An example video that visualizes the results of a thermal simulation is provided on [Youtube](https://www.youtube.com/watch?v=Eacsq71hHtY).
 
 #### Installing 3D-ICE
 
@@ -502,18 +514,6 @@ The content of [config.json](DRAMSys/library/resources/configs/thermalsim/config
   - *GeneratePowerMap* (boolean)
     - true: generate power map files during thermal simulation
     - false: do not generate power map files during thermal simulation
-
-## Trace Analyzer Consulting and Custom-Tailored Modifications
-
-To provide better analysis capabilities for DRAM subsystem design space exploration than the usual performance-related outputs to the console, DRAMSys offers the Trace Analyzer. 
-
-All requests, responses and DRAM commands can be recorded in an SQLite trace database during a simulation and visualized with the tool afterwards. An evaluation of the trace databases can be performed with the powerful Python interface of the Trace Analyzer. Different metrics are described as SQL statements and formulas in Python, which can be customized or extended without recompilation.
-
-The Trace Analyzer's main window is shown below.
-
-If you are interested in the database recording feature and the Trace Analyzer, if you need support on how to setup DRAMSys in a virtual platform of your company, or if you require custom modifications of the simulator please contact [Matthias Jung](mailto:matthias.jung@iese.fraunhofer.de).
-
-![Trace Analyzer Main Window](DRAMSys/docs/images/traceanalyzer.png) 
 
 ## Acknowledgements
 

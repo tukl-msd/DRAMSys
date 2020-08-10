@@ -82,7 +82,7 @@ private:
     tlm::tlm_sync_enum nb_transport_bw(int channelId, tlm::tlm_generic_payload &payload,
                                   tlm::tlm_phase &phase, sc_time &bwDelay);
 
-    virtual unsigned int transport_dbg(int /*id*/, tlm::tlm_generic_payload &trans);
+    unsigned int transport_dbg(int /*id*/, tlm::tlm_generic_payload &trans);
 
     void peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase);
 

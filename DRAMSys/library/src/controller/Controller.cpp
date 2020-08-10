@@ -239,29 +239,27 @@ void Controller::controllerMethod()
         it->start();
 
     // (5) Choose one request and send it to DRAM
-    std::pair<Command, tlm_generic_payload *> commandPair;
-    std::vector<std::pair<Command, tlm_generic_payload *>> readyCommands;
-    // (5.1) Check for power-down commands (PDEA/PDEP/SREFEN or PDXA/PDXP/SREFEX)
+    std::tuple<Command, tlm_generic_payload *, sc_time> commandTuple;
+    std::list<std::tuple<Command, tlm_generic_payload *, sc_time>> readyCommands;
     for (unsigned rankID = 0; rankID < memSpec->numberOfRanks; rankID++)
     {
-        commandPair = powerDownManagers[rankID]->getNextCommand();
-        if (commandPair.second != nullptr)
-            readyCommands.push_back(commandPair);
+        // (5.1) Check for power-down commands (PDEA/PDEP/SREFEN or PDXA/PDXP/SREFEX)
+        commandTuple = powerDownManagers[rankID]->getNextCommand();
+        if (std::get<0>(commandTuple) != Command::NOP)
+            readyCommands.push_back(commandTuple);
         else
         {
             // (5.2) Check for refresh commands (PREA/PRE or REFA/REFB)
-            commandPair = refreshManagers[rankID]->getNextCommand();
-            if (commandPair.second != nullptr)
-                readyCommands.push_back(commandPair);
-            else
+            commandTuple = refreshManagers[rankID]->getNextCommand();
+            if (std::get<0>(commandTuple) != Command::NOP)
+                readyCommands.push_back(commandTuple);
+
+            // (5.3) Check for bank commands (PRE, ACT, RD/RDA or WR/WRA)
+            for (auto it : bankMachinesOnRank[rankID])
             {
-                // (5.3) Check for bank commands (PRE, ACT, RD/RDA or WR/WRA)
-                for (auto it : bankMachinesOnRank[rankID])
-                {
-                    commandPair = it->getNextCommand();
-                    if (commandPair.second != nullptr)
-                        readyCommands.push_back(commandPair);
-                }
+                commandTuple = it->getNextCommand();
+                if (std::get<0>(commandTuple) != Command::NOP)
+                    readyCommands.push_back(commandTuple);
             }
         }
     }
@@ -269,29 +267,29 @@ void Controller::controllerMethod()
     bool readyCmdBlocked = false;
     if (!readyCommands.empty())
     {
-        commandPair = cmdMux->selectCommand(readyCommands);
-        if (commandPair.second != nullptr) // can happen with FIFO strict
+        commandTuple = cmdMux->selectCommand(readyCommands);
+        if (std::get<0>(commandTuple) != Command::NOP) // can happen with FIFO strict
         {
-            Rank rank = DramExtension::getRank(commandPair.second);
-            BankGroup bankgroup = DramExtension::getBankGroup(commandPair.second);
-            Bank bank = DramExtension::getBank(commandPair.second);
+            Rank rank = DramExtension::getRank(std::get<1>(commandTuple));
+            BankGroup bankgroup = DramExtension::getBankGroup(std::get<1>(commandTuple));
+            Bank bank = DramExtension::getBank(std::get<1>(commandTuple));
 
-            if (isRankCommand(commandPair.first))
+            if (isRankCommand(std::get<0>(commandTuple)))
             {
                 for (auto it : bankMachinesOnRank[rank.ID()])
-                    it->updateState(commandPair.first);
+                    it->updateState(std::get<0>(commandTuple));
             }
             else
-                bankMachines[bank.ID()]->updateState(commandPair.first);
+                bankMachines[bank.ID()]->updateState(std::get<0>(commandTuple));
 
-            refreshManagers[rank.ID()]->updateState(commandPair.first, commandPair.second);
-            powerDownManagers[rank.ID()]->updateState(commandPair.first);
-            checker->insert(commandPair.first, rank, bankgroup, bank);
+            refreshManagers[rank.ID()]->updateState(std::get<0>(commandTuple));
+            powerDownManagers[rank.ID()]->updateState(std::get<0>(commandTuple));
+            checker->insert(std::get<0>(commandTuple), rank, bankgroup, bank);
 
-            if (isCasCommand(commandPair.first))
+            if (isCasCommand(std::get<0>(commandTuple)))
             {
-                scheduler->removeRequest(commandPair.second);
-                respQueue->insertPayload(commandPair.second, memSpec->getIntervalOnDataStrobe(commandPair.first).end);
+                scheduler->removeRequest(std::get<1>(commandTuple));
+                respQueue->insertPayload(std::get<1>(commandTuple), memSpec->getIntervalOnDataStrobe(std::get<0>(commandTuple)).end);
 
                 sc_time triggerTime = respQueue->getTriggerTime();
                 if (triggerTime != sc_max_time())
@@ -302,7 +300,7 @@ void Controller::controllerMethod()
             if (ranksNumberOfPayloads[rank.ID()] == 0)
                 powerDownManagers[rank.ID()]->triggerEntry();
 
-            sendToDram(commandPair.first, commandPair.second);
+            sendToDram(std::get<0>(commandTuple), std::get<1>(commandTuple));
         }
         else
             readyCmdBlocked = true;

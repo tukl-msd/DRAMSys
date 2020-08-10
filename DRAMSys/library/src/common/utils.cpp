@@ -140,7 +140,7 @@ std::string parseString(json &obj, std::string name)
         SC_REPORT_FATAL("Query json", ("Parameter '" + name + "' does not exist.").c_str());
 }
 
-void setUpDummy(tlm_generic_payload &payload, Rank rank, Bank bank)
+void setUpDummy(tlm_generic_payload &payload, uint64_t payloadID, Rank rank, BankGroup bankgroup, Bank bank)
 {
     payload.set_address(bank.getStartAddress());
     payload.set_command(TLM_READ_COMMAND);
@@ -149,6 +149,6 @@ void setUpDummy(tlm_generic_payload &payload, Rank rank, Bank bank)
     payload.set_dmi_allowed(false);
     payload.set_byte_enable_length(0);
     payload.set_streaming_width(0);
-    payload.set_extension(new DramExtension(Thread(UINT_MAX), rank, BankGroup(0),
-                                            bank, Row(0), Column(0), 0, 0));
+    payload.set_extension(new DramExtension(Thread(UINT_MAX), rank, bankgroup,
+                                            bank, Row(0), Column(0), 0, payloadID));
 }

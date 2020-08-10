@@ -38,23 +38,30 @@
 
 using namespace tlm;
 
-std::pair<Command, tlm_generic_payload *>
-CmdMuxOldest::selectCommand(std::vector<std::pair<Command, tlm_generic_payload *>> &readyCommands)
-{
-    auto it = readyCommands.begin();
-    auto result = it;
-    unsigned lastPayloadID = DramExtension::getPayloadID(it->second);
-    it++;
+std::tuple<Command, tlm_generic_payload *, sc_time>
+CmdMuxOldest::selectCommand(std::list<std::tuple<Command, tlm_generic_payload *, sc_time>> &readyCommands)
+{    
+    readyCommands.remove_if([](std::tuple<Command, tlm_generic_payload *, sc_time> element){return std::get<2>(element) != sc_time_stamp();});
 
-    while (it != readyCommands.end())
+    if (!readyCommands.empty())
     {
-        unsigned newPayloadID = DramExtension::getPayloadID(it->second);
-        if (newPayloadID < lastPayloadID)
-        {
-            lastPayloadID = newPayloadID;
-            result = it;
-        }
+        auto it = readyCommands.begin();
+        auto result = it;
+        uint64_t lastPayloadID = DramExtension::getPayloadID(std::get<1>(*it));
         it++;
+
+        while (it != readyCommands.end())
+        {
+            uint64_t newPayloadID = DramExtension::getPayloadID(std::get<1>(*it));
+            if (newPayloadID < lastPayloadID)
+            {
+                lastPayloadID = newPayloadID;
+                result = it;
+            }
+            it++;
+        }
+        return *result;
     }
-    return *result;
+    else
+        return std::tuple<Command, tlm_generic_payload *, sc_time>(Command::NOP, nullptr, sc_max_time());
 }

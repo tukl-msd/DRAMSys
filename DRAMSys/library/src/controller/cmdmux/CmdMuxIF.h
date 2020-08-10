@@ -35,17 +35,18 @@
 #ifndef CMDMUXIF_H
 #define CMDMUXIF_H
 
+#include <systemc.h>
 #include <tlm.h>
 #include <utility>
-#include <vector>
+#include <list>
 #include "../Command.h"
 
 class CmdMuxIF
 {
 public:
     virtual ~CmdMuxIF() {}
-    virtual std::pair<Command, tlm::tlm_generic_payload *>
-        selectCommand(std::vector<std::pair<Command, tlm::tlm_generic_payload *>> &) = 0;
+    virtual std::tuple<Command, tlm::tlm_generic_payload *, sc_time>
+        selectCommand(std::list<std::tuple<Command, tlm::tlm_generic_payload *, sc_time>> &) = 0;
 };
 
 #endif // CMDMUXIF_H

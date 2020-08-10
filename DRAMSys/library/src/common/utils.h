@@ -110,7 +110,7 @@ unsigned int parseUint(nlohmann::json &obj, std::string name);
 double parseUdouble(nlohmann::json &obj, std::string name);
 std::string parseString(nlohmann::json &obj, std::string name);
 
-void setUpDummy(tlm::tlm_generic_payload &payload, Rank rank = Rank(0), Bank bank = Bank(0));
+void setUpDummy(tlm::tlm_generic_payload &payload, uint64_t payloadID, Rank rank = Rank(0), BankGroup bankgroup = BankGroup(0), Bank bank = Bank(0));
 
 #endif // UTILS_H
 

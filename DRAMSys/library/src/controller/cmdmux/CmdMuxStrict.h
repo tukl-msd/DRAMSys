@@ -40,8 +40,8 @@
 class CmdMuxStrict : public CmdMuxIF
 {
 public:
-    std::pair<Command, tlm::tlm_generic_payload *>
-        selectCommand(std::vector<std::pair<Command, tlm::tlm_generic_payload *>> &);
+    std::tuple<Command, tlm::tlm_generic_payload *, sc_time>
+        selectCommand(std::list<std::tuple<Command, tlm::tlm_generic_payload *, sc_time>> &);
 
 private:
     uint64_t nextPayloadID = 0;

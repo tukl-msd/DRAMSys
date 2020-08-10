@@ -38,24 +38,29 @@
 
 using namespace tlm;
 
-std::pair<Command, tlm_generic_payload *>
-CmdMuxStrict::selectCommand(std::vector<std::pair<Command, tlm_generic_payload *>> &readyCommands)
+std::tuple<Command, tlm_generic_payload *, sc_time>
+CmdMuxStrict::selectCommand(std::list<std::tuple<Command, tlm_generic_payload *, sc_time>> &readyCommands)
 {
-    for (auto it : readyCommands)
+    readyCommands.remove_if([](std::tuple<Command, tlm_generic_payload *, sc_time> element){return std::get<2>(element) != sc_time_stamp();});
+
+    if (!readyCommands.empty())
     {
-        if (isCasCommand(it.first))
+        for (auto it : readyCommands)
         {
-            if (DramExtension::getPayloadID(it.second) == nextPayloadID)
+            if (isCasCommand(std::get<0>(it)))
             {
-                nextPayloadID++;
-                return it;
+                if (DramExtension::getPayloadID(std::get<1>(it)) == nextPayloadID)
+                {
+                    nextPayloadID++;
+                    return it;
+                }
             }
         }
+        for (auto it : readyCommands)
+        {
+            if (isRasCommand(std::get<0>(it)))
+                return it;
+        }
     }
-    for (auto it : readyCommands)
-    {
-        if (isRasCommand(it.first))
-            return it;
-    }
-    return std::pair<Command, tlm_generic_payload *>(Command::NOP, nullptr);
+    return std::tuple<Command, tlm_generic_payload *, sc_time>(Command::NOP, nullptr, sc_max_time());
 }

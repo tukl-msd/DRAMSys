@@ -40,7 +40,7 @@ using namespace tlm;
 PowerDownManagerStaggered::PowerDownManagerStaggered(Rank rank, CheckerIF *checker)
     : rank(rank), checker(checker)
 {
-    setUpDummy(powerDownPayload, rank);
+    setUpDummy(powerDownPayload, UINT64_MAX, rank);
 }
 
 void PowerDownManagerStaggered::triggerEntry()
@@ -69,17 +69,15 @@ void PowerDownManagerStaggered::triggerInterruption()
         exitTriggered = true;
 }
 
-std::pair<Command, tlm_generic_payload *> PowerDownManagerStaggered::getNextCommand()
+std::tuple<Command, tlm_generic_payload *, sc_time> PowerDownManagerStaggered::getNextCommand()
 {
-    if (sc_time_stamp() == timeToSchedule)
-        return std::pair<Command, tlm_generic_payload *>(nextCommand, &powerDownPayload);
-    else
-        return std::pair<Command, tlm_generic_payload *>(Command::NOP, nullptr);
+    return std::tuple<Command, tlm_generic_payload *, sc_time>(nextCommand, &powerDownPayload, timeToSchedule);
 }
 
 sc_time PowerDownManagerStaggered::start()
 {
     timeToSchedule = sc_max_time();
+    nextCommand = Command::NOP;
 
     if (exitTriggered)
     {

@@ -143,19 +143,27 @@ DRAMSys::~DRAMSys()
 
 void DRAMSys::logo()
 {
-#define REDTXT(s) std::string("\033[0;31m" + std::string(s) + "\033[0m")
-#define BOLDBLUETXT(s) std::string("\033[1;34m" + std::string(s) + "\033[0m")
-    std::cout << std::endl;
-    std::cout << REDTXT("  |||") << std::endl;
-    std::cout << REDTXT(" +---+   Microelectronic Systems") << std::endl;
-    std::cout << REDTXT("=|   |=  Design Research Group") << std::endl;
-    std::cout << REDTXT("=|   |=  ") << BOLDBLUETXT("Technische Universität Kaiserslautern")
+#define GREENTXT(s)  std::string(("\u001b[38;5;28m"+std::string((s))+"\033[0m"))
+#define DGREENTXT(s) std::string(("\u001b[38;5;22m"+std::string((s))+"\033[0m"))
+#define LGREENTXT(s) std::string(("\u001b[38;5;82m"+std::string((s))+"\033[0m"))
+#define BLACKTXT(s)  std::string(("\u001b[38;5;232m"+std::string((s))+"\033[0m"))
+#define BOLDTXT(s)   std::string(("\033[1;37m"+std::string((s))+"\033[0m"))
+    cout << std::endl
+         << BLACKTXT("■ ■ ")<< DGREENTXT("■  ")
+         << BOLDTXT("DRAMSys4.0, Copyright (c) 2020")
+         << std::endl
+         << BLACKTXT("■ ") << DGREENTXT("■ ") << GREENTXT("■  ")
+         << "Technische Universitaet Kaiserslautern,"
+         << std::endl
+         << DGREENTXT("■ ") << GREENTXT("■ ") << LGREENTXT("■  " )
+         << "Fraunhofer IESE"
+         << std::endl
          << std::endl;
-    std::cout << REDTXT(" +---+   ") << std::endl;
-    std::cout << REDTXT("  |||    ") << "DRAMSys4.0" << std::endl;
-    std::cout << std::endl;
-#undef REDTXT
-#undef BOLDBLUETXT
+#undef GREENTXT
+#undef DGREENTXT
+#undef LGREENTXT
+#undef BLACKTXT
+#undef BOLDTXT
 }
 
 void DRAMSys::setupDebugManager(const std::string &traceName __attribute__((unused)))

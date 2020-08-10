@@ -65,9 +65,9 @@ public:
     virtual ~Controller();
 
 protected:
-    virtual tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload &, tlm::tlm_phase &, sc_time &);
-    virtual tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload &, tlm::tlm_phase &, sc_time &);
-    virtual unsigned int transport_dbg(tlm::tlm_generic_payload &);
+    virtual tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload &, tlm::tlm_phase &, sc_time &) override;
+    virtual tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload &, tlm::tlm_phase &, sc_time &) override;
+    virtual unsigned int transport_dbg(tlm::tlm_generic_payload &) override;
 
     virtual void sendToFrontend(tlm::tlm_generic_payload *, tlm::tlm_phase);
     virtual void sendToDram(Command, tlm::tlm_generic_payload *);

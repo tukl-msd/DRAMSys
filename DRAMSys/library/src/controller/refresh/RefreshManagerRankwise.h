@@ -46,9 +46,9 @@ class RefreshManagerRankwise final : public RefreshManagerIF
 public:
     RefreshManagerRankwise(std::vector<BankMachine *> &, PowerDownManagerIF *, Rank, CheckerIF *);
 
-    virtual std::pair<Command, tlm::tlm_generic_payload *> getNextCommand() override;
+    virtual std::tuple<Command, tlm::tlm_generic_payload *, sc_time> getNextCommand() override;
     virtual sc_time start() override;
-    virtual void updateState(Command, tlm::tlm_generic_payload *) override;
+    virtual void updateState(Command) override;
 
 private:
     enum class RmState {Regular, Pulledin} state = RmState::Regular;
@@ -60,7 +60,7 @@ private:
     sc_time timeToSchedule = sc_max_time();
     Rank rank;
     CheckerIF *checker;
-    Command nextCommand;
+    Command nextCommand = Command::NOP;
 
     unsigned activatedBanks = 0;
 

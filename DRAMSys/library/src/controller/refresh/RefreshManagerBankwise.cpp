@@ -50,27 +50,26 @@ RefreshManagerBankwise::RefreshManagerBankwise(std::vector<BankMachine *> &bankM
     refreshPayloads = std::vector<tlm_generic_payload>(memSpec->banksPerRank);
     for (unsigned bankID = 0; bankID < memSpec->banksPerRank; bankID++)
     {
-        setUpDummy(refreshPayloads[bankID], rank, bankMachines[bankID]->getBank());
+        setUpDummy(refreshPayloads[bankID], 0, rank, bankMachines[bankID]->getBankGroup(), bankMachines[bankID]->getBank());
         allBankMachines.push_back(bankMachines[bankID]);
     }
     remainingBankMachines = allBankMachines;
+    currentBankMachine = *remainingBankMachines.begin();
 
     maxPostponed = config.refreshMaxPostponed * memSpec->banksPerRank;
     maxPulledin = -(config.refreshMaxPulledin * memSpec->banksPerRank);
 }
 
-std::pair<Command, tlm_generic_payload *> RefreshManagerBankwise::getNextCommand()
+std::tuple<Command, tlm_generic_payload *, sc_time> RefreshManagerBankwise::getNextCommand()
 {
-    if (sc_time_stamp() == timeToSchedule)
-        return std::pair<Command, tlm_generic_payload *>
-                (nextCommand, &refreshPayloads[currentBankMachine->getBank().ID() % memSpec->banksPerRank]);
-    else
-        return std::pair<Command, tlm_generic_payload *>(Command::NOP, nullptr);
+    return std::tuple<Command, tlm_generic_payload *, sc_time>
+            (nextCommand, &refreshPayloads[currentBankMachine->getBank().ID() % memSpec->banksPerRank], timeToSchedule);
 }
 
 sc_time RefreshManagerBankwise::start()
 {
     timeToSchedule = sc_max_time();
+    nextCommand = Command::NOP;
 
     if (sc_time_stamp() >= timeForNextTrigger)
     {
@@ -86,13 +85,14 @@ sc_time RefreshManagerBankwise::start()
 
         if (state == RmState::Regular)
         {
-            currentIterator = remainingBankMachines.begin();
-            currentBankMachine = *remainingBankMachines.begin();
             bool forcedRefresh = (flexibilityCounter == maxPostponed);
             bool allBanksBusy = true;
 
             if (!skipSelection)
             {
+                currentIterator = remainingBankMachines.begin();
+                currentBankMachine = *remainingBankMachines.begin();
+
                 for (auto it = remainingBankMachines.begin(); it != remainingBankMachines.end(); it++)
                 {
                     if ((*it)->isIdle())
@@ -168,7 +168,7 @@ sc_time RefreshManagerBankwise::start()
         return timeForNextTrigger;
 }
 
-void RefreshManagerBankwise::updateState(Command command, tlm_generic_payload *payload)
+void RefreshManagerBankwise::updateState(Command command)
 {
     switch (command)
     {
