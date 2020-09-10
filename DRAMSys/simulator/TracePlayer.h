@@ -64,7 +64,6 @@ protected:
     tlm_utils::peq_with_cb_and_phase<TracePlayer> payloadEventQueue;
     void finish();
     void terminate();
-    void setNumberOfTransactions(unsigned int n);
     unsigned int numberOfTransactions = 0;
     bool storageEnabled = false;
 

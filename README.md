@@ -2,6 +2,8 @@
 
 **DRAMSys4.0** is a flexible DRAM subsystem design space exploration framework based on SystemC TLM-2.0. It was developed at the [Microelectronic Systems Design Research Group](https://ems.eit.uni-kl.de/en/start/) and [Fraunhofer IESE](https://www.iese.fraunhofer.de/en.html).
 
+\>> [Official Website](https://www.iese.fraunhofer.de/en/innovation_trends/autonomous-systems/memtonomy/DRAMSys.html) <<
+
 ## Disclaimer
 
 This is the public read-only mirror of an internal DRAMSys repository. Pull requests will not be merged but the changes might be added internally and published with a future commit. Both repositories are synchronized from time to time.
@@ -13,7 +15,8 @@ If you decide to use DRAMSys in your research please cite the papers [2] [3]. To
 ## Key Features
 
 - **standalone** simulator with trace players, **gem5**-coupled simulator and **TLM-AT-compliant library**
-- support for **DDR3/4**, **LPDDR4**, **Wide I/O 1/2**, **GDDR5/5X/6** and **HBM2**
+- support for **DDR3/4**, **LPDDR4**, **Wide I/O 1/2**, **GDDR5/5X/6** and **HBM1/2**
+- support for **DDR5** and **LPDDR5** under development (contact [Matthias Jung](mailto:matthias.jung@iese.fraunhofer.de) for more information) 
 - automatic source code generation for new JEDEC standards [3] [9] from the domain-specific language DRAMml
 - FIFO, FR-FCFS and FR-FCFS with read/write grouping scheduling policies
 - open, closed, open adaptive and closed adaptive page policy [8]

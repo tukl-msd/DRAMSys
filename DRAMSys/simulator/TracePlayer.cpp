@@ -111,11 +111,6 @@ void TracePlayer::sendToTarget(tlm_generic_payload &payload, const tlm_phase &ph
     iSocket->nb_transport_fw(payload, TPhase, TDelay);
 }
 
-void TracePlayer::setNumberOfTransactions(unsigned int n)
-{
-    numberOfTransactions = n;
-}
-
 unsigned int TracePlayer::getNumberOfLines(std::string pathToTrace)
 {
     // Reference: http://stackoverflow.com/questions/3482064/counting-the-number-of-lines-in-a-text-file

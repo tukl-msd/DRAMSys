@@ -103,6 +103,7 @@ void TraceSetup::tracePlayerTerminates()
     if (finishedTracePlayers == numberOfTracePlayers)
         sc_stop();
 }
+
 void TraceSetup::transactionFinished()
 {
     remainingTransactions--;

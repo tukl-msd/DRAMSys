@@ -141,6 +141,8 @@ int sc_main(int argc, char **argv)
     std::cout << "Simulation took " + std::to_string(elapsed.count()) + " seconds." << std::endl;
 
     delete dramSys;
+    for (auto player : players)
+        delete player;
     delete ts;
 
     return 0;
