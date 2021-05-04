@@ -50,17 +50,17 @@
 class Dram : public sc_module
 {
 private:
-    unsigned int bytesPerBurst = Configuration::getInstance().getBytesPerBurst();
+    unsigned int bytesPerBurst = Configuration::getInstance().memSpec->bytesPerBurst;
     bool powerReported = false;
 
 protected:
     Dram(sc_module_name);
     SC_HAS_PROCESS(Dram);
 
-    MemSpec *memSpec = Configuration::getInstance().memSpec;
+    const MemSpec *memSpec = Configuration::getInstance().memSpec;
 
     // Data Storage:
-    enum class StorageMode {NoStorage, Store, ErrorModel} storeMode;
+    Configuration::StoreMode storeMode;
 
     unsigned char *memory;
 

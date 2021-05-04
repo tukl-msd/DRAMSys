@@ -44,12 +44,12 @@ using namespace DRAMPower;
 
 DramDDR3::DramDDR3(sc_module_name name) : Dram(name)
 {
-    if (storeMode == StorageMode::ErrorModel)
+    if (storeMode == Configuration::StoreMode::ErrorModel)
         SC_REPORT_FATAL("DramDDR3", "Error Model not supported for DDR3");
 
     if (Configuration::getInstance().powerAnalysis)
     {
-        MemSpecDDR3 *memSpec = dynamic_cast<MemSpecDDR3 *>(this->memSpec);
+        const MemSpecDDR3 *memSpec = dynamic_cast<const MemSpecDDR3 *>(this->memSpec);
         if (memSpec == nullptr)
             SC_REPORT_FATAL("DramDDR3", "Wrong MemSpec chosen");
 
@@ -134,7 +134,7 @@ DramDDR3::DramDDR3(sc_module_name name) : Dram(name)
 
         MemorySpecification powerSpec;
         powerSpec.id = memSpec->memoryId;
-        powerSpec.memoryType = memSpec->memoryType;
+        powerSpec.memoryType = MemoryType::DDR3;
         powerSpec.memTimingSpec = memTimingSpec;
         powerSpec.memPowerSpec  = memPowerSpec;
         powerSpec.memArchSpec   = memArchSpec;

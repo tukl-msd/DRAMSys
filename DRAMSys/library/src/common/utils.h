@@ -65,43 +65,6 @@ public:
 constexpr const char headline[] =
     "===========================================================================";
 
-static inline void loadbar(unsigned int x,
-                           unsigned int n,
-                           unsigned int w = 50,
-                           unsigned int granularity = 1)
-{
-    if ((n < 100) || ((x != n) && (x % (n / 100 * granularity) != 0)))
-        return;
-
-    float ratio = x / (float) n;
-    unsigned int c = (ratio * w);
-    float rest = (ratio * w) - c;
-    std::cout << std::setw(3) << round(ratio * 100) << "% |";
-    for (unsigned int x = 0; x < c; x++)
-        std::cout << "█";
-
-    if (rest >= 0 && rest < 0.125 && c != w)
-        std::cout << " ";
-    if (rest >= 0.125 && rest < 2 * 0.125)
-        std::cout << "▏";
-    if (rest >= 2 * 0.125 && rest < 3 * 0.125)
-        std::cout << "▎";
-    if (rest >= 3 * 0.125 && rest < 4 * 0.125)
-        std::cout << "▍";
-    if (rest >= 4 * 0.125 && rest < 5 * 0.125)
-        std::cout << "▌";
-    if (rest >= 5 * 0.125 && rest < 6 * 0.125)
-        std::cout << "▋";
-    if (rest >= 6 * 0.125 && rest < 7 * 0.125)
-        std::cout << "▊";
-    if (rest >= 7 * 0.125 && rest < 8 * 0.125)
-        std::cout << "▉";
-
-    for (unsigned int x = c; x < (w - 1); x++)
-        std::cout << " ";
-    std::cout << "|\r" << std::flush;
-}
-
 std::string getPhaseName(tlm::tlm_phase phase);
 
 nlohmann::json parseJSON(std::string path);
@@ -110,7 +73,8 @@ unsigned int parseUint(nlohmann::json &obj, std::string name);
 double parseUdouble(nlohmann::json &obj, std::string name);
 std::string parseString(nlohmann::json &obj, std::string name);
 
-void setUpDummy(tlm::tlm_generic_payload &payload, uint64_t payloadID, Rank rank = Rank(0), BankGroup bankgroup = BankGroup(0), Bank bank = Bank(0));
+void setUpDummy(tlm::tlm_generic_payload &payload, uint64_t channelPayloadID,
+                Rank rank = Rank(0), BankGroup bankgroup = BankGroup(0), Bank bank = Bank(0));
 
 #endif // UTILS_H
 

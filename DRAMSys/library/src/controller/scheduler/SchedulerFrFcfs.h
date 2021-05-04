@@ -38,24 +38,28 @@
 #include <tlm.h>
 #include <vector>
 #include <list>
+
 #include "SchedulerIF.h"
 #include "../../common/dramExtensions.h"
 #include "../BankMachine.h"
+#include "BufferCounterIF.h"
 
-class SchedulerFrFcfs : public SchedulerIF
+class SchedulerFrFcfs final : public SchedulerIF
 {
 public:
     SchedulerFrFcfs();
-    virtual bool hasBufferSpace() override;
+    virtual ~SchedulerFrFcfs() override;
+    virtual bool hasBufferSpace() const override;
     virtual void storeRequest(tlm::tlm_generic_payload *) override;
     virtual void removeRequest(tlm::tlm_generic_payload *) override;
-    virtual tlm::tlm_generic_payload *getNextRequest(BankMachine *) override;
-    virtual bool hasFurtherRowHit(Bank, Row) override;
-    virtual bool hasFurtherRequest(Bank) override;
+    virtual tlm::tlm_generic_payload *getNextRequest(BankMachine *) const override;
+    virtual bool hasFurtherRowHit(Bank, Row) const override;
+    virtual bool hasFurtherRequest(Bank) const override;
+    virtual const std::vector<unsigned> &getBufferDepth() const override;
+
 private:
     std::vector<std::list<tlm::tlm_generic_payload *>> buffer;
-    unsigned requestBufferSize;
-    unsigned lastBankID;
+    BufferCounterIF *bufferCounter;
 };
 
 #endif // SCHEDULERFRFCFS_H

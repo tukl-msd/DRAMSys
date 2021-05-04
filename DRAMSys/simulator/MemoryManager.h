@@ -49,9 +49,10 @@ public:
     virtual void free(tlm::tlm_generic_payload *payload);
 
 private:
-    unsigned int numberOfAllocations;
-    unsigned int numberOfFrees;
+    uint64_t numberOfAllocations;
+    uint64_t numberOfFrees;
     std::vector<tlm::tlm_generic_payload *> freePayloads;
+    bool storageEnabled = false;
 };
 
 #endif // MEMORYMANAGER_H

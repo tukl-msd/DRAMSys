@@ -1,6 +1,7 @@
 [submodule "DRAMSys/library/src/common/third_party/DRAMPower"]
 	path = DRAMSys/library/src/common/third_party/DRAMPower
 	url = https://github.com/tukl-msd/DRAMPower.git
+	branch = rgr
 [submodule "DRAMSys/library/src/common/third_party/systemc"]
 	path = DRAMSys/library/src/common/third_party/systemc
 	url = https://github.com/accellera-official/systemc.git

@@ -69,16 +69,25 @@ public:
     std::string pathToResources;
 
     // MCConfig:
-    std::string pagePolicy = "Open";
-    std::string scheduler = "Fifo";
-    std::string cmdMux = "Oldest";
-    std::string respQueue = "Fifo";
+    enum class PagePolicy {Open, Closed, OpenAdaptive, ClosedAdaptive} pagePolicy;
+    enum class Scheduler {Fifo, FrFcfs, FrFcfsGrp} scheduler;
+    enum class SchedulerBuffer {Bankwise, ReadWrite, Shared} schedulerBuffer;
+    enum class CmdMux {Oldest, Strict} cmdMux;
+    enum class RespQueue {Fifo, Reorder} respQueue;
+    enum class Arbiter {Simple, Fifo, Reorder} arbiter;
     unsigned int requestBufferSize = 8;
-    std::string refreshPolicy = "Rankwise";
+    enum class RefreshPolicy {NoRefresh, AllBank, PerBank, SameBank} refreshPolicy;
     unsigned int refreshMaxPostponed = 0;
     unsigned int refreshMaxPulledin = 0;
-    std::string powerDownPolicy = "NoPowerDown";
+    enum class PowerDownPolicy {NoPowerDown, Staggered} powerDownPolicy;
     unsigned int powerDownTimeout = 3;
+    unsigned int maxActiveTransactions = 64;
+    sc_time arbitrationDelayFw = SC_ZERO_TIME;
+    sc_time arbitrationDelayBw = SC_ZERO_TIME;
+    sc_time thinkDelayFw = SC_ZERO_TIME;
+    sc_time thinkDelayBw = SC_ZERO_TIME;
+    sc_time phyDelayFw = SC_ZERO_TIME;
+    sc_time phyDelayBw = SC_ZERO_TIME;
 
     // SimConfig
     std::string simulationName = "default";
@@ -90,28 +99,24 @@ public:
     bool thermalSimulation = false;
     bool simulationProgressBar = false;
     bool checkTLM2Protocol = false;
-    std::string ECCMode = "Disabled";
+    enum class ECCMode {Disabled, Hamming} eccMode;
     ECCBaseClass *pECC = nullptr;
-    bool gem5 = false;
     bool useMalloc = false;
     unsigned long long int addressOffset = 0;
 
     // MemSpec (from DRAM-Power)
-    MemSpec *memSpec;
+    const MemSpec *memSpec;
 
     void setParameter(std::string name, nlohmann::json value);
 
     //Configs for Seed, csv file and StorageMode
     unsigned int errorChipSeed;
     std::string errorCSVFile = "not defined.";
-    std::string storeMode;
+    enum class StoreMode {NoStorage, Store, ErrorModel} storeMode;
 
     // Temperature Simulation related
     TemperatureSimConfig temperatureSim;
 
-    std::uint64_t getSimMemSizeInBytes();
-    unsigned int getDataBusWidth();
-    unsigned int getBytesPerBurst();
     unsigned int adjustNumBytesAfterECC(unsigned bytes);
     void setPathToResources(std::string path);
 

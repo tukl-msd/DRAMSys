@@ -39,15 +39,45 @@
 #include <tlm.h>
 #include <utility>
 #include "../Command.h"
+#include "../../configuration/Configuration.h"
 
 class RefreshManagerIF
 {
 public:
     virtual ~RefreshManagerIF() {}
 
-    virtual std::tuple<Command, tlm::tlm_generic_payload *, sc_time> getNextCommand() = 0;
+    virtual CommandTuple::Type getNextCommand() = 0;
     virtual sc_time start() = 0;
     virtual void updateState(Command) = 0;
+
+protected:
+    sc_time getTimeForFirstTrigger(sc_time refreshInterval, Rank rank, unsigned numberOfRanks)
+    {
+        // Calculate bit-reversal rank ID
+        unsigned rankID = rank.ID();
+        unsigned reverseRankID = 0;
+        unsigned rankBits = 0;
+        unsigned rankShift = numberOfRanks;
+
+        while (rankShift >>= 1)
+            rankBits++;
+
+        rankBits--;
+
+        while (rankID != 0)
+        {
+            reverseRankID |= (rankID & 1) << rankBits;
+            rankID >>= 1;
+            rankBits--;
+        }
+
+        // Use bit-reversal order for refreshes on ranks
+        sc_time timeForFirstTrigger = refreshInterval - reverseRankID * (refreshInterval / numberOfRanks);
+        sc_time tCK = Configuration::getInstance().memSpec->tCK;
+        timeForFirstTrigger = std::ceil(timeForFirstTrigger / tCK) * tCK;
+
+        return timeForFirstTrigger;
+    }
 };
 
 #endif // REFRESHMANAGERIF_H

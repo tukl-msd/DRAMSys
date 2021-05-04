@@ -39,7 +39,7 @@
 #include <bitset>
 
 #include "AddressDecoder.h"
-#include "utils.h"
+#include "../common/utils.h"
 #include "../configuration/Configuration.h"
 
 using json = nlohmann::json;
@@ -55,13 +55,13 @@ unsigned int AddressDecoder::getUnsignedAttrFromJson(nlohmann::json obj, std::st
         else
         {
             SC_REPORT_FATAL("AddressDecoder", ("Attribute " + strName + " is not a number.").c_str());
-            return (unsigned)(-1);
+            return static_cast<unsigned>(-1);
         }
     }
     else
     {
         SC_REPORT_FATAL("AddressDecoder", ("Attribute " + strName + " is empty or not found.").c_str());
-        return (unsigned)(-1);
+        return static_cast<unsigned>(-1);
     }
 }
 
@@ -124,15 +124,15 @@ AddressDecoder::AddressDecoder(std::string pathToAddressMapping)
     vColumnBits = getAttrToVectorFromJson(mapping,"COLUMN_BIT");
     vByteBits = getAttrToVectorFromJson(mapping,"BYTE_BIT");
 
-    uint64_t channels = (uint64_t)(pow(2.0, vChannelBits.size()) + 0.5);
-    uint64_t ranks = (uint64_t)(pow(2.0, vRankBits.size()) + 0.5);
-    uint64_t bankgroups = (uint64_t)(pow(2.0, vBankGroupBits.size()) + 0.5);
-    uint64_t banks = (uint64_t)(pow(2.0, vBankBits.size()) + 0.5);
-    uint64_t rows = (uint64_t)(pow(2.0, vRowBits.size()) + 0.5);
-    uint64_t columns = (uint64_t)(pow(2.0, vColumnBits.size()) + 0.5);
-    uint64_t bytes = (uint64_t)(pow(2.0, vByteBits.size()) + 0.5);
+    unsigned channels = static_cast<unsigned>(pow(2.0, vChannelBits.size()) + 0.5);
+    unsigned ranks = static_cast<unsigned>(pow(2.0, vRankBits.size()) + 0.5);
+    unsigned bankgroups = static_cast<unsigned>(pow(2.0, vBankGroupBits.size()) + 0.5);
+    unsigned banks = static_cast<unsigned>(pow(2.0, vBankBits.size()) + 0.5);
+    unsigned rows = static_cast<unsigned>(pow(2.0, vRowBits.size()) + 0.5);
+    unsigned columns = static_cast<unsigned>(pow(2.0, vColumnBits.size()) + 0.5);
+    unsigned bytes = static_cast<unsigned>(pow(2.0, vByteBits.size()) + 0.5);
 
-    maximumAddress = bytes * columns * rows * banks * bankgroups * ranks * channels - 1;
+    maximumAddress = static_cast<uint64_t>(bytes) * columns * rows * banks * bankgroups * ranks * channels - 1;
 
     banksPerGroup = banks;
     banks = banksPerGroup * bankgroups * ranks;
@@ -141,7 +141,7 @@ AddressDecoder::AddressDecoder(std::string pathToAddressMapping)
     bankgroups = bankgroupsPerRank * ranks;
 
     Configuration &config = Configuration::getInstance();
-    MemSpec *memSpec = config.memSpec;
+    const MemSpec *memSpec = config.memSpec;
 
     if (memSpec->numberOfChannels != channels || memSpec->numberOfRanks != ranks
             || memSpec->numberOfBankGroups != bankgroups || memSpec->numberOfBanks != banks
@@ -201,78 +201,78 @@ void AddressDecoder::print()
     std::cout << "Used Address Mapping:" << std::endl;
     std::cout << std::endl;
 
-    for (int it = vChannelBits.size() - 1; it >= 0; it--)
+    for (int it = static_cast<int>(vChannelBits.size() - 1); it >= 0; it--)
     {
-        uint64_t addressBits = (UINT64_C(1) << vChannelBits[it]);
+        uint64_t addressBits = (UINT64_C(1) << vChannelBits[static_cast<std::vector<unsigned>::size_type>(it)]);
         for (auto it2 : vXor)
         {
-            if (it2.first == vChannelBits[it])
+            if (it2.first == vChannelBits[static_cast<std::vector<unsigned>::size_type>(it)])
                 addressBits |= (UINT64_C(1) << it2.second);
         }
         std::cout << " Ch " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
     }
 
-    for (int it = vRankBits.size() - 1; it >= 0; it--)
+    for (int it = static_cast<int>(vRankBits.size() - 1); it >= 0; it--)
     {
-        uint64_t addressBits = (UINT64_C(1) << vRankBits[it]);
+        uint64_t addressBits = (UINT64_C(1) << vRankBits[static_cast<std::vector<unsigned>::size_type>(it)]);
         for (auto it2 : vXor)
         {
-            if (it2.first == vRankBits[it])
+            if (it2.first == vRankBits[static_cast<std::vector<unsigned>::size_type>(it)])
                 addressBits |= (UINT64_C(1) << it2.second);
         }
         std::cout << " Ra " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
     }
 
-    for (int it = vBankGroupBits.size() - 1; it >= 0; it--)
+    for (int it = static_cast<int>(vBankGroupBits.size() - 1); it >= 0; it--)
     {
-        uint64_t addressBits = (UINT64_C(1) << vBankGroupBits[it]);
+        uint64_t addressBits = (UINT64_C(1) << vBankGroupBits[static_cast<std::vector<unsigned>::size_type>(it)]);
         for (auto it2 : vXor)
         {
-            if (it2.first == vBankGroupBits[it])
+            if (it2.first == vBankGroupBits[static_cast<std::vector<unsigned>::size_type>(it)])
                 addressBits |= (UINT64_C(1) << it2.second);
         }
         std::cout << " Bg " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
     }
 
-    for (int it = vBankBits.size() - 1; it >= 0; it--)
+    for (int it = static_cast<int>(vBankBits.size() - 1); it >= 0; it--)
     {
-        uint64_t addressBits = (UINT64_C(1) << vBankBits[it]);
+        uint64_t addressBits = (UINT64_C(1) << vBankBits[static_cast<std::vector<unsigned>::size_type>(it)]);
         for (auto it2 : vXor)
         {
-            if (it2.first == vBankBits[it])
+            if (it2.first == vBankBits[static_cast<std::vector<unsigned>::size_type>(it)])
                 addressBits |= (UINT64_C(1) << it2.second);
         }
         std::cout << " Ba " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
     }
 
-    for (int it = vRowBits.size() - 1; it >= 0; it--)
+    for (int it = static_cast<int>(vRowBits.size() - 1); it >= 0; it--)
     {
-        uint64_t addressBits = (UINT64_C(1) << vRowBits[it]);
+        uint64_t addressBits = (UINT64_C(1) << vRowBits[static_cast<std::vector<unsigned>::size_type>(it)]);
         for (auto it2 : vXor)
         {
-            if (it2.first == vRowBits[it])
+            if (it2.first == vRowBits[static_cast<std::vector<unsigned>::size_type>(it)])
                 addressBits |= (UINT64_C(1) << it2.second);
         }
         std::cout << " Ro " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
     }
 
-    for (int it = vColumnBits.size() - 1; it >= 0; it--)
+    for (int it = static_cast<int>(vColumnBits.size() - 1); it >= 0; it--)
     {
-        uint64_t addressBits = (UINT64_C(1) << vColumnBits[it]);
+        uint64_t addressBits = (UINT64_C(1) << vColumnBits[static_cast<std::vector<unsigned>::size_type>(it)]);
         for (auto it2 : vXor)
         {
-            if (it2.first == vColumnBits[it])
+            if (it2.first == vColumnBits[static_cast<std::vector<unsigned>::size_type>(it)])
                 addressBits |= (UINT64_C(1) << it2.second);
         }
         std::cout << " Co " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
     }
 
-    for (int it = vByteBits.size() - 1; it >= 0; it--)
+    for (int it = static_cast<int>(vByteBits.size() - 1); it >= 0; it--)
     {
-        uint64_t addressBits = (UINT64_C(1) << vByteBits[it]);
+        uint64_t addressBits = (UINT64_C(1) << vByteBits[static_cast<std::vector<unsigned>::size_type>(it)]);
         for (auto it2 : vXor)
         {
-            if (it2.first == vByteBits[it])
+            if (it2.first == vByteBits[static_cast<std::vector<unsigned>::size_type>(it)])
                 addressBits |= (UINT64_C(1) << it2.second);
         }
         std::cout << " By " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;

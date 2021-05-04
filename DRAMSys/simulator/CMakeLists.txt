@@ -41,28 +41,21 @@ project(DRAMSysSimulator)
 set(CMAKE_CXX_STANDARD 11 CACHE STRING "C++ Version")
 set(DCMAKE_SH="CMAKE_SH-NOTFOUND")
 
-if(DEFINED ENV{COVERAGE})
-    if($ENV{COVERAGE} STREQUAL "true")
-        set(GCC_COVERAGE_COMPILE_FLAGS "-g -O0 -coverage -fprofile-arcs -ftest-coverage")
-        set(GCC_COVERAGE_LINK_FLAGS "-coverage -lgcov")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAGS}")
-    endif()
-endif()
-
-if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/../library/src/simulation/DRAMSysRecordable.cpp)
-    add_definitions(-DRECORDING)
-endif()
+find_package(Threads REQUIRED)
 
 add_executable(DRAMSys
     main.cpp
     ExampleInitiator.h
     MemoryManager.cpp
-    StlPlayer.h
-    TraceGenerator.h
+    StlPlayer.cpp
+    TraceGenerator.cpp
     TracePlayer.cpp
-    TracePlayerListener.h
-    TraceSetup.cpp)
+    TraceSetup.cpp
+)
+
+if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/../library/src/simulation/DRAMSysRecordable.cpp)
+    target_compile_definitions(DRAMSys PRIVATE RECORDING)
+endif()
 
 target_include_directories(DRAMSys
     PUBLIC ../library/src/
@@ -70,4 +63,5 @@ target_include_directories(DRAMSys
 
 target_link_libraries(DRAMSys
     PRIVATE DRAMSysLibrary
+    PRIVATE Threads::Threads
 )

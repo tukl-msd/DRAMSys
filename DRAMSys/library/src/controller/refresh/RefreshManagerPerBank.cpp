@@ -32,41 +32,44 @@
  * Author: Lukas Steiner
  */
 
-#include "RefreshManagerBankwise.h"
+#include "RefreshManagerPerBank.h"
 #include "../../configuration/Configuration.h"
 #include "../../common/utils.h"
 #include "../../common/dramExtensions.h"
 
 using namespace tlm;
 
-RefreshManagerBankwise::RefreshManagerBankwise(std::vector<BankMachine *> &bankMachines,
+RefreshManagerPerBank::RefreshManagerPerBank(std::vector<BankMachine *> &bankMachinesOnRank,
         PowerDownManagerIF *powerDownManager, Rank rank, CheckerIF *checker)
-    : bankMachinesOnRank(bankMachines), powerDownManager(powerDownManager), rank(rank), checker(checker)
+    : bankMachinesOnRank(bankMachinesOnRank), powerDownManager(powerDownManager), rank(rank), checker(checker)
 {
     Configuration &config = Configuration::getInstance();
     memSpec = config.memSpec;
-    timeForNextTrigger = memSpec->getRefreshIntervalPB();
+    timeForNextTrigger = getTimeForFirstTrigger(memSpec->getRefreshIntervalPB(),
+                                                rank, memSpec->numberOfRanks);
 
     refreshPayloads = std::vector<tlm_generic_payload>(memSpec->banksPerRank);
     for (unsigned bankID = 0; bankID < memSpec->banksPerRank; bankID++)
     {
-        setUpDummy(refreshPayloads[bankID], 0, rank, bankMachines[bankID]->getBankGroup(), bankMachines[bankID]->getBank());
-        allBankMachines.push_back(bankMachines[bankID]);
+        setUpDummy(refreshPayloads[bankID], 0, rank, bankMachinesOnRank[bankID]->getBankGroup(),
+                   bankMachinesOnRank[bankID]->getBank());
+        allBankMachines.push_back(bankMachinesOnRank[bankID]);
     }
     remainingBankMachines = allBankMachines;
     currentBankMachine = *remainingBankMachines.begin();
 
-    maxPostponed = config.refreshMaxPostponed * memSpec->banksPerRank;
-    maxPulledin = -(config.refreshMaxPulledin * memSpec->banksPerRank);
+    maxPostponed = static_cast<int>(config.refreshMaxPostponed * memSpec->banksPerRank);
+    maxPulledin = -static_cast<int>(config.refreshMaxPulledin * memSpec->banksPerRank);
 }
 
-std::tuple<Command, tlm_generic_payload *, sc_time> RefreshManagerBankwise::getNextCommand()
+CommandTuple::Type RefreshManagerPerBank::getNextCommand()
 {
-    return std::tuple<Command, tlm_generic_payload *, sc_time>
-            (nextCommand, &refreshPayloads[currentBankMachine->getBank().ID() % memSpec->banksPerRank], timeToSchedule);
+    return CommandTuple::Type(nextCommand, 
+            &refreshPayloads[currentBankMachine->getBank().ID() % memSpec->banksPerRank], 
+            std::max(timeToSchedule, sc_time_stamp()));
 }
 
-sc_time RefreshManagerBankwise::start()
+sc_time RefreshManagerPerBank::start()
 {
     timeToSchedule = sc_max_time();
     nextCommand = Command::NOP;
@@ -80,10 +83,10 @@ sc_time RefreshManagerBankwise::start()
         if (sc_time_stamp() >= timeForNextTrigger + memSpec->getRefreshIntervalPB())
         {
             timeForNextTrigger += memSpec->getRefreshIntervalPB();
-            state = RmState::Regular;
+            state = State::Regular;
         }
 
-        if (state == RmState::Regular)
+        if (state == State::Regular)
         {
             bool forcedRefresh = (flexibilityCounter == maxPostponed);
             bool allBanksBusy = true;
@@ -113,7 +116,7 @@ sc_time RefreshManagerBankwise::start()
             }
             else
             {
-                if (currentBankMachine->getState() == BmState::Activated)
+                if (currentBankMachine->getState() == BankMachine::State::Activated)
                     nextCommand = Command::PRE;
                 else
                 {
@@ -148,13 +151,13 @@ sc_time RefreshManagerBankwise::start()
 
             if (allBanksBusy)
             {
-                state = RmState::Regular;
+                state = State::Regular;
                 timeForNextTrigger += memSpec->getRefreshIntervalPB();
                 return timeForNextTrigger;
             }
             else
             {
-                if (currentBankMachine->getState() == BmState::Activated)
+                if (currentBankMachine->getState() == BankMachine::State::Activated)
                     nextCommand = Command::PRE;
                 else
                     nextCommand = Command::REFB;
@@ -168,7 +171,7 @@ sc_time RefreshManagerBankwise::start()
         return timeForNextTrigger;
 }
 
-void RefreshManagerBankwise::updateState(Command command)
+void RefreshManagerPerBank::updateState(Command command)
 {
     switch (command)
     {
@@ -178,20 +181,20 @@ void RefreshManagerBankwise::updateState(Command command)
         if (remainingBankMachines.empty())
             remainingBankMachines = allBankMachines;
 
-        if (state == RmState::Pulledin)
+        if (state == State::Pulledin)
             flexibilityCounter--;
         else
-            state = RmState::Pulledin;
+            state = State::Pulledin;
 
         if (flexibilityCounter == maxPulledin)
         {
-            state = RmState::Regular;
+            state = State::Regular;
             timeForNextTrigger += memSpec->getRefreshIntervalPB();
         }
         break;
     case Command::REFA:
         // Refresh command after SREFEX
-        state = RmState::Regular; // TODO: check if this assignment is necessary
+        state = State::Regular; // TODO: check if this assignment is necessary
         timeForNextTrigger = sc_time_stamp() + memSpec->getRefreshIntervalPB();
         sleeping = false;
         break;
@@ -204,6 +207,8 @@ void RefreshManagerBankwise::updateState(Command command)
         break;
     case Command::PDXA: case Command::PDXP:
         sleeping = false;
+        break;
+    default:
         break;
     }
 }

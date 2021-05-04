@@ -43,7 +43,8 @@
 using namespace tlm;
 using json = nlohmann::json;
 
-MemSpec::MemSpec(json &memspec, unsigned numberOfChannels,
+MemSpec::MemSpec(json &memspec, MemoryType memoryType,
+                 unsigned numberOfChannels,
                  unsigned numberOfRanks, unsigned banksPerRank,
                  unsigned groupsPerRank, unsigned banksPerGroup,
                  unsigned numberOfBanks, unsigned numberOfBankGroups,
@@ -61,10 +62,12 @@ MemSpec::MemSpec(json &memspec, unsigned numberOfChannels,
       burstLength(parseUint(memspec["memarchitecturespec"]["burstLength"],"burstLength")),
       dataRate(parseUint(memspec["memarchitecturespec"]["dataRate"],"dataRate")),
       bitWidth(parseUint(memspec["memarchitecturespec"]["width"],"width")),
+      dataBusWidth(bitWidth * numberOfDevicesOnDIMM),
+      bytesPerBurst((burstLength * dataBusWidth) / 8),
       fCKMHz(parseUdouble(memspec["memtimingspec"]["clkMhz"], "clkMhz")),
       tCK(sc_time(1.0 / fCKMHz, SC_US)),
       memoryId(parseString(memspec["memoryId"], "memoryId")),
-      memoryType(parseString(memspec["memoryType"], "memoryType")),
+      memoryType(memoryType),
       burstDuration(tCK * (burstLength / dataRate))
 {
     commandLengthInCycles = std::vector<unsigned>(numberOfCommands(), 1);
@@ -73,4 +76,27 @@ MemSpec::MemSpec(json &memspec, unsigned numberOfChannels,
 sc_time MemSpec::getCommandLength(Command command) const
 {
     return tCK * commandLengthInCycles[command];
+}
+
+sc_time MemSpec::getRefreshIntervalAB() const
+{
+    SC_REPORT_FATAL("MemSpec", "All bank refresh not supported");
+    return SC_ZERO_TIME;
+}
+
+sc_time MemSpec::getRefreshIntervalPB() const
+{
+    SC_REPORT_FATAL("MemSpec", "Per bank refresh not supported");
+    return SC_ZERO_TIME;
+}
+
+sc_time MemSpec::getRefreshIntervalSB() const
+{
+    SC_REPORT_FATAL("MemSpec", "Same bank refresh not supported");
+    return SC_ZERO_TIME;
+}
+
+bool MemSpec::hasRasAndCasBus() const
+{
+    return false;
 }

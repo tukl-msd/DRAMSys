@@ -37,6 +37,14 @@
 #ifndef DEBUGMANAGER_H
 #define DEBUGMANAGER_H
 
+#if __has_cpp_attribute(maybe_unused)
+    #define NDEBUG_UNUSED(var_decl) [[maybe_unused]] var_decl
+#elif (__GNUC__ || __clang__)
+    #define NDEBUG_UNUSED(var_decl) var_decl __attribute__((unused))
+#else
+    #define	NDEBUG_UNUSED(var_decl) var_decl
+#endif
+
 #ifdef NDEBUG
 #define PRINTDEBUGMESSAGE(sender, message) {}
 #else

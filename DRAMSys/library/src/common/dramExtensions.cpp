@@ -44,25 +44,77 @@ using namespace tlm;
 
 DramExtension::DramExtension() :
     thread(0), channel(0), rank(0), bankgroup(0), bank(0),
-    row(0), column(0), burstlength(0), payloadID(0) {}
+    row(0), column(0), burstlength(0),
+    threadPayloadID(0), channelPayloadID(0) {}
 
-DramExtension::DramExtension(const Thread &thread, const Rank &rank, const BankGroup &bankgroup,
-                             const Bank &bank, const Row &row, const Column &column,
-                             unsigned int burstlength, uint64_t payloadID) :
-    thread(thread), channel(0), rank(rank), bankgroup(bankgroup), bank(bank),
-    row(row), column(column), burstlength(burstlength), payloadID(payloadID) {}
-
-DramExtension::DramExtension(const Thread &thread, const Channel &channel, const Rank &rank,
-                             const BankGroup &bankgroup, const Bank &bank, const Row &row,
-                             const Column &column, unsigned int burstlength, uint64_t payloadID) :
+DramExtension::DramExtension(Thread thread, Channel channel, Rank rank,
+                             BankGroup bankgroup, Bank bank, Row row,
+                             Column column, unsigned int burstlength,
+                             uint64_t threadPayloadID, uint64_t channelPayloadID) :
     thread(thread), channel(channel), rank(rank), bankgroup(bankgroup), bank(bank),
-    row(row), column(column), burstlength(burstlength), payloadID(payloadID) {}
+    row(row), column(column), burstlength(burstlength),
+    threadPayloadID(threadPayloadID), channelPayloadID(channelPayloadID) {}
+
+void DramExtension::setExtension(tlm::tlm_generic_payload *payload,
+                         Thread thread, Channel channel, Rank rank,
+                         BankGroup bankgroup, Bank bank, Row row,
+                         Column column, unsigned int burstlength,
+                         uint64_t threadPayloadID, uint64_t channelPayloadID)
+{
+    DramExtension *extension = nullptr;
+    payload->get_extension(extension);
+
+    if (extension != nullptr)
+    {
+        extension->thread = thread;
+        extension->channel = channel;
+        extension->rank = rank;
+        extension->bankgroup = bankgroup;
+        extension->bank = bank;
+        extension->row = row;
+        extension->column = column;
+        extension->burstlength = burstlength;
+        extension->threadPayloadID = threadPayloadID;
+        extension->channelPayloadID = channelPayloadID;
+    }
+    else
+    {
+        extension = new DramExtension(thread, channel, rank, bankgroup,
+                                      bank, row, column, burstlength,
+                                      threadPayloadID, channelPayloadID);
+        payload->set_auto_extension(extension);
+    }
+}
+
+void DramExtension::setExtension(tlm::tlm_generic_payload &payload,
+                         Thread thread, Channel channel, Rank rank,
+                         BankGroup bankgroup, Bank bank, Row row,
+                         Column column, unsigned int burstlength,
+                         uint64_t threadPayloadID, uint64_t channelPayloadID)
+{
+    setExtension(&payload, thread, channel, rank, bankgroup,
+                 bank, row, column, burstlength,
+                 threadPayloadID, channelPayloadID);
+}
+
+void DramExtension::setPayloadIDs(tlm::tlm_generic_payload *payload, uint64_t threadPayloadID, uint64_t channelPayloadID)
+{
+    DramExtension *extension;
+    payload->get_extension(extension);
+    extension->threadPayloadID = threadPayloadID;
+    extension->channelPayloadID = channelPayloadID;
+}
+
+void DramExtension::setPayloadIDs(tlm::tlm_generic_payload &payload, uint64_t threadPayloadID, uint64_t channelPayloadID)
+{
+    DramExtension::setPayloadIDs(&payload, threadPayloadID, channelPayloadID);
+}
 
 DramExtension &DramExtension::getExtension(const tlm_generic_payload *payload)
 {
-    DramExtension *result = NULL;
+    DramExtension *result = nullptr;
     payload->get_extension(result);
-    sc_assert(result != NULL);
+    sc_assert(result != nullptr);
 
     return *result;
 }
@@ -142,19 +194,30 @@ Column DramExtension::getColumn(const tlm_generic_payload &payload)
     return DramExtension::getColumn(&payload);
 }
 
-uint64_t DramExtension::getPayloadID(const tlm_generic_payload *payload)
+uint64_t DramExtension::getThreadPayloadID(const tlm_generic_payload *payload)
 {
-    return DramExtension::getExtension(payload).getPayloadID();
+    return DramExtension::getExtension(payload).getThreadPayloadID();
 }
 
-uint64_t DramExtension::getPayloadID(const tlm_generic_payload &payload)
+uint64_t DramExtension::getThreadPayloadID(const tlm_generic_payload &payload)
 {
-    return DramExtension::getPayloadID(&payload);
+    return DramExtension::getThreadPayloadID(&payload);
+}
+
+uint64_t DramExtension::getChannelPayloadID(const tlm_generic_payload *payload)
+{
+    return DramExtension::getExtension(payload).getChannelPayloadID();
+}
+
+uint64_t DramExtension::getChannelPayloadID(const tlm_generic_payload &payload)
+{
+    return DramExtension::getChannelPayloadID(&payload);
 }
 
 tlm_extension_base *DramExtension::clone() const
 {
-    return new DramExtension(thread, channel, rank, bankgroup, bank, row, column, burstlength, payloadID);
+    return new DramExtension(thread, channel, rank, bankgroup, bank, row, column,
+                             burstlength, threadPayloadID, channelPayloadID);
 }
 
 void DramExtension::copy_from(const tlm_extension_base &ext)
@@ -210,9 +273,14 @@ unsigned int DramExtension::getBurstlength() const
     return burstlength;
 }
 
-uint64_t DramExtension::getPayloadID() const
+uint64_t DramExtension::getThreadPayloadID() const
 {
-    return payloadID;
+    return threadPayloadID;
+}
+
+uint64_t DramExtension::getChannelPayloadID() const
+{
+    return channelPayloadID;
 }
 
 void DramExtension::incrementRow()
@@ -232,17 +300,43 @@ void GenerationExtension::copy_from(const tlm_extension_base &ext)
 
 }
 
+void GenerationExtension::setExtension(tlm::tlm_generic_payload *payload, sc_time timeOfGeneration)
+{
+    GenerationExtension *extension = nullptr;
+    payload->get_extension(extension);
+
+    if (extension != nullptr)
+    {
+        extension->timeOfGeneration = timeOfGeneration;
+    }
+    else
+    {
+        extension = new GenerationExtension(timeOfGeneration);
+        payload->set_auto_extension(extension);
+    }
+}
+
+void GenerationExtension::setExtension(tlm::tlm_generic_payload &payload, sc_time timeOfGeneration)
+{
+    GenerationExtension::setExtension(&payload, timeOfGeneration);
+}
+
 GenerationExtension &GenerationExtension::getExtension(const tlm_generic_payload *payload)
 {
-    GenerationExtension *result = NULL;
+    GenerationExtension *result = nullptr;
     payload->get_extension(result);
-    sc_assert(result != NULL);
+    sc_assert(result != nullptr);
     return *result;
+}
+
+GenerationExtension &GenerationExtension::getExtension(const tlm_generic_payload &payload)
+{
+    return GenerationExtension::getExtension(&payload);
 }
 
 sc_time GenerationExtension::getTimeOfGeneration(const tlm_generic_payload *payload)
 {
-    return GenerationExtension::getExtension(payload).TimeOfGeneration();
+    return GenerationExtension::getExtension(payload).timeOfGeneration;
 }
 
 sc_time GenerationExtension::getTimeOfGeneration(const tlm_generic_payload &payload)

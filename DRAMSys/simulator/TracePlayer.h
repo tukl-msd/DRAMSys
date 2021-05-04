@@ -46,38 +46,36 @@
 #include <tlm_utils/peq_with_cb_and_phase.h>
 #include <iostream>
 #include <string>
-#include "MemoryManager.h"
 #include "configuration/Configuration.h"
 #include "common/DebugManager.h"
-#include "TracePlayerListener.h"
+#include "TraceSetup.h"
 
-struct TracePlayer : public sc_module
+class TracePlayer : public sc_module
 {
 public:
     tlm_utils::simple_initiator_socket<TracePlayer> iSocket;
-    TracePlayer(sc_module_name name, TracePlayerListener *listener);
+    TracePlayer(sc_module_name name, TraceSetup *setup);
+    SC_HAS_PROCESS(TracePlayer);
     virtual void nextPayload() = 0;
-    unsigned int getNumberOfLines(std::string pathToTrace);
+    uint64_t getNumberOfLines(std::string pathToTrace);
 
 protected:
-    tlm::tlm_generic_payload *allocatePayload();
     tlm_utils::peq_with_cb_and_phase<TracePlayer> payloadEventQueue;
-    void finish();
     void terminate();
-    unsigned int numberOfTransactions = 0;
     bool storageEnabled = false;
+    TraceSetup *setup;
+    void sendToTarget(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase,
+                      const sc_time &delay);
+    uint64_t numberOfTransactions = 0;
+    uint64_t transactionsSent = 0;
+    bool finished = false;
+    sc_time lastEndReq = sc_max_time();
 
 private:
     tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload &payload, tlm::tlm_phase &phase,
                                   sc_time &bwDelay);
     void peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase);
-    void sendToTarget(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase,
-                      const sc_time &delay);
-    MemoryManager memoryManager;
-    unsigned int transactionsSent = 0;
-    unsigned int transactionsReceived = 0;
-    TracePlayerListener *listener;
-    bool finished = false;
+    uint64_t transactionsReceived = 0;
 };
 
 #endif // TRACEPLAYER_H

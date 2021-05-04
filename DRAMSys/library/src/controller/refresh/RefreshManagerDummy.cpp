@@ -36,9 +36,9 @@
 
 using namespace tlm;
 
-std::tuple<Command, tlm_generic_payload *, sc_time> RefreshManagerDummy::getNextCommand()
+CommandTuple::Type RefreshManagerDummy::getNextCommand()
 {
-    return std::tuple<Command, tlm_generic_payload *, sc_time>(Command::NOP, nullptr, sc_max_time());
+    return CommandTuple::Type(Command::NOP, nullptr, sc_max_time());
 }
 
 sc_time RefreshManagerDummy::start()

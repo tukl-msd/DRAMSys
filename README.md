@@ -309,48 +309,60 @@ An example follows.
     "mcconfig": {
         "PagePolicy": "Open", 
         "Scheduler": "Fifo", 
+        "SchedulerBuffer": "ReadWrite",
         "RequestBufferSize": 8, 
         "CmdMux": "Oldest", 
         "RespQueue": "Fifo", 
-        "RefreshPolicy": "Rankwise", 
+        "RefreshPolicy": "AllBank", 
         "RefreshMaxPostponed": 8, 
         "RefreshMaxPulledin": 8, 
         "PowerDownPolicy": "NoPowerDown", 
-        "PowerDownTimeout": 100
+        "Arbiter": "Fifo",
+        "MaxActiveTransactions": 128 
     }
 }
 ```
 
   - *PagePolicy* (string)
-      - "Open"
-      - "OpenAdaptive"
-      - "Closed"
-      - "ClosedAdaptive"
+    - "Open": no auto-precharge is performed after read or write commands
+    - "OpenAdaptive": auto-precharge after read or write commands is only performed if further requests for the targeted bank are stored in the scheduler and all the requests are row misses
+    - "Closed": auto-precharge is performed after each read or write command
+    - "ClosedAdaptive": auto-precharge after read or write commands is performed if all further requests for the targeted bank stored in the scheduler are row misses or if there are no further requests stored 
   - *Scheduler* (string)
-    - "Fifo": first in, first out
-    - "FrFcfs": first-ready - first-come, first-served
-    - "FrFcfsGrp": first-ready - first-come, first-served with grouping of read and write requests
-  - RequestBufferSize (unsigned int)
-    - buffer size of the scheduler
+    - all policies are applied locally to one bank, not globally to the whole channel
+    - "Fifo": first in, first out policy
+    - "FrFcfs": first-ready - first-come, first-served policy (row hits are preferred to row misses)
+    - "FrFcfsGrp": first-ready - first-come, first-served policy with additional grouping of read and write requests
+  - *SchedulerBuffer* (string)
+    - "Bankwise": requests are stored in bankwise buffers
+    - "ReadWrite": read and write requests are stored in different buffers
+    - "Shared": all requests are stored in one shared buffer
+  - *RequestBufferSize* (unsigned int)
+    - depth of a single scheduler buffer entity, total buffer depth depends on the selected scheduler buffer policy
   - *CmdMux* (string)
-      - "Oldest": oldest payload has the highest priority
-      - "Strict": read and write commands are issued in the same order as their corresponding requests arrived at the channel controller (can only be combined with "Fifo" scheduler) 
+    - "Oldest": from all commands that are ready to be issued in the current clock cycle the one that belongs to the oldest transaction has the highest priority; commands from refresh managers have a higher priority than all other commands, commands from power down managers have a lower priority than all other commands
+    - "Strict": based on "Oldest", in addition, read and write commands are strictly issued in the order their corresponding requests arrived at the channel controller (can only be used in combination with the "Fifo" scheduler) 
   - *RespQueue* (string)
-      - "Strict": outgoing responses are not reordered
-      - "Reorder": outgoing responses are reordered
+    - "Fifo": the original request order is not restored for outgoing responses 
+    - "Reorder": the original request order is restored for outgoing responses (only within the channel)
   - *RefreshPolicy* (string)
-      - "NoRefresh": refresh disabled
-      - "Rankwise": all-bank refresh commands, issued per rank
-      - "Bankwise": per-bank refresh commands (only supported by LPDDR4, Wide I/O 2, GDDR5/5X/6, HBM2)
-  - *RefreshMaxPostponed*
-      - maximum number of refresh commands that can be postponed (usually 8, with per-bank refresh the number is automatically multiplied by the number of banks)
-  - *RefreshMaxPulledin*
-      - maximum number of refresh commands that can be pulled in (usually 8, with per-bank refresh the number is automatically multiplied by the number of banks)
+    - "NoRefresh": refresh is disabled
+    - "AllBank": all-bank refresh commands are issued (per rank)
+    - "PerBank": per-bank refresh commands are issued (only available in combination with LPDDR4, Wide I/O 2, GDDR5/5X/6 or HBM2)
+    - "SameBank": same-bank refresh commands are issued (only available in combination with DDR5)
+  - *RefreshMaxPostponed* (unsigned int)
+    - maximum number of refresh commands that can be postponed (with per-bank refresh the number is internally multiplied with the number of banks, with same-bank refresh the number is internally multiplied with the number of banks per bank group)
+  - *RefreshMaxPulledin* (unsigned int)
+    - maximum number of refresh commands that can be pulled in (with per-bank refresh the number is internally multiplied with the number of banks, with same-bank refresh the number is internally multiplied with the number of banks per bank group)
   - *PowerDownPolicy* (string)
     - "NoPowerDown": power down disabled
     - "Staggered": staggered power down policy [5]
-- PowerDownTimeout (unsigned int)
-  - currently unused
+  - *Arbiter* (string)
+    - "Simple": simple forwarding of transactions to the right channel or initiator
+    - "Fifo": transactions can be buffered internally to achieve a higher throughput especially in multi-initiator-multi-channel configurations
+    - "Reorder": based on "Fifo", in addition, the original request order is restored for outgoing responses (separately for each initiator and globally to all channels)
+  - *MaxActiveTransactions* (unsigned int)
+    - maximum number of active transactions per initiator (only applies to "Fifo" and "Reorder" arbiter policy)
 
 ## DRAMSys with Thermal Simulation
 

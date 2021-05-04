@@ -43,6 +43,7 @@
 #include "Configuration.h"
 #include "memspec/MemSpecDDR3.h"
 #include "memspec/MemSpecDDR4.h"
+#include "memspec/MemSpecDDR5.h"
 #include "memspec/MemSpecWideIO.h"
 #include "memspec/MemSpecLPDDR4.h"
 #include "memspec/MemSpecWideIO2.h"
@@ -81,25 +82,117 @@ void Configuration::setParameter(std::string name, nlohmann::json value)
 {
     // MCConfig
     if (name == "PagePolicy")
-        pagePolicy = value;
+    {
+        if (value == "Open")
+            pagePolicy = PagePolicy::Open;
+        else if (value == "Closed")
+            pagePolicy = PagePolicy::Closed;
+        else if (value == "OpenAdaptive")
+            pagePolicy = PagePolicy::OpenAdaptive;
+        else if (value == "ClosedAdaptive")
+            pagePolicy = PagePolicy::ClosedAdaptive;
+        else
+            SC_REPORT_FATAL("Configuration", "Unsupported page policy!");
+    }
     else if (name == "Scheduler")
-        scheduler = value;
+    {
+        if (value == "Fifo")
+            scheduler = Scheduler::Fifo;
+        else if (value == "FrFcfs")
+            scheduler = Scheduler::FrFcfs;
+        else if (value == "FrFcfsGrp")
+            scheduler = Scheduler::FrFcfsGrp;
+        else
+            SC_REPORT_FATAL("Configuration", "Unsupported scheduler!");
+    }
+    else if (name == "SchedulerBuffer")
+    {
+        if (value == "Bankwise")
+            schedulerBuffer = SchedulerBuffer::Bankwise;
+        else if (value == "ReadWrite")
+            schedulerBuffer = SchedulerBuffer::ReadWrite;
+        else if (value == "Shared")
+            schedulerBuffer = SchedulerBuffer::Shared;
+        else
+            SC_REPORT_FATAL("Configuration", "Unsupported scheduler buffer!");
+    }
     else if (name == "RequestBufferSize")
+    {
         requestBufferSize = value;
+        if (requestBufferSize == 0)
+            SC_REPORT_FATAL("Configuration", "Minimum request buffer size is 1!");
+    }
     else if (name == "CmdMux")
-        cmdMux = value;
+    {
+        if (value == "Oldest")
+            cmdMux = CmdMux::Oldest;
+        else if (value == "Strict")
+            cmdMux = CmdMux::Strict;
+        else
+            SC_REPORT_FATAL("Configuration", "Unsupported cmd mux!");
+    }
     else if (name == "RespQueue")
-        respQueue = value;
+    {
+        if (value == "Fifo")
+            respQueue = RespQueue::Fifo;
+        else if (value == "Reorder")
+            respQueue = RespQueue::Reorder;
+        else
+            SC_REPORT_FATAL("Configuration", "Unsupported response queue!");
+    }
+    else if (name == "Arbiter")
+    {
+        if (value == "Simple")
+            arbiter = Arbiter::Simple;
+        else if (value == "Fifo")
+            arbiter = Arbiter::Fifo;
+        else if (value == "Reorder")
+            arbiter = Arbiter::Reorder;
+        else
+            SC_REPORT_FATAL("Configuration", "Unsupported arbiter!");
+    }
     else if (name == "RefreshPolicy")
-        refreshPolicy = value;
+    {
+        if (value == "NoRefresh")
+            refreshPolicy = RefreshPolicy::NoRefresh;
+        else if (value == "AllBank" || value == "Rankwise")
+            refreshPolicy = RefreshPolicy::AllBank;
+        else if (value == "PerBank" || value == "Bankwise")
+            refreshPolicy = RefreshPolicy::PerBank;
+        else if (value == "SameBank" || value == "Groupwise")
+            refreshPolicy = RefreshPolicy::SameBank;
+        else
+            SC_REPORT_FATAL("Configuration", "Unsupported refresh policy!");
+    }
     else if (name == "RefreshMaxPostponed")
         refreshMaxPostponed = value;
     else if (name == "RefreshMaxPulledin")
         refreshMaxPulledin = value;
     else if (name == "PowerDownPolicy")
-        powerDownPolicy = value;
+    {
+        if (value == "NoPowerDown")
+            powerDownPolicy = PowerDownPolicy::NoPowerDown;
+        else if (value == "Staggered")
+            powerDownPolicy = PowerDownPolicy::Staggered;
+        else
+            SC_REPORT_FATAL("Configuration", "Unsupported power down policy!");
+    }
     else if (name == "PowerDownTimeout")
         powerDownTimeout = value;
+    else if (name == "MaxActiveTransactions")
+        maxActiveTransactions = value;
+    else if (name == "ArbitrationDelayFw")
+        arbitrationDelayFw = std::round(sc_time(value, SC_NS) / memSpec->tCK) * memSpec->tCK;
+    else if (name == "ArbitrationDelayBw")
+        arbitrationDelayBw = std::round(sc_time(value, SC_NS) / memSpec->tCK) * memSpec->tCK;
+    else if (name == "ThinkDelayFw")
+        thinkDelayFw = std::round(sc_time(value, SC_NS) / memSpec->tCK) * memSpec->tCK;
+    else if (name == "ThinkDelayBw")
+        thinkDelayBw = std::round(sc_time(value, SC_NS) / memSpec->tCK) * memSpec->tCK;
+    else if (name == "PhyDelayFw")
+        phyDelayFw = std::round(sc_time(value, SC_NS) / memSpec->tCK) * memSpec->tCK;
+    else if (name == "PhyDelayBw")
+        phyDelayBw = std::round(sc_time(value, SC_NS) / memSpec->tCK) * memSpec->tCK;
     //SimConfig------------------------------------------------
     else if (name == "SimulationName")
         simulationName = value;
@@ -113,9 +206,7 @@ void Configuration::setParameter(std::string name, nlohmann::json value)
     {
         windowSize = value;
         if (windowSize == 0)
-            SC_REPORT_FATAL("Configuration",
-                            ("Invalid value for parameter " + name +
-                             ". This parameter must be at least one.").c_str());
+            SC_REPORT_FATAL("Configuration", "Minimum window size is 1");
     }
     else if (name == "Debug")
         debug = value;
@@ -124,26 +215,37 @@ void Configuration::setParameter(std::string name, nlohmann::json value)
     else if (name == "SimulationProgressBar")
         simulationProgressBar = value;
     else if (name == "AddressOffset")
-    {
-#ifdef DRAMSYS_GEM5
         addressOffset = value;
-#else
-        addressOffset = 0;
-#endif
-    }
     else if (name == "UseMalloc")
         useMalloc = value;
     else if (name == "CheckTLM2Protocol")
         checkTLM2Protocol = value;
     else if (name == "ECCControllerMode")
-        ECCMode = value;
+    {
+        if (value == "Disabled")
+            eccMode = ECCMode::Disabled;
+        else if (value == "Hamming")
+            eccMode = ECCMode::Hamming;
+        else
+            SC_REPORT_FATAL("Configuration", "Unsupported ECC mode!");
+    }
     // Specification for ErrorChipSeed, ErrorCSVFile path and StoreMode
     else if (name == "ErrorChipSeed")
         errorChipSeed = value;
     else if (name == "ErrorCSVFile")
         errorCSVFile = value;
     else if (name == "StoreMode")
-        storeMode = value;
+    {
+        if (value == "NoStorage")
+            storeMode = StoreMode::NoStorage;
+        else if (value == "Store")
+            storeMode = StoreMode::Store;
+        else if (value == "ErrorModel")
+            storeMode = StoreMode::ErrorModel;
+        else
+            SC_REPORT_FATAL("Configuration", "Unsupported store mode!");
+    }
+
     // Temperature Simulation related
     else if (name == "TemperatureScale")
     {
@@ -186,80 +288,24 @@ void Configuration::setPathToResources(std::string path)
     temperatureSim.setPathToResources(path);
 }
 
-// Returns the total memory size in bytes
-std::uint64_t Configuration::getSimMemSizeInBytes()
-{
-    // 1. Get number of banks, rows, columns and data width in bits for one die (or chip)
-    std::string type = memSpec->memoryType;
-    std::uint64_t ranks = memSpec->numberOfRanks;
-    std::uint64_t bankgroups = memSpec->numberOfBankGroups;
-    std::uint64_t banks = memSpec->numberOfBanks;
-    std::uint64_t rows = memSpec->numberOfRows;
-    std::uint64_t columns = memSpec->numberOfColumns;
-    std::uint64_t bitWidth = memSpec->bitWidth;
-    std::uint64_t devicesOnDIMM = memSpec->numberOfDevicesOnDIMM;
-    // 2. Calculate size of one DRAM chip in bits
-    std::uint64_t chipBitSize = banks * rows * columns * bitWidth;
-    // 3. Calculate size of one DRAM chip in bytes
-    std::uint64_t chipSize = chipBitSize / 8;
-    // 4. Total memory size in Bytes of one DIMM (with only support of 1 rank on a DIMM)
-    std::uint64_t memorySize = chipSize * memSpec->numberOfDevicesOnDIMM;
-
-    std::cout << headline << std::endl;
-    std::cout << "Per Channel Configuration:" << std::endl << std::endl;
-    std::cout << " Memory type:           " << type                  << std::endl;
-    std::cout << " Memory size in bytes:  " << memorySize            << std::endl;
-    std::cout << " Number of ranks:       " << ranks                 << std::endl;
-    std::cout << " Number of bankgroups:  " << bankgroups            << std::endl;
-    std::cout << " Number of banks:       " << banks                 << std::endl;
-    std::cout << " Number of rows:        " << rows                  << std::endl;
-    std::cout << " Number of columns:     " << columns               << std::endl;
-    std::cout << " Chip data bus width:   " << bitWidth              << std::endl;
-    std::cout << " Chip size in bits:     " << chipBitSize           << std::endl;
-    std::cout << " Chip Size in bytes:    " << chipSize              << std::endl;
-    std::cout << " Devices/Chips on DIMM: " << devicesOnDIMM         << std::endl;
-    std::cout << std::endl;
-
-    assert(memorySize > 0);
-    return memorySize;
-}
-
-// Returns the width of the data bus.
-// All DRAM chips on a DIMM operate in lockstep,
-// which constituing aggregate data bus width = chip's bus width * # locksteep-operated chips
-// The bus width is given in bits, e.g., 64-bit data bus, 128-bit data bus, etc.
-unsigned int Configuration::getDataBusWidth()
-{
-    return memSpec->bitWidth * memSpec->numberOfDevicesOnDIMM;
-}
-
-// Returns the number of bytes transfered in a burst
-unsigned int Configuration::getBytesPerBurst()
-{
-    return (memSpec->burstLength * getDataBusWidth()) / 8;
-}
-
 // Changes the number of bytes depeding on the ECC Controller. This function is needed for modules which get data directly or indirectly from the ECC Controller
 unsigned int Configuration::adjustNumBytesAfterECC(unsigned nBytes)
 {
     // Manipulate the number of bytes only if there is an ECC Controller selected
-    if (ECCMode == "Disabled")
+    if (eccMode == ECCMode::Disabled)
         return nBytes;
-    else if (ECCMode == "Hamming")
+    else // if (eccMode == ECCMode::Hamming)
     {
         assert(pECC != nullptr);
         return pECC->AllocationSize(nBytes);
-    }
-    else
-    {
-        SC_REPORT_FATAL("Configuration", ("ECC mode " + ECCMode + " unsupported").c_str());
-        return 0;
     }
 }
 
 void Configuration::loadSimConfig(Configuration &config, std::string simconfigUri)
 {
     json doc = parseJSON(simconfigUri);
+    if (doc["simconfig"].empty())
+        SC_REPORT_FATAL("Configuration", "simconfig is empty.");
     for (auto& x : doc["simconfig"].items())
         config.setParameter(x.key(), x.value());
 }
@@ -267,6 +313,8 @@ void Configuration::loadSimConfig(Configuration &config, std::string simconfigUr
 void Configuration::loadTemperatureSimConfig(Configuration &config, std::string thermalsimconfigUri)
 {
     json doc = parseJSON(thermalsimconfigUri);
+    if (doc["thermalsimconfig"].empty())
+        SC_REPORT_FATAL("Configuration", "thermalsimconfig is empty.");
     for (auto& x : doc["thermalsimconfig"].items())
         config.setParameter(x.key(), x.value());
 }
@@ -275,6 +323,8 @@ void Configuration::loadMCConfig(Configuration &config, std::string mcconfigUri)
 {
     config.mcconfigUri = mcconfigUri;
     json doc = parseJSON(mcconfigUri);
+    if (doc["mcconfig"].empty())
+        SC_REPORT_FATAL("Configuration", "mcconfig is empty.");
     for (auto& x : doc["mcconfig"].items())
         config.setParameter(x.key(), x.value());
 }
@@ -291,6 +341,8 @@ void Configuration::loadMemSpec(Configuration &config, std::string memspecUri)
         memSpec = new MemSpecDDR3(jMemSpec);
     else if (memoryType == "DDR4")
         memSpec = new MemSpecDDR4(jMemSpec);
+    else if (memoryType == "DDR5")
+        memSpec = new MemSpecDDR5(jMemSpec);
     else if (memoryType == "LPDDR4")
         memSpec = new MemSpecLPDDR4(jMemSpec);
     else if (memoryType == "WIDEIO_SDR")

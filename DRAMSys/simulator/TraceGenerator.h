@@ -39,43 +39,13 @@
 #define TRACEGENERATOR_H
 
 #include "TracePlayer.h"
+#include "TraceSetup.h"
 
-struct TraceGenerator : public TracePlayer
+class TraceGenerator : public TracePlayer
 {
 public:
-    TraceGenerator(sc_module_name name, unsigned int fCKMhz, TracePlayerListener *listener)
-        : TracePlayer(name, listener), transCounter(0)
-    {
-        if (fCKMhz == 0)
-            tCK = Configuration::getInstance().memSpec->tCK;
-        else
-            tCK = sc_time(1.0 / fCKMhz, SC_US);
-
-        this->burstlenght = Configuration::getInstance().memSpec->burstLength;
-    }
-
-    virtual void nextPayload() override
-    {
-        if (transCounter >= 1000) { // TODO set limit!
-            this->terminate();
-        }
-
-        tlm::tlm_generic_payload *payload = this->allocatePayload();
-        payload->acquire();
-        unsigned char *dataElement = new unsigned
-        char[16];  // TODO: column / burst breite
-
-        payload->set_address(0x0);
-        payload->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
-        payload->set_dmi_allowed(false);
-        payload->set_byte_enable_length(0);
-        payload->set_streaming_width(this->burstlenght);
-        payload->set_data_ptr(dataElement);
-        payload->set_data_length(16);
-        payload->set_command(tlm::TLM_READ_COMMAND);
-        transCounter++;
-        this->payloadEventQueue.notify(*payload, tlm::BEGIN_REQ, SC_ZERO_TIME);
-    }
+    TraceGenerator(sc_module_name name, unsigned int fCKMhz, TraceSetup *setup);
+    virtual void nextPayload() override;
 
 private:
     unsigned int burstlenght;

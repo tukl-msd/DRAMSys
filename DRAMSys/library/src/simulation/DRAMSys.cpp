@@ -51,6 +51,7 @@
 #include "../error/ecchamming.h"
 #include "dram/DramDDR3.h"
 #include "dram/DramDDR4.h"
+#include "dram/DramDDR5.h"
 #include "dram/DramWideIO.h"
 #include "dram/DramLPDDR4.h"
 #include "dram/DramWideIO2.h"
@@ -80,22 +81,18 @@ DRAMSys::DRAMSys(sc_module_name name,
     // Read Configuration Setup:
     nlohmann::json simulationdoc = parseJSON(simulationToRun);
 
-    if (simulationdoc["simulation"].empty())
-        SC_REPORT_FATAL("SimulationManager",
-                        "Cannot load simulation: simulation node expected");
-
     Configuration::getInstance().setPathToResources(pathToResources);
 
     // Load config and initialize modules
-    Configuration::getInstance().loadMCConfig(Configuration::getInstance(),
-            pathToResources
-            + "configs/mcconfigs/"
-            + std::string(simulationdoc["simulation"]["mcconfig"]));
-
     Configuration::getInstance().loadMemSpec(Configuration::getInstance(),
             pathToResources
             + "configs/memspecs/"
             + std::string(simulationdoc["simulation"]["memspec"]));
+
+    Configuration::getInstance().loadMCConfig(Configuration::getInstance(),
+            pathToResources
+            + "configs/mcconfigs/"
+            + std::string(simulationdoc["simulation"]["mcconfig"]));
 
     Configuration::getInstance().loadSimConfig(Configuration::getInstance(),
             pathToResources
@@ -166,7 +163,7 @@ void DRAMSys::logo()
 #undef BOLDTXT
 }
 
-void DRAMSys::setupDebugManager(const std::string &traceName __attribute__((unused)))
+void DRAMSys::setupDebugManager(NDEBUG_UNUSED(const std::string &traceName))
 {
 #ifndef NDEBUG
     auto &dbg = DebugManager::getInstance();
@@ -183,24 +180,28 @@ void DRAMSys::instantiateModules(const std::string &pathToResources,
     // The first call to getInstance() creates the Temperature Controller.
     // The same instance will be accessed by all other modules.
     TemperatureController::getInstance();
+    Configuration &config = Configuration::getInstance();
 
     // Create new ECC Controller
-    if (Configuration::getInstance().ECCMode == "Hamming")
+    if (config.eccMode == Configuration::ECCMode::Hamming)
         ecc = new ECCHamming("ECCHamming");
-    else if (Configuration::getInstance().ECCMode == "Disabled")
+    else if (config.eccMode == Configuration::ECCMode::Disabled)
         ecc = nullptr;
-    else
-        SC_REPORT_FATAL("DRAMSys", "Unsupported ECC mode");
 
     // Save ECC Controller into the configuration struct to adjust it dynamically
-    Configuration::getInstance().pECC = ecc;
+    config.pECC = ecc;
 
     // Create arbiter
-    arbiter = new Arbiter("arbiter", pathToResources + "configs/amconfigs/" + amconfig);
+    if (config.arbiter == Configuration::Arbiter::Simple)
+        arbiter = new ArbiterSimple("arbiter", pathToResources + "configs/amconfigs/" + amconfig);
+    else if (config.arbiter == Configuration::Arbiter::Fifo)
+        arbiter = new ArbiterFifo("arbiter", pathToResources + "configs/amconfigs/" + amconfig);
+    else if (config.arbiter == Configuration::Arbiter::Reorder)
+        arbiter = new ArbiterReorder("arbiter", pathToResources + "configs/amconfigs/" + amconfig);
 
     // Create controllers and DRAMs
-    std::string memoryType = Configuration::getInstance().memSpec->memoryType;
-    for (size_t i = 0; i < Configuration::getInstance().memSpec->numberOfChannels; i++)
+    MemSpec::MemoryType memoryType = config.memSpec->memoryType;
+    for (size_t i = 0; i < config.memSpec->numberOfChannels; i++)
     {
         std::string str = "controller" + std::to_string(i);
 
@@ -210,26 +211,26 @@ void DRAMSys::instantiateModules(const std::string &pathToResources,
         str = "dram" + std::to_string(i);
         Dram *dram;
 
-        if (memoryType == "DDR3")
+        if (memoryType == MemSpec::MemoryType::DDR3)
             dram = new DramDDR3(str.c_str());
-        else if (memoryType == "WIDEIO_SDR")
-            dram = new DramWideIO(str.c_str());
-        else if (memoryType == "DDR4")
+        else if (memoryType == MemSpec::MemoryType::DDR4)
             dram = new DramDDR4(str.c_str());
-        else if (memoryType == "LPDDR4")
+        else if (memoryType == MemSpec::MemoryType::DDR5)
+            dram = new DramDDR5(str.c_str());
+        else if (memoryType == MemSpec::MemoryType::WideIO)
+            dram = new DramWideIO(str.c_str());
+        else if (memoryType == MemSpec::MemoryType::LPDDR4)
             dram = new DramLPDDR4(str.c_str());
-        else if (memoryType == "WIDEIO2")
+        else if (memoryType == MemSpec::MemoryType::WideIO2)
             dram = new DramWideIO2(str.c_str());
-        else if (memoryType == "HBM2")
+        else if (memoryType == MemSpec::MemoryType::HBM2)
             dram = new DramHBM2(str.c_str());
-        else if (memoryType == "GDDR5")
+        else if (memoryType == MemSpec::MemoryType::GDDR5)
             dram = new DramGDDR5(str.c_str());
-        else if (memoryType == "GDDR5X")
+        else if (memoryType == MemSpec::MemoryType::GDDR5X)
             dram = new DramGDDR5X(str.c_str());
-        else if (memoryType == "GDDR6")
+        else if (memoryType == MemSpec::MemoryType::GDDR6)
             dram = new DramGDDR6(str.c_str());
-        else
-            SC_REPORT_FATAL("DRAMSys", "Unsupported DRAM type");
 
         drams.push_back(dram);
 
@@ -245,21 +246,21 @@ void DRAMSys::instantiateModules(const std::string &pathToResources,
 
 void DRAMSys::bindSockets()
 {
+    Configuration &config = Configuration::getInstance();
+
     // If ECC Controller enabled, put it between Trace and arbiter
-    if (Configuration::getInstance().ECCMode == "Hamming")
+    if (config.eccMode == Configuration::ECCMode::Hamming)
     {
         assert(ecc != nullptr);
         tSocket.bind(ecc->t_socket);
         ecc->i_socket.bind(arbiter->tSocket);
     }
-    else if (Configuration::getInstance().ECCMode == "Disabled")
+    else if (config.eccMode == Configuration::ECCMode::Disabled)
         tSocket.bind(arbiter->tSocket);
-    else
-        SC_REPORT_FATAL("DRAMSys", "Unsupported ECC mode");
 
-    if (Configuration::getInstance().checkTLM2Protocol)
+    if (config.checkTLM2Protocol)
     {
-        for (size_t i = 0; i < Configuration::getInstance().memSpec->numberOfChannels; i++)
+        for (size_t i = 0; i < config.memSpec->numberOfChannels; i++)
         {
             arbiter->iSocket.bind(controllersTlmCheckers[i]->target_socket);
             controllersTlmCheckers[i]->initiator_socket.bind(controllers[i]->tSocket);
@@ -268,7 +269,7 @@ void DRAMSys::bindSockets()
     }
     else
     {
-        for (size_t i = 0; i < Configuration::getInstance().memSpec->numberOfChannels; i++)
+        for (size_t i = 0; i < config.memSpec->numberOfChannels; i++)
         {
             arbiter->iSocket.bind(controllers[i]->tSocket);
             controllers[i]->iSocket.bind(drams[i]->tSocket);

@@ -80,11 +80,15 @@ public:
     // Currents and Voltages:
     // TODO: to be completed
 
-    virtual sc_time getRefreshIntervalPB() const override;
     virtual sc_time getRefreshIntervalAB() const override;
+    virtual sc_time getRefreshIntervalPB() const override;
+
+    virtual bool hasRasAndCasBus() const override;
 
     virtual sc_time getExecutionTime(Command, const tlm::tlm_generic_payload &) const override;
     virtual TimeInterval getIntervalOnDataStrobe(Command) const override;
+
+    virtual uint64_t getSimMemSizeInBytes() const override;
 };
 
 #endif // MEMSPECHBM2_H

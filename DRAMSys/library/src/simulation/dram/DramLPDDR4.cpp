@@ -42,7 +42,7 @@
 
 DramLPDDR4::DramLPDDR4(sc_module_name name) : Dram(name)
 {
-    if (storeMode == StorageMode::ErrorModel)
+    if (storeMode == Configuration::StoreMode::ErrorModel)
         SC_REPORT_FATAL("DramLPDDR4", "Error Model not supported for LPDDR4");
 
     if (Configuration::getInstance().powerAnalysis)

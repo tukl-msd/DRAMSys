@@ -42,7 +42,7 @@
 
 DramHBM2::DramHBM2(sc_module_name name) : Dram(name)
 {
-    if (storeMode == StorageMode::ErrorModel)
+    if (storeMode == Configuration::StoreMode::ErrorModel)
         SC_REPORT_FATAL("DramHBM2", "Error Model not supported for HBM2");
 
     if (Configuration::getInstance().powerAnalysis)

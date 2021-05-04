@@ -49,7 +49,7 @@ public:
     virtual void triggerExit() = 0;
     virtual void triggerInterruption() = 0;
 
-    virtual std::tuple<Command, tlm::tlm_generic_payload *, sc_time> getNextCommand() = 0;
+    virtual CommandTuple::Type getNextCommand() = 0;
     virtual void updateState(Command) = 0;
     virtual sc_time start() = 0;
 };

@@ -38,28 +38,30 @@
 
 #include <vector>
 #include <string>
+#include <tlm.h>
+#include "MemoryManager.h"
 
-#include "common/utils.h"
-#include "TracePlayer.h"
-#include "StlPlayer.h"
+class TracePlayer;
 
-
-class TraceSetup : public TracePlayerListener
+class TraceSetup
 {
 public:
     TraceSetup(std::string uri,
                std::string pathToResources,
                std::vector<TracePlayer *> *devices);
 
-    virtual void tracePlayerTerminates() override;
-    virtual void transactionFinished() override;
-    virtual ~TraceSetup() {}
+    void tracePlayerTerminates();
+    void transactionFinished();
+    tlm::tlm_generic_payload *allocatePayload();
 
 private:
     unsigned int numberOfTracePlayers;
-    unsigned int totalTransactions = 0;
-    unsigned int remainingTransactions;
+    uint64_t totalTransactions = 0;
+    uint64_t remainingTransactions;
     unsigned int finishedTracePlayers = 0;
+    MemoryManager memoryManager;
+
+    void loadbar(uint64_t x, uint64_t n, unsigned int w = 50, unsigned int granularity = 1);
 };
 
 #endif // TRACESETUP_H

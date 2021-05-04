@@ -44,12 +44,12 @@ using namespace DRAMPower;
 
 DramDDR4::DramDDR4(sc_module_name name) : Dram(name)
 {
-    if (storeMode == StorageMode::ErrorModel)
+    if (storeMode == Configuration::StoreMode::ErrorModel)
         SC_REPORT_FATAL("DramDDR4", "Error Model not supported for DDR4");
 
     if (Configuration::getInstance().powerAnalysis)
     {
-        MemSpecDDR4 *memSpec = dynamic_cast<MemSpecDDR4 *>(this->memSpec);
+        const MemSpecDDR4 *memSpec = dynamic_cast<const MemSpecDDR4 *>(this->memSpec);
         if (memSpec == nullptr)
             SC_REPORT_FATAL("DramDDR4", "Wrong MemSpec chosen");
 
@@ -134,7 +134,7 @@ DramDDR4::DramDDR4(sc_module_name name) : Dram(name)
 
         MemorySpecification powerSpec;
         powerSpec.id = memSpec->memoryId;
-        powerSpec.memoryType = memSpec->memoryType;
+        powerSpec.memoryType = MemoryType::DDR4;
         powerSpec.memTimingSpec = memTimingSpec;
         powerSpec.memPowerSpec  = memPowerSpec;
         powerSpec.memArchSpec   = memArchSpec;

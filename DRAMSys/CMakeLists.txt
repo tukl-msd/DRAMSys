@@ -37,16 +37,27 @@ cmake_minimum_required(VERSION 3.10)
 # Project Name:
 project(DRAMSys)
 
+option(DRAMSYS_COVERAGE_CHECK "Coverage check of DRAMSys")
+option(DRAMSYS_WITH_GEM5 "Build DRAMSys with gem5 coupling")
+
 # Configuration:
 set(CMAKE_CXX_STANDARD 11 CACHE STRING "C++ Version")
 set(DCMAKE_SH "CMAKE_SH-NOTFOUND" CACHE STRING "Ignore sh.exe error on Windows")
+
+if(DRAMSYS_COVERAGE_CHECK)
+    message("== Coverage check enabled")
+    set(GCC_COVERAGE_COMPILE_FLAGS "-g -O0 -coverage -fprofile-arcs -ftest-coverage")
+    set(GCC_COVERAGE_LINK_FLAGS "-coverage -lgcov")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAGS}")
+endif()
 
 # Add DRAMSysLibrary:
 add_subdirectory(library)
 
 # Add TraceAnalyzer:
 if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/traceAnalyzer)
-    message("---- Trace Analyzer included")
+    message("== Trace Analyzer included")
     add_subdirectory(traceAnalyzer)
 endif()
 
@@ -54,8 +65,8 @@ endif()
 add_subdirectory(simulator)
 
 # Add DRAMSysgem5
-if(DEFINED ENV{GEM5})
-    message("---- gem5 coupling included")
+if(DEFINED ENV{GEM5} AND DRAMSYS_WITH_GEM5)
+    message("== gem5 coupling included")
     add_subdirectory(gem5)
 endif()
 

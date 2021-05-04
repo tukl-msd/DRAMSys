@@ -54,7 +54,7 @@ private:
     std::vector<std::vector<sc_time>> lastScheduledByCommandAndBank;
     std::vector<std::vector<sc_time>> lastScheduledByCommandAndRank;
     std::vector<sc_time> lastScheduledByCommand;
-    sc_time lastScheduled;
+    sc_time lastCommandOnBus;
 
     // Four activate window
     std::vector<std::queue<sc_time>> last2Activates;

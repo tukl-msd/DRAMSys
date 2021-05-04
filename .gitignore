@@ -23,3 +23,4 @@ DRAMSys/analyzer/scripts/__pycache__/
 *__pycache__*
 DRAMSys/gem5/boot_linux/linux-aarch32-ael.img
 DRAMSys/docs/doxygen
+/.vscode

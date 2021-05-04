@@ -69,19 +69,12 @@ Dram::Dram(sc_module_name name) : sc_module(name), tSocket("socket")
     // Adjust number of bytes per burst dynamically to the selected ecc controller
     bytesPerBurst = config.adjustNumBytesAfterECC(bytesPerBurst);
 
-    if (config.storeMode == "NoStorage")
-        storeMode = StorageMode::NoStorage;
-    else if (config.storeMode == "Store")
-        storeMode = StorageMode::Store;
-    else if (config.storeMode == "ErrorModel")
-        storeMode = StorageMode::ErrorModel;
-    else
-        SC_REPORT_FATAL(this->name(), "Unsupported storage mode");
+    storeMode = config.storeMode;
 
-    uint64_t memorySize = Configuration::getInstance().getSimMemSizeInBytes();
-    if (storeMode == StorageMode::Store)
+    uint64_t memorySize = config.memSpec->getSimMemSizeInBytes();
+    if (storeMode == Configuration::StoreMode::Store)
     {
-        if (Configuration::getInstance().useMalloc)
+        if (config.useMalloc)
         {
             memory = (unsigned char *)malloc(memorySize);
             if (!memory)
@@ -140,18 +133,18 @@ void Dram::reportPower()
 }
 
 tlm_sync_enum Dram::nb_transport_fw(tlm_generic_payload &payload,
-                                           tlm_phase &phase, sc_time &)
+                                           tlm_phase &phase, sc_time &delay)
 {
-    assert(phase >= 5 && phase <= 19);
+    assert(phase >= 5 && phase <= 21);
 
     if (Configuration::getInstance().powerAnalysis)
     {
-        unsigned int bank = DramExtension::getExtension(payload).getBank().ID();
-        unsigned long long cycle = sc_time_stamp() / memSpec->tCK;
+        int bank = static_cast<int>(DramExtension::getExtension(payload).getBank().ID());
+        int64_t cycle = static_cast<int64_t>((sc_time_stamp() + delay) / memSpec->tCK + 0.5);
         DRAMPower->doCommand(phaseToDRAMPowerCommand(phase), bank, cycle);
     }
 
-    if (storeMode == StorageMode::Store)
+    if (storeMode == Configuration::StoreMode::Store)
     {
         if (phase == BEGIN_RD || phase == BEGIN_RDA)
         {
@@ -173,7 +166,7 @@ unsigned int Dram::transport_dbg(tlm_generic_payload &trans)
     PRINTDEBUGMESSAGE(name(), "transport_dgb");
 
     // TODO: This part is not tested yet, neither with traceplayers nor with GEM5 coupling
-    if (storeMode == StorageMode::NoStorage)
+    if (storeMode == Configuration::StoreMode::NoStorage)
     {
         SC_REPORT_FATAL("DRAM",
                         "Debug Transport is used in combination with NoStorage");
@@ -190,7 +183,7 @@ unsigned int Dram::transport_dbg(tlm_generic_payload &trans)
 
         if (cmd == TLM_READ_COMMAND)
         {
-            if (storeMode == StorageMode::Store)
+            if (storeMode == Configuration::StoreMode::Store)
             { // Use Storage
                 unsigned char *phyAddr = memory + trans.get_address();
                 memcpy(ptr, phyAddr, trans.get_data_length());
@@ -203,7 +196,7 @@ unsigned int Dram::transport_dbg(tlm_generic_payload &trans)
         }
         else if (cmd == TLM_WRITE_COMMAND)
         {
-            if (storeMode == StorageMode::Store)
+            if (storeMode == Configuration::StoreMode::Store)
             { // Use Storage
                 unsigned char *phyAddr = memory + trans.get_address();
                 memcpy(phyAddr, ptr, trans.get_data_length());

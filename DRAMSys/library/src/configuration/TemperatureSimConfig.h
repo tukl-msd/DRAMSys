@@ -112,14 +112,14 @@ struct TemperatureSimConfig
 
     void showTemperatureSimConfig()
     {
-        int i __attribute__((unused)) = 0;
-        for (auto e __attribute__((unused)) : powerInitialValues)
+        NDEBUG_UNUSED(int i) = 0;
+        for (NDEBUG_UNUSED(auto e) : powerInitialValues)
         {
             PRINTDEBUGMESSAGE("TemperatureSimConfig", "powerInitialValues["
                               + std::to_string(i++) + "]: " + std::to_string(e));
         }
         i = 0;
-        for (auto e __attribute__((unused)) : powerThresholds)
+        for (NDEBUG_UNUSED(auto e) : powerThresholds)
         {
             PRINTDEBUGMESSAGE("TemperatureSimConfig", "powerThreshold["
                               + std::to_string(i++) + "]: " + std::to_string(e));

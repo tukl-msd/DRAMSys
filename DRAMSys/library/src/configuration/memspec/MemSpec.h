@@ -48,39 +48,46 @@
 class MemSpec
 {
 public:
-    unsigned numberOfChannels;
-    unsigned numberOfRanks;
-    unsigned banksPerRank;
-    unsigned groupsPerRank;
-    unsigned banksPerGroup;
-    unsigned numberOfBanks;
-    unsigned numberOfBankGroups;
-    unsigned numberOfDevicesOnDIMM;
-    unsigned numberOfRows;
-    unsigned numberOfColumns;
-    unsigned burstLength;
-    unsigned dataRate;
-    unsigned bitWidth;
+    const unsigned numberOfChannels;
+    const unsigned numberOfRanks;
+    const unsigned banksPerRank;
+    const unsigned groupsPerRank;
+    const unsigned banksPerGroup;
+    const unsigned numberOfBanks;
+    const unsigned numberOfBankGroups;
+    const unsigned numberOfDevicesOnDIMM;
+    const unsigned numberOfRows;
+    const unsigned numberOfColumns;
+    const unsigned burstLength;
+    const unsigned dataRate;
+    const unsigned bitWidth;
+    const unsigned dataBusWidth;
+    const unsigned bytesPerBurst;
 
     // Clock
-    double fCKMHz;
-    sc_time tCK;
+    const double fCKMHz;
+    const sc_time tCK;
 
-    std::string memoryId;
-    std::string memoryType;
+    const std::string memoryId;
+    const enum class MemoryType {DDR3, DDR4, DDR5, LPDDR4, WideIO, WideIO2, GDDR5, GDDR5X, GDDR6, HBM2} memoryType;
 
     virtual ~MemSpec() {}
 
-    virtual sc_time getRefreshIntervalAB() const = 0;
-    virtual sc_time getRefreshIntervalPB() const = 0;
+    virtual sc_time getRefreshIntervalAB() const;
+    virtual sc_time getRefreshIntervalPB() const;
+    virtual sc_time getRefreshIntervalSB() const;
+
+    virtual bool hasRasAndCasBus() const;
 
     virtual sc_time getExecutionTime(Command, const tlm::tlm_generic_payload &) const = 0;
     virtual TimeInterval getIntervalOnDataStrobe(Command) const = 0;
 
     sc_time getCommandLength(Command) const;
+    virtual uint64_t getSimMemSizeInBytes() const = 0; 
 
 protected:
-    MemSpec(nlohmann::json &memspec, unsigned numberOfChannels,
+    MemSpec(nlohmann::json &memspec, MemoryType memoryType,
+            unsigned numberOfChannels,
             unsigned numberOfRanks, unsigned banksPerRank,
             unsigned groupsPerRank, unsigned banksPerGroup,
             unsigned numberOfBanks, unsigned numberOfBankGroups,

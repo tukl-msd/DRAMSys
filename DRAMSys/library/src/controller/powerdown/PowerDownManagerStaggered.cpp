@@ -40,14 +40,14 @@ using namespace tlm;
 PowerDownManagerStaggered::PowerDownManagerStaggered(Rank rank, CheckerIF *checker)
     : rank(rank), checker(checker)
 {
-    setUpDummy(powerDownPayload, UINT64_MAX, rank);
+    setUpDummy(powerDownPayload, UINT64_MAX - 1, rank);
 }
 
 void PowerDownManagerStaggered::triggerEntry()
 {
     controllerIdle = true;
 
-    if (state == PdmState::Idle)
+    if (state == State::Idle)
         entryTriggered = true;
 }
 
@@ -57,7 +57,7 @@ void PowerDownManagerStaggered::triggerExit()
     enterSelfRefresh = false;
     entryTriggered = false;
 
-    if (state != PdmState::Idle)
+    if (state != State::Idle)
         exitTriggered = true;
 }
 
@@ -65,13 +65,13 @@ void PowerDownManagerStaggered::triggerInterruption()
 {
     entryTriggered = false;
 
-    if (state != PdmState::Idle)
+    if (state != State::Idle)
         exitTriggered = true;
 }
 
-std::tuple<Command, tlm_generic_payload *, sc_time> PowerDownManagerStaggered::getNextCommand()
+CommandTuple::Type PowerDownManagerStaggered::getNextCommand()
 {
-    return std::tuple<Command, tlm_generic_payload *, sc_time>(nextCommand, &powerDownPayload, timeToSchedule);
+    return CommandTuple::Type(nextCommand, &powerDownPayload, std::max(timeToSchedule, sc_time_stamp()));
 }
 
 sc_time PowerDownManagerStaggered::start()
@@ -81,13 +81,13 @@ sc_time PowerDownManagerStaggered::start()
 
     if (exitTriggered)
     {
-        if (state == PdmState::ActivePdn)
+        if (state == State::ActivePdn)
             nextCommand = Command::PDXA;
-        else if (state == PdmState::PrechargePdn)
+        else if (state == State::PrechargePdn)
             nextCommand = Command::PDXP;
-        else if (state == PdmState::SelfRefresh)
+        else if (state == State::SelfRefresh)
             nextCommand = Command::SREFEX;
-        else if (state == PdmState::ExtraRefresh)
+        else if (state == State::ExtraRefresh)
             nextCommand = Command::REFA;
 
         timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank, BankGroup(0), Bank(0));
@@ -124,35 +124,35 @@ void PowerDownManagerStaggered::updateState(Command command)
         activatedBanks = 0;
         break;
     case Command::PDEA:
-        state = PdmState::ActivePdn;
+        state = State::ActivePdn;
         entryTriggered = false;
         break;
     case Command::PDEP:
-        state = PdmState::PrechargePdn;
+        state = State::PrechargePdn;
         entryTriggered = false;
         break;
     case Command::SREFEN:
-        state = PdmState::SelfRefresh;
+        state = State::SelfRefresh;
         entryTriggered = false;
         enterSelfRefresh = false;
         break;
     case Command::PDXA:
-        state = PdmState::Idle;
+        state = State::Idle;
         exitTriggered = false;
         break;
     case Command::PDXP:
-        state = PdmState::Idle;
+        state = State::Idle;
         exitTriggered = false;
         if (controllerIdle)
             enterSelfRefresh = true;
         break;
     case Command::SREFEX:
-        state = PdmState::ExtraRefresh;
+        state = State::ExtraRefresh;
         break;
     case Command::REFA:
-        if (state == PdmState::ExtraRefresh)
+        if (state == State::ExtraRefresh)
         {
-            state = PdmState::Idle;
+            state = State::Idle;
             exitTriggered = false;
         }
         else if (controllerIdle)
@@ -161,6 +161,8 @@ void PowerDownManagerStaggered::updateState(Command command)
     case Command::REFB:
         if (controllerIdle)
             entryTriggered = true;
+        break;
+    default:
         break;
     }
 }

@@ -36,12 +36,30 @@
 #define CMDMUXOLDEST_H
 
 #include "CmdMuxIF.h"
+#include "../../configuration/Configuration.h"
 
 class CmdMuxOldest : public CmdMuxIF
 {
 public:
-    std::tuple<Command, tlm::tlm_generic_payload *, sc_time>
-        selectCommand(std::list<std::tuple<Command, tlm::tlm_generic_payload *, sc_time>> &);
+    CmdMuxOldest();
+    virtual CommandTuple::Type selectCommand(const ReadyCommands &) override;
+
+private:
+    const MemSpec *memSpec;
+};
+
+
+class CmdMuxOldestRasCas : public CmdMuxIF
+{
+public:
+    CmdMuxOldestRasCas();
+    virtual CommandTuple::Type selectCommand(const ReadyCommands &) override;
+
+private:
+    const MemSpec *memSpec;
+    ReadyCommands readyRasCommands;
+    ReadyCommands readyCasCommands;
+    ReadyCommands readyRasCasCommands;
 };
 
 #endif // CMDMUXOLDEST_H

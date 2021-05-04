@@ -42,7 +42,7 @@
 
 DramGDDR5X::DramGDDR5X(sc_module_name name) : Dram(name)
 {
-    if (storeMode == StorageMode::ErrorModel)
+    if (storeMode == Configuration::StoreMode::ErrorModel)
         SC_REPORT_FATAL("DramGDDR5X", "Error Model not supported for GDDR5X");
 
     if (Configuration::getInstance().powerAnalysis)

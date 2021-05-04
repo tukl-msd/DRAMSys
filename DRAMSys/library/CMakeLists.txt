@@ -41,20 +41,11 @@ project(DRAMSysLibrary)
 set(CMAKE_CXX_STANDARD 11 CACHE STRING "C++ Version")
 set(DCMAKE_SH="CMAKE_SH-NOTFOUND")
 
-if(DEFINED ENV{COVERAGE})
-    if($ENV{COVERAGE} STREQUAL "true")
-        message("---- Coverage check enabled")
-        set(GCC_COVERAGE_COMPILE_FLAGS "-g -O0 -coverage -fprofile-arcs -ftest-coverage")
-        set(GCC_COVERAGE_LINK_FLAGS "-coverage -lgcov")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}")
-        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${GCC_COVERAGE_LINK_FLAGS}")
-    endif()
-endif()
-
 # Add DRAMPower:
 add_subdirectory(src/common/third_party/DRAMPower)
 
 # Add nlohmann:
+set(JSON_BuildTests OFF CACHE INTERNAL "")
 add_subdirectory(src/common/third_party/nlohmann)
 
 # Add SystemC:
@@ -63,16 +54,16 @@ if(DEFINED ENV{SYSTEMC_HOME})
         NAMES systemc SnpsVP 
         PATHS $ENV{SYSTEMC_HOME}/lib-$ENV{SYSTEMC_TARGET_ARCH}/ $ENV{SYSTEMC_HOME}/lib-linux64/ $ENV{SYSTEMC_HOME}/libso-$ENV{COWARE_CXX_COMPILER}/
     )
-    message("---- Building with external SystemC located in $ENV{SYSTEMC_HOME}")
+    message("== Building with external SystemC located in $ENV{SYSTEMC_HOME}")
 else()
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build Shared Libs")
     add_subdirectory(src/common/third_party/systemc)
     set(SYSTEMC_LIBRARY systemc)
-    message("---- Building with SystemC submodule")
+    message("== Building with SystemC submodule")
 endif()
 
 if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/src/common/third_party/sqlite-amalgamation)
-    message("---- Database recording included")
+    message("== Database recording included")
     # Add sqlite3 Dependency:
     set(BUILD_ENABLE_RTREE ON CACHE BOOL "Enable R-Tree Feature")
     set(BUILD_ENABLE_RTREE ON)
@@ -87,7 +78,6 @@ if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/src/common/third_party/sqlite-amalgamation)
 endif()
 
 add_library(DRAMSysLibrary
-    src/common/AddressDecoder.cpp
     src/common/DebugManager.cpp
     src/common/dramExtensions.cpp
     src/common/tlm2_base_protocol_checker.h
@@ -99,6 +89,7 @@ add_library(DRAMSysLibrary
     src/configuration/memspec/MemSpec.cpp
     src/configuration/memspec/MemSpecDDR3.cpp
     src/configuration/memspec/MemSpecDDR4.cpp
+    src/configuration/memspec/MemSpecDDR5.cpp
     src/configuration/memspec/MemSpecLPDDR4.cpp
     src/configuration/memspec/MemSpecWideIO.cpp
     src/configuration/memspec/MemSpecWideIO2.cpp
@@ -115,6 +106,7 @@ add_library(DRAMSysLibrary
     src/controller/checker/CheckerIF.h
     src/controller/checker/CheckerDDR3.cpp
     src/controller/checker/CheckerDDR4.cpp
+    src/controller/checker/CheckerDDR5.cpp
     src/controller/checker/CheckerLPDDR4.cpp
     src/controller/checker/CheckerWideIO.cpp
     src/controller/checker/CheckerWideIO2.cpp
@@ -133,8 +125,9 @@ add_library(DRAMSysLibrary
     
     src/controller/refresh/RefreshManagerIF.h
     src/controller/refresh/RefreshManagerDummy.cpp
-    src/controller/refresh/RefreshManagerRankwise.cpp
-    src/controller/refresh/RefreshManagerBankwise.cpp
+    src/controller/refresh/RefreshManagerAllBank.cpp
+    src/controller/refresh/RefreshManagerPerBank.cpp
+    src/controller/refresh/RefreshManagerSameBank.cpp
     
     src/controller/respqueue/RespQueueIF.h
     src/controller/respqueue/RespQueueFifo.cpp
@@ -144,6 +137,11 @@ add_library(DRAMSysLibrary
     src/controller/scheduler/SchedulerFifo.cpp
     src/controller/scheduler/SchedulerFrFcfs.cpp
     src/controller/scheduler/SchedulerFrFcfsGrp.cpp
+
+    src/controller/scheduler/BufferCounterIF.h
+    src/controller/scheduler/BufferCounterBankwise.cpp
+    src/controller/scheduler/BufferCounterReadWrite.cpp
+    src/controller/scheduler/BufferCounterShared.cpp
     
     src/error/eccbaseclass.cpp
     src/error/ecchamming.cpp
@@ -154,6 +152,7 @@ add_library(DRAMSysLibrary
     src/error/ECC/Word.cpp
     
     src/simulation/Arbiter.cpp
+    src/simulation/AddressDecoder.cpp
     src/simulation/DRAMSys.cpp
     src/simulation/ReorderBuffer.h
     src/simulation/TemperatureController.cpp
@@ -161,6 +160,7 @@ add_library(DRAMSysLibrary
     src/simulation/dram/Dram.cpp
     src/simulation/dram/DramDDR3.cpp 
     src/simulation/dram/DramDDR4.cpp 
+    src/simulation/dram/DramDDR5.cpp
     src/simulation/dram/DramLPDDR4.cpp
     src/simulation/dram/DramWideIO.cpp
     src/simulation/dram/DramWideIO2.cpp
@@ -281,8 +281,8 @@ add_library(DRAMSysLibrary
 )
 
 if(DEFINED ENV{LIBTHREED_ICE_HOME})
-    message("---- Thermal simulation available")
-    add_definitions(-DTHERMALSIM)
+    message("== Thermal simulation available")
+    target_compile_definitions(DRAMSysLibrary PRIVATE THERMALSIM)
     target_include_directories(DRAMSysLibrary
         PRIVATE $ENV{LIBTHREED_ICE_HOME}/include/
     )
@@ -294,7 +294,7 @@ endif()
 
 if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/src/common/third_party/sqlite-amalgamation)
     target_include_directories(DRAMSysLibrary
-        PRIVATE src/common/third_party/sqlite-amalgamation/
+        PUBLIC src/common/third_party/sqlite-amalgamation/
     )
     target_link_libraries(DRAMSysLibrary
         PRIVATE sqlite3::sqlite3
@@ -305,8 +305,13 @@ endif()
 target_include_directories(DRAMSysLibrary
     PUBLIC src/common/third_party/DRAMPower/src/
     PUBLIC $ENV{SYSTEMC_HOME}/include/
-    PUBLIC $ENV{SYSTEMC_HOME}/include/tlm/
 )
+
+if(EXISTS $ENV{SYSTEMC_HOME}/include/tlm/)
+    target_include_directories(DRAMSysLibrary
+        PUBLIC $ENV{SYSTEMC_HOME}/include/tlm/
+    )
+endif()
 
 target_link_libraries(DRAMSysLibrary
     PUBLIC ${SYSTEMC_LIBRARY}

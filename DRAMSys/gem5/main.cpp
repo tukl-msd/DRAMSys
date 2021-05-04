@@ -65,7 +65,7 @@ public:
         Gem5SystemC::Gem5SimControl("gem5", configFile, 0, "MemoryAccess")
     {}
 
-    void afterSimulate()
+    virtual void afterSimulate() override
     {
         sc_stop();
     }
@@ -144,17 +144,21 @@ int sc_main(int argc, char **argv)
     Gem5SystemC::Gem5SlaveTransactor *t;
     std::vector<Gem5SystemC::Gem5SlaveTransactor *> transactors;
 
-    if (argc == 4) {
+    if (argc == 4)
+    {
         // Get path of resources:
         resources = pathOfFile(argv[0])
                     + std::string("/../../DRAMSys/library/resources/");
 
         simulationJson = argv[1];
         gem5ConfigFile = argv[2];
-        numTransactors = std::stoul(argv[3]);
+        numTransactors = static_cast<unsigned>(std::stoul(argv[3]));
 
-    } else {
+    }
+    else
+    {
         SC_REPORT_FATAL("sc_main", "Please provide configuration files and number of ports");
+        return EXIT_FAILURE;
     }
 
     // Instantiate DRAMSys:
@@ -177,13 +181,17 @@ int sc_main(int argc, char **argv)
     // - for a single port the port name is "transactor"
     // - for multiple ports names are transactor1, transactor2, ..., transactorN
     // Names generated here must match port names used by the gem5 config file, e.g., config.ini
-    if (numTransactors == 1) {
+    if (numTransactors == 1)
+    {
         t = new Gem5SystemC::Gem5SlaveTransactor("transactor", "transactor");
         t->socket.bind(dramSys->tSocket);
         t->sim_control.bind(sim_control);
         transactors.push_back(t);
-    } else {
-        for (unsigned i = 0; i < numTransactors; i++) {
+    }
+    else
+    {
+        for (unsigned i = 0; i < numTransactors; i++)
+        {
             // If there are two or more ports
             unsigned index = i + 1;
             std::string name = "transactor" + std::to_string(index);
@@ -218,7 +226,8 @@ int sc_main(int argc, char **argv)
     sc_core::sc_set_stop_mode(SC_STOP_FINISH_DELTA);
     sc_core::sc_start();
 
-    if (!sc_core::sc_end_of_simulation_invoked()) {
+    if (!sc_core::sc_end_of_simulation_invoked())
+    {
         SC_REPORT_INFO("sc_main", "Simulation stopped without explicit sc_stop()");
         sc_core::sc_stop();
     }

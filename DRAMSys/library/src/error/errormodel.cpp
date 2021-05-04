@@ -36,7 +36,7 @@
 #include "errormodel.h"
 #include "../common/DebugManager.h"
 #include "../simulation/TemperatureController.h"
-#include "../common/AddressDecoder.h"
+#include "../simulation/AddressDecoder.h"
 #include "../common/dramExtensions.h"
 
 #include <random>
@@ -51,7 +51,7 @@ void errorModel::init()
     // Get Configuration parameters:
     burstLenght = Configuration::getInstance().memSpec->burstLength;
     numberOfColumns = Configuration::getInstance().memSpec->numberOfColumns;
-    bytesPerColumn = std::log2(Configuration::getInstance().getDataBusWidth());
+    bytesPerColumn = std::log2(Configuration::getInstance().memSpec->dataBusWidth);
 
     // Adjust number of bytes per column dynamically to the selected ecc controller
     bytesPerColumn = Configuration::getInstance().adjustNumBytesAfterECC(

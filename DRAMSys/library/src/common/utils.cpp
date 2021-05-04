@@ -74,18 +74,17 @@ std::string getPhaseName(tlm_phase phase)
 
 json parseJSON(std::string path)
 {
-    try
+    std::ifstream file(path);
+    if (file.is_open())
     {
-        // parsing input with a syntax error
-        json j = json::parse(std::ifstream(path));
-        return j;
+        json j = json::parse(file, nullptr, false);
+        if (!j.is_discarded())
+            return j;
+        else
+            throw std::invalid_argument("JSON parse error in file '" + path + "'.");
     }
-    catch (json::parse_error& e)
-    {
-        // output exception information
-        std::cout << "Error while trying to parse file: " << path << '\n'
-                  << "message: " << e.what() << std::endl;
-    }
+    else
+        throw std::invalid_argument("Failed to open file '" + path + "'.");
 }
 
 bool parseBool(json &obj, std::string name)
@@ -95,10 +94,10 @@ bool parseBool(json &obj, std::string name)
         if (obj.is_boolean())
             return obj;
         else
-            throw std::invalid_argument("Expected type for '" + name + "': bool");
+            throw std::invalid_argument("Expected type for parameter '" + name + "': bool");
     }
     else
-        SC_REPORT_FATAL("Query json", ("Parameter '" + name + "' does not exist.").c_str());
+        throw std::invalid_argument("Parameter '" + name + "' does not exist.");
 }
 
 unsigned int parseUint(json &obj, std::string name)
@@ -108,10 +107,10 @@ unsigned int parseUint(json &obj, std::string name)
         if (obj.is_number_unsigned())
             return obj;
         else
-            throw std::invalid_argument("Expected type for '" + name + "': unsigned int");
+            throw std::invalid_argument("Expected type for parameter '" + name + "': unsigned int");
     }
     else
-        SC_REPORT_FATAL("Query json", ("Parameter '" + name + "' does not exist.").c_str());
+        throw std::invalid_argument("Parameter '" + name + "' does not exist.");
 }
 
 double parseUdouble(json &obj, std::string name)
@@ -121,10 +120,10 @@ double parseUdouble(json &obj, std::string name)
         if (obj.is_number() && (obj > 0))
             return obj;
         else
-            throw std::invalid_argument("Expected type for '" + name + "': positive double");
+            throw std::invalid_argument("Expected type for parameter '" + name + "': positive double");
     }
     else
-        SC_REPORT_FATAL("Query json", ("Parameter '" + name + "' does not exist.").c_str());
+        throw std::invalid_argument("Parameter '" + name + "' does not exist.");
 }
 
 std::string parseString(json &obj, std::string name)
@@ -134,13 +133,13 @@ std::string parseString(json &obj, std::string name)
         if (obj.is_string())
             return obj;
         else
-            throw std::invalid_argument("Expected type for '" + name + "': string");
+            throw std::invalid_argument("Expected type for parameter '" + name + "': string");
     }
     else
-        SC_REPORT_FATAL("Query json", ("Parameter '" + name + "' does not exist.").c_str());
+        throw std::invalid_argument("Parameter '" + name + "' does not exist.");
 }
 
-void setUpDummy(tlm_generic_payload &payload, uint64_t payloadID, Rank rank, BankGroup bankgroup, Bank bank)
+void setUpDummy(tlm_generic_payload &payload, uint64_t channelPayloadID, Rank rank, BankGroup bankgroup, Bank bank)
 {
     payload.set_address(bank.getStartAddress());
     payload.set_command(TLM_READ_COMMAND);
@@ -149,6 +148,7 @@ void setUpDummy(tlm_generic_payload &payload, uint64_t payloadID, Rank rank, Ban
     payload.set_dmi_allowed(false);
     payload.set_byte_enable_length(0);
     payload.set_streaming_width(0);
-    payload.set_extension(new DramExtension(Thread(UINT_MAX), rank, bankgroup,
-                                            bank, Row(0), Column(0), 0, payloadID));
+    payload.set_extension(new DramExtension(Thread(UINT_MAX), Channel(0), rank, bankgroup,
+                                            bank, Row(0), Column(0), 0, 0, channelPayloadID));
+    payload.set_extension(new GenerationExtension(SC_ZERO_TIME));
 }

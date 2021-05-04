@@ -39,7 +39,7 @@ using namespace tlm;
 using json = nlohmann::json;
 
 MemSpecWideIO2::MemSpecWideIO2(json &memspec)
-    : MemSpec(memspec,
+    : MemSpec(memspec, MemoryType::WideIO2,
       parseUint(memspec["memarchitecturespec"]["nbrOfChannels"],"nbrOfChannels"),
       parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
       parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks"),
@@ -69,9 +69,9 @@ MemSpecWideIO2::MemSpecWideIO2(json &memspec)
       tWTR    (tCK * parseUint(memspec["memtimingspec"]["WTR"], "WTR")),
       tRRD    (tCK * parseUint(memspec["memtimingspec"]["RRD"], "RRD")),
       tFAW    (tCK * parseUint(memspec["memtimingspec"]["FAW"], "FAW")),
-      tREFI   (tCK * (unsigned)(parseUint(memspec["memtimingspec"]["REFI"], "REFI")
+      tREFI   (tCK * static_cast<unsigned>(parseUint(memspec["memtimingspec"]["REFI"], "REFI")
               * parseUdouble(memspec["memtimingspec"]["REFM"], "REFM"))),
-      tREFIpb (tCK * (unsigned)(parseUint(memspec["memtimingspec"]["REFIPB"], "REFIPB")
+      tREFIpb (tCK * static_cast<unsigned>(parseUint(memspec["memtimingspec"]["REFIPB"], "REFIPB")
               * parseUdouble(memspec["memtimingspec"]["REFM"], "REFM"))),
       tRFCab  (tCK * parseUint(memspec["memtimingspec"]["RFCAB"], "RFCAB")),
       tRFCpb  (tCK * parseUint(memspec["memtimingspec"]["RFCPB"], "RFCPB")),
@@ -120,14 +120,35 @@ sc_time MemSpecWideIO2::getExecutionTime(Command command, const tlm_generic_payl
 TimeInterval MemSpecWideIO2::getIntervalOnDataStrobe(Command command) const
 {
     if (command == Command::RD || command == Command::RDA)
-        return TimeInterval(sc_time_stamp() + tRL + tDQSCK,
-                sc_time_stamp() + tRL + tDQSCK + burstDuration);
+        return TimeInterval(tRL + tDQSCK, tRL + tDQSCK + burstDuration);
     else if (command == Command::WR || command == Command::WRA)
-        return TimeInterval(sc_time_stamp() + tWL + tDQSS,
-                sc_time_stamp() + tWL + tDQSS + burstDuration);
+        return TimeInterval(tWL + tDQSS, tWL + tDQSS + burstDuration);
     else
     {
         SC_REPORT_FATAL("MemSpec", "Method was called with invalid argument");
         return TimeInterval();
     }
+}
+
+uint64_t MemSpecWideIO2::getSimMemSizeInBytes() const
+{
+    uint64_t deviceSizeBits = static_cast<uint64_t>(banksPerRank) * numberOfRows * numberOfColumns * bitWidth;
+    uint64_t deviceSizeBytes = deviceSizeBits / 8;
+    uint64_t memorySizeBytes = deviceSizeBytes * numberOfRanks;
+
+    std::cout << headline << std::endl;
+    std::cout << "Per Channel Configuration:" << std::endl << std::endl;
+    std::cout << " Memory type:           " << "Wide I/O 2"          << std::endl;
+    std::cout << " Memory size in bytes:  " << memorySizeBytes       << std::endl;
+    std::cout << " Ranks:                 " << numberOfRanks         << std::endl;
+    std::cout << " Banks per rank:        " << banksPerRank          << std::endl;
+    std::cout << " Rows per bank:         " << numberOfRows          << std::endl;
+    std::cout << " Columns per row:       " << numberOfColumns       << std::endl;
+    std::cout << " Device width in bits:  " << bitWidth              << std::endl;
+    std::cout << " Device size in bits:   " << deviceSizeBits        << std::endl;
+    std::cout << " Device size in bytes:  " << deviceSizeBytes       << std::endl;
+    std::cout << std::endl;
+
+    assert(memorySizeBytes > 0);
+    return memorySizeBytes;
 }

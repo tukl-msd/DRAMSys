@@ -33,20 +33,22 @@
  */
 
 #include "BankMachine.h"
+#include "../configuration/Configuration.h"
 
 using namespace tlm;
 
 BankMachine::BankMachine(SchedulerIF *scheduler, CheckerIF *checker, Bank bank)
     : scheduler(scheduler), checker(checker), bank(bank)
 {
-    MemSpec *memSpec = Configuration::getInstance().memSpec;
+    const MemSpec *memSpec = Configuration::getInstance().memSpec;
     rank = Rank(bank.ID() / memSpec->banksPerRank);
     bankgroup = BankGroup(bank.ID() / memSpec->banksPerGroup);
 }
 
-std::tuple<Command, tlm_generic_payload *, sc_time> BankMachine::getNextCommand()
+CommandTuple::Type BankMachine::getNextCommand()
 {
-        return std::tuple<Command, tlm_generic_payload *, sc_time>(nextCommand, currentPayload, timeToSchedule);
+    return CommandTuple::Type(nextCommand, currentPayload, 
+            std::max(timeToSchedule, sc_time_stamp()));
 }
 
 void BankMachine::updateState(Command command)
@@ -54,28 +56,30 @@ void BankMachine::updateState(Command command)
     switch (command)
     {
     case Command::ACT:
-        currentState = BmState::Activated;
-        currentRow = DramExtension::getRow(currentPayload);
+        state = State::Activated;
+        openRow = DramExtension::getRow(currentPayload);
         break;
-    case Command::PRE: case Command::PREA:
-        currentState = BmState::Precharged;
+    case Command::PRE: case Command::PREA: case Command::PRESB:
+        state = State::Precharged;
         break;
     case Command::RD: case Command::WR:
         currentPayload = nullptr;
         break;
     case Command::RDA: case Command::WRA:
-        currentState = BmState::Precharged;
+        state = State::Precharged;
         currentPayload = nullptr;
         break;
     case Command::PDEA: case Command::PDEP: case Command::SREFEN:
         sleeping = true;
         break;
-    case Command::REFA: case Command::REFB:
+    case Command::REFA: case Command::REFB: case Command::REFSB:
         sleeping = false;
         blocked = false;
         break;
     case Command::PDXA: case Command::PDXP:
         sleeping = false;
+        break;
+    default:
         break;
     }
 }
@@ -102,12 +106,12 @@ Bank BankMachine::getBank()
 
 Row BankMachine::getOpenRow()
 {
-    return currentRow;
+    return openRow;
 }
 
-BmState BankMachine::getState()
+BankMachine::State BankMachine::getState()
 {
-    return currentState;
+    return state;
 }
 
 bool BankMachine::isIdle()
@@ -123,34 +127,27 @@ sc_time BankMachineOpen::start()
     timeToSchedule = sc_max_time();
     nextCommand = Command::NOP;
 
-    if (sleeping)
-        return timeToSchedule;
-
-    currentPayload = scheduler->getNextRequest(this);
-    if (currentPayload == nullptr)
-        return timeToSchedule;
-
-    if (currentState == BmState::Precharged && !blocked) // row miss
+    if (!(sleeping || blocked))
     {
-        nextCommand = Command::ACT;
-        timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank, bankgroup, bank);
-    }
-    else if (currentState == BmState::Activated)
-    {
-        if (DramExtension::getRow(currentPayload) == currentRow) // row hit
+        currentPayload = scheduler->getNextRequest(this);
+        if (currentPayload != nullptr)
         {
-            if (currentPayload->get_command() == TLM_READ_COMMAND)              
-                nextCommand = Command::RD;
-            else if (currentPayload->get_command() == TLM_WRITE_COMMAND)
-                nextCommand = Command::WR;
-            else
-                SC_REPORT_FATAL("BankMachine", "Wrong TLM command");
-
-            timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank, bankgroup, bank);
-        }
-        else if (!blocked) // row miss
-        {
-            nextCommand = Command::PRE;
+            if (state == State::Precharged) // bank precharged
+                nextCommand = Command::ACT;
+            else if (state == State::Activated)
+            {
+                if (DramExtension::getRow(currentPayload) == openRow) // row hit
+                {
+                    if (currentPayload->get_command() == TLM_READ_COMMAND)
+                        nextCommand = Command::RD;
+                    else if (currentPayload->get_command() == TLM_WRITE_COMMAND)
+                        nextCommand = Command::WR;
+                    else
+                        SC_REPORT_FATAL("BankMachine", "Wrong TLM command");
+                }
+                else // row miss
+                    nextCommand = Command::PRE;
+            }
             timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank, bankgroup, bank);
         }
     }
@@ -165,28 +162,24 @@ sc_time BankMachineClosed::start()
     timeToSchedule = sc_max_time();
     nextCommand = Command::NOP;
 
-    if (sleeping)
-        return timeToSchedule;
-
-    currentPayload = scheduler->getNextRequest(this);
-    if (currentPayload == nullptr)
-        return timeToSchedule;
-
-    if (currentState == BmState::Precharged && !blocked) // row miss
+    if (!(sleeping || blocked))
     {
-        nextCommand = Command::ACT;
-        timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank, bankgroup, bank);
-    }
-    else if (currentState == BmState::Activated)
-    {
-        if (currentPayload->get_command() == TLM_READ_COMMAND)
-            nextCommand = Command::RDA;
-        else if (currentPayload->get_command() == TLM_WRITE_COMMAND)
-            nextCommand = Command::WRA;
-        else
-            SC_REPORT_FATAL("BankMachine", "Wrong TLM command");
-
-        timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank, bankgroup, bank);
+        currentPayload = scheduler->getNextRequest(this);
+        if (currentPayload != nullptr)
+        {
+            if (state == State::Precharged) // bank precharged
+                nextCommand = Command::ACT;
+            else if (state == State::Activated)
+            {
+                if (currentPayload->get_command() == TLM_READ_COMMAND)
+                    nextCommand = Command::RDA;
+                else if (currentPayload->get_command() == TLM_WRITE_COMMAND)
+                    nextCommand = Command::WRA;
+                else
+                    SC_REPORT_FATAL("BankMachine", "Wrong TLM command");
+            }
+            timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank, bankgroup, bank);
+        }
     }
     return timeToSchedule;
 }
@@ -199,45 +192,39 @@ sc_time BankMachineOpenAdaptive::start()
     timeToSchedule = sc_max_time();
     nextCommand = Command::NOP;
 
-    if (sleeping)
-        return timeToSchedule;
-
-    currentPayload = scheduler->getNextRequest(this);
-    if (currentPayload == nullptr)
-        return timeToSchedule;
-
-    if (currentState == BmState::Precharged && !blocked) // row miss
+    if (!(sleeping || blocked))
     {
-        nextCommand = Command::ACT;
-        timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank, bankgroup, bank);
-    }
-    else if (currentState == BmState::Activated)
-    {
-        if (DramExtension::getRow(currentPayload) == currentRow) // row hit
+        currentPayload = scheduler->getNextRequest(this);
+        if (currentPayload != nullptr)
         {
-            if (scheduler->hasFurtherRequest(bank) && !scheduler->hasFurtherRowHit(bank, currentRow))
+            if (state == State::Precharged) // bank precharged
+                nextCommand = Command::ACT;
+            else if (state == State::Activated)
             {
-                if (currentPayload->get_command() == TLM_READ_COMMAND)
-                    nextCommand = Command::RDA;
-                else if (currentPayload->get_command() == TLM_WRITE_COMMAND)
-                    nextCommand = Command::WRA;
-                else
-                    SC_REPORT_FATAL("BankMachine", "Wrong TLM command");
+                if (DramExtension::getRow(currentPayload) == openRow) // row hit
+                {
+                    if (scheduler->hasFurtherRequest(bank) && !scheduler->hasFurtherRowHit(bank, openRow))
+                    {
+                        if (currentPayload->get_command() == TLM_READ_COMMAND)
+                            nextCommand = Command::RDA;
+                        else if (currentPayload->get_command() == TLM_WRITE_COMMAND)
+                            nextCommand = Command::WRA;
+                        else
+                            SC_REPORT_FATAL("BankMachine", "Wrong TLM command");
+                    }
+                    else
+                    {
+                        if (currentPayload->get_command() == TLM_READ_COMMAND)
+                            nextCommand = Command::RD;
+                        else if (currentPayload->get_command() == TLM_WRITE_COMMAND)
+                            nextCommand = Command::WR;
+                        else
+                            SC_REPORT_FATAL("BankMachine", "Wrong TLM command");
+                    }
+                }
+                else // row miss
+                    nextCommand = Command::PRE;
             }
-            else
-            {
-                if (currentPayload->get_command() == TLM_READ_COMMAND)
-                    nextCommand = Command::RD;
-                else if (currentPayload->get_command() == TLM_WRITE_COMMAND)
-                    nextCommand = Command::WR;
-                else
-                    SC_REPORT_FATAL("BankMachine", "Wrong TLM command");               
-            }
-            timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank, bankgroup, bank);
-        }
-        else if (!blocked) // row miss
-        {
-            nextCommand = Command::PRE;
             timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank, bankgroup, bank);
         }
     }
@@ -252,47 +239,40 @@ sc_time BankMachineClosedAdaptive::start()
     timeToSchedule = sc_max_time();
     nextCommand = Command::NOP;
 
-    if (sleeping)
-        return timeToSchedule;
-
-    currentPayload = scheduler->getNextRequest(this);
-    if (currentPayload == nullptr)
-        return timeToSchedule;
-
-    if (currentState == BmState::Precharged && !blocked) // row miss
+    if (!(sleeping || blocked))
     {
-        nextCommand = Command::ACT;
-        timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank, bankgroup, bank);
-    }
-    else if (currentState == BmState::Activated)
-    {
-        if (DramExtension::getRow(currentPayload) == currentRow) // row hit
+        currentPayload = scheduler->getNextRequest(this);
+        if (currentPayload != nullptr)
         {
-            if (scheduler->hasFurtherRowHit(bank, currentRow))
+            if (state == State::Precharged && !blocked) // bank precharged
+                nextCommand = Command::ACT;
+            else if (state == State::Activated)
             {
-                if (currentPayload->get_command() == TLM_READ_COMMAND)
-                    nextCommand = Command::RD;
-                else if (currentPayload->get_command() == TLM_WRITE_COMMAND)
-                    nextCommand = Command::WR;
-                else
-                    SC_REPORT_FATAL("BankMachine", "Wrong TLM command");
-            }
-            else
-            {
-                if (currentPayload->get_command() == TLM_READ_COMMAND)
-                    nextCommand = Command::RDA;
-                else if (currentPayload->get_command() == TLM_WRITE_COMMAND)
-                    nextCommand = Command::WRA;
-                else
-                    SC_REPORT_FATAL("BankMachine", "Wrong TLM command");
+                if (DramExtension::getRow(currentPayload) == openRow) // row hit
+                {
+                    if (scheduler->hasFurtherRowHit(bank, openRow))
+                    {
+                        if (currentPayload->get_command() == TLM_READ_COMMAND)
+                            nextCommand = Command::RD;
+                        else if (currentPayload->get_command() == TLM_WRITE_COMMAND)
+                            nextCommand = Command::WR;
+                        else
+                            SC_REPORT_FATAL("BankMachine", "Wrong TLM command");
+                    }
+                    else
+                    {
+                        if (currentPayload->get_command() == TLM_READ_COMMAND)
+                            nextCommand = Command::RDA;
+                        else if (currentPayload->get_command() == TLM_WRITE_COMMAND)
+                            nextCommand = Command::WRA;
+                        else
+                            SC_REPORT_FATAL("BankMachine", "Wrong TLM command");
+                    }
+                }
+                else // row miss, should never happen
+                    SC_REPORT_FATAL("BankMachine", "Should never be reached for this policy");
             }
             timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank, bankgroup, bank);
-        }
-        else if (!blocked) // row miss TODO: remove this, can never happen
-        {
-            nextCommand = Command::PRE;
-            timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank, bankgroup, bank);
-            SC_REPORT_FATAL("BankMachine", "Should never be reached for this policy");
         }
     }
     return timeToSchedule;

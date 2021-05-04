@@ -1,58 +1,60 @@
-## DRAMSys with gem5
+## DRAMSys with gem5 SE Mode
 
-Install gem5 by following the instructions in the [gem5 documentation](https://www.gem5.org/documentation/general_docs/building). In order to allow a coupling without running into problems we recommend to use **commit a470ef5**. Optionally, use the scripts from [gem5.TnT](https://github.com/tukl-msd/gem5.TnT) to install gem5, build it, get some benchmark programs and learn more about gem5.
+Install gem5 by following the instructions in the [gem5 documentation](https://www.gem5.org/documentation/general_docs/building). In order to allow a coupling without running into problems we recommend to use the **develop** branch. Optionally, use the scripts from [gem5.TnT](https://github.com/tukl-msd/gem5.TnT) to install gem5, build it, get some benchmark programs and learn more about gem5.
 
 In order to understand the SystemC coupling with gem5 it is recommended to read the documentation in the gem5 repository *util/tlm/README* and [1].
 
-The main steps for building gem5 and libgem5 follow:
+The main steps for building the gem5 executable and shared library follow (either choose ARM or x86 ISA):
 
 ```bash
 $ cd gem5
-$ scons build/ARM/gem5.opt
-$ scons --with-cxx-config --without-python --without-tcmalloc build/ARM/libgem5_opt.so
+$ scons build/<ARM/X86>/gem5.opt
+$ scons --with-cxx-config --without-python --without-tcmalloc USE_SYSTEMC=False build/<ARM/X86>/libgem5_opt.so
 ```
 
-In order to use gem5 with DRAMSys export the `GEM5` environment variable (gem5 root directory) and add the path of the library to `LD_LIBRARY_PATH`, then rerun CMake and rebuild the DRAMSys project.
+In order to use gem5 with DRAMSys export the root directory as `GEM5` environment variable and add the path of the library to `LD_LIBRARY_PATH`, then rerun CMake with the additional variable `-DDRAMSYS_WITH_GEM5=ON` and rerun Make.
 
-### DRAMSys with gem5 ARM SE Mode
+```bash
+$ export GEM5=/path/to/gem5
+$ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/path/to/gem5/build/<ARM/X86>
+$ cd DRAMSys/build
+$ cmake ../DRAMSys/ -DDRAMSYS_WITH_GEM5=ON
+$ make
+```
 
-All essential files for a functional example are provided. Execute a hello world application:
+Adjust the *path/to/gem5/configs/example/se.py* as shown below:
+
+```bash
+...
+if options.tlm_memory:
+    system.physmem = SimpleMemory()
+MemConfig.config_mem(options, system)
+...
+
+```
+
+Next, a gem5 configuration file must be generated. A "Hello world!" example is provided in the gem5 repository. To run the example execute the following commands:
 
 ```bash
 $ cd DRAMSys/build/gem5
-$ ./DRAMSys_gem5 ../../DRAMSys/library/resources/simulations/ddr3-gem5-se.json ../../DRAMSys/gem5/gem5_se/hello-ARM/config.ini 1
+$ ./path/to/gem5/build/<ARM/X86>/gem5.opt path/to/gem5/configs/example/se.py \
+  -c path/to/gem5/tests/test-progs/hello/bin/<arm/x86>/linux/hello \ 
+  --mem-size=512MB --mem-channels=1 --caches --l2cache --mem-type=SimpleMemory \
+  --cpu-type=TimingSimpleCPU --num-cpu=1 \
+  --tlm-memory=transactor
 ```
 
-A **Hello world!** message should be printed to the standard output.
-
-### DRAMSys with gem5 X86 SE Mode
-
-Make sure you have built *gem5/build/X86/libgem5_opt.so*. Add the path of the library to `LD_LIBRARY_PATH` and remove the path of the ARM library.
-
-Change the architecture in the [CMake file](DRAMSys/gem5/CMakeLists.txt) to *X86*, rerun CMake and rebuild the project. Test with a hello world application for X86:
+The error message `fatal: Can't find port handler type 'tlm_slave'` is printed because a TLM memory is not yet connected to gem5. However, a configuration file that corresponds to the simulation will already be created inside the *m5out* directory. This configuration file can now be used to run the same simulation with gem5 coupled to DRAMSys:
 
 ```bash
-$ cd DRAMSys/build/gem5
-$ ./DRAMSys_gem5 ../../DRAMSys/library/resources/simulations/ddr3-gem5-se.json ../../DRAMSys/gem5/gem5_se/hello-X86/config.ini 1
+$ ./DRAMSys_gem5 ../../DRAMSys/library/resources/simulations/ddr3-gem5-se.json m5out/config.ini 1
 ```
 
-A **Hello world!** message should be printed to the standard output.
+`Hello world!` should now be printed to the standard output.
 
-### DRAMSys with gem5 TraceCPU and Elastic Traces
-
-In order to understand elastic traces and their generation you should take a look at the [gem5 wiki](https://www.gem5.org/documentation/general_docs/cpu_models/TraceCPU) and the paper [2].
-
-All essential files for a functional example are provided. The example can be executed as follows:
-
-```bash
-$ cd DRAMSys/build/gem5
-$ ./DRAMSys_gem5 ../../DRAMSys/library/resources/simulations/ddr3-example.json ../../DRAMSys/gem5/gem5_etrace/config.ini 1
-```
+If you want to switch to another ISA simply modify the `LD_LIBRARY_PATH` environment variable accordingly and create a new gem5 configuration file.
 
 ## References
 
 [1] System Simulation with gem5 and SystemC: The Keystone for Full Interoperability  
 C. Menard, M. Jung, J. Castrillon, N. Wehn. IEEE International Conference on Embedded Computer Systems Architectures Modeling and Simulation (SAMOS), July, 2017, Samos Island, Greece.
-
-[2] Exploring System Performance using Elastic Traces: Fast, Accurate and Portable  
-R. Jagtap, S. Diestelhorst, A. Hansson, M. Jung, N. Wehn. IEEE International Conference on Embedded Computer Systems Architectures Modeling and Simulation (SAMOS), July, 2016, Samos Island, Greece.

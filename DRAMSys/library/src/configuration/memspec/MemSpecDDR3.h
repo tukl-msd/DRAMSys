@@ -88,10 +88,11 @@ public:
     const double iDD3P1;
 
     virtual sc_time getRefreshIntervalAB() const override;
-    virtual sc_time getRefreshIntervalPB() const override;
 
     virtual sc_time getExecutionTime(Command, const tlm::tlm_generic_payload &) const override;
     virtual TimeInterval getIntervalOnDataStrobe(Command) const override;
+
+    virtual uint64_t getSimMemSizeInBytes() const override;
 };
 
 #endif // MEMSPECDDR3_H

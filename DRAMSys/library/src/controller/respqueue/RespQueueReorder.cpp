@@ -39,19 +39,19 @@ using namespace tlm;
 
 void RespQueueReorder::insertPayload(tlm_generic_payload *payload, sc_time strobeEnd)
 {
-    buffer[DramExtension::getPayloadID(payload)] = {payload, strobeEnd};
+    buffer[DramExtension::getChannelPayloadID(payload)] = {payload, strobeEnd};
 }
 
 tlm_generic_payload *RespQueueReorder::nextPayload()
 {
     if (!buffer.empty())
     {
-        if (buffer.begin()->first == currentPayloadID)
+        if (buffer.begin()->first == nextPayloadID)
         {
             std::pair<tlm_generic_payload *, sc_time> element = buffer.begin()->second;
             if (element.second <= sc_time_stamp())
             {
-                buffer.erase(currentPayloadID++);
+                buffer.erase(nextPayloadID++);
                 return element.first;
             }
         }
@@ -63,7 +63,7 @@ sc_time RespQueueReorder::getTriggerTime() const
 {
     if (!buffer.empty())
     {
-        if (buffer.begin()->first == currentPayloadID)
+        if (buffer.begin()->first == nextPayloadID)
         {
             sc_time triggerTime = buffer.begin()->second.second;
             if (triggerTime > sc_time_stamp())

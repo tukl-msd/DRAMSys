@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Technische Universität Kaiserslautern
+ * Copyright (c) 2020, Technische Universität Kaiserslautern
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,46 +29,34 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Author: Lukas Steiner
+ * Authors:
+ *    Lukas Steiner
  */
 
-#ifndef REFRESHMANAGERRANKWISE_H
-#define REFRESHMANAGERRANKWISE_H
+#include "MemSpecDDR5.h"
+#include "../Configuration.h"
 
-#include "RefreshManagerIF.h"
-#include "../../configuration/memspec/MemSpec.h"
-#include "../BankMachine.h"
-#include "../powerdown/PowerDownManagerIF.h"
-#include "../checker/CheckerIF.h"
+using namespace tlm;
+using json = nlohmann::json;
 
-class RefreshManagerRankwise final : public RefreshManagerIF
+MemSpecDDR5::MemSpecDDR5(json &memspec)
+    : MemSpec(memspec, MemoryType::DDR5, 0, 0, 0, 0, 0, 0, 0, 0)
 {
-public:
-    RefreshManagerRankwise(std::vector<BankMachine *> &, PowerDownManagerIF *, Rank, CheckerIF *);
+    SC_REPORT_FATAL("MemSpecDDR5", "DDR5 model not included!");
+}
 
-    virtual std::tuple<Command, tlm::tlm_generic_payload *, sc_time> getNextCommand() override;
-    virtual sc_time start() override;
-    virtual void updateState(Command) override;
+// Returns the execution time for commands that have a fixed execution time
+sc_time MemSpecDDR5::getExecutionTime(Command, const tlm_generic_payload &) const
+{
+    return SC_ZERO_TIME;
+}
 
-private:
-    enum class RmState {Regular, Pulledin} state = RmState::Regular;
-    const MemSpec *memSpec;
-    std::vector<BankMachine *> &bankMachinesOnRank;
-    PowerDownManagerIF *powerDownManager;
-    tlm::tlm_generic_payload refreshPayload;
-    sc_time timeForNextTrigger = sc_max_time();
-    sc_time timeToSchedule = sc_max_time();
-    Rank rank;
-    CheckerIF *checker;
-    Command nextCommand = Command::NOP;
+TimeInterval MemSpecDDR5::getIntervalOnDataStrobe(Command) const
+{
+    return TimeInterval();
+}
 
-    unsigned activatedBanks = 0;
-
-    int flexibilityCounter = 0;
-    int maxPostponed = 0;
-    int maxPulledin = 0;
-
-    bool sleeping = false;
-};
-
-#endif // REFRESHMANAGERRANKWISE_H
+uint64_t MemSpecDDR5::getSimMemSizeInBytes() const
+{
+    return 0;
+}

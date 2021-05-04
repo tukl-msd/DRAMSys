@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Technische Universität Kaiserslautern
+ * Copyright (c) 2020, Technische Universität Kaiserslautern
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,20 +30,21 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Janik Schlemminger
- *    Robert Gernhardt
- *    Matthias Jung
+ *    Lukas Steiner
  */
 
-#ifndef TRACEPLAYERLISTENER_H
-#define TRACEPLAYERLISTENER_H
+#ifndef DRAMDDR5_H
+#define DRAMDDR5_H
 
-class TracePlayerListener
+#include <systemc.h>
+#include "Dram.h"
+
+class DramDDR5 : public Dram
 {
 public:
-    virtual void tracePlayerTerminates() = 0;
-    virtual void transactionFinished() = 0;
-    virtual ~TracePlayerListener() {}
+    DramDDR5(sc_module_name);
+    SC_HAS_PROCESS(DramDDR5);
+    virtual ~DramDDR5() {}
 };
 
-#endif // TRACEPLAYERLISTENER_H
+#endif // DRAMDDR5_H

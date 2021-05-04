@@ -44,7 +44,7 @@
 class RefreshManagerDummy final : public RefreshManagerIF
 {
 public:
-    virtual std::tuple<Command, tlm::tlm_generic_payload *, sc_time> getNextCommand() override;
+    virtual CommandTuple::Type getNextCommand() override;
     virtual sc_time start() override;
     virtual void updateState(Command) override {}
 };

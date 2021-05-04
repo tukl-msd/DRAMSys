@@ -48,8 +48,7 @@ public:
     virtual sc_time getTriggerTime() const override;
 
 private:
-    uint64_t currentPayloadID = 0;
-    // Muss die Zeit aller Payloads gespeichert werden?
+    uint64_t nextPayloadID = 1;
     std::map<uint64_t, std::pair<tlm::tlm_generic_payload *, sc_time>> buffer;
 };
 

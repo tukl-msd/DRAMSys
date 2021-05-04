@@ -33,64 +33,115 @@
  *    Robert Gernhardt
  *    Matthias Jung
  *    Eder F. Zulian
+ *    Lukas Steiner
  */
 
 #include "Arbiter.h"
-#include "../common/AddressDecoder.h"
+#include "AddressDecoder.h"
 #include "../configuration/Configuration.h"
 
 using namespace tlm;
 
 Arbiter::Arbiter(sc_module_name name, std::string pathToAddressMapping) :
-    sc_module(name), payloadEventQueue(this, &Arbiter::peqCallback)
+    sc_module(name), payloadEventQueue(this, &Arbiter::peqCallback),
+    tCK(Configuration::getInstance().memSpec->tCK),
+    arbitrationDelayFw(Configuration::getInstance().arbitrationDelayFw),
+    arbitrationDelayBw(Configuration::getInstance().arbitrationDelayBw)
 {
-    // The arbiter communicates with one or more memory unity through one or more sockets (one or more memory channels).
-    // Each of the arbiter's initiator sockets is bound to a memory controller's target socket.
-    // Anytime an transaction comes from a memory unity to the arbiter the "bw" callback is called.
     iSocket.register_nb_transport_bw(this, &Arbiter::nb_transport_bw);
-
-    for (size_t i = 0; i < Configuration::getInstance().memSpec->numberOfChannels; ++i)
-    {
-        channelIsFree.push_back(true);
-        pendingRequests.push_back(std::queue<tlm_generic_payload *>());
-        nextPayloadID.push_back(0);
-    }
-
-    // One or more devices can accesss all the memory units through the arbiter.
-    // Devices' initiator sockets are bound to arbiter's target sockets.
-    // As soon the arbiter receives a request in any of its target sockets it should treat and forward it to the proper memory channel.
     tSocket.register_nb_transport_fw(this, &Arbiter::nb_transport_fw);
-
     tSocket.register_transport_dbg(this, &Arbiter::transport_dbg);
 
     addressDecoder = new AddressDecoder(pathToAddressMapping);
     addressDecoder->print();
 }
 
-// Initiated by initiator side
-// This function is called when an arbiter's target socket receives a transaction from a device
+ArbiterSimple::ArbiterSimple(sc_module_name name, std::string pathToAddressMapping) :
+    Arbiter(name, pathToAddressMapping) {}
+
+ArbiterFifo::ArbiterFifo(sc_module_name name, std::string pathToAddressMapping) :
+    Arbiter(name, pathToAddressMapping),
+    maxActiveTransactions(Configuration::getInstance().maxActiveTransactions) {}
+
+ArbiterReorder::ArbiterReorder(sc_module_name name, std::string pathToAddressMapping) :
+    Arbiter(name, pathToAddressMapping),
+    maxActiveTransactions(Configuration::getInstance().maxActiveTransactions) {}
+
+Arbiter::~Arbiter()
+{
+    delete addressDecoder;
+}
+
+void Arbiter::end_of_elaboration()
+{
+    // initiator side
+    threadIsBusy = std::vector<bool>(tSocket.size(), false);
+    nextThreadPayloadIDToAppend = std::vector<uint64_t>(tSocket.size(), 1);
+
+    // channel side
+    channelIsBusy = std::vector<bool>(iSocket.size(), false);
+    pendingRequests = std::vector<std::queue<tlm_generic_payload *>>(iSocket.size(),
+            std::queue<tlm_generic_payload *>());
+    nextChannelPayloadIDToAppend = std::vector<uint64_t>(iSocket.size(), 1);
+}
+
+void ArbiterSimple::end_of_elaboration()
+{
+    Arbiter::end_of_elaboration();
+
+    // initiator side
+    pendingResponses = std::vector<std::queue<tlm_generic_payload *>>(tSocket.size(),
+            std::queue<tlm_generic_payload *>());
+}
+
+void ArbiterFifo::end_of_elaboration()
+{
+    Arbiter::end_of_elaboration();
+
+    // initiator side
+    activeTransactions = std::vector<unsigned int>(tSocket.size(), 0);
+    outstandingEndReq = std::vector<tlm_generic_payload *>(tSocket.size(), nullptr);
+    pendingResponses = std::vector<std::queue<tlm_generic_payload *>>(tSocket.size(),
+            std::queue<tlm_generic_payload *>());
+
+    lastEndReq = std::vector<sc_time>(iSocket.size(), sc_max_time());
+    lastEndResp = std::vector<sc_time>(tSocket.size(), sc_max_time());
+}
+
+void ArbiterReorder::end_of_elaboration()
+{
+    Arbiter::end_of_elaboration();
+
+    // initiator side
+    activeTransactions = std::vector<unsigned int>(tSocket.size(), 0);
+    outstandingEndReq = std::vector<tlm_generic_payload *>(tSocket.size(), nullptr);
+    pendingResponses = std::vector<std::set<tlm_generic_payload *, ThreadPayloadIDCompare>>
+            (tSocket.size(), std::set<tlm_generic_payload *, ThreadPayloadIDCompare>());
+    nextThreadPayloadIDToReturn = std::vector<uint64_t>(tSocket.size(), 1);
+
+    lastEndReq = std::vector<sc_time>(iSocket.size(), sc_max_time());
+    lastEndResp = std::vector<sc_time>(tSocket.size(), sc_max_time());
+}
+
 tlm_sync_enum Arbiter::nb_transport_fw(int id, tlm_generic_payload &payload,
                               tlm_phase &phase, sc_time &fwDelay)
 {
-    sc_time notDelay = std::ceil((sc_time_stamp() + fwDelay) / Configuration::getInstance().memSpec->tCK)
-            * Configuration::getInstance().memSpec->tCK - sc_time_stamp();
+    sc_time notDelay = std::ceil((sc_time_stamp() + fwDelay) / tCK) * tCK - sc_time_stamp();
 
     if (phase == BEGIN_REQ)
     {
         // TODO: do not adjust address permanently
         // adjust address offset:
-        payload.set_address(payload.get_address() -
-                            Configuration::getInstance().addressOffset);
+        uint64_t adjustedAddress = payload.get_address() - Configuration::getInstance().addressOffset;
+        payload.set_address(adjustedAddress);
 
-        // In the begin request phase the socket ID is appended to the payload.
-        // It will extracted from the payload and used later.
-        appendDramExtension(id, payload);
+        DecodedAddress decodedAddress = addressDecoder->decodeAddress(adjustedAddress);
+        DramExtension::setExtension(payload, Thread(static_cast<unsigned int>(id)),
+                                    Channel(decodedAddress.channel), Rank(decodedAddress.rank),
+                                    BankGroup(decodedAddress.bankgroup), Bank(decodedAddress.bank),
+                                    Row(decodedAddress.row), Column(decodedAddress.column),
+                                    payload.get_streaming_width(), 0, 0);
         payload.acquire();
-    }
-    else if (phase == END_RESP)
-    {
-        // TODO: why one additional cycle???
-        notDelay += Configuration::getInstance().memSpec->tCK;
     }
 
     PRINTDEBUGMESSAGE(name(), "[fw] " + getPhaseName(phase) + " notification in " +
@@ -99,14 +150,9 @@ tlm_sync_enum Arbiter::nb_transport_fw(int id, tlm_generic_payload &payload,
     return TLM_ACCEPTED;
 }
 
-// Initiated by dram side
-// This function is called when an arbiter's initiator socket receives a transaction from a memory controller
-tlm_sync_enum Arbiter::nb_transport_bw(int channelId, tlm_generic_payload &payload,
+tlm_sync_enum Arbiter::nb_transport_bw(int, tlm_generic_payload &payload,
                               tlm_phase &phase, sc_time &bwDelay)
 {
-    // Check channel ID
-    assert((unsigned int)channelId == DramExtension::getExtension(payload).getChannel().ID());
-
     PRINTDEBUGMESSAGE(name(), "[bw] " + getPhaseName(phase) + " notification in " +
                       bwDelay.to_string());
     payloadEventQueue.notify(payload, phase, bwDelay);
@@ -115,131 +161,370 @@ tlm_sync_enum Arbiter::nb_transport_bw(int channelId, tlm_generic_payload &paylo
 
 unsigned int Arbiter::transport_dbg(int /*id*/, tlm::tlm_generic_payload &trans)
 {
-    // adjust address offset:
     trans.set_address(trans.get_address() -
                       Configuration::getInstance().addressOffset);
 
     DecodedAddress decodedAddress = addressDecoder->decodeAddress(trans.get_address());
-    return iSocket[decodedAddress.channel]->transport_dbg(trans);
+    return iSocket[static_cast<int>(decodedAddress.channel)]->transport_dbg(trans);
 }
 
-void Arbiter::peqCallback(tlm_generic_payload &payload, const tlm_phase &phase)
+void ArbiterSimple::peqCallback(tlm_generic_payload &cbPayload, const tlm_phase &cbPhase)
 {
-    unsigned int threadId = DramExtension::getExtension(payload).getThread().ID();
-    unsigned int channelId = DramExtension::getExtension(payload).getChannel().ID();
+    unsigned int threadId = DramExtension::getExtension(cbPayload).getThread().ID();
+    unsigned int channelId = DramExtension::getExtension(cbPayload).getChannel().ID();
 
-    // Check the valid range of thread ID and channel Id
-    // TODO: thread ID not checked
-    assert(channelId < Configuration::getInstance().memSpec->numberOfChannels);
-
-    // Phases initiated by the intiator side from arbiter's point of view (devices performing memory requests to the arbiter)
-    if (phase == BEGIN_REQ)
+    if (cbPhase == BEGIN_REQ) // from initiator
     {
-        if (channelIsFree[channelId])
+        GenerationExtension::setExtension(cbPayload, sc_time_stamp());
+        DramExtension::setPayloadIDs(cbPayload,
+                nextThreadPayloadIDToAppend[threadId]++, nextChannelPayloadIDToAppend[channelId]++);
+
+        if (!channelIsBusy[channelId])
         {
-            // This channel was available. Forward the new transaction to the memory controller.
-            channelIsFree[channelId] = false;
+            channelIsBusy[channelId] = true;
+
             tlm_phase tPhase = BEGIN_REQ;
-            sc_time tDelay = SC_ZERO_TIME;
-            iSocket[channelId]->nb_transport_fw(payload, tPhase, tDelay);
-            // TODO: early completion of channel controller!!!
+            sc_time tDelay = arbitrationDelayFw;
+
+            iSocket[static_cast<int>(channelId)]->nb_transport_fw(cbPayload, tPhase, tDelay);
         }
         else
-        {
-            // This channel is busy. Enqueue the new transaction which phase is BEGIN_REQ.
-            pendingRequests[channelId].push(&payload);
-        }
+            pendingRequests[channelId].push(&cbPayload);
     }
-    // Phases initiated by the target side from arbiter's point of view (memory side)
-    else if (phase == END_REQ)
+    else if (cbPhase == END_REQ) // from target
     {
-        channelIsFree[channelId] = true;
+        {
+            tlm_phase tPhase = END_REQ;
+            sc_time tDelay = SC_ZERO_TIME;
 
-        // The arbiter receives a transaction which phase is END_REQ from memory controller and forwards it to the requester device.
-        tlm_phase tPhase = END_REQ;
-        sc_time tDelay = SC_ZERO_TIME;
-        tSocket[threadId]->nb_transport_bw(payload, tPhase, tDelay);
+            tSocket[static_cast<int>(threadId)]->nb_transport_bw(cbPayload, tPhase, tDelay);
+        }
 
-        // This channel is now free! Dispatch a new transaction (phase is BEGIN_REQ) from the queue, if any. Send it to the memory controller.
         if (!pendingRequests[channelId].empty())
         {
-            // Send ONE of the enqueued new transactions (phase is BEGIN_REQ) through this channel.
-            tlm_generic_payload &payloadToSend = *pendingRequests[channelId].front();
+            tlm_generic_payload &tPayload = *pendingRequests[channelId].front();
             pendingRequests[channelId].pop();
             tlm_phase tPhase = BEGIN_REQ;
-            sc_time tDelay = SC_ZERO_TIME;
-            iSocket[channelId]->nb_transport_fw(payloadToSend, tPhase, tDelay);
-            // TODO: early completion of channel controller
-            // Mark the channel as busy again.
-            channelIsFree[channelId] = false;
+            // do not send two requests in the same cycle
+            sc_time tDelay = tCK + arbitrationDelayFw;
+
+            iSocket[static_cast<int>(channelId)]->nb_transport_fw(tPayload, tPhase, tDelay);
         }
+        else
+            channelIsBusy[channelId] = false;
     }
-    else if (phase == BEGIN_RESP)
+    else if (cbPhase == BEGIN_RESP) // from memory controller
     {
-        // The arbiter receives a transaction in BEGIN_RESP phase
-        // (that came from the memory side) and forwards it to the requester
-        // device
-        if (pendingResponses[threadId].empty())
+        if (!threadIsBusy[threadId])
         {
             tlm_phase tPhase = BEGIN_RESP;
-            sc_time tDelay = SC_ZERO_TIME;
-            tlm_sync_enum returnValue = tSocket[threadId]->nb_transport_bw(payload, tPhase, tDelay);
-            if (returnValue != TLM_ACCEPTED)
-            {
-                tPhase = END_RESP;
-                payloadEventQueue.notify(payload, tPhase, tDelay);
-            }
-        }
+            sc_time tDelay = arbitrationDelayBw;
 
-        // Enqueue the transaction in BEGIN_RESP phase until the initiator
-        // device acknowledges it (phase changes to END_RESP).
-        pendingResponses[threadId].push(&payload);
+            tlm_sync_enum returnValue = tSocket[static_cast<int>(threadId)]->nb_transport_bw(cbPayload, tPhase, tDelay);
+            if (returnValue == TLM_UPDATED)
+                payloadEventQueue.notify(cbPayload, tPhase, tDelay);
+            threadIsBusy[threadId] = true;
+        }
+        else
+            pendingResponses[threadId].push(&cbPayload);
     }
-    else if (phase == END_RESP)
+    else if (cbPhase == END_RESP) // from initiator
     {
-        // Send the END_RESP message to the memory
         {
             tlm_phase tPhase = END_RESP;
             sc_time tDelay = SC_ZERO_TIME;
-            iSocket[channelId]->nb_transport_fw(payload, tPhase, tDelay);
-        }
-        // Drop one element of the queue of BEGIN_RESP from memory to this device
-        pendingResponses[threadId].pop();
-        payload.release();
 
-        // Check if there are queued transactoins with phase BEGIN_RESP from memory to this device
+            iSocket[static_cast<int>(channelId)]->nb_transport_fw(cbPayload, tPhase, tDelay);
+        }
+        cbPayload.release();
+
         if (!pendingResponses[threadId].empty())
         {
-            // The queue is not empty.
-            tlm_generic_payload &payloadToSend = *pendingResponses[threadId].front();
-            // Send ONE extra BEGIN_RESP to the device
+            tlm_generic_payload &tPayload = *pendingResponses[threadId].front();
+            pendingResponses[threadId].pop();
             tlm_phase tPhase = BEGIN_RESP;
+            // do not send two responses in the same cycle
+            sc_time tDelay = tCK + arbitrationDelayBw;
+
+            tlm_sync_enum returnValue = tSocket[static_cast<int>(threadId)]->nb_transport_bw(tPayload, tPhase, tDelay);
+            if (returnValue == TLM_UPDATED)
+                payloadEventQueue.notify(tPayload, tPhase, tDelay);
+        }
+        else
+            threadIsBusy[threadId] = false;
+    }
+    else
+        SC_REPORT_FATAL(0, "Payload event queue in arbiter was triggered with unknown phase");
+}
+
+void ArbiterFifo::peqCallback(tlm_generic_payload &cbPayload, const tlm_phase &cbPhase)
+{
+    unsigned int threadId = DramExtension::getExtension(cbPayload).getThread().ID();
+    unsigned int channelId = DramExtension::getExtension(cbPayload).getChannel().ID();
+
+    if (cbPhase == BEGIN_REQ) // from initiator
+    {
+        if (activeTransactions[threadId] < maxActiveTransactions)
+        {
+            activeTransactions[threadId]++;
+
+            GenerationExtension::setExtension(cbPayload, sc_time_stamp());
+            DramExtension::setPayloadIDs(cbPayload,
+                    nextThreadPayloadIDToAppend[threadId]++, nextChannelPayloadIDToAppend[channelId]++);
+
+            tlm_phase tPhase = END_REQ;
             sc_time tDelay = SC_ZERO_TIME;
-            tlm_sync_enum returnValue = tSocket[threadId]->nb_transport_bw(payloadToSend, tPhase, tDelay);
-            if (returnValue != TLM_ACCEPTED)
+
+            tSocket[static_cast<int>(threadId)]->nb_transport_bw(cbPayload, tPhase, tDelay);
+
+            pendingRequests[channelId].push(&cbPayload);
+        }
+        else
+            outstandingEndReq[threadId] = &cbPayload;
+
+        if (!channelIsBusy[channelId] && !pendingRequests[channelId].empty())
+        {
+            channelIsBusy[channelId] = true;
+
+            tlm_generic_payload &tPayload = *pendingRequests[channelId].front();
+            pendingRequests[channelId].pop();
+            tlm_phase tPhase = BEGIN_REQ;
+            sc_time tDelay = lastEndReq[channelId] == sc_time_stamp() ? tCK : SC_ZERO_TIME;
+
+            iSocket[static_cast<int>(channelId)]->nb_transport_fw(tPayload, tPhase, tDelay);
+        }
+    }
+    else if (cbPhase == END_REQ) // from memory controller
+    {
+        lastEndReq[channelId] = sc_time_stamp();
+
+        if (!pendingRequests[channelId].empty())
+        {
+            tlm_generic_payload &tPayload = *pendingRequests[channelId].front();
+            pendingRequests[channelId].pop();
+            tlm_phase tPhase = BEGIN_REQ;
+            sc_time tDelay = tCK;
+
+            iSocket[static_cast<int>(channelId)]->nb_transport_fw(tPayload, tPhase, tDelay);
+        }
+        else
+            channelIsBusy[channelId] = false;
+    }   
+    else if (cbPhase == BEGIN_RESP) // from memory controller
+    {
+        // TODO: use early completion
+        {
+            tlm_phase tPhase = END_RESP;
+            sc_time tDelay = SC_ZERO_TIME;
+
+            iSocket[static_cast<int>(channelId)]->nb_transport_fw(cbPayload, tPhase, tDelay);
+        }
+
+        pendingResponses[threadId].push(&cbPayload);
+
+        if (!threadIsBusy[threadId])
+        {
+            threadIsBusy[threadId] = true;
+
+            tlm_generic_payload &tPayload = *pendingResponses[threadId].front();
+            pendingResponses[threadId].pop();
+            tlm_phase tPhase = BEGIN_RESP;
+            sc_time tDelay = lastEndResp[threadId] == sc_time_stamp() ? tCK : SC_ZERO_TIME;
+
+            tlm_sync_enum returnValue = tSocket[static_cast<int>(threadId)]->nb_transport_bw(tPayload, tPhase, tDelay);
+            if (returnValue == TLM_UPDATED)
+                payloadEventQueue.notify(tPayload, tPhase, tDelay);
+        }
+    }
+    else if (cbPhase == END_RESP) // from initiator
+    {
+        lastEndResp[threadId] = sc_time_stamp();
+        cbPayload.release();
+
+        if (outstandingEndReq[threadId] != nullptr)
+        {
+            tlm_generic_payload &tPayload = *outstandingEndReq[threadId];
+            outstandingEndReq[threadId] = nullptr;
+            tlm_phase tPhase = END_REQ;
+            sc_time tDelay = SC_ZERO_TIME;
+            unsigned int tChannelId = DramExtension::getExtension(tPayload).getChannel().ID();
+
+            GenerationExtension::setExtension(tPayload, sc_time_stamp());
+            DramExtension::setPayloadIDs(tPayload,
+                    nextThreadPayloadIDToAppend[threadId]++, nextChannelPayloadIDToAppend[tChannelId]++);
+
+            tSocket[static_cast<int>(threadId)]->nb_transport_bw(tPayload, tPhase, tDelay);
+
+            if (!channelIsBusy[tChannelId])
             {
-                tPhase = END_RESP;
-                payloadEventQueue.notify(payloadToSend, tPhase, tDelay);
+                channelIsBusy[tChannelId] = true;
+
+                tPhase = BEGIN_REQ;
+                tDelay = lastEndReq[tChannelId] == sc_time_stamp() ? tCK : SC_ZERO_TIME;
+
+                iSocket[static_cast<int>(tChannelId)]->nb_transport_fw(tPayload, tPhase, tDelay);
+            }
+            else
+                pendingRequests[tChannelId].push(&tPayload);
+        }
+        else
+            activeTransactions[threadId]--;
+
+        if (!pendingResponses[threadId].empty())
+        {
+            tlm_generic_payload &tPayload = *pendingResponses[threadId].front();
+            pendingResponses[threadId].pop();
+            tlm_phase tPhase = BEGIN_RESP;
+            sc_time tDelay = tCK;
+
+            tlm_sync_enum returnValue = tSocket[static_cast<int>(threadId)]->nb_transport_bw(tPayload, tPhase, tDelay);
+            if (returnValue == TLM_UPDATED)
+                payloadEventQueue.notify(tPayload, tPhase, tDelay);
+        }
+        else
+            threadIsBusy[threadId] = false;
+    }
+    else
+        SC_REPORT_FATAL(0, "Payload event queue in arbiter was triggered with unknown phase");
+}
+
+void ArbiterReorder::peqCallback(tlm_generic_payload &cbPayload, const tlm_phase &cbPhase)
+{
+    unsigned int threadId = DramExtension::getExtension(cbPayload).getThread().ID();
+    unsigned int channelId = DramExtension::getExtension(cbPayload).getChannel().ID();
+
+    if (cbPhase == BEGIN_REQ) // from initiator
+    {
+        if (activeTransactions[threadId] < maxActiveTransactions)
+        {
+            activeTransactions[threadId]++;
+
+            GenerationExtension::setExtension(cbPayload, sc_time_stamp());
+            DramExtension::setPayloadIDs(cbPayload,
+                    nextThreadPayloadIDToAppend[threadId]++, nextChannelPayloadIDToAppend[channelId]++);
+
+            tlm_phase tPhase = END_REQ;
+            sc_time tDelay = SC_ZERO_TIME;
+
+            tSocket[static_cast<int>(threadId)]->nb_transport_bw(cbPayload, tPhase, tDelay);
+
+            pendingRequests[channelId].push(&cbPayload);
+        }
+        else
+            outstandingEndReq[threadId] = &cbPayload;
+
+        if (!channelIsBusy[channelId] && !pendingRequests[channelId].empty())
+        {
+            channelIsBusy[channelId] = true;
+
+            tlm_generic_payload &tPayload = *pendingRequests[channelId].front();
+            pendingRequests[channelId].pop();
+            tlm_phase tPhase = BEGIN_REQ;
+            sc_time tDelay = lastEndReq[channelId] == sc_time_stamp() ? tCK : SC_ZERO_TIME;
+
+            iSocket[static_cast<int>(channelId)]->nb_transport_fw(tPayload, tPhase, tDelay);
+        }
+    }
+    else if (cbPhase == END_REQ) // from memory controller
+    {
+        lastEndReq[channelId] = sc_time_stamp();
+
+        if (!pendingRequests[channelId].empty())
+        {
+            tlm_generic_payload &tPayload = *pendingRequests[channelId].front();
+            pendingRequests[channelId].pop();
+            tlm_phase tPhase = BEGIN_REQ;
+            sc_time tDelay = tCK;
+
+            iSocket[static_cast<int>(channelId)]->nb_transport_fw(tPayload, tPhase, tDelay);
+        }
+        else
+            channelIsBusy[channelId] = false;
+    }
+    else if (cbPhase == BEGIN_RESP) // from memory controller
+    {
+        // TODO: use early completion
+        {
+            tlm_phase tPhase = END_RESP;
+            sc_time tDelay = SC_ZERO_TIME;
+            iSocket[static_cast<int>(channelId)]->nb_transport_fw(cbPayload, tPhase, tDelay);
+        }
+
+        pendingResponses[threadId].insert(&cbPayload);
+
+        if (!threadIsBusy[threadId])
+        {
+            tlm_generic_payload &tPayload = **pendingResponses[threadId].begin();
+
+            if (DramExtension::getThreadPayloadID(tPayload) == nextThreadPayloadIDToReturn[threadId])
+            {
+                nextThreadPayloadIDToReturn[threadId]++;
+                pendingResponses[threadId].erase(pendingResponses[threadId].begin());
+                threadIsBusy[threadId] = true;
+
+                tlm_phase tPhase = BEGIN_RESP;
+                sc_time tDelay = lastEndResp[threadId] == sc_time_stamp() ? tCK : SC_ZERO_TIME;
+
+                tlm_sync_enum returnValue = tSocket[static_cast<int>(threadId)]->nb_transport_bw(tPayload, tPhase, tDelay);
+                if (returnValue == TLM_UPDATED)
+                    payloadEventQueue.notify(tPayload, tPhase, tDelay);
             }
         }
     }
+    else if (cbPhase == END_RESP) // from initiator
+    {
+        lastEndResp[threadId] = sc_time_stamp();
+        cbPayload.release();
+
+        if (outstandingEndReq[threadId] != nullptr)
+        {
+            tlm_generic_payload &tPayload = *outstandingEndReq[threadId];
+            outstandingEndReq[threadId] = nullptr;
+            tlm_phase tPhase = END_REQ;
+            sc_time tDelay = SC_ZERO_TIME;
+            unsigned int tChannelId = DramExtension::getExtension(tPayload).getChannel().ID();
+
+            GenerationExtension::setExtension(tPayload, sc_time_stamp());
+            DramExtension::setPayloadIDs(tPayload,
+                    nextThreadPayloadIDToAppend[threadId]++, nextChannelPayloadIDToAppend[tChannelId]++);
+
+            tSocket[static_cast<int>(threadId)]->nb_transport_bw(tPayload, tPhase, tDelay);
+
+            if (!channelIsBusy[tChannelId])
+            {
+                channelIsBusy[tChannelId] = true;
+
+                tPhase = BEGIN_REQ;
+                tDelay = lastEndReq[tChannelId] == sc_time_stamp() ? tCK : SC_ZERO_TIME;
+
+                iSocket[static_cast<int>(tChannelId)]->nb_transport_fw(tPayload, tPhase, tDelay);
+            }
+            else
+                pendingRequests[tChannelId].push(&tPayload);
+        }
+        else
+            activeTransactions[threadId]--;
+
+        tlm_generic_payload &tPayload = **pendingResponses[threadId].begin();
+
+        if (!pendingResponses[threadId].empty() &&
+                DramExtension::getThreadPayloadID(tPayload) == nextThreadPayloadIDToReturn[threadId])
+        {
+            nextThreadPayloadIDToReturn[threadId]++;
+            pendingResponses[threadId].erase(pendingResponses[threadId].begin());
+
+            tlm_phase tPhase = BEGIN_RESP;
+            sc_time tDelay = tCK;
+
+            tlm_sync_enum returnValue = tSocket[static_cast<int>(threadId)]->nb_transport_bw(tPayload, tPhase, tDelay);
+            if (returnValue == TLM_UPDATED)
+                payloadEventQueue.notify(tPayload, tPhase, tDelay);
+        }
+        else
+        {
+            threadIsBusy[threadId] = false;
+        }
+    }
     else
-        SC_REPORT_FATAL(0,
-            "Payload event queue in arbiter was triggered with unknown phase");
-}
-
-void Arbiter::appendDramExtension(int socketId, tlm_generic_payload &payload)
-{
-    // Append Generation Extension
-    GenerationExtension *genExtension = new GenerationExtension(sc_time_stamp());
-    payload.set_auto_extension(genExtension);
-
-    unsigned int burstlength = payload.get_streaming_width();
-    DecodedAddress decodedAddress = addressDecoder->decodeAddress(payload.get_address());
-    DramExtension *extension = new DramExtension(Thread(socketId),
-                                                 Channel(decodedAddress.channel), Rank(decodedAddress.rank),
-                                                 BankGroup(decodedAddress.bankgroup), Bank(decodedAddress.bank),
-                                                 Row(decodedAddress.row), Column(decodedAddress.column),
-                                                 burstlength, nextPayloadID[decodedAddress.channel]++);
-    payload.set_auto_extension(extension);
+        SC_REPORT_FATAL(0, "Payload event queue in arbiter was triggered with unknown phase");
 }

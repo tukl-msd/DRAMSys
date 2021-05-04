@@ -39,7 +39,7 @@ using namespace tlm;
 using json = nlohmann::json;
 
 MemSpecGDDR5X::MemSpecGDDR5X(json &memspec)
-    : MemSpec(memspec,
+    : MemSpec(memspec, MemoryType::GDDR5X,
       parseUint(memspec["memarchitecturespec"]["nbrOfChannels"],"nbrOfChannels"),
       parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
       parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks"),
@@ -131,14 +131,38 @@ sc_time MemSpecGDDR5X::getExecutionTime(Command command, const tlm_generic_paylo
 TimeInterval MemSpecGDDR5X::getIntervalOnDataStrobe(Command command) const
 {
     if (command == Command::RD || command == Command::RDA)
-        return TimeInterval(sc_time_stamp() + tRL + tWCK2CKPIN + tWCK2CK + tWCK2DQO,
-                sc_time_stamp() + tRL + tWCK2CKPIN + tWCK2CK + tWCK2DQO + burstDuration);
+        return TimeInterval(tRL + tWCK2CKPIN + tWCK2CK + tWCK2DQO,
+                tRL + tWCK2CKPIN + tWCK2CK + tWCK2DQO + burstDuration);
     else if (command == Command::WR || command == Command::WRA)
-        return TimeInterval(sc_time_stamp() + tWL + tWCK2CKPIN + tWCK2CK + tWCK2DQI,
-                sc_time_stamp() + tWL + tWCK2CKPIN + tWCK2CK + tWCK2DQI + burstDuration);
+        return TimeInterval(tWL + tWCK2CKPIN + tWCK2CK + tWCK2DQI,
+                tWL + tWCK2CKPIN + tWCK2CK + tWCK2DQI + burstDuration);
     else
     {
         SC_REPORT_FATAL("MemSpecGDDR5X", "Method was called with invalid argument");
         return TimeInterval();
     }
+}
+
+uint64_t MemSpecGDDR5X::getSimMemSizeInBytes() const
+{
+    uint64_t deviceSizeBits = static_cast<uint64_t>(banksPerRank) * numberOfRows * numberOfColumns * bitWidth;
+    uint64_t deviceSizeBytes = deviceSizeBits / 8;
+    uint64_t memorySizeBytes = deviceSizeBytes * numberOfRanks;
+
+    std::cout << headline << std::endl;
+    std::cout << "Per Channel Configuration:" << std::endl << std::endl;
+    std::cout << " Memory type:           " << "GDDR5X"              << std::endl;
+    std::cout << " Memory size in bytes:  " << memorySizeBytes       << std::endl;
+    std::cout << " Ranks:                 " << numberOfRanks         << std::endl;
+    std::cout << " Bank groups per rank:  " << groupsPerRank         << std::endl;
+    std::cout << " Banks per rank:        " << banksPerRank          << std::endl;
+    std::cout << " Rows per bank:         " << numberOfRows          << std::endl;
+    std::cout << " Columns per row:       " << numberOfColumns       << std::endl;
+    std::cout << " Device width in bits:  " << bitWidth              << std::endl;
+    std::cout << " Device size in bits:   " << deviceSizeBits        << std::endl;
+    std::cout << " Device size in bytes:  " << deviceSizeBytes       << std::endl;
+    std::cout << std::endl;
+
+    assert(memorySizeBytes > 0);
+    return memorySizeBytes;
 }

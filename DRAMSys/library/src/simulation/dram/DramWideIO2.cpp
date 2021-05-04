@@ -42,7 +42,7 @@
 
 DramWideIO2::DramWideIO2(sc_module_name name) : Dram(name)
 {
-    if (storeMode == StorageMode::ErrorModel)
+    if (storeMode == Configuration::StoreMode::ErrorModel)
         SC_REPORT_FATAL("DramWideIO2", "Error Model not supported for WideIO2");
 
     if (Configuration::getInstance().powerAnalysis)

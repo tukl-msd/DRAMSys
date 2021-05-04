@@ -38,24 +38,28 @@
 #include <tlm.h>
 #include <vector>
 #include <deque>
+
 #include "SchedulerIF.h"
 #include "../../common/dramExtensions.h"
 #include "../BankMachine.h"
+#include "BufferCounterIF.h"
 
-class SchedulerFifo : public SchedulerIF
+class SchedulerFifo final : public SchedulerIF
 {
 public:
     SchedulerFifo();
-    virtual bool hasBufferSpace() override;
+    virtual ~SchedulerFifo() override;
+    virtual bool hasBufferSpace() const override;
     virtual void storeRequest(tlm::tlm_generic_payload *) override;
     virtual void removeRequest(tlm::tlm_generic_payload *) override;
-    virtual tlm::tlm_generic_payload *getNextRequest(BankMachine *) override;
-    virtual bool hasFurtherRowHit(Bank, Row) override;
-    virtual bool hasFurtherRequest(Bank) override;
+    virtual tlm::tlm_generic_payload *getNextRequest(BankMachine *) const override;
+    virtual bool hasFurtherRowHit(Bank, Row) const override;
+    virtual bool hasFurtherRequest(Bank) const override;
+    virtual const std::vector<unsigned> &getBufferDepth() const override;
+
 private:
     std::vector<std::deque<tlm::tlm_generic_payload *>> buffer;
-    unsigned requestBufferSize;
-    unsigned lastBankID;
+    BufferCounterIF *bufferCounter;
 };
 
 #endif // SCHEDULERFIFO_H

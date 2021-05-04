@@ -52,8 +52,10 @@ public:
     const sc_time tRC;
     const sc_time tRCD;
     const sc_time tRL;
+    const sc_time tRPRE;
     const sc_time tRTP;
     const sc_time tWL;
+    const sc_time tWPRE;
     const sc_time tWR;
     const sc_time tXP;
     const sc_time tXS;
@@ -93,11 +95,12 @@ public:
     const double iDD62;
     const double vDD2;
 
-    virtual sc_time getRefreshIntervalPB() const override;
     virtual sc_time getRefreshIntervalAB() const override;
 
     virtual sc_time getExecutionTime(Command, const tlm::tlm_generic_payload &) const override;
     virtual TimeInterval getIntervalOnDataStrobe(Command) const override;
+
+    virtual uint64_t getSimMemSizeInBytes() const override;
 };
 
 #endif // MEMSPECDDR4_H

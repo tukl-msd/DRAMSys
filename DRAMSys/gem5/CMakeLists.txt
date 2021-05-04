@@ -33,14 +33,13 @@
 
 cmake_minimum_required(VERSION 3.10)
 
-set(GEM5_ARCH ARM) # ARM, X86, ALPHA
 set(GEM5_VARIANT opt) # opt, fast
 
 # Configuration:
 set(CMAKE_CXX_STANDARD 11 CACHE STRING "C++ Version")
 set(DCMAKE_SH="CMAKE_SH-NOTFOUND")
 
-find_library(GEM5_LIBRARY gem5_${GEM5_VARIANT} PATH $ENV{GEM5}/build/${GEM5_ARCH}/)
+find_library(GEM5_LIBRARY gem5_${GEM5_VARIANT} PATHS $ENV{GEM5}/build/ARM/ $ENV{GEM5}/build/X86/)
 
 if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/../library/src/simulation/DRAMSysRecordable.cpp)
     add_definitions(-DRECORDING)
@@ -48,9 +47,9 @@ endif()
 
 add_executable(DRAMSys_gem5 
     main.cpp
-    $ENV{GEM5}/util/systemc/sc_logger.cc
-    $ENV{GEM5}/util/systemc/sc_module.cc
-    $ENV{GEM5}/util/systemc/stats.cc
+    $ENV{GEM5}/util/systemc/gem5_within_systemc/sc_logger.cc
+    $ENV{GEM5}/util/systemc/gem5_within_systemc/sc_module.cc
+    $ENV{GEM5}/util/systemc/gem5_within_systemc/stats.cc
     $ENV{GEM5}/util/tlm/src/sc_master_port.cc
     $ENV{GEM5}/util/tlm/src/sc_slave_port.cc
     $ENV{GEM5}/util/tlm/src/slave_transactor.cc
@@ -64,7 +63,7 @@ target_include_directories(DRAMSys_gem5
     PRIVATE $ENV{GEM5}/util/tlm/examples/slave_port/
     PRIVATE $ENV{GEM5}/util/tlm/examples/common/
     PRIVATE $ENV{GEM5}/util/tlm/src/
-    PRIVATE $ENV{GEM5}/util/systemc/
+    PRIVATE $ENV{GEM5}/util/systemc/gem5_within_systemc/
     PRIVATE ../library/src/simulation/
 )
 

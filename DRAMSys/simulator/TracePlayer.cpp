@@ -37,36 +37,28 @@
  */
 
 #include "TracePlayer.h"
+#include "TraceSetup.h"
 
 using namespace tlm;
 
-TracePlayer::TracePlayer(sc_module_name name, TracePlayerListener *listener) :
+TracePlayer::TracePlayer(sc_module_name name, TraceSetup *setup) :
     sc_module(name),
     payloadEventQueue(this, &TracePlayer::peqCallback),
-    listener(listener)
+    setup(setup)
 {
+    SC_METHOD(nextPayload);
     iSocket.register_nb_transport_bw(this, &TracePlayer::nb_transport_bw);
 
-    if (Configuration::getInstance().storeMode == "NoStorage")
+    if (Configuration::getInstance().storeMode == Configuration::StoreMode::NoStorage)
         storageEnabled = false;
     else
         storageEnabled = true;
 }
 
-tlm_generic_payload *TracePlayer::allocatePayload()
-{
-    return memoryManager.allocate();
-}
-
-void TracePlayer::finish()
-{
-    finished = true;
-}
-
 void TracePlayer::terminate()
 {
-    cout << sc_time_stamp() << " " << this->name() << " terminated " << std::endl;
-    listener->tracePlayerTerminates();
+    std::cout << sc_time_stamp() << " " << this->name() << " terminated " << std::endl;
+    setup->tracePlayerTerminates();
 }
 
 tlm_sync_enum TracePlayer::nb_transport_bw(tlm_generic_payload &payload,
@@ -79,28 +71,27 @@ tlm_sync_enum TracePlayer::nb_transport_bw(tlm_generic_payload &payload,
 void TracePlayer::peqCallback(tlm_generic_payload &payload,
                               const tlm_phase &phase)
 {
-    if (phase == BEGIN_REQ) {
-        sendToTarget(payload, phase, SC_ZERO_TIME);
-        transactionsSent++;
-        PRINTDEBUGMESSAGE(name(), "Performing request #" + std::to_string(transactionsSent));
-    } else if (phase == END_REQ) {
+    if (phase == END_REQ)
+    {
+        lastEndReq = sc_time_stamp();
         nextPayload();
-    } else if (phase == BEGIN_RESP) {
+    }
+    else if (phase == BEGIN_RESP)
+    {
         payload.release();
         sendToTarget(payload, END_RESP, SC_ZERO_TIME);
         if (Configuration::getInstance().simulationProgressBar)
-            listener->transactionFinished();
+            setup->transactionFinished();
 
         transactionsReceived++;
 
         // If all answers were received:
         if (finished == true && numberOfTransactions == transactionsReceived)
-        {
-            this->terminate();
-        }
-    } else if (phase == END_RESP) {
-    } else {
-        SC_REPORT_FATAL(0, "TracePlayer PEQ was triggered with unknown phase");
+            terminate();
+    }
+    else
+    {
+        SC_REPORT_FATAL("TracePlayer", "PEQ was triggered with unknown phase");
     }
 }
 
@@ -111,17 +102,29 @@ void TracePlayer::sendToTarget(tlm_generic_payload &payload, const tlm_phase &ph
     iSocket->nb_transport_fw(payload, TPhase, TDelay);
 }
 
-unsigned int TracePlayer::getNumberOfLines(std::string pathToTrace)
+uint64_t TracePlayer::getNumberOfLines(std::string pathToTrace)
 {
-    // Reference: http://stackoverflow.com/questions/3482064/counting-the-number-of-lines-in-a-text-file
-    ifstream newFile;
-    newFile.open(pathToTrace);
-    // new lines will be skipped unless we stop it from happening:
-    newFile.unsetf(std::ios_base::skipws);
-    // count the lines with an algorithm specialized for counting:
-    unsigned int lineCount = std::count(std::istream_iterator<char>(newFile),
-                                        std::istream_iterator<char>(), ':');
+    std::ifstream file;
+    file.open(pathToTrace);
 
-    newFile.close();
-    return lineCount;
+    if (file.is_open())
+    {
+        uint64_t lineCount = 0;
+        std::string line;
+        while (std::getline(file, line))
+        {
+            if (line.size() > 1 && line[0] != '#')
+                lineCount++;
+        }
+        file.close();
+
+        if (lineCount == 0)
+            SC_REPORT_FATAL("TracePlayer", "Trace file is empty");
+        return lineCount;
+    }
+    else
+    {
+        SC_REPORT_FATAL("TracePlayer", "Unable to open trace file");
+        return 0;
+    }
 }

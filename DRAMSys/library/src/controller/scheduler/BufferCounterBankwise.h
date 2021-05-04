@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, Technische Universität Kaiserslautern
+ * Copyright (c) 2020, Technische Universität Kaiserslautern
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,49 +32,26 @@
  * Author: Lukas Steiner
  */
 
-#ifndef REFRESHMANAGERBANKWISE_H
-#define REFRESHMANAGERBANKWISE_H
+#ifndef BUFFERCOUNTERBANKWISE_H
+#define BUFFERCOUNTERBANKWISE_H
 
-#include "RefreshManagerIF.h"
-#include "../../configuration/memspec/MemSpec.h"
-#include "../BankMachine.h"
-#include "../powerdown/PowerDownManagerIF.h"
 #include <vector>
-#include <utility>
-#include <list>
 
-class RefreshManagerBankwise final : public RefreshManagerIF
+#include "BufferCounterIF.h"
+
+class BufferCounterBankwise final : public BufferCounterIF
 {
 public:
-    RefreshManagerBankwise(std::vector<BankMachine *> &, PowerDownManagerIF *, Rank, CheckerIF *);
-
-    virtual std::tuple<Command, tlm::tlm_generic_payload *, sc_time> getNextCommand() override;
-    virtual sc_time start() override;
-    virtual void updateState(Command) override;
+    BufferCounterBankwise(unsigned requestBufferSize, unsigned numberOfBanks);
+    virtual bool hasBufferSpace() const override;
+    virtual void storeRequest(tlm::tlm_generic_payload *payload) override;
+    virtual void removeRequest(tlm::tlm_generic_payload *payload) override;
+    virtual const std::vector<unsigned> &getBufferDepth() const override;
 
 private:
-    enum class RmState {Regular, Pulledin} state = RmState::Regular;
-    const MemSpec *memSpec;
-    std::vector<BankMachine *> &bankMachinesOnRank;
-    PowerDownManagerIF *powerDownManager;
-    std::vector<tlm::tlm_generic_payload> refreshPayloads;
-    sc_time timeForNextTrigger = sc_max_time();
-    sc_time timeToSchedule = sc_max_time();
-    Rank rank;
-    CheckerIF *checker;
-    Command nextCommand = Command::NOP;
-
-    std::list<BankMachine *> remainingBankMachines;
-    std::list<BankMachine *> allBankMachines;
-    std::list<BankMachine *>::iterator currentIterator;
-    BankMachine *currentBankMachine;
-
-    int flexibilityCounter = 0;
-    int maxPostponed = 0;
-    int maxPulledin = 0;
-
-    bool sleeping = false;
-    bool skipSelection = false;
+    const unsigned requestBufferSize;
+    std::vector<unsigned> numRequestsOnBank;
+    unsigned lastBankID = 0;
 };
 
-#endif // REFRESHMANAGERBANKWISE_H
+#endif // BUFFERCOUNTERBANKWISE_H

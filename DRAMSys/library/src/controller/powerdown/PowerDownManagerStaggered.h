@@ -48,12 +48,12 @@ public:
     virtual void triggerExit() override;
     virtual void triggerInterruption() override;
 
-    virtual std::tuple<Command, tlm::tlm_generic_payload *, sc_time> getNextCommand() override;
+    virtual CommandTuple::Type getNextCommand() override;
     virtual void updateState(Command) override;
     virtual sc_time start() override;
 
 private:
-    enum class PdmState {Idle, ActivePdn, PrechargePdn, SelfRefresh, ExtraRefresh} state = PdmState::Idle;
+    enum class State {Idle, ActivePdn, PrechargePdn, SelfRefresh, ExtraRefresh} state = State::Idle;
     tlm::tlm_generic_payload powerDownPayload;
     Rank rank;
     CheckerIF *checker;

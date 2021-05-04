@@ -45,6 +45,7 @@
 
 #include "simulation/DRAMSys.h"
 #include "TraceSetup.h"
+#include "TracePlayer.h"
 
 #ifdef RECORDING
 #include "simulation/DRAMSysRecordable.h"
@@ -70,21 +71,24 @@ int sc_main(int argc, char **argv)
     std::string resources;
     std::string simulationJson;
     // Run only with default config (ddr3-example.json):
-    if (argc == 1) {
+    if (argc == 1)
+    {
         // Get path of resources:
         resources = pathOfFile(argv[0])
                     + std::string("/../../DRAMSys/library/resources/");
         simulationJson = resources + "simulations/ddr3-example.json";
     }
     // Run with specific config but default resource folders:
-    else if (argc == 2) {
+    else if (argc == 2)
+    {
         // Get path of resources:
         resources = pathOfFile(argv[0])
                     + std::string("/../../DRAMSys/library/resources/");
         simulationJson = argv[1];
     }
     // Run with spefific config and specific resource folder:
-    else if (argc == 3) {
+    else if (argc == 3)
+    {
         simulationJson = argv[1];
         resources = argv[2];
     }
@@ -105,7 +109,7 @@ int sc_main(int argc, char **argv)
         dramSys = new DRAMSys("DRAMSys", simulationJson, resources);
 
     // Instantiate STL Players:
-    TraceSetup *ts = new TraceSetup(simulationJson, resources, &players);
+    TraceSetup *setup = new TraceSetup(simulationJson, resources, &players);
 
     // Bind STL Players with DRAMSys:
     for (size_t i = 0; i < players.size(); i++)
@@ -128,13 +132,15 @@ int sc_main(int argc, char **argv)
     // Store the starting of the simulation in wallclock time:
     auto start = std::chrono::high_resolution_clock::now();
 
-    // Kickstart the players:
-    for (auto &p : players)
-        p->nextPayload();
-
     // Start SystemC Simulation:
     sc_set_stop_mode(SC_STOP_FINISH_DELTA);
     sc_start();
+
+    if (!sc_end_of_simulation_invoked())
+    {
+        SC_REPORT_WARNING("sc_main", "Simulation stopped without explicit sc_stop()");
+        sc_stop();
+    }
 
     auto finish = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = finish - start;
@@ -143,7 +149,7 @@ int sc_main(int argc, char **argv)
     delete dramSys;
     for (auto player : players)
         delete player;
-    delete ts;
+    delete setup;
 
     return 0;
 }

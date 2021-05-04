@@ -44,95 +44,104 @@ using namespace DRAMPower;
 std::string commandToString(Command command)
 {  
     assert(command >= Command::NOP && command <= Command::SREFEX);
-    static std::array<std::string, 16> stringOfCommand =
+    static std::array<std::string, 18> stringOfCommand =
             {"NOP",
-            "RD",
-            "WR",
-            "RDA",
-            "WRA",
-            "PRE",
-            "ACT",
-            "REFB",
-            "PREA",
-            "REFA",
-            "PDEA",
-            "PDXA",
-            "PDEP",
-            "PDXP",
-            "SREFEN",
-            "SREFEX"};
+             "RD",
+             "WR",
+             "RDA",
+             "WRA",
+             "ACT",
+             "PRE",
+             "REFB",
+             "PRESB",
+             "REFSB",
+             "PREA",
+             "REFA",
+             "PDEA",
+             "PDXA",
+             "PDEP",
+             "PDXP",
+             "SREFEN",
+             "SREFEX"};
     return stringOfCommand[command];
 }
 
 unsigned numberOfCommands()
 {
-    return 16;
+    return 18;
 }
 
 tlm_phase commandToPhase(Command command)
 {
     assert(command >= Command::NOP && command <= Command::SREFEX);
-    static std::array<tlm_phase, 16> phaseOfCommand =
+    static std::array<tlm_phase, 18> phaseOfCommand =
             {UNINITIALIZED_PHASE,
-            BEGIN_RD,
-            BEGIN_WR,
-            BEGIN_RDA,
-            BEGIN_WRA,
-            BEGIN_PRE,
-            BEGIN_ACT,
-            BEGIN_REFB,
-            BEGIN_PREA,
-            BEGIN_REFA,
-            BEGIN_PDNA,
-            END_PDNA,
-            BEGIN_PDNP,
-            END_PDNP,
-            BEGIN_SREF,
-            END_SREF};
+             BEGIN_RD,
+             BEGIN_WR,
+             BEGIN_RDA,
+             BEGIN_WRA,
+             BEGIN_ACT,
+             BEGIN_PRE,
+             BEGIN_REFB,
+             BEGIN_PRESB,
+             BEGIN_REFSB,
+             BEGIN_PREA,
+             BEGIN_REFA,
+             BEGIN_PDNA,
+             END_PDNA,
+             BEGIN_PDNP,
+             END_PDNP,
+             BEGIN_SREF,
+             END_SREF};
     return phaseOfCommand[command];
 }
 
 Command phaseToCommand(tlm_phase phase)
 {
     assert(phase >= BEGIN_RD && phase <= END_SREF);
-    static std::array<Command, 16> commandOfPhase =
+    static std::array<Command, 18> commandOfPhase =
             {Command::RD,
-            Command::WR,
-            Command::RDA,
-            Command::WRA,
-            Command::PRE,
-            Command::ACT,
-            Command::REFB,
-            Command::PREA,
-            Command::REFA,
-            Command::PDEA,
-            Command::PDXA,
-            Command::PDEP,
-            Command::PDXP,
-            Command::SREFEN,
-            Command::SREFEX};
+             Command::WR,
+             Command::RDA,
+             Command::WRA,
+             Command::ACT,
+             Command::PRE,
+             Command::REFB,
+             Command::PRESB,
+             Command::REFSB,
+             Command::PREA,
+             Command::REFA,
+             Command::PDEA,
+             Command::PDXA,
+             Command::PDEP,
+             Command::PDXP,
+             Command::SREFEN,
+             Command::SREFEX};
     return commandOfPhase[phase - BEGIN_RD];
 }
 
 MemCommand::cmds phaseToDRAMPowerCommand(tlm_phase phase)
 {
+    // TODO: add correct phases when DRAMPower supports DDR5 same bank refresh
     assert(phase >= BEGIN_RD && phase <= END_SREF);
-    static std::array<MemCommand::cmds, 16> phaseOfCommand =
+    static std::array<MemCommand::cmds, 18> phaseOfCommand =
             {MemCommand::RD,
-            MemCommand::WR,
-            MemCommand::RDA,
-            MemCommand::WRA,
-            MemCommand::PRE,
-            MemCommand::ACT,
-            MemCommand::REFB,
-            MemCommand::PREA,
-            MemCommand::REF,
-            MemCommand::PDN_S_ACT,
-            MemCommand::PUP_ACT,
-            MemCommand::PDN_S_PRE,
-            MemCommand::PUP_PRE,
-            MemCommand::SREN,
-            MemCommand::SREX};
+             MemCommand::WR,
+             MemCommand::RDA,
+             MemCommand::WRA,
+             MemCommand::ACT,
+             MemCommand::PRE,
+             MemCommand::REFB,
+             MemCommand::NOP,
+             MemCommand::NOP,
+             MemCommand::PREA,
+             MemCommand::REF,
+             MemCommand::PDN_S_ACT,
+             MemCommand::PUP_ACT,
+             MemCommand::PDN_S_PRE,
+             MemCommand::PUP_PRE,
+             MemCommand::SREN,
+             MemCommand::SREX};
     return phaseOfCommand[phase - BEGIN_RD];
 }
 
@@ -144,13 +153,19 @@ bool phaseNeedsEnd(tlm_phase phase)
 tlm_phase getEndPhase(tlm_phase phase)
 {
     assert(phase >= BEGIN_RD && phase <= BEGIN_REFA);
-    return (phase + 15);
+    return (phase + 17);
 }
 
 bool isBankCommand(Command command)
 {
     assert(command >= Command::NOP && command <= Command::SREFEX);
     return (command <= Command::REFB);
+}
+
+bool isGroupCommand(Command command)
+{
+    assert(command >= Command::NOP && command <= Command::SREFEX);
+    return (command >= Command::PRESB && command <= Command::REFSB);
 }
 
 bool isRankCommand(Command command)
@@ -168,5 +183,5 @@ bool isCasCommand(Command command)
 bool isRasCommand(Command command)
 {
     assert(command >= Command::NOP && command <= Command::SREFEX);
-    return (command >= Command::PRE);
+    return (command >= Command::ACT);
 }

@@ -36,9 +36,9 @@
 
 using namespace tlm;
 
-std::tuple<Command, tlm_generic_payload *, sc_time> PowerDownManagerDummy::getNextCommand()
+CommandTuple::Type PowerDownManagerDummy::getNextCommand()
 {
-    return std::tuple<Command, tlm_generic_payload *, sc_time>(Command::NOP, nullptr, sc_max_time());
+    return CommandTuple::Type(Command::NOP, nullptr, sc_max_time());
 }
 
 sc_time PowerDownManagerDummy::start()

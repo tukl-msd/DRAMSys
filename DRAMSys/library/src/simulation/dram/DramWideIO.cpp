@@ -50,7 +50,7 @@ DramWideIO::DramWideIO(sc_module_name name) : Dram(name)
 {
     if (Configuration::getInstance().powerAnalysis)
     {
-        MemSpecWideIO *memSpec = dynamic_cast<MemSpecWideIO *>(this->memSpec);
+        const MemSpecWideIO *memSpec = dynamic_cast<const MemSpecWideIO *>(this->memSpec);
         if (memSpec == nullptr)
             SC_REPORT_FATAL("DramWideIO", "Wrong MemSpec chosen");
 
@@ -135,7 +135,7 @@ DramWideIO::DramWideIO(sc_module_name name) : Dram(name)
 
         MemorySpecification powerSpec;
         powerSpec.id = memSpec->memoryId;
-        powerSpec.memoryType = memSpec->memoryType;
+        powerSpec.memoryType = MemoryType::WIDEIO_SDR;
         powerSpec.memTimingSpec = memTimingSpec;
         powerSpec.memPowerSpec  = memPowerSpec;
         powerSpec.memArchSpec   = memArchSpec;
@@ -143,7 +143,7 @@ DramWideIO::DramWideIO(sc_module_name name) : Dram(name)
         DRAMPower = new libDRAMPower(powerSpec, 0);
 
         // For each bank in a channel a error Model is created:
-        if (storeMode == StorageMode::ErrorModel)
+        if (storeMode == Configuration::StoreMode::ErrorModel)
         {
             for (unsigned i = 0; i < memSpec->numberOfBanks; i++)
             {
@@ -156,7 +156,7 @@ DramWideIO::DramWideIO(sc_module_name name) : Dram(name)
     }
     else
     {
-        if (storeMode == StorageMode::ErrorModel)
+        if (storeMode == Configuration::StoreMode::ErrorModel)
         {
             for (unsigned i = 0; i < memSpec->numberOfBanks; i++)
             {
@@ -177,18 +177,18 @@ DramWideIO::~DramWideIO()
 }
 
 tlm_sync_enum DramWideIO::nb_transport_fw(tlm_generic_payload &payload,
-                                           tlm_phase &phase, sc_time &)
+                                           tlm_phase &phase, sc_time &delay)
 {
     assert(phase >= 5 && phase <= 19);
 
     if (Configuration::getInstance().powerAnalysis)
     {
-        unsigned bank = DramExtension::getExtension(payload).getBank().ID();
-        unsigned long long cycle = sc_time_stamp() / memSpec->tCK;
+        int bank = static_cast<int>(DramExtension::getExtension(payload).getBank().ID());
+        int64_t cycle = static_cast<int64_t>((sc_time_stamp() + delay) / memSpec->tCK + 0.5);
         DRAMPower->doCommand(phaseToDRAMPowerCommand(phase), bank, cycle);
     }
 
-    if (storeMode == StorageMode::Store)
+    if (storeMode == Configuration::StoreMode::Store)
     {
         if (phase == BEGIN_RD || phase == BEGIN_RDA)
         {
@@ -201,8 +201,9 @@ tlm_sync_enum DramWideIO::nb_transport_fw(tlm_generic_payload &payload,
             memcpy(phyAddr, payload.get_data_ptr(), payload.get_data_length());
         }
     }
-    else if (storeMode == StorageMode::ErrorModel)
+    else if (storeMode == Configuration::StoreMode::ErrorModel)
     {
+        // TODO: delay should be considered here!
         unsigned bank = DramExtension::getExtension(payload).getBank().ID();
 
         if (phase == BEGIN_ACT)

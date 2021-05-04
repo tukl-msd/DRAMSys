@@ -39,34 +39,26 @@
 #include <tlm.h>
 #include <utility>
 #include "../common/dramExtensions.h"
-#include "Controller.h"
 #include "Command.h"
 #include "scheduler/SchedulerIF.h"
 #include "checker/CheckerIF.h"
-
-class SchedulerIF;
-class CheckerIF;
-
-enum class BmState
-{
-    Precharged,
-    Activated
-};
 
 class BankMachine
 {
 public:
     virtual ~BankMachine() {}
     virtual sc_time start() = 0;
-    std::tuple<Command, tlm::tlm_generic_payload *, sc_time> getNextCommand();
+    CommandTuple::Type getNextCommand();
     void updateState(Command);
     void block();
+
+    enum class State {Precharged, Activated};
 
     Rank getRank();
     BankGroup getBankGroup();
     Bank getBank();
     Row getOpenRow();
-    BmState getState();
+    State getState();
     bool isIdle();
 
 protected:
@@ -75,8 +67,8 @@ protected:
     SchedulerIF *scheduler;
     CheckerIF *checker;
     Command nextCommand = Command::NOP;
-    BmState currentState = BmState::Precharged;
-    Row currentRow;
+    State state = State::Precharged;
+    Row openRow;
     sc_time timeToSchedule = sc_max_time();
     Rank rank = Rank(0);
     BankGroup bankgroup = BankGroup(0);

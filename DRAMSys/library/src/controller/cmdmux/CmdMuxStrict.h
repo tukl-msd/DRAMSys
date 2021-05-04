@@ -36,15 +36,31 @@
 #define CMDMUXSTRICT_H
 
 #include "CmdMuxIF.h"
+#include "../../configuration/Configuration.h"
 
 class CmdMuxStrict : public CmdMuxIF
 {
 public:
-    std::tuple<Command, tlm::tlm_generic_payload *, sc_time>
-        selectCommand(std::list<std::tuple<Command, tlm::tlm_generic_payload *, sc_time>> &);
+    CmdMuxStrict();
+    virtual CommandTuple::Type selectCommand(const ReadyCommands &) override;
 
 private:
-    uint64_t nextPayloadID = 0;
+    uint64_t nextPayloadID = 1;
+    const MemSpec *memSpec;
+};
+
+class CmdMuxStrictRasCas : public CmdMuxIF
+{
+public:
+    CmdMuxStrictRasCas();
+    virtual CommandTuple::Type selectCommand(const ReadyCommands &) override;
+
+private:
+    uint64_t nextPayloadID = 1;
+    const MemSpec *memSpec;
+    ReadyCommands readyRasCommands;
+    ReadyCommands readyCasCommands;
+    ReadyCommands readyRasCasCommands;
 };
 
 #endif // CMDMUXSTRICT_H

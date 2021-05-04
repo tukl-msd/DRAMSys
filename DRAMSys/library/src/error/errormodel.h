@@ -40,7 +40,7 @@
 #include <iostream>
 #include <systemc.h>
 #include "../configuration/Configuration.h"
-#include "../common/AddressDecoder.h"
+#include "../simulation/AddressDecoder.h"
 #include "../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 
 class errorModel : public sc_module

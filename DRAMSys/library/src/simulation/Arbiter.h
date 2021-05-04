@@ -33,6 +33,7 @@
  *    Robert Gernhardt
  *    Matthias Jung
  *    Eder F. Zulian
+ *    Lukas Steiner
  */
 
 #ifndef ARBITER_H
@@ -43,10 +44,11 @@
 #include <iostream>
 #include <vector>
 #include <queue>
+#include <set>
 #include <tlm_utils/multi_passthrough_target_socket.h>
 #include <tlm_utils/multi_passthrough_initiator_socket.h>
 #include <tlm_utils/peq_with_cb_and_phase.h>
-#include "../common/AddressDecoder.h"
+#include "AddressDecoder.h"
 #include "../common/dramExtensions.h"
 
 class Arbiter : public sc_module
@@ -55,39 +57,99 @@ public:
     tlm_utils::multi_passthrough_initiator_socket<Arbiter> iSocket;
     tlm_utils::multi_passthrough_target_socket<Arbiter> tSocket;
 
+    virtual ~Arbiter() override;
+
+protected:
     Arbiter(sc_module_name, std::string);
     SC_HAS_PROCESS(Arbiter);
 
-private:
+    virtual void end_of_elaboration() override;
+
     AddressDecoder *addressDecoder;
 
     tlm_utils::peq_with_cb_and_phase<Arbiter> payloadEventQueue;
+    virtual void peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase) = 0;
 
-    std::vector<bool> channelIsFree;
+    std::vector<bool> threadIsBusy;
+    std::vector<bool> channelIsBusy;
 
-    // used to account for the request_accept_delay in the dram controllers
-    // This is a queue of new transactions. The phase of a new request is BEGIN_REQ.
     std::vector<std::queue<tlm::tlm_generic_payload *>> pendingRequests;
-    // used to account for the response_accept_delay in the initiators (traceplayer, core etc.)
-    // This is a queue of responses comming from the memory side. The phase of these transactions is BEGIN_RESP.
-    std::map<unsigned int, std::queue<tlm::tlm_generic_payload *>> pendingResponses;
 
-    // Initiated by initiator side
-    // This function is called when an arbiter's target socket receives a transaction from a device
+    std::vector<uint64_t> nextThreadPayloadIDToAppend;
+    std::vector<uint64_t> nextChannelPayloadIDToAppend;
+
     tlm::tlm_sync_enum nb_transport_fw(int id, tlm::tlm_generic_payload &payload,
                                   tlm::tlm_phase &phase, sc_time &fwDelay);
-
-    // Initiated by dram side
-    // This function is called when an arbiter's initiator socket receives a transaction from a memory controller
-    tlm::tlm_sync_enum nb_transport_bw(int channelId, tlm::tlm_generic_payload &payload,
+    tlm::tlm_sync_enum nb_transport_bw(int, tlm::tlm_generic_payload &payload,
                                   tlm::tlm_phase &phase, sc_time &bwDelay);
-
     unsigned int transport_dbg(int /*id*/, tlm::tlm_generic_payload &trans);
 
-    void peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase);
+    sc_time tCK;
+    sc_time arbitrationDelayFw;
+    sc_time arbitrationDelayBw;
+};
 
-    void appendDramExtension(int socketId, tlm::tlm_generic_payload &payload);
-    std::vector<uint64_t> nextPayloadID;
+class ArbiterSimple final : public Arbiter
+{
+public:
+    ArbiterSimple(sc_module_name, std::string);
+    SC_HAS_PROCESS(ArbiterSimple);
+
+private:
+    virtual void end_of_elaboration() override;
+    virtual void peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase) override;
+
+    std::vector<std::queue<tlm::tlm_generic_payload *>> pendingResponses;
+};
+
+class ArbiterFifo final : public Arbiter
+{
+public:
+    ArbiterFifo(sc_module_name, std::string);
+    SC_HAS_PROCESS(ArbiterFifo);
+
+private:
+    virtual void end_of_elaboration() override;
+    virtual void peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase) override;
+
+    std::vector<unsigned int> activeTransactions;
+    const unsigned maxActiveTransactions;
+
+    std::vector<tlm::tlm_generic_payload *> outstandingEndReq;
+    std::vector<std::queue<tlm::tlm_generic_payload *>> pendingResponses;
+
+    std::vector<sc_time> lastEndReq;
+    std::vector<sc_time> lastEndResp;
+};
+
+class ArbiterReorder final : public Arbiter
+{
+public:
+    ArbiterReorder(sc_module_name, std::string);
+    SC_HAS_PROCESS(ArbiterReorder);
+
+private:
+    virtual void end_of_elaboration() override;
+    virtual void peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase) override;
+
+    std::vector<unsigned int> activeTransactions;
+    const unsigned maxActiveTransactions;
+
+    struct ThreadPayloadIDCompare
+    {
+        bool operator() (const tlm::tlm_generic_payload *lhs, const tlm::tlm_generic_payload *rhs) const
+        {
+            return DramExtension::getThreadPayloadID(lhs) < DramExtension::getThreadPayloadID(rhs);
+        }
+    };
+
+    std::vector<tlm::tlm_generic_payload *> outstandingEndReq;
+    std::vector<std::set<tlm::tlm_generic_payload*, ThreadPayloadIDCompare>> pendingResponses;
+
+    std::vector<sc_time> lastEndReq;
+    std::vector<sc_time> lastEndResp;
+
+    std::vector<uint64_t> nextThreadPayloadIDToReturn;
 };
 
 #endif // ARBITER_H

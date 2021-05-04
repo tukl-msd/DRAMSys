@@ -40,7 +40,7 @@ using namespace tlm;
 using json = nlohmann::json;
 
 MemSpecDDR4::MemSpecDDR4(json &memspec)
-    : MemSpec(memspec,
+    : MemSpec(memspec, MemoryType::DDR4,
       parseUint(memspec["memarchitecturespec"]["nbrOfChannels"],"nbrOfChannels"),
       parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
       parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks"),
@@ -55,19 +55,17 @@ MemSpecDDR4::MemSpecDDR4(json &memspec)
       tCKE     (tCK * parseUint(memspec["memtimingspec"]["CKE"], "CKE")),
       tPD      (tCKE),
       tCKESR   (tCK * parseUint(memspec["memtimingspec"]["CKESR"], "CKESR")),
-      tDQSCK   (tCK * parseUint(memspec["memtimingspec"]["DQSCK"], "DQSCK")),
       tRAS     (tCK * parseUint(memspec["memtimingspec"]["RAS"], "RAS")),
       tRC      (tCK * parseUint(memspec["memtimingspec"]["RC"], "RC")),
       tRCD     (tCK * parseUint(memspec["memtimingspec"]["RCD"], "RCD")),
       tRL      (tCK * parseUint(memspec["memtimingspec"]["RL"], "RL")),
+      tRPRE    (tCK * parseUint(memspec["memtimingspec"]["RPRE"], "RPRE")),
       tRTP     (tCK * parseUint(memspec["memtimingspec"]["RTP"], "RTP")),
       tWL      (tCK * parseUint(memspec["memtimingspec"]["WL"], "WL")),
+      tWPRE    (tCK * parseUint(memspec["memtimingspec"]["WPRE"], "WPRE")),
       tWR      (tCK * parseUint(memspec["memtimingspec"]["WR"], "WR")),
       tXP      (tCK * parseUint(memspec["memtimingspec"]["XP"], "XP")),
       tXS      (tCK * parseUint(memspec["memtimingspec"]["XS"], "XS")),
-      tCCD_S   (tCK * parseUint(memspec["memtimingspec"]["CCD_S"], "CCD_S")),
-      tCCD_L   (tCK * parseUint(memspec["memtimingspec"]["CCD_L"], "CCD_L")),
-      tFAW     (tCK * parseUint(memspec["memtimingspec"]["FAW"], "FAW")),
       tREFI    ((parseUint(memspec["memtimingspec"]["REFM"], "REFM") == 4) ?
                    (tCK * (parseUint(memspec["memtimingspec"]["REFI"], "REFI") / 4)) :
                    ((parseUint(memspec["memtimingspec"]["REFM"], "REFM") == 2) ?
@@ -79,6 +77,10 @@ MemSpecDDR4::MemSpecDDR4(json &memspec)
                    (tCK * parseUint(memspec["memtimingspec"]["RFC2"], "RFC2")) :
                    (tCK * parseUint(memspec["memtimingspec"]["RFC"], "RFC")))),
       tRP      (tCK * parseUint(memspec["memtimingspec"]["RP"], "RP")),
+      tDQSCK   (tCK * parseUint(memspec["memtimingspec"]["DQSCK"], "DQSCK")),
+      tCCD_S   (tCK * parseUint(memspec["memtimingspec"]["CCD_S"], "CCD_S")),
+      tCCD_L   (tCK * parseUint(memspec["memtimingspec"]["CCD_L"], "CCD_L")),
+      tFAW     (tCK * parseUint(memspec["memtimingspec"]["FAW"], "FAW")),
       tRRD_S   (tCK * parseUint(memspec["memtimingspec"]["RRD_S"], "RRD_S")),
       tRRD_L   (tCK * parseUint(memspec["memtimingspec"]["RRD_L"], "RRD_L")),
       tWTR_S   (tCK * parseUint(memspec["memtimingspec"]["WTR_S"], "WTR_S")),
@@ -112,12 +114,6 @@ sc_time MemSpecDDR4::getRefreshIntervalAB() const
     return tREFI;
 }
 
-sc_time MemSpecDDR4::getRefreshIntervalPB() const
-{
-    SC_REPORT_FATAL("MemSpecDDR4", "Per bank refresh not supported");
-    return SC_ZERO_TIME;
-}
-
 // Returns the execution time for commands that have a fixed execution time
 sc_time MemSpecDDR4::getExecutionTime(Command command, const tlm_generic_payload &) const
 {
@@ -146,12 +142,37 @@ sc_time MemSpecDDR4::getExecutionTime(Command command, const tlm_generic_payload
 TimeInterval MemSpecDDR4::getIntervalOnDataStrobe(Command command) const
 {
     if (command == Command::RD || command == Command::RDA)
-        return TimeInterval(sc_time_stamp() + tRL, sc_time_stamp() + tRL + burstDuration);
+        return TimeInterval(tRL, tRL + burstDuration);
     else if (command == Command::WR || command == Command::WRA)
-        return TimeInterval(sc_time_stamp() + tWL, sc_time_stamp() + tWL + burstDuration);
+        return TimeInterval(tWL, tWL + burstDuration);
     else
     {
         SC_REPORT_FATAL("MemSpec", "Method was called with invalid argument");
         return TimeInterval();
     }
+}
+
+uint64_t MemSpecDDR4::getSimMemSizeInBytes() const
+{
+    uint64_t deviceSizeBits = static_cast<uint64_t>(banksPerRank) * numberOfRows * numberOfColumns * bitWidth;
+    uint64_t deviceSizeBytes = deviceSizeBits / 8;
+    uint64_t memorySizeBytes = deviceSizeBytes * numberOfDevicesOnDIMM * numberOfRanks;
+
+    std::cout << headline << std::endl;
+    std::cout << "Per Channel Configuration:" << std::endl << std::endl;
+    std::cout << " Memory type:           " << "DDR4"                << std::endl;
+    std::cout << " Memory size in bytes:  " << memorySizeBytes       << std::endl;
+    std::cout << " Ranks:                 " << numberOfRanks         << std::endl;
+    std::cout << " Bank groups per rank:  " << groupsPerRank         << std::endl;
+    std::cout << " Banks per rank:        " << banksPerRank          << std::endl;
+    std::cout << " Rows per bank:         " << numberOfRows          << std::endl;
+    std::cout << " Columns per row:       " << numberOfColumns       << std::endl;
+    std::cout << " Device width in bits:  " << bitWidth              << std::endl;
+    std::cout << " Device size in bits:   " << deviceSizeBits        << std::endl;
+    std::cout << " Device size in bytes:  " << deviceSizeBytes       << std::endl;
+    std::cout << " Devices on DIMM:       " << numberOfDevicesOnDIMM << std::endl;
+    std::cout << std::endl;
+
+    assert(memorySizeBytes > 0);
+    return memorySizeBytes;
 }

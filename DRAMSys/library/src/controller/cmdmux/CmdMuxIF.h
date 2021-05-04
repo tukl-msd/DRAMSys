@@ -45,8 +45,7 @@ class CmdMuxIF
 {
 public:
     virtual ~CmdMuxIF() {}
-    virtual std::tuple<Command, tlm::tlm_generic_payload *, sc_time>
-        selectCommand(std::list<std::tuple<Command, tlm::tlm_generic_payload *, sc_time>> &) = 0;
+    virtual CommandTuple::Type selectCommand(const ReadyCommands &) = 0;
 };
 
 #endif // CMDMUXIF_H

@@ -39,7 +39,7 @@ using namespace tlm;
 using json = nlohmann::json;
 
 MemSpecDDR3::MemSpecDDR3(json &memspec)
-    : MemSpec(memspec,
+    : MemSpec(memspec, MemoryType::DDR3,
       parseUint(memspec["memarchitecturespec"]["nbrOfChannels"],"nbrOfChannels"),
       parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
       parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks"),
@@ -95,12 +95,6 @@ sc_time MemSpecDDR3::getRefreshIntervalAB() const
     return tREFI;
 }
 
-sc_time MemSpecDDR3::getRefreshIntervalPB() const
-{
-    SC_REPORT_FATAL("MemSpecDDR3", "Per bank refresh not supported");
-    return SC_ZERO_TIME;
-}
-
 // Returns the execution time for commands that have a fixed execution time
 sc_time MemSpecDDR3::getExecutionTime(Command command, const tlm_generic_payload &) const
 {
@@ -129,12 +123,36 @@ sc_time MemSpecDDR3::getExecutionTime(Command command, const tlm_generic_payload
 TimeInterval MemSpecDDR3::getIntervalOnDataStrobe(Command command) const
 {
     if (command == Command::RD || command == Command::RDA)
-        return TimeInterval(sc_time_stamp() + tRL, sc_time_stamp() + tRL + burstDuration);
+        return TimeInterval(tRL, tRL + burstDuration);
     else if (command == Command::WR || command == Command::WRA)
-        return TimeInterval(sc_time_stamp() + tWL, sc_time_stamp() + tWL + burstDuration);
+        return TimeInterval(tWL, tWL + burstDuration);
     else
     {
         SC_REPORT_FATAL("MemSpec", "Method was called with invalid argument");
         return TimeInterval();
     }
+}
+
+uint64_t MemSpecDDR3::getSimMemSizeInBytes() const
+{
+    uint64_t deviceSizeBits = static_cast<uint64_t>(banksPerRank) * numberOfRows * numberOfColumns * bitWidth;
+    uint64_t deviceSizeBytes = deviceSizeBits / 8;
+    uint64_t memorySizeBytes = deviceSizeBytes * numberOfDevicesOnDIMM * numberOfRanks;
+
+    std::cout << headline << std::endl;
+    std::cout << "Per Channel Configuration:" << std::endl << std::endl;
+    std::cout << " Memory type:           " << "DDR3"                << std::endl;
+    std::cout << " Memory size in bytes:  " << memorySizeBytes       << std::endl;
+    std::cout << " Ranks:                 " << numberOfRanks         << std::endl;
+    std::cout << " Banks per rank:        " << banksPerRank          << std::endl;
+    std::cout << " Rows per bank:         " << numberOfRows          << std::endl;
+    std::cout << " Columns per row:       " << numberOfColumns       << std::endl;
+    std::cout << " Device width in bits:  " << bitWidth              << std::endl;
+    std::cout << " Device size in bits:   " << deviceSizeBits        << std::endl;
+    std::cout << " Device size in bytes:  " << deviceSizeBytes       << std::endl;
+    std::cout << " Devices on DIMM:       " << numberOfDevicesOnDIMM << std::endl;
+    std::cout << std::endl;
+
+    assert(memorySizeBytes > 0);
+    return memorySizeBytes;
 }

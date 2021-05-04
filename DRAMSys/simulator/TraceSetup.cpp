@@ -35,19 +35,24 @@
  */
 
 #include "TraceSetup.h"
+#include "StlPlayer.h"
+
+using namespace tlm;
 
 TraceSetup::TraceSetup(std::string uri,
                        std::string pathToResources,
-                       std::vector<TracePlayer *> *devices)
+                       std::vector<TracePlayer *> *players)
 {
     // Load Simulation:
     nlohmann::json simulationdoc = parseJSON(uri);
 
     if (simulationdoc["simulation"].empty())
-        SC_REPORT_FATAL("traceSetup",
+        SC_REPORT_FATAL("TraceSetup",
                     "Cannot load simulation: simulation node expected");
 
     // Load TracePlayers:
+    if (simulationdoc["simulation"]["tracesetup"].empty())
+        SC_REPORT_FATAL("TraceSetup", "tracesetup is empty");
     for (auto it : simulationdoc["simulation"]["tracesetup"].items())
     {
         auto value = it.value();
@@ -57,7 +62,7 @@ TraceSetup::TraceSetup(std::string uri,
             unsigned int frequencyMHz = value["clkMhz"];
 
             if (frequencyMHz == 0)
-                SC_REPORT_FATAL("traceSetup", "No Frequency Defined");
+                SC_REPORT_FATAL("TraceSetup", "No frequency defined");
             else
                 playerClk = sc_time(1.0 / frequencyMHz, SC_US);
 
@@ -79,13 +84,13 @@ TraceSetup::TraceSetup(std::string uri,
 
             TracePlayer *player;
             if (ext == "stl")
-                player = new StlPlayer<false>(moduleName.c_str(), stlFile, playerClk, this);
+                player = new StlPlayer(moduleName.c_str(), stlFile, playerClk, this, false);
             else if (ext == "rstl")
-                player = new StlPlayer<true>(moduleName.c_str(), stlFile, playerClk, this);
+                player = new StlPlayer(moduleName.c_str(), stlFile, playerClk, this, true);
             else
                 throw std::runtime_error("Unsupported file extension in " + name);
 
-            devices->push_back(player);
+            players->push_back(player);
 
             if (Configuration::getInstance().simulationProgressBar)
                 totalTransactions += player->getNumberOfLines(stlFile);
@@ -93,7 +98,7 @@ TraceSetup::TraceSetup(std::string uri,
     }
 
     remainingTransactions = totalTransactions;
-    numberOfTracePlayers = devices->size();
+    numberOfTracePlayers = players->size();
 }
 
 void TraceSetup::tracePlayerTerminates()
@@ -112,4 +117,43 @@ void TraceSetup::transactionFinished()
 
     if (remainingTransactions == 0)
         std::cout << std::endl;
+}
+
+tlm_generic_payload *TraceSetup::allocatePayload()
+{
+    return memoryManager.allocate();
+}
+
+void TraceSetup::loadbar(uint64_t x, uint64_t n, unsigned int w, unsigned int granularity)
+{
+    if ((n < 100) || ((x != n) && (x % (n / 100 * granularity) != 0)))
+        return;
+
+    float ratio = x / (float) n;
+    unsigned int c = (ratio * w);
+    float rest = (ratio * w) - c;
+    std::cout << std::setw(3) << round(ratio * 100) << "% |";
+    for (unsigned int x = 0; x < c; x++)
+        std::cout << "█";
+
+    if (rest >= 0 && rest < 0.125f && c != w)
+        std::cout << " ";
+    if (rest >= 0.125f && rest < 2 * 0.125f)
+        std::cout << "▏";
+    if (rest >= 2 * 0.125f && rest < 3 * 0.125f)
+        std::cout << "▎";
+    if (rest >= 3 * 0.125f && rest < 4 * 0.125f)
+        std::cout << "▍";
+    if (rest >= 4 * 0.125f && rest < 5 * 0.125f)
+        std::cout << "▌";
+    if (rest >= 5 * 0.125f && rest < 6 * 0.125f)
+        std::cout << "▋";
+    if (rest >= 6 * 0.125f && rest < 7 * 0.125f)
+        std::cout << "▊";
+    if (rest >= 7 * 0.125f && rest < 8 * 0.125f)
+        std::cout << "▉";
+
+    for (unsigned int x = c; x < (w - 1); x++)
+        std::cout << " ";
+    std::cout << "|\r" << std::flush;
 }

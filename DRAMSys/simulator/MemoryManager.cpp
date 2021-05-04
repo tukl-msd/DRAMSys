@@ -42,12 +42,25 @@
 using namespace tlm;
 
 MemoryManager::MemoryManager()
-    : numberOfAllocations(0), numberOfFrees(0) {}
+    : numberOfAllocations(0), numberOfFrees(0)
+{
+    if (Configuration::getInstance().storeMode == Configuration::StoreMode::NoStorage)
+        storageEnabled = false;
+    else
+        storageEnabled = true;
+}
 
 MemoryManager::~MemoryManager()
 {
-    for (tlm_generic_payload *payload : freePayloads) {
-        delete[] payload->get_data_ptr();
+    for (tlm_generic_payload *payload : freePayloads)
+    {
+        if (storageEnabled)
+        {
+            // Delete data buffer
+            delete[] payload->get_data_ptr();
+        }
+        // Delete all extensions
+        payload->reset();
         delete payload;
         numberOfFrees++;
     }
@@ -59,18 +72,24 @@ MemoryManager::~MemoryManager()
 
 tlm_generic_payload *MemoryManager::allocate()
 {
-    if (freePayloads.empty()) {
+    if (freePayloads.empty())
+    {
         numberOfAllocations++;
         tlm_generic_payload *payload = new tlm_generic_payload(this);
 
-        // Allocate a data buffer and initialize it with zeroes:
-        unsigned int dataLength = Configuration::getInstance().getBytesPerBurst();
-        unsigned char *data = new unsigned char[dataLength];
-        std::fill(data, data + dataLength, 0);
+        if (storageEnabled)
+        {
+            // Allocate a data buffer and initialize it with zeroes:
+            unsigned int dataLength = Configuration::getInstance().memSpec->bytesPerBurst;
+            unsigned char *data = new unsigned char[dataLength];
+            std::fill(data, data + dataLength, 0);
+            payload->set_data_ptr(data);
+        }
 
-        payload->set_data_ptr(data);
         return payload;
-    } else {
+    }
+    else
+    {
         tlm_generic_payload *result = freePayloads.back();
         freePayloads.pop_back();
         return result;
@@ -79,7 +98,5 @@ tlm_generic_payload *MemoryManager::allocate()
 
 void MemoryManager::free(tlm_generic_payload *payload)
 {
-    payload->reset(); // clears all extensions
     freePayloads.push_back(payload);
 }
-

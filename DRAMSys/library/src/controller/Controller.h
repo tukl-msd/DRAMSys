@@ -62,42 +62,48 @@ class Controller : public ControllerIF
 public:
     Controller(sc_module_name);
     SC_HAS_PROCESS(Controller);
-    virtual ~Controller();
+    virtual ~Controller() override;
 
 protected:
     virtual tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload &, tlm::tlm_phase &, sc_time &) override;
     virtual tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload &, tlm::tlm_phase &, sc_time &) override;
     virtual unsigned int transport_dbg(tlm::tlm_generic_payload &) override;
 
-    virtual void sendToFrontend(tlm::tlm_generic_payload *, tlm::tlm_phase);
-    virtual void sendToDram(Command, tlm::tlm_generic_payload *);
+    virtual void sendToFrontend(tlm::tlm_generic_payload *, tlm::tlm_phase, sc_time);
+    virtual void sendToDram(Command, tlm::tlm_generic_payload *, sc_time);
+
+    virtual void controllerMethod();
+
+    SchedulerIF *scheduler;
+    const MemSpec *memSpec;
+
+    sc_time thinkDelayFw;
+    sc_time thinkDelayBw;
+    sc_time phyDelayFw;
+    sc_time phyDelayBw;
 
 private:
     unsigned totalNumberOfPayloads = 0;
     std::vector<unsigned> ranksNumberOfPayloads;
-
-    MemSpec *memSpec;
+    ReadyCommands readyCommands;
 
     std::vector<BankMachine *> bankMachines;
     std::vector<std::vector<BankMachine *>> bankMachinesOnRank;
     CmdMuxIF *cmdMux;
-    SchedulerIF *scheduler;
     CheckerIF *checker;
     RespQueueIF *respQueue;
     std::vector<RefreshManagerIF *> refreshManagers;
     std::vector<PowerDownManagerIF *> powerDownManagers;
 
-    tlm::tlm_generic_payload *payloadToAcquire = nullptr;
-    sc_time timeToAcquire = sc_max_time();
-    tlm::tlm_generic_payload *payloadToRelease = nullptr;
-    sc_time timeToRelease = sc_max_time();
+    struct Transaction
+    {
+        tlm::tlm_generic_payload *payload = nullptr;
+        sc_time time = sc_max_time();
+    } transToAcquire, transToRelease;
 
-    void finishBeginReq();
-    void startEndReq();
-    void startBeginResp();
-    void finishEndResp();
+    void manageResponses();
+    void manageRequests(sc_time);
 
-    void controllerMethod();
     sc_event beginReqEvent, endRespEvent, controllerEvent, dataResponseEvent;
 };
 

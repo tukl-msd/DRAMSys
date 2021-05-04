@@ -164,8 +164,8 @@ void TemperatureController::temperatureThread()
         updateTemperatures();
         double p = adjustThermalSimPeriod();
 
-        int i __attribute__((unused)) = 0;
-        for (auto t __attribute__((unused)) : temperatureValues) {
+        NDEBUG_UNUSED(int i) = 0;
+        for (NDEBUG_UNUSED(auto t) : temperatureValues) {
             PRINTDEBUGMESSAGE(name(), "Temperature[" + std::to_string(i++)
                               + "] is " + std::to_string(t));
         }

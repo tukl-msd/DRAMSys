@@ -32,32 +32,34 @@
  * Author: Lukas Steiner
  */
 
-#include "RefreshManagerRankwise.h"
+#include "RefreshManagerAllBank.h"
 #include "../../common/dramExtensions.h"
 #include "../../configuration/Configuration.h"
 #include "../../common/utils.h"
 
 using namespace tlm;
 
-RefreshManagerRankwise::RefreshManagerRankwise(std::vector<BankMachine *> &bankMachines,
+RefreshManagerAllBank::RefreshManagerAllBank(std::vector<BankMachine *> &bankMachinesOnRank,
         PowerDownManagerIF *powerDownManager, Rank rank, CheckerIF *checker)
-    : bankMachinesOnRank(bankMachines), powerDownManager(powerDownManager), rank(rank), checker(checker)
+    : bankMachinesOnRank(bankMachinesOnRank), powerDownManager(powerDownManager), rank(rank), checker(checker)
 {
     Configuration &config = Configuration::getInstance();
     memSpec = config.memSpec;
-    timeForNextTrigger = memSpec->getRefreshIntervalAB();
+    timeForNextTrigger = getTimeForFirstTrigger(memSpec->getRefreshIntervalAB(),
+                                                rank, memSpec->numberOfRanks);
     setUpDummy(refreshPayload, 0, rank);
 
-    maxPostponed = config.refreshMaxPostponed;
-    maxPulledin = -config.refreshMaxPulledin;
+    maxPostponed = static_cast<int>(config.refreshMaxPostponed);
+    maxPulledin = -static_cast<int>(config.refreshMaxPulledin);
 }
 
-std::tuple<Command, tlm_generic_payload *, sc_time> RefreshManagerRankwise::getNextCommand()
+CommandTuple::Type RefreshManagerAllBank::getNextCommand()
 {
-    return std::tuple<Command, tlm_generic_payload *, sc_time>(nextCommand, &refreshPayload, timeToSchedule);
+    return CommandTuple::Type(nextCommand, &refreshPayload, 
+            std::max(timeToSchedule, sc_time_stamp()));
 }
 
-sc_time RefreshManagerRankwise::start()
+sc_time RefreshManagerAllBank::start()
 {
     timeToSchedule = sc_max_time();
     nextCommand = Command::NOP;
@@ -71,10 +73,10 @@ sc_time RefreshManagerRankwise::start()
         if (sc_time_stamp() >= timeForNextTrigger + memSpec->getRefreshIntervalAB())
         {
             timeForNextTrigger += memSpec->getRefreshIntervalAB();
-            state = RmState::Regular;
+            state = State::Regular;
         }
 
-        if (state == RmState::Regular)
+        if (state == State::Regular)
         {
             if (flexibilityCounter == maxPostponed) // forced refresh
             {
@@ -122,7 +124,7 @@ sc_time RefreshManagerRankwise::start()
 
             if (controllerBusy)
             {
-                state = RmState::Regular;
+                state = State::Regular;
                 timeForNextTrigger += memSpec->getRefreshIntervalAB();
                 return timeForNextTrigger;
             }
@@ -138,7 +140,7 @@ sc_time RefreshManagerRankwise::start()
         return timeForNextTrigger;
 }
 
-void RefreshManagerRankwise::updateState(Command command)
+void RefreshManagerAllBank::updateState(Command command)
 {
     switch (command)
     {
@@ -155,20 +157,20 @@ void RefreshManagerRankwise::updateState(Command command)
         if (sleeping)
         {
             // Refresh command after SREFEX
-            state = RmState::Regular; // TODO: check if this assignment is necessary
+            state = State::Regular; // TODO: check if this assignment is necessary
             timeForNextTrigger = sc_time_stamp() + memSpec->getRefreshIntervalAB();
             sleeping = false;
         }
         else
         {
-            if (state == RmState::Pulledin)
+            if (state == State::Pulledin)
                 flexibilityCounter--;
             else
-                state = RmState::Pulledin;
+                state = State::Pulledin;
 
             if (flexibilityCounter == maxPulledin)
             {
-                state = RmState::Regular;
+                state = State::Regular;
                 timeForNextTrigger += memSpec->getRefreshIntervalAB();
             }
         }
@@ -182,6 +184,8 @@ void RefreshManagerRankwise::updateState(Command command)
         break;
     case Command::PDXA: case Command::PDXP:
         sleeping = false;
+        break;
+    default:
         break;
     }
 }
