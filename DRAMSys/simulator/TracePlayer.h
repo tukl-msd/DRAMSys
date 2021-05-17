@@ -69,7 +69,6 @@ protected:
     uint64_t numberOfTransactions = 0;
     uint64_t transactionsSent = 0;
     bool finished = false;
-    sc_time lastEndReq = sc_max_time();
 
 private:
     tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload &payload, tlm::tlm_phase &phase,

@@ -72,10 +72,7 @@ void TracePlayer::peqCallback(tlm_generic_payload &payload,
                               const tlm_phase &phase)
 {
     if (phase == END_REQ)
-    {
-        lastEndReq = sc_time_stamp();
         nextPayload();
-    }
     else if (phase == BEGIN_RESP)
     {
         payload.release();

@@ -126,7 +126,8 @@ void ArbiterReorder::end_of_elaboration()
 tlm_sync_enum Arbiter::nb_transport_fw(int id, tlm_generic_payload &payload,
                               tlm_phase &phase, sc_time &fwDelay)
 {
-    sc_time notDelay = std::ceil((sc_time_stamp() + fwDelay) / tCK) * tCK - sc_time_stamp();
+    sc_time clockOffset = (sc_time_stamp() + fwDelay) % tCK;
+    sc_time notDelay = (clockOffset == SC_ZERO_TIME) ? fwDelay : (fwDelay + tCK - clockOffset);
 
     if (phase == BEGIN_REQ)
     {

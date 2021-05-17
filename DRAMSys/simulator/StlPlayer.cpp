@@ -101,18 +101,18 @@ void StlPlayer::nextPayload()
     payload->set_command(lineIterator->cmd);
     std::copy(lineIterator->data.begin(), lineIterator->data.end(), payload->get_data_ptr());
 
-    sc_time sendingOffset;
     sc_time sendingTime;
+    sc_time sendingOffset;
 
-    if (lastEndReq == sc_time_stamp())
-        sendingOffset = playerClk;
-    else
+    if (numberOfTransactions == 1)
         sendingOffset = SC_ZERO_TIME;
+    else
+        sendingOffset = playerClk - (sc_time_stamp() % playerClk);
 
     if (!relative)
         sendingTime = std::max(sc_time_stamp() + sendingOffset, lineIterator->sendingTime);
     else
-        sendingTime = sc_time_stamp() + std::max(sendingOffset, lineIterator->sendingTime);
+        sendingTime = sc_time_stamp() + sendingOffset + lineIterator->sendingTime;
 
     sendToTarget(*payload, BEGIN_REQ, sendingTime - sc_time_stamp());
 
