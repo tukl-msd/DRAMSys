@@ -33,34 +33,30 @@
  *    Eder F. Zulian
  *    Matthias Jung
  *    Luiza Correa
+ *    Derek Christ
  */
 
 #ifndef TEMPERATURESIMCONFIG_H
 #define TEMPERATURESIMCONFIG_H
 
-#include <systemc.h>
-#include <iostream>
 #include <string>
+#include <vector>
+#include <Configuration.h>
+#include <systemc>
+#include <utility>
 #include "../common/DebugManager.h"
-#include "../common/utils.h"
 
 struct TemperatureSimConfig
 {
     // Temperature Scale
-    std::string temperatureScale;
-    std::string pathToResources;
-
-    void setPathToResources(std::string path)
-    {
-        pathToResources = path;
-    }
+    enum class TemperatureScale {Celsius, Fahrenheit, Kelvin} temperatureScale;
 
     // Static Temperature Simulation parameters
     int staticTemperatureDefaultValue;
 
     // Thermal Simulation parameters
     double thermalSimPeriod;
-    enum sc_time_unit thermalSimUnit;
+    enum sc_core::sc_time_unit thermalSimUnit;
     std::string iceServerIp;
     unsigned int iceServerPort;
     unsigned int simPeriodAdjustFactor;
@@ -69,46 +65,8 @@ struct TemperatureSimConfig
     bool generatePowerMap;
 
     // Power related information
-    std::string powerInfoFile;
     std::vector<float> powerInitialValues;
     std::vector<float> powerThresholds;
-
-    void parsePowerInfoFile()
-    {
-        PRINTDEBUGMESSAGE("TemperatureSimConfig", "Power Info File: " + powerInfoFile);
-
-        powerInfoFile = pathToResources
-                + "/configs/thermalsim/"
-                + powerInfoFile;
-
-        // Load the JSON file into memory and parse it
-        nlohmann::json powInfoElem = parseJSON(powerInfoFile);
-
-        if (powInfoElem["powerInfo"].empty())
-        {
-            // Invalid file
-            std::string errormsg = "Invalid Power Info File " + powerInfoFile;
-            PRINTDEBUGMESSAGE("TemperatureSimConfig", errormsg);
-            SC_REPORT_FATAL("Temperature Sim Config", errormsg.c_str());
-        }
-        else
-        {
-            for (auto it : powInfoElem["powerInfo"].items())
-            {
-                // Load initial power values for all devices
-                auto value= it.value();
-                float pow = value["init_pow"];
-                powerInitialValues.push_back(pow);
-
-                // Load power thresholds for all devices
-                //Changes in power dissipation that exceed the threshods
-                //will make the thermal simulation to be executed more often)
-                float thr = value["threshold"];
-                powerThresholds.push_back(thr);
-            }
-        }
-        showTemperatureSimConfig();
-    }
 
     void showTemperatureSimConfig()
     {

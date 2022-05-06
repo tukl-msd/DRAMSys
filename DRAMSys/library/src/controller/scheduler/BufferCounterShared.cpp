@@ -34,6 +34,8 @@
 
 #include "BufferCounterShared.h"
 
+using namespace tlm;
+
 BufferCounterShared::BufferCounterShared(unsigned requestBufferSize)
     : requestBufferSize(requestBufferSize)
 {
@@ -45,17 +47,35 @@ bool BufferCounterShared::hasBufferSpace() const
     return (numRequests[0] < requestBufferSize);
 }
 
-void BufferCounterShared::storeRequest(tlm::tlm_generic_payload *)
+void BufferCounterShared::storeRequest(const tlm_generic_payload& trans)
 {
     numRequests[0]++;
+    if (trans.is_read())
+        numReadRequests++;
+    else
+        numWriteRequests++;
 }
 
-void BufferCounterShared::removeRequest(tlm::tlm_generic_payload *)
+void BufferCounterShared::removeRequest(const tlm_generic_payload& trans)
 {
     numRequests[0]--;
+    if (trans.is_read())
+        numReadRequests--;
+    else
+        numWriteRequests--;
 }
 
 const std::vector<unsigned> &BufferCounterShared::getBufferDepth() const
 {
     return numRequests;
+}
+
+unsigned BufferCounterShared::getNumReadRequests() const
+{
+    return numReadRequests;
+}
+
+unsigned BufferCounterShared::getNumWriteRequests() const
+{
+    return numWriteRequests;
 }

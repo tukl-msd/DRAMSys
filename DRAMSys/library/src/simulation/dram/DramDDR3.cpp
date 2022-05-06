@@ -35,110 +35,113 @@
 
 #include "DramDDR3.h"
 
-#include "Dram.h"
+#include <memory>
 #include "../../configuration/Configuration.h"
 #include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 #include "../../configuration/memspec/MemSpecDDR3.h"
 
+using namespace sc_core;
 using namespace DRAMPower;
 
-DramDDR3::DramDDR3(sc_module_name name) : Dram(name)
+DramDDR3::DramDDR3(const sc_module_name& name, const Configuration& config,
+                   TemperatureController& temperatureController)
+    : Dram(name, config)
 {
     if (storeMode == Configuration::StoreMode::ErrorModel)
         SC_REPORT_FATAL("DramDDR3", "Error Model not supported for DDR3");
 
-    if (Configuration::getInstance().powerAnalysis)
+    if (powerAnalysis)
     {
-        const MemSpecDDR3 *memSpec = dynamic_cast<const MemSpecDDR3 *>(this->memSpec);
-        if (memSpec == nullptr)
+        const auto *memSpecDDR3 = dynamic_cast<const MemSpecDDR3*>(config.memSpec.get());
+        if (memSpecDDR3 == nullptr)
             SC_REPORT_FATAL("DramDDR3", "Wrong MemSpec chosen");
 
         MemArchitectureSpec memArchSpec;
-        memArchSpec.burstLength       = memSpec->burstLength;
-        memArchSpec.dataRate          = memSpec->dataRate;
-        memArchSpec.nbrOfRows         = memSpec->numberOfRows;
-        memArchSpec.nbrOfBanks        = memSpec->numberOfBanks;
-        memArchSpec.nbrOfColumns      = memSpec->numberOfColumns;
-        memArchSpec.nbrOfRanks        = memSpec->numberOfRanks;
-        memArchSpec.width             = memSpec->bitWidth;
-        memArchSpec.nbrOfBankGroups   = memSpec->numberOfBankGroups;
+        memArchSpec.burstLength       = memSpecDDR3->defaultBurstLength;
+        memArchSpec.dataRate          = memSpecDDR3->dataRate;
+        memArchSpec.nbrOfRows         = memSpecDDR3->rowsPerBank;
+        memArchSpec.nbrOfBanks        = memSpecDDR3->banksPerChannel;
+        memArchSpec.nbrOfColumns      = memSpecDDR3->columnsPerRow;
+        memArchSpec.nbrOfRanks        = memSpecDDR3->ranksPerChannel;
+        memArchSpec.width             = memSpecDDR3->bitWidth;
+        memArchSpec.nbrOfBankGroups   = memSpecDDR3->bankGroupsPerChannel;
         memArchSpec.twoVoltageDomains = false;
         memArchSpec.dll               = true;
 
         MemTimingSpec memTimingSpec;
-        //FIXME: memTimingSpec.FAWB   = memSpec->tFAW / memSpec->tCK;
-        //FIXME: memTimingSpec.RASB   = memSpec->tRAS / memSpec->tCK;
-        //FIXME: memTimingSpec.RCB    = memSpec->tRC / memSpec->tCK;
-        //FIXME: memTimingSpec.RPB    = memSpec->tRP / memSpec->tCK;
-        //FIXME: memTimingSpec.RRDB   = memSpec->tRRD / memSpec->tCK;
-        //FIXME: memTimingSpec.RRDB_L = memSpec->tRRD / memSpec->tCK;
-        //FIXME: memTimingSpec.RRDB_S = memSpec->tRRD / memSpec->tCK;
-        memTimingSpec.AL     = memSpec->tAL / memSpec->tCK;
-        memTimingSpec.CCD    = memSpec->tCCD / memSpec->tCK;
-        memTimingSpec.CCD_L  = memSpec->tCCD / memSpec->tCK;
-        memTimingSpec.CCD_S  = memSpec->tCCD / memSpec->tCK;
-        memTimingSpec.CKE    = memSpec->tCKE / memSpec->tCK;
-        memTimingSpec.CKESR  = memSpec->tCKESR / memSpec->tCK;
-        memTimingSpec.clkMhz = memSpec->fCKMHz;
+        //FIXME: memTimingSpec.FAWB   = memSpecDDR3->tFAW / memSpecDDR3->tCK;
+        //FIXME: memTimingSpec.RASB   = memSpecDDR3->tRAS / memSpecDDR3->tCK;
+        //FIXME: memTimingSpec.RCB    = memSpecDDR3->tRC / memSpecDDR3->tCK;
+        //FIXME: memTimingSpec.RPB    = memSpecDDR3->tRP / memSpecDDR3->tCK;
+        //FIXME: memTimingSpec.RRDB   = memSpecDDR3->tRRD / memSpecDDR3->tCK;
+        //FIXME: memTimingSpec.RRDB_L = memSpecDDR3->tRRD / memSpecDDR3->tCK;
+        //FIXME: memTimingSpec.RRDB_S = memSpecDDR3->tRRD / memSpecDDR3->tCK;
+        memTimingSpec.AL     = memSpecDDR3->tAL / memSpecDDR3->tCK;
+        memTimingSpec.CCD    = memSpecDDR3->tCCD / memSpecDDR3->tCK;
+        memTimingSpec.CCD_L  = memSpecDDR3->tCCD / memSpecDDR3->tCK;
+        memTimingSpec.CCD_S  = memSpecDDR3->tCCD / memSpecDDR3->tCK;
+        memTimingSpec.CKE    = memSpecDDR3->tCKE / memSpecDDR3->tCK;
+        memTimingSpec.CKESR  = memSpecDDR3->tCKESR / memSpecDDR3->tCK;
+        memTimingSpec.clkMhz = memSpecDDR3->fCKMHz;
         // See also MemTimingSpec.cc in DRAMPower
-        memTimingSpec.clkPeriod = 1000.0 / memSpec->fCKMHz;
-        memTimingSpec.DQSCK  = memSpec->tDQSCK / memSpec->tCK;
-        memTimingSpec.FAW    = memSpec->tFAW / memSpec->tCK;
-        memTimingSpec.RAS    = memSpec->tRAS / memSpec->tCK;
-        memTimingSpec.RC     = memSpec->tRC / memSpec->tCK;
-        memTimingSpec.RCD    = memSpec->tRCD / memSpec->tCK;
-        memTimingSpec.REFI   = memSpec->tREFI / memSpec->tCK;
-        memTimingSpec.RFC    = memSpec->tRFC / memSpec->tCK;
-        memTimingSpec.RL     = memSpec->tRL / memSpec->tCK;
-        memTimingSpec.RP     = memSpec->tRP / memSpec->tCK;
-        memTimingSpec.RRD    = memSpec->tRRD / memSpec->tCK;
-        memTimingSpec.RRD_L  = memSpec->tRRD / memSpec->tCK;
-        memTimingSpec.RRD_S  = memSpec->tRRD / memSpec->tCK;
-        memTimingSpec.RTP    = memSpec->tRTP / memSpec->tCK;
-        memTimingSpec.TAW    = memSpec->tFAW / memSpec->tCK;
-        memTimingSpec.WL     = memSpec->tWL / memSpec->tCK;
-        memTimingSpec.WR     = memSpec->tWR / memSpec->tCK;
-        memTimingSpec.WTR    = memSpec->tWTR / memSpec->tCK;
-        memTimingSpec.WTR_L  = memSpec->tWTR / memSpec->tCK;
-        memTimingSpec.WTR_S  = memSpec->tWTR / memSpec->tCK;
-        memTimingSpec.XP     = memSpec->tXP / memSpec->tCK;
-        memTimingSpec.XPDLL  = memSpec->tXPDLL / memSpec->tCK;
-        memTimingSpec.XS     = memSpec->tXS / memSpec->tCK;
-        memTimingSpec.XSDLL  = memSpec->tXSDLL / memSpec->tCK;
+        memTimingSpec.clkPeriod = 1000.0 / memSpecDDR3->fCKMHz;
+        memTimingSpec.DQSCK  = memSpecDDR3->tDQSCK / memSpecDDR3->tCK;
+        memTimingSpec.FAW    = memSpecDDR3->tFAW / memSpecDDR3->tCK;
+        memTimingSpec.RAS    = memSpecDDR3->tRAS / memSpecDDR3->tCK;
+        memTimingSpec.RC     = memSpecDDR3->tRC / memSpecDDR3->tCK;
+        memTimingSpec.RCD    = memSpecDDR3->tRCD / memSpecDDR3->tCK;
+        memTimingSpec.REFI   = memSpecDDR3->tREFI / memSpecDDR3->tCK;
+        memTimingSpec.RFC    = memSpecDDR3->tRFC / memSpecDDR3->tCK;
+        memTimingSpec.RL     = memSpecDDR3->tRL / memSpecDDR3->tCK;
+        memTimingSpec.RP     = memSpecDDR3->tRP / memSpecDDR3->tCK;
+        memTimingSpec.RRD    = memSpecDDR3->tRRD / memSpecDDR3->tCK;
+        memTimingSpec.RRD_L  = memSpecDDR3->tRRD / memSpecDDR3->tCK;
+        memTimingSpec.RRD_S  = memSpecDDR3->tRRD / memSpecDDR3->tCK;
+        memTimingSpec.RTP    = memSpecDDR3->tRTP / memSpecDDR3->tCK;
+        memTimingSpec.TAW    = memSpecDDR3->tFAW / memSpecDDR3->tCK;
+        memTimingSpec.WL     = memSpecDDR3->tWL / memSpecDDR3->tCK;
+        memTimingSpec.WR     = memSpecDDR3->tWR / memSpecDDR3->tCK;
+        memTimingSpec.WTR    = memSpecDDR3->tWTR / memSpecDDR3->tCK;
+        memTimingSpec.WTR_L  = memSpecDDR3->tWTR / memSpecDDR3->tCK;
+        memTimingSpec.WTR_S  = memSpecDDR3->tWTR / memSpecDDR3->tCK;
+        memTimingSpec.XP     = memSpecDDR3->tXP / memSpecDDR3->tCK;
+        memTimingSpec.XPDLL  = memSpecDDR3->tXPDLL / memSpecDDR3->tCK;
+        memTimingSpec.XS     = memSpecDDR3->tXS / memSpecDDR3->tCK;
+        memTimingSpec.XSDLL  = memSpecDDR3->tXSDLL / memSpecDDR3->tCK;
 
         MemPowerSpec  memPowerSpec;
-        memPowerSpec.idd0    = memSpec->iDD0;
+        memPowerSpec.idd0    = memSpecDDR3->iDD0;
         memPowerSpec.idd02   = 0;
-        memPowerSpec.idd2p0  = memSpec->iDD2P0;
+        memPowerSpec.idd2p0  = memSpecDDR3->iDD2P0;
         memPowerSpec.idd2p02 = 0;
-        memPowerSpec.idd2p1  = memSpec->iDD2P1;
+        memPowerSpec.idd2p1  = memSpecDDR3->iDD2P1;
         memPowerSpec.idd2p12 = 0;
-        memPowerSpec.idd2n   = memSpec->iDD2N;
+        memPowerSpec.idd2n   = memSpecDDR3->iDD2N;
         memPowerSpec.idd2n2  = 0;
-        memPowerSpec.idd3p0  = memSpec->iDD3P0;
+        memPowerSpec.idd3p0  = memSpecDDR3->iDD3P0;
         memPowerSpec.idd3p02 = 0;
-        memPowerSpec.idd3p1  = memSpec->iDD3P1;
+        memPowerSpec.idd3p1  = memSpecDDR3->iDD3P1;
         memPowerSpec.idd3p12 = 0;
-        memPowerSpec.idd3n   = memSpec->iDD3N;
+        memPowerSpec.idd3n   = memSpecDDR3->iDD3N;
         memPowerSpec.idd3n2  = 0;
-        memPowerSpec.idd4r   = memSpec->iDD4R;
+        memPowerSpec.idd4r   = memSpecDDR3->iDD4R;
         memPowerSpec.idd4r2  = 0;
-        memPowerSpec.idd4w   = memSpec->iDD4W;
+        memPowerSpec.idd4w   = memSpecDDR3->iDD4W;
         memPowerSpec.idd4w2  = 0;
-        memPowerSpec.idd5    = memSpec->iDD5;
+        memPowerSpec.idd5    = memSpecDDR3->iDD5;
         memPowerSpec.idd52   = 0;
-        memPowerSpec.idd6    = memSpec->iDD6;
+        memPowerSpec.idd6    = memSpecDDR3->iDD6;
         memPowerSpec.idd62   = 0;
-        memPowerSpec.vdd     = memSpec->vDD;
+        memPowerSpec.vdd     = memSpecDDR3->vDD;
         memPowerSpec.vdd2    = 0;
 
         MemorySpecification powerSpec;
-        powerSpec.id = memSpec->memoryId;
+        powerSpec.id = memSpecDDR3->memoryId;
         powerSpec.memoryType = MemoryType::DDR3;
         powerSpec.memTimingSpec = memTimingSpec;
         powerSpec.memPowerSpec  = memPowerSpec;
         powerSpec.memArchSpec   = memArchSpec;
 
-        DRAMPower = new libDRAMPower(powerSpec, 0);
+        DRAMPower = std::make_unique<libDRAMPower>(powerSpec, false);
     }
 }

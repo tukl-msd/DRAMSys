@@ -140,10 +140,10 @@ void ECCHamming::Decode(const unsigned char *pDataIn, const unsigned nDataIn,
 
             if (c == 0) {
                 // Only Parity Bit broken - continue
-                cout << "Parity Bit error" << endl;
+                std::cout << "Parity Bit error" << std::endl;
             } else {
                 // Data or Hamming Code Bit broken
-                cout << "Single Error Detected" << endl;
+                std::cout << "Single Error Detected" << std::endl;
             }
         } else {
             // No Parity Error
@@ -152,7 +152,7 @@ void ECCHamming::Decode(const unsigned char *pDataIn, const unsigned nDataIn,
                 // No error at all - continue
             } else {
                 // Double error detected
-                cout << "Double Error Detected (Block " << i << ")." << endl;
+                std::cout << "Double Error Detected (Block " << i << ")." << std::endl;
             }
         }
 

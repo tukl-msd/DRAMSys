@@ -33,51 +33,45 @@
  *    Johannes Feldmann
  *    Lukas Steiner
  *    Luiza Correa
+ *    Derek Christ
  */
 
 #ifndef ADDRESSDECODER_H
 #define ADDRESSDECODER_H
 
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <map>
 #include <vector>
-
-#include "../common/third_party/nlohmann/single_include/nlohmann/json.hpp"
+#include <utility>
+#include <Configuration.h>
+#include "../configuration/Configuration.h"
 
 struct DecodedAddress
 {
     DecodedAddress(unsigned channel, unsigned rank,
                    unsigned bankgroup, unsigned bank,
                    unsigned row, unsigned column, unsigned bytes)
-        : channel(channel), rank(rank), bankgroup(bankgroup),
-          bank(bank), row(row), column(column), byte(bytes) {}
+        : channel(channel), rank(rank),
+          bankgroup(bankgroup), bank(bank),
+          row(row), column(column), byte(bytes) {}
 
-    DecodedAddress()
-    : channel(0), rank(0), bankgroup(0),
-      bank(0), row(0), column(0), byte(0) {}
+    DecodedAddress() = default;
 
-    unsigned channel;
-    unsigned rank;
-    unsigned bankgroup;
-    unsigned bank;
-    unsigned row;
-    unsigned column;
-    unsigned byte;
+    unsigned channel = 0;
+    unsigned rank = 0;
+    unsigned bankgroup = 0;
+    unsigned bank = 0;
+    unsigned row = 0;
+    unsigned column = 0;
+    unsigned byte = 0;
 };
 
 class AddressDecoder
 {
 public:
-    AddressDecoder(std::string);
+    AddressDecoder(const Configuration& config, const DRAMSysConfiguration::AddressMapping &addressMapping);
     DecodedAddress decodeAddress(uint64_t addr);
     void print();
 
 private:
-    std::vector<unsigned> getAttrToVectorFromJson(nlohmann::json obj, std::string strName);
-    unsigned int getUnsignedAttrFromJson(nlohmann::json obj, std::string strName);
-
     unsigned banksPerGroup;
     unsigned bankgroupsPerRank;
 

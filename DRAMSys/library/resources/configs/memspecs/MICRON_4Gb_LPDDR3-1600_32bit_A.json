@@ -8,6 +8,7 @@
             "nbrOfRanks": 1,
             "nbrOfRows": 16384,
             "width": 32,
+            "nbrOfDevices": 1,
             "nbrOfChannels": 1
         },
         "memoryId": "MICRON_4Gb_LPDDR3-1600_32bit_A",

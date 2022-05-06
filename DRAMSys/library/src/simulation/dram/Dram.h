@@ -40,34 +40,33 @@
 #ifndef DRAM_H
 #define DRAM_H
 
-#include <tlm.h>
-#include <systemc.h>
+#include <memory>
+
+#include <systemc>
+#include <tlm>
 #include <tlm_utils/simple_target_socket.h>
 #include "../../configuration/Configuration.h"
 #include "../../configuration/memspec/MemSpec.h"
 #include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 
-class Dram : public sc_module
+class Dram : public sc_core::sc_module
 {
-private:
-    unsigned int bytesPerBurst = Configuration::getInstance().memSpec->bytesPerBurst;
-    bool powerReported = false;
-
 protected:
-    Dram(sc_module_name);
+    Dram(const sc_core::sc_module_name &name, const Configuration& config);
     SC_HAS_PROCESS(Dram);
 
-    const MemSpec *memSpec = Configuration::getInstance().memSpec;
+    const MemSpec& memSpec;
 
     // Data Storage:
-    Configuration::StoreMode storeMode;
-
+    const Configuration::StoreMode storeMode;
+    const bool powerAnalysis;
     unsigned char *memory;
+    const bool useMalloc;
 
-    libDRAMPower *DRAMPower;
+    std::unique_ptr<libDRAMPower> DRAMPower;
 
     virtual tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload &payload,
-                                               tlm::tlm_phase &phase, sc_time &delay);
+                                               tlm::tlm_phase &phase, sc_core::sc_time &delay);
 
     virtual unsigned int transport_dbg(tlm::tlm_generic_payload &trans);
 
@@ -75,7 +74,7 @@ public:
     tlm_utils::simple_target_socket<Dram> tSocket;
 
     virtual void reportPower();
-    virtual ~Dram();
+    ~Dram() override;
 };
 
 #endif // DRAM_H

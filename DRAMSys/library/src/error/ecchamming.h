@@ -63,16 +63,16 @@ protected:
     // Data pointer is provided in pDataIn, length in Bytes provided in nDataIn
     // Result should be written in pDataOut, which has a size of nDataOut.
     // pDataOut is already allocated with a size given by function AllocationEncode
-    virtual void Encode(const unsigned char *pDataIn, const unsigned nDataIn,
-                        unsigned char *pDataOut, const unsigned nDataOut);
+    virtual void Encode(const unsigned char *pDataIn, unsigned nDataIn,
+                        unsigned char *pDataOut, unsigned nDataOut);
 
 
     // Function prototype for decoding data.
     // Data pointer is provided in pDataIn, length in Bytes provided in nDataIn
     // Result should be written in pDataOut, which has a size of nDataOut.
     // pDataOut is already allocated with a size given by function AllocationDecode
-    virtual void Decode(const unsigned char *pDataIn, const unsigned nDataIn,
-                        unsigned char *pDataOut, const unsigned nDataOut);
+    virtual void Decode(const unsigned char *pDataIn, unsigned nDataIn,
+                        unsigned char *pDataOut, unsigned nDataOut);
 
 public:
     ECCHamming(::sc_core::sc_module_name name) : ECCBaseClass(name)

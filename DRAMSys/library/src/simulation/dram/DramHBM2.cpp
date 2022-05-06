@@ -34,17 +34,19 @@
  */
 
 #include "DramHBM2.h"
-
-#include "Dram.h"
 #include "../../configuration/Configuration.h"
 #include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 #include "../../configuration/memspec/MemSpecHBM2.h"
 
-DramHBM2::DramHBM2(sc_module_name name) : Dram(name)
+using namespace sc_core;
+
+DramHBM2::DramHBM2(const sc_module_name& name, const Configuration& config,
+                   TemperatureController& temperatureController)
+    : Dram(name, config)
 {
     if (storeMode == Configuration::StoreMode::ErrorModel)
         SC_REPORT_FATAL("DramHBM2", "Error Model not supported for HBM2");
 
-    if (Configuration::getInstance().powerAnalysis)
+    if (powerAnalysis)
         SC_REPORT_FATAL("DramHBM2", "DRAMPower does not support HBM2");
 }

@@ -34,15 +34,16 @@
  */
 
 #include "DramDDR5.h"
-
-#include "Dram.h"
 #include "../../configuration/Configuration.h"
 #include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 #include "../../configuration/memspec/MemSpecDDR5.h"
 
+using namespace sc_core;
 using namespace DRAMPower;
 
-DramDDR5::DramDDR5(sc_module_name name) : Dram(name)
+DramDDR5::DramDDR5(const sc_module_name& name, const Configuration& config,
+                   TemperatureController& temperatureController)
+    : Dram(name, config)
 {
     SC_REPORT_FATAL("DramDDR5", "DDR5 model not included!");
 }

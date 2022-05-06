@@ -35,23 +35,24 @@
 #ifndef REFRESHMANAGERIF_H
 #define REFRESHMANAGERIF_H
 
-#include <systemc.h>
-#include <tlm.h>
-#include <utility>
+#include <cmath>
+
+#include <systemc>
 #include "../Command.h"
 #include "../../configuration/Configuration.h"
 
 class RefreshManagerIF
 {
 public:
-    virtual ~RefreshManagerIF() {}
+    virtual ~RefreshManagerIF() = default;
 
     virtual CommandTuple::Type getNextCommand() = 0;
-    virtual sc_time start() = 0;
+    virtual sc_core::sc_time start() = 0;
     virtual void updateState(Command) = 0;
 
 protected:
-    sc_time getTimeForFirstTrigger(sc_time refreshInterval, Rank rank, unsigned numberOfRanks)
+    static sc_core::sc_time getTimeForFirstTrigger(const sc_core::sc_time& tCK, const sc_core::sc_time &refreshInterval,
+                                                   Rank rank, unsigned numberOfRanks)
     {
         // Calculate bit-reversal rank ID
         unsigned rankID = rank.ID();
@@ -72,8 +73,7 @@ protected:
         }
 
         // Use bit-reversal order for refreshes on ranks
-        sc_time timeForFirstTrigger = refreshInterval - reverseRankID * (refreshInterval / numberOfRanks);
-        sc_time tCK = Configuration::getInstance().memSpec->tCK;
+        sc_core::sc_time timeForFirstTrigger = refreshInterval - reverseRankID * (refreshInterval / numberOfRanks);
         timeForFirstTrigger = std::ceil(timeForFirstTrigger / tCK) * tCK;
 
         return timeForFirstTrigger;

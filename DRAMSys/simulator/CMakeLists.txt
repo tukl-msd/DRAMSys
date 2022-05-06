@@ -31,6 +31,7 @@
 # Authors: 
 #    Matthias Jung
 #    Lukas Steiner
+#    Derek Christ
 
 cmake_minimum_required(VERSION 3.10)
 
@@ -38,7 +39,7 @@ cmake_minimum_required(VERSION 3.10)
 project(DRAMSysSimulator)
 
 # Configuration:
-set(CMAKE_CXX_STANDARD 11 CACHE STRING "C++ Version")
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ Version")
 set(DCMAKE_SH="CMAKE_SH-NOTFOUND")
 
 find_package(Threads REQUIRED)
@@ -48,9 +49,10 @@ add_executable(DRAMSys
     ExampleInitiator.h
     MemoryManager.cpp
     StlPlayer.cpp
-    TraceGenerator.cpp
-    TracePlayer.cpp
+    TrafficGenerator.cpp
+    TrafficInitiator.cpp
     TraceSetup.cpp
+    LengthConverter.cpp
 )
 
 if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/../library/src/simulation/DRAMSysRecordable.cpp)

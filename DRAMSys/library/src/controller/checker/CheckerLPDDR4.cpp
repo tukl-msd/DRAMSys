@@ -32,24 +32,28 @@
  * Author: Lukas Steiner
  */
 
+#include <algorithm>
+
 #include "CheckerLPDDR4.h"
 
-CheckerLPDDR4::CheckerLPDDR4()
+using namespace sc_core;
+using namespace tlm;
+
+CheckerLPDDR4::CheckerLPDDR4(const Configuration& config)
 {
-    Configuration &config = Configuration::getInstance();
-    memSpec = dynamic_cast<const MemSpecLPDDR4 *>(config.memSpec);
+    memSpec = dynamic_cast<const MemSpecLPDDR4 *>(config.memSpec.get());
     if (memSpec == nullptr)
         SC_REPORT_FATAL("CheckerLPDDR4", "Wrong MemSpec chosen");
 
     lastScheduledByCommandAndBank = std::vector<std::vector<sc_time>>
-            (numberOfCommands(), std::vector<sc_time>(memSpec->numberOfBanks, sc_max_time()));
+            (Command::numberOfCommands(), std::vector<sc_time>(memSpec->banksPerChannel, sc_max_time()));
     lastScheduledByCommandAndRank = std::vector<std::vector<sc_time>>
-            (numberOfCommands(), std::vector<sc_time>(memSpec->numberOfRanks, sc_max_time()));
-    lastScheduledByCommand = std::vector<sc_time>(numberOfCommands(), sc_max_time());
+            (Command::numberOfCommands(), std::vector<sc_time>(memSpec->ranksPerChannel, sc_max_time()));
+    lastScheduledByCommand = std::vector<sc_time>(Command::numberOfCommands(), sc_max_time());
     lastCommandOnBus = sc_max_time();
-    last4Activates = std::vector<std::queue<sc_time>>(memSpec->numberOfRanks);
+    last4Activates = std::vector<std::queue<sc_time>>(memSpec->ranksPerChannel);
 
-    tBURST = memSpec->burstLength / memSpec->dataRate * memSpec->tCK;
+    tBURST = memSpec->defaultBurstLength / memSpec->dataRate * memSpec->tCK;
     tRDWR = memSpec->tRL + memSpec->tDQSCK + tBURST - memSpec->tWL + memSpec->tWPRE + memSpec->tRPST;
     tRDWR_R = memSpec->tRL + tBURST + memSpec->tRTRS - memSpec->tWL;
     tWRRD = memSpec->tWL + memSpec->tCK + tBURST + memSpec->tWTR;
@@ -66,13 +70,20 @@ CheckerLPDDR4::CheckerLPDDR4()
     tREFPDEN = memSpec->tCK + memSpec->tCMDCKE;
 }
 
-sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, BankGroup, Bank bank) const
+sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, const tlm_generic_payload& payload) const
 {
+    Rank rank = DramExtension::getRank(payload);
+    Bank bank = DramExtension::getBank(payload);
+
     sc_time lastCommandStart;
     sc_time earliestTimeToStart = sc_time_stamp();
 
     if (command == Command::RD || command == Command::RDA)
     {
+        unsigned burstLength = DramExtension::getBurstLength(payload);
+        assert((burstLength == 16) || (burstLength == 32)); // TODO: BL16/32 OTF
+        assert(burstLength <= memSpec->maxBurstLength);
+
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRCD);
@@ -122,6 +133,10 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, Bank
     }
     else if (command == Command::WR || command == Command::WRA)
     {
+        unsigned burstLength = DramExtension::getBurstLength(payload);
+        assert((burstLength == 16) || (burstLength == 32));
+        assert(burstLength <= memSpec->maxBurstLength);
+
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRCD);
@@ -180,11 +195,11 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRAACT);
 
-        lastCommandStart = lastScheduledByCommandAndBank[Command::PRE][bank.ID()];
+        lastCommandStart = lastScheduledByCommandAndBank[Command::PREPB][bank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRPpb - 2 * memSpec->tCK);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PREA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRPab - 2 * memSpec->tCK);
 
@@ -196,15 +211,15 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXP);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCab - 2 * memSpec->tCK);
 
-        lastCommandStart = lastScheduledByCommandAndBank[Command::REFB][bank.ID()];
+        lastCommandStart = lastScheduledByCommandAndBank[Command::REFPB][bank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCpb - 2 * memSpec->tCK);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFB][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRRD - 2 * memSpec->tCK);
 
@@ -215,7 +230,7 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (last4Activates[rank.ID()].size() >= 4)
             earliestTimeToStart = std::max(earliestTimeToStart, last4Activates[rank.ID()].front() + memSpec->tFAW - 3 * memSpec->tCK);
     }
-    else if (command == Command::PRE)
+    else if (command == Command::PREPB)
     {
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank.ID()];
         if (lastCommandStart != sc_max_time())
@@ -229,7 +244,7 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRPRE);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PRE][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tPPD);
 
@@ -237,7 +252,7 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXP);
     }
-    else if (command == Command::PREA)
+    else if (command == Command::PREAB)
     {
         lastCommandStart = lastScheduledByCommandAndRank[Command::ACT][rank.ID()];
         if (lastCommandStart != sc_max_time())
@@ -259,7 +274,7 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRPRE);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PRE][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tPPD);
 
@@ -267,11 +282,11 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXP);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFB][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCpb);
     }
-    else if (command == Command::REFA)
+    else if (command == Command::REFAB)
     {
         lastCommandStart = lastScheduledByCommandAndRank[Command::ACT][rank.ID()];
         if (lastCommandStart != sc_max_time())
@@ -285,11 +300,11 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec->tRPpb);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PRE][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRPpb);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PREA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRPab);
 
@@ -297,11 +312,11 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXP);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCab);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFB][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCpb);
 
@@ -309,7 +324,7 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXSR);
     }
-    else if (command == Command::REFB)
+    else if (command == Command::REFPB)
     {
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank.ID()];
         if (lastCommandStart != sc_max_time())
@@ -327,11 +342,11 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec->tRPpb);
 
-        lastCommandStart = lastScheduledByCommandAndBank[Command::PRE][bank.ID()];
+        lastCommandStart = lastScheduledByCommandAndBank[Command::PREPB][bank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRPpb);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PREA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRPab);
 
@@ -343,11 +358,11 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXP);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCab);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFB][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCpb);
 
@@ -380,11 +395,11 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRAPDEN);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PRE][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tPRPDEN);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFB][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tREFPDEN);
 
@@ -412,19 +427,19 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRAPDEN);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PRE][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tPRPDEN);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PREA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tPRPDEN);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tREFPDEN);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFB][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tREFPDEN);
 
@@ -456,11 +471,11 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + std::max(tWRAPDEN, tWRPRE + memSpec->tRPpb));
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PRE][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRPpb);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PREA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRPab);
 
@@ -468,11 +483,11 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXP);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCab);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFB][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCpb);
 
@@ -496,10 +511,13 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, Rank rank, Bank
     return earliestTimeToStart;
 }
 
-void CheckerLPDDR4::insert(Command command, Rank rank, BankGroup, Bank bank)
+void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
 {
+    Rank rank = DramExtension::getRank(payload);
+    Bank bank = DramExtension::getBank(payload);
+
     PRINTDEBUGMESSAGE("CheckerLPDDR4", "Changing state on bank " + std::to_string(bank.ID())
-                      + " command is " + commandToString(command));
+                      + " command is " + command.toString());
 
     lastScheduledByCommandAndBank[command][bank.ID()] = sc_time_stamp();
     lastScheduledByCommandAndRank[command][rank.ID()] = sc_time_stamp();
@@ -507,7 +525,7 @@ void CheckerLPDDR4::insert(Command command, Rank rank, BankGroup, Bank bank)
 
     lastCommandOnBus = sc_time_stamp() + memSpec->getCommandLength(command) - memSpec->tCK;
 
-    if (command == Command::ACT || command == Command::REFB)
+    if (command == Command::ACT || command == Command::REFPB)
     {
         if (last4Activates[rank.ID()].size() == 4)
             last4Activates[rank.ID()].pop();

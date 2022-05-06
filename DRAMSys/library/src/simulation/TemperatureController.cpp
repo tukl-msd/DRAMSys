@@ -32,6 +32,7 @@
  * Authors:
  *    Eder F. Zulian
  *    Matthias Jung
+ *    Derek Christ
  */
 
 #include <cmath>
@@ -39,11 +40,13 @@
 #include "TemperatureController.h"
 #include "../configuration/Configuration.h"
 
+using namespace sc_core;
+
 double TemperatureController::temperatureConvert(double tKelvin)
 {
-    if (temperatureScale == "Celsius") {
+    if (temperatureScale == TemperatureSimConfig::TemperatureScale::Celsius) {
         return tKelvin - 273.15;
-    } else if (temperatureScale == "Fahrenheit") {
+    } else if (temperatureScale == TemperatureSimConfig::TemperatureScale::Fahrenheit) {
         return (tKelvin - 273.15) * 1.8 + 32;
     }
 
@@ -55,17 +58,19 @@ double TemperatureController::getTemperature(int deviceId, float currentPower)
     PRINTDEBUGMESSAGE(name(), "Temperature requested by device " + std::to_string(
                           deviceId) + " current power is " + std::to_string(currentPower));
 
-    if (dynamicTempSimEnabled == true) {
+    if (dynamicTempSimEnabled)
+    {
         currentPowerValues.at(deviceId) = currentPower;
         checkPowerThreshold(deviceId);
 
-        // FIXME using the static temperature value until the vector of
-        // temperatures is filled
+        // FIXME: using the static temperature value until the vector of temperatures is filled
         if (temperatureValues.empty())
             return temperatureConvert(staticTemperature + 273.15);
 
         return temperatureConvert(temperatureValues.at(deviceId));
-    } else {
+    }
+    else
+    {
         PRINTDEBUGMESSAGE(name(), "Temperature is " + std::to_string(staticTemperature));
         return staticTemperature;
     }
@@ -135,18 +140,21 @@ double TemperatureController::adjustThermalSimPeriod()
     // again in steps of 'n/2' until it achieves the desired value given by
     // configuration or the described in 1.1 occurs.
 
-    if (decreaseSimPeriod == true) {
+    if (decreaseSimPeriod)
+    {
         period = period / periodAdjustFactor;
         cyclesSinceLastPeriodAdjust = 0;
         decreaseSimPeriod = false;
         PRINTDEBUGMESSAGE(name(), "Thermal Simulation period reduced to " + std::to_string(
                               period) + ". Target is " + std::to_string(targetPeriod));
-    } else {
+    }
+    else
+    {
         if (period != targetPeriod) {
             cyclesSinceLastPeriodAdjust++;
             if (cyclesSinceLastPeriodAdjust >= nPowStableCyclesToIncreasePeriod) {
                 cyclesSinceLastPeriodAdjust = 0;
-                period = period * (periodAdjustFactor / 2);
+                period = period * ((double)periodAdjustFactor / 2);
                 if (period > targetPeriod)
                     period = targetPeriod;
                 PRINTDEBUGMESSAGE(name(), "Thermal Simulation period increased to "
@@ -160,7 +168,8 @@ double TemperatureController::adjustThermalSimPeriod()
 
 void TemperatureController::temperatureThread()
 {
-    while (true) {
+    while (true)
+    {
         updateTemperatures();
         double p = adjustThermalSimPeriod();
 

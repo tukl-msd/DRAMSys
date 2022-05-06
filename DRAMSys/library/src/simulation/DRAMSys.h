@@ -35,71 +35,72 @@
  *    Eder F. Zulian
  *    Felipe S. Prado
  *    Lukas Steiner
+ *    Derek Christ
  */
 
 #ifndef DRAMSYS_H
 #define DRAMSYS_H
 
-#include <string>
-#include <systemc.h>
-
 #include "dram/Dram.h"
 #include "Arbiter.h"
 #include "ReorderBuffer.h"
-#include <tlm_utils/multi_passthrough_target_socket.h>
-#include <tlm_utils/multi_passthrough_initiator_socket.h>
 #include "../common/tlm2_base_protocol_checker.h"
 #include "../error/eccbaseclass.h"
 #include "../controller/ControllerIF.h"
+#include "TemperatureController.h"
 
-class DRAMSys : public sc_module
+#include <Configuration.h>
+#include <string>
+#include <systemc>
+#include <list>
+#include <memory>
+#include <tlm_utils/multi_passthrough_initiator_socket.h>
+#include <tlm_utils/multi_passthrough_target_socket.h>
+
+class DRAMSys : public sc_core::sc_module
 {
 public:
     tlm_utils::multi_passthrough_target_socket<DRAMSys> tSocket;
 
-    std::vector<tlm_utils::tlm2_base_protocol_checker<>*>
-    playersTlmCheckers;
-
     SC_HAS_PROCESS(DRAMSys);
-    DRAMSys(sc_module_name name,
-            std::string simulationToRun,
-            std::string pathToResources);
+    DRAMSys(const sc_core::sc_module_name &name,
+            const DRAMSysConfiguration::Configuration &configLib);
 
-    virtual ~DRAMSys();
+    const Configuration& getConfig();
 
 protected:
-    DRAMSys(sc_module_name name,
-            std::string simulationToRun,
-            std::string pathToResources,
+    DRAMSys(const sc_core::sc_module_name &name,
+            const DRAMSysConfiguration::Configuration &configLib,
             bool initAndBind);
 
-    //TLM 2.0 Protocol Checkers
-    std::vector<tlm_utils::tlm2_base_protocol_checker<>*>
-    controllersTlmCheckers;
+    void end_of_simulation() override;
 
-    // All transactions pass first through the ECC Controller
-    ECCBaseClass *ecc;
+    Configuration config;
+
+    std::unique_ptr<TemperatureController> temperatureController;
+
+    //TLM 2.0 Protocol Checkers
+    std::vector<std::unique_ptr<tlm_utils::tlm2_base_protocol_checker<>>> controllersTlmCheckers;
 
     // TODO: Each DRAM has a reorder buffer (check this!)
-    ReorderBuffer *reorder;
+    std::unique_ptr<ReorderBuffer> reorder;
 
     // All transactions pass through the same arbiter
-    Arbiter *arbiter;
+    std::unique_ptr<Arbiter> arbiter;
 
     // Each DRAM unit has a controller
-    std::vector<ControllerIF *> controllers;
+    std::vector<std::unique_ptr<ControllerIF>> controllers;
 
     // DRAM units
-    std::vector<Dram *> drams;
+    std::vector<std::unique_ptr<Dram>> drams;
 
-    void report(std::string message);
+    void report(const std::string &message);
+    void bindSockets();
 
 private:
-    void logo();
+    static void logo();
 
-    void instantiateModules(const std::string &pathToResources,
-                            const std::string &amconfig);
-    void bindSockets();
+    void instantiateModules(const DRAMSysConfiguration::AddressMapping &addressMapping);
 
     void setupDebugManager(const std::string &traceName);
 };

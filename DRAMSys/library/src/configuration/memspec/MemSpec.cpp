@@ -31,46 +31,50 @@
  *
  * Authors:
  *    Lukas Steiner
+ *    Derek Christ
  */
 
 #include "MemSpec.h"
 
-#include <systemc.h>
-#include <tlm.h>
-#include "../../controller/Command.h"
-#include "../Configuration.h"
-
+using namespace sc_core;
 using namespace tlm;
-using json = nlohmann::json;
 
-MemSpec::MemSpec(json &memspec, MemoryType memoryType,
-                 unsigned numberOfChannels,
-                 unsigned numberOfRanks, unsigned banksPerRank,
+MemSpec::MemSpec(const DRAMSysConfiguration::MemSpec &memSpec,
+                 MemoryType memoryType,
+                 unsigned numberOfChannels, unsigned pseudoChannelsPerChannel,
+                 unsigned ranksPerChannel, unsigned banksPerRank,
                  unsigned groupsPerRank, unsigned banksPerGroup,
-                 unsigned numberOfBanks, unsigned numberOfBankGroups,
-                 unsigned numberOfDevicesOnDIMM)
+                 unsigned banksPerChannel, unsigned bankGroupsPerChannel,
+                 unsigned devicesPerRank)
     : numberOfChannels(numberOfChannels),
-      numberOfRanks(numberOfRanks),
+      pseudoChannelsPerChannel(pseudoChannelsPerChannel),
+      ranksPerChannel(ranksPerChannel),
       banksPerRank(banksPerRank),
       groupsPerRank(groupsPerRank),
       banksPerGroup(banksPerGroup),
-      numberOfBanks(numberOfBanks),
-      numberOfBankGroups(numberOfBankGroups),
-      numberOfDevicesOnDIMM(numberOfDevicesOnDIMM),
-      numberOfRows(parseUint(memspec["memarchitecturespec"]["nbrOfRows"],"nbrOfRows")),
-      numberOfColumns(parseUint(memspec["memarchitecturespec"]["nbrOfColumns"],"nbrOfColumns")),
-      burstLength(parseUint(memspec["memarchitecturespec"]["burstLength"],"burstLength")),
-      dataRate(parseUint(memspec["memarchitecturespec"]["dataRate"],"dataRate")),
-      bitWidth(parseUint(memspec["memarchitecturespec"]["width"],"width")),
-      dataBusWidth(bitWidth * numberOfDevicesOnDIMM),
-      bytesPerBurst((burstLength * dataBusWidth) / 8),
-      fCKMHz(parseUdouble(memspec["memtimingspec"]["clkMhz"], "clkMhz")),
+      banksPerChannel(banksPerChannel),
+      bankGroupsPerChannel(bankGroupsPerChannel),
+      devicesPerRank(devicesPerRank),
+      rowsPerBank(memSpec.memArchitectureSpec.entries.at("nbrOfRows")),
+      columnsPerRow(memSpec.memArchitectureSpec.entries.at("nbrOfColumns")),
+      defaultBurstLength(memSpec.memArchitectureSpec.entries.at("burstLength")),
+      maxBurstLength(memSpec.memArchitectureSpec.entries.find("maxBurstLength") !=
+                             memSpec.memArchitectureSpec.entries.end()
+                        ? memSpec.memArchitectureSpec.entries.at("maxBurstLength")
+                        : defaultBurstLength),
+      dataRate(memSpec.memArchitectureSpec.entries.at("dataRate")),
+      bitWidth(memSpec.memArchitectureSpec.entries.at("width")),
+      dataBusWidth(bitWidth * devicesPerRank),
+      defaultBytesPerBurst((defaultBurstLength * dataBusWidth) / 8),
+      maxBytesPerBurst((maxBurstLength * dataBusWidth) / 8),
+      fCKMHz(memSpec.memTimingSpec.entries.at("clkMhz")),
       tCK(sc_time(1.0 / fCKMHz, SC_US)),
-      memoryId(parseString(memspec["memoryId"], "memoryId")),
+      memoryId(memSpec.memoryId),
       memoryType(memoryType),
-      burstDuration(tCK * (burstLength / dataRate))
+      burstDuration(tCK * (static_cast<double>(defaultBurstLength) / dataRate)),
+      memorySizeBytes(0)
 {
-    commandLengthInCycles = std::vector<unsigned>(numberOfCommands(), 1);
+    commandLengthInCycles = std::vector<unsigned>(Command::numberOfCommands(), 1);
 }
 
 sc_time MemSpec::getCommandLength(Command command) const
@@ -78,22 +82,56 @@ sc_time MemSpec::getCommandLength(Command command) const
     return tCK * commandLengthInCycles[command];
 }
 
+uint64_t MemSpec::getSimMemSizeInBytes() const
+{
+    return memorySizeBytes;
+}
+
 sc_time MemSpec::getRefreshIntervalAB() const
 {
-    SC_REPORT_FATAL("MemSpec", "All bank refresh not supported");
+    SC_REPORT_FATAL("MemSpec", "All-bank refresh not supported");
     return SC_ZERO_TIME;
 }
 
 sc_time MemSpec::getRefreshIntervalPB() const
 {
-    SC_REPORT_FATAL("MemSpec", "Per bank refresh not supported");
+    SC_REPORT_FATAL("MemSpec", "Per-bank refresh not supported");
+    return SC_ZERO_TIME;
+}
+
+sc_time MemSpec::getRefreshIntervalP2B() const
+{
+    SC_REPORT_FATAL("MemSpec", "Per-2-bank refresh not supported");
     return SC_ZERO_TIME;
 }
 
 sc_time MemSpec::getRefreshIntervalSB() const
 {
-    SC_REPORT_FATAL("MemSpec", "Same bank refresh not supported");
+    SC_REPORT_FATAL("MemSpec", "Same-bank refresh not supported");
     return SC_ZERO_TIME;
+}
+
+unsigned MemSpec::getPer2BankOffset() const
+{
+    return 0;
+}
+
+unsigned MemSpec::getRAACDR() const
+{
+    SC_REPORT_FATAL("MemSpec", "Refresh Management not supported");
+    return 0;
+}
+
+unsigned MemSpec::getRAAIMT() const
+{
+    SC_REPORT_FATAL("MemSpec", "Refresh Management not supported");
+    return 0;
+}
+
+unsigned MemSpec::getRAAMMT() const
+{
+    SC_REPORT_FATAL("MemSpec", "Refresh Management not supported");
+    return 0;
 }
 
 bool MemSpec::hasRasAndCasBus() const

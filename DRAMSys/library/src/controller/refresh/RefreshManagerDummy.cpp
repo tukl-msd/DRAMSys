@@ -34,11 +34,12 @@
 
 #include "RefreshManagerDummy.h"
 
+using namespace sc_core;
 using namespace tlm;
 
 CommandTuple::Type RefreshManagerDummy::getNextCommand()
 {
-    return CommandTuple::Type(Command::NOP, nullptr, sc_max_time());
+    return {Command::NOP, nullptr, sc_max_time()};
 }
 
 sc_time RefreshManagerDummy::start()

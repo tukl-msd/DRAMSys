@@ -50,10 +50,8 @@
 #else
 #define PRINTDEBUGMESSAGE(sender, message) DebugManager::getInstance().printDebugMessage(sender, message)
 
-#include <systemc.h>
 #include <string>
-#include <set>
-#include "utils.h"
+#include <fstream>
 
 class DebugManager
 {
@@ -71,15 +69,18 @@ private:
     DebugManager & operator = (const DebugManager &);
 
 public:
+    void setup(bool _debugEnabled, bool _writeToConsole, bool _writeToFile);
+
+    void printDebugMessage(const std::string &sender, const std::string &message);
+    static void printMessage(const std::string &sender, const std::string &message);
+    void openDebugFile(const std::string &filename);
+
+private:
+    bool debugEnabled;
     bool writeToConsole;
     bool writeToFile;
 
-    void printDebugMessage(std::string sender, std::string message);
-    void printMessage(std::string sender, std::string message);
-    void openDebugFile(std::string filename);
-
-private:
-    ofstream debugFile;
+    std::ofstream debugFile;
 };
 #endif
 

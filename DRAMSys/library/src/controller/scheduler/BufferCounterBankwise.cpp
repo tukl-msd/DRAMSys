@@ -35,6 +35,8 @@
 #include "BufferCounterBankwise.h"
 #include "../../common/dramExtensions.h"
 
+using namespace tlm;
+
 BufferCounterBankwise::BufferCounterBankwise(unsigned requestBufferSize, unsigned numberOfBanks)
     : requestBufferSize(requestBufferSize)
 {
@@ -46,18 +48,36 @@ bool BufferCounterBankwise::hasBufferSpace() const
     return (numRequestsOnBank[lastBankID] < requestBufferSize);
 }
 
-void BufferCounterBankwise::storeRequest(tlm::tlm_generic_payload *payload)
+void BufferCounterBankwise::storeRequest(const tlm_generic_payload& trans)
 {
-    lastBankID = DramExtension::getBank(payload).ID();
+    lastBankID = DramExtension::getBank(trans).ID();
     numRequestsOnBank[lastBankID]++;
+    if (trans.is_read())
+        numReadRequests++;
+    else
+        numWriteRequests++;
 }
 
-void BufferCounterBankwise::removeRequest(tlm::tlm_generic_payload *payload)
+void BufferCounterBankwise::removeRequest(const tlm_generic_payload& trans)
 {
-    numRequestsOnBank[DramExtension::getBank(payload).ID()]--;
+    numRequestsOnBank[DramExtension::getBank(trans).ID()]--;
+    if (trans.is_read())
+        numReadRequests--;
+    else
+        numWriteRequests--;
 }
 
 const std::vector<unsigned> &BufferCounterBankwise::getBufferDepth() const
 {
     return numRequestsOnBank;
+}
+
+unsigned BufferCounterBankwise::getNumReadRequests() const
+{
+    return numReadRequests;
+}
+
+unsigned BufferCounterBankwise::getNumWriteRequests() const
+{
+    return numWriteRequests;
 }

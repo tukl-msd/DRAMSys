@@ -36,24 +36,28 @@
 #ifndef DRAMWIDEIO_H
 #define DRAMWIDEIO_H
 
-#include <systemc.h>
-#include <tlm.h>
+#include <vector>
+#include <memory>
+
+#include <systemc>
+#include <tlm>
 #include "Dram.h"
 #include "../../error/errormodel.h"
+#include "../TemperatureController.h"
 
 class DramWideIO : public Dram
 {
 public:
-    DramWideIO(sc_module_name);
+    DramWideIO(const sc_core::sc_module_name& name, const Configuration& config,
+               TemperatureController& temperatureController);
     SC_HAS_PROCESS(DramWideIO);
-    virtual ~DramWideIO();
 
 protected:
-    virtual tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload &payload,
-                                          tlm::tlm_phase &phase, sc_time &delay) override;
+    tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload &payload,
+                                       tlm::tlm_phase &phase, sc_core::sc_time &delay) override;
 
 private:
-    std::vector<errorModel *> ememory;
+    std::vector<std::unique_ptr<errorModel>> ememory;
 };
 
 #endif // DRAMWIDEIO_H

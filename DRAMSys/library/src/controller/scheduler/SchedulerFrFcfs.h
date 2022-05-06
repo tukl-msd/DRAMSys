@@ -35,10 +35,11 @@
 #ifndef SCHEDULERFRFCFS_H
 #define SCHEDULERFRFCFS_H
 
-#include <tlm.h>
 #include <vector>
 #include <list>
+#include <memory>
 
+#include <tlm>
 #include "SchedulerIF.h"
 #include "../../common/dramExtensions.h"
 #include "../BankMachine.h"
@@ -47,19 +48,18 @@
 class SchedulerFrFcfs final : public SchedulerIF
 {
 public:
-    SchedulerFrFcfs();
-    virtual ~SchedulerFrFcfs() override;
-    virtual bool hasBufferSpace() const override;
-    virtual void storeRequest(tlm::tlm_generic_payload *) override;
-    virtual void removeRequest(tlm::tlm_generic_payload *) override;
-    virtual tlm::tlm_generic_payload *getNextRequest(BankMachine *) const override;
-    virtual bool hasFurtherRowHit(Bank, Row) const override;
-    virtual bool hasFurtherRequest(Bank) const override;
-    virtual const std::vector<unsigned> &getBufferDepth() const override;
+    explicit SchedulerFrFcfs(const Configuration& config);
+    bool hasBufferSpace() const override;
+    void storeRequest(tlm::tlm_generic_payload&) override;
+    void removeRequest(tlm::tlm_generic_payload&) override;
+    tlm::tlm_generic_payload *getNextRequest(const BankMachine&) const override;
+    bool hasFurtherRowHit(Bank, Row, tlm::tlm_command) const override;
+    bool hasFurtherRequest(Bank, tlm::tlm_command) const override;
+    const std::vector<unsigned> &getBufferDepth() const override;
 
 private:
     std::vector<std::list<tlm::tlm_generic_payload *>> buffer;
-    BufferCounterIF *bufferCounter;
+    std::unique_ptr<BufferCounterIF> bufferCounter;
 };
 
 #endif // SCHEDULERFRFCFS_H

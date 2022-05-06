@@ -35,76 +35,68 @@
 #ifndef CONTROLLER_H
 #define CONTROLLER_H
 
-#include <queue>
+
 #include <vector>
-#include <utility>
-#include <systemc.h>
-#include <tlm.h>
-#include <tlm_utils/simple_initiator_socket.h>
-#include <tlm_utils/simple_target_socket.h>
+
+#include <systemc>
+#include <tlm>
 #include "ControllerIF.h"
-#include "../common/dramExtensions.h"
+#include "Command.h"
 #include "BankMachine.h"
 #include "cmdmux/CmdMuxIF.h"
-#include "scheduler/SchedulerIF.h"
-#include "../common/DebugManager.h"
 #include "checker/CheckerIF.h"
 #include "refresh/RefreshManagerIF.h"
 #include "powerdown/PowerDownManagerIF.h"
 #include "respqueue/RespQueueIF.h"
 
-class BankMachine;
-class SchedulerIF;
-class PowerDownManagerStaggered;
-
 class Controller : public ControllerIF
 {
 public:
-    Controller(sc_module_name);
+    Controller(const sc_core::sc_module_name& name, const Configuration& config);
     SC_HAS_PROCESS(Controller);
-    virtual ~Controller() override;
 
 protected:
-    virtual tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload &, tlm::tlm_phase &, sc_time &) override;
-    virtual tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload &, tlm::tlm_phase &, sc_time &) override;
-    virtual unsigned int transport_dbg(tlm::tlm_generic_payload &) override;
+    tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans, tlm::tlm_phase& phase,
+                                       sc_core::sc_time& delay) override;
+    tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload& trans, tlm::tlm_phase& phase,
+                                       sc_core::sc_time& delay) override;
+    unsigned int transport_dbg(tlm::tlm_generic_payload& trans) override;
 
-    virtual void sendToFrontend(tlm::tlm_generic_payload *, tlm::tlm_phase, sc_time);
-    virtual void sendToDram(Command, tlm::tlm_generic_payload *, sc_time);
+    virtual void sendToFrontend(tlm::tlm_generic_payload& trans, tlm::tlm_phase& phase, sc_core::sc_time& delay);
+    virtual void sendToDram(Command, tlm::tlm_generic_payload& trans, sc_core::sc_time& delay);
 
     virtual void controllerMethod();
 
-    SchedulerIF *scheduler;
-    const MemSpec *memSpec;
+    std::unique_ptr<SchedulerIF> scheduler;
 
-    sc_time thinkDelayFw;
-    sc_time thinkDelayBw;
-    sc_time phyDelayFw;
-    sc_time phyDelayBw;
+    const sc_core::sc_time thinkDelayFw;
+    const sc_core::sc_time thinkDelayBw;
+    const sc_core::sc_time phyDelayFw;
+    const sc_core::sc_time phyDelayBw;
 
 private:
     unsigned totalNumberOfPayloads = 0;
     std::vector<unsigned> ranksNumberOfPayloads;
     ReadyCommands readyCommands;
 
-    std::vector<BankMachine *> bankMachines;
-    std::vector<std::vector<BankMachine *>> bankMachinesOnRank;
-    CmdMuxIF *cmdMux;
-    CheckerIF *checker;
-    RespQueueIF *respQueue;
-    std::vector<RefreshManagerIF *> refreshManagers;
-    std::vector<PowerDownManagerIF *> powerDownManagers;
+    std::vector<std::unique_ptr<BankMachine>> bankMachines;
+    std::vector<std::vector<BankMachine*>> bankMachinesOnRank;
+    std::unique_ptr<CmdMuxIF> cmdMux;
+    std::unique_ptr<CheckerIF> checker;
+    std::unique_ptr<RespQueueIF> respQueue;
+    std::vector<std::unique_ptr<RefreshManagerIF>> refreshManagers;
+    std::vector<std::unique_ptr<PowerDownManagerIF>> powerDownManagers;
 
     struct Transaction
     {
         tlm::tlm_generic_payload *payload = nullptr;
-        sc_time time = sc_max_time();
+        sc_core::sc_time time = sc_core::sc_max_time();
     } transToAcquire, transToRelease;
 
     void manageResponses();
-    void manageRequests(sc_time);
+    void manageRequests(const sc_core::sc_time &delay);
 
-    sc_event beginReqEvent, endRespEvent, controllerEvent, dataResponseEvent;
+    sc_core::sc_event beginReqEvent, endRespEvent, controllerEvent, dataResponseEvent;
 };
 
 #endif // CONTROLLER_H

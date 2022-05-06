@@ -35,15 +35,13 @@
 #ifndef POWERDOWNMANAGERIF_H
 #define POWERDOWNMANAGERIF_H
 
-#include <utility>
-#include <systemc.h>
-#include <tlm.h>
+#include <systemc>
 #include "../Command.h"
 
 class PowerDownManagerIF
 {
 public:
-    virtual ~PowerDownManagerIF() {}
+    virtual ~PowerDownManagerIF() = default;
 
     virtual void triggerEntry() = 0;
     virtual void triggerExit() = 0;
@@ -51,7 +49,7 @@ public:
 
     virtual CommandTuple::Type getNextCommand() = 0;
     virtual void updateState(Command) = 0;
-    virtual sc_time start() = 0;
+    virtual sc_core::sc_time start() = 0;
 };
 
 #endif // POWERDOWNMANAGERIF_H

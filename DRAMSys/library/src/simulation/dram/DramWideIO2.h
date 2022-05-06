@@ -36,15 +36,17 @@
 #ifndef DRAMWIDEIO2_H
 #define DRAMWIDEIO2_H
 
-#include <systemc.h>
+#include <systemc>
+
 #include "Dram.h"
+#include "../TemperatureController.h"
 
 class DramWideIO2 : public Dram
 {
 public:
-    DramWideIO2(sc_module_name);
+    DramWideIO2(const sc_core::sc_module_name& name, const Configuration& config,
+                TemperatureController& temperatureController);
     SC_HAS_PROCESS(DramWideIO2);
-    virtual ~DramWideIO2() {}
 };
 
 #endif // DRAMWIDEIO2_H

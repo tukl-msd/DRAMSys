@@ -35,110 +35,113 @@
 
 #include "DramDDR4.h"
 
-#include "Dram.h"
+#include <memory>
 #include "../../configuration/Configuration.h"
 #include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 #include "../../configuration/memspec/MemSpecDDR4.h"
 
+using namespace sc_core;
 using namespace DRAMPower;
 
-DramDDR4::DramDDR4(sc_module_name name) : Dram(name)
+DramDDR4::DramDDR4(const sc_module_name& name, const Configuration& config,
+                   TemperatureController& temperatureController)
+    : Dram(name, config)
 {
     if (storeMode == Configuration::StoreMode::ErrorModel)
         SC_REPORT_FATAL("DramDDR4", "Error Model not supported for DDR4");
 
-    if (Configuration::getInstance().powerAnalysis)
+    if (powerAnalysis)
     {
-        const MemSpecDDR4 *memSpec = dynamic_cast<const MemSpecDDR4 *>(this->memSpec);
-        if (memSpec == nullptr)
+        const auto *memSpecDDR4 = dynamic_cast<const MemSpecDDR4*>(config.memSpec.get());
+        if (memSpecDDR4 == nullptr)
             SC_REPORT_FATAL("DramDDR4", "Wrong MemSpec chosen");
 
         MemArchitectureSpec memArchSpec;
-        memArchSpec.burstLength       = memSpec->burstLength;
-        memArchSpec.dataRate          = memSpec->dataRate;
-        memArchSpec.nbrOfRows         = memSpec->numberOfRows;
-        memArchSpec.nbrOfBanks        = memSpec->numberOfBanks;
-        memArchSpec.nbrOfColumns      = memSpec->numberOfColumns;
-        memArchSpec.nbrOfRanks        = memSpec->numberOfRanks;
-        memArchSpec.width             = memSpec->bitWidth;
-        memArchSpec.nbrOfBankGroups   = memSpec->numberOfBankGroups;
+        memArchSpec.burstLength       = memSpecDDR4->defaultBurstLength;
+        memArchSpec.dataRate          = memSpecDDR4->dataRate;
+        memArchSpec.nbrOfRows         = memSpecDDR4->rowsPerBank;
+        memArchSpec.nbrOfBanks        = memSpecDDR4->banksPerChannel;
+        memArchSpec.nbrOfColumns      = memSpecDDR4->columnsPerRow;
+        memArchSpec.nbrOfRanks        = memSpecDDR4->ranksPerChannel;
+        memArchSpec.width             = memSpecDDR4->bitWidth;
+        memArchSpec.nbrOfBankGroups   = memSpecDDR4->bankGroupsPerChannel;
         memArchSpec.twoVoltageDomains = true;
         memArchSpec.dll               = true;
 
         MemTimingSpec memTimingSpec;
-        //FIXME: memTimingSpec.FAWB   = memSpec->tFAW / memSpec->tCK;
-        //FIXME: memTimingSpec.RASB   = memSpec->tRAS / memSpec->tCK;
-        //FIXME: memTimingSpec.RCB    = memSpec->tRC / memSpec->tCK;
-        //FIXME: memTimingSpec.RPB    = memSpec->tRP / memSpec->tCK;
-        //FIXME: memTimingSpec.RRDB   = memSpec->tRRD_S / memSpec->tCK;
-        //FIXME: memTimingSpec.RRDB_L = memSpec->tRRD_L / memSpec->tCK;
-        //FIXME: memTimingSpec.RRDB_S = memSpec->tRRD_S / memSpec->tCK;
-        memTimingSpec.AL     = memSpec->tAL / memSpec->tCK;
-        memTimingSpec.CCD    = memSpec->tCCD_S / memSpec->tCK;
-        memTimingSpec.CCD_L  = memSpec->tCCD_L / memSpec->tCK;
-        memTimingSpec.CCD_S  = memSpec->tCCD_S / memSpec->tCK;
-        memTimingSpec.CKE    = memSpec->tCKE / memSpec->tCK;
-        memTimingSpec.CKESR  = memSpec->tCKESR / memSpec->tCK;
-        memTimingSpec.clkMhz = memSpec->fCKMHz;
+        //FIXME: memTimingSpec.FAWB   = memSpecDDR4->tFAW / memSpecDDR4->tCK;
+        //FIXME: memTimingSpec.RASB   = memSpecDDR4->tRAS / memSpecDDR4->tCK;
+        //FIXME: memTimingSpec.RCB    = memSpecDDR4->tRC / memSpecDDR4->tCK;
+        //FIXME: memTimingSpec.RPB    = memSpecDDR4->tRP / memSpecDDR4->tCK;
+        //FIXME: memTimingSpec.RRDB   = memSpecDDR4->tRRD_S / memSpecDDR4->tCK;
+        //FIXME: memTimingSpec.RRDB_L = memSpecDDR4->tRRD_L / memSpecDDR4->tCK;
+        //FIXME: memTimingSpec.RRDB_S = memSpecDDR4->tRRD_S / memSpecDDR4->tCK;
+        memTimingSpec.AL     = memSpecDDR4->tAL / memSpecDDR4->tCK;
+        memTimingSpec.CCD    = memSpecDDR4->tCCD_S / memSpecDDR4->tCK;
+        memTimingSpec.CCD_L  = memSpecDDR4->tCCD_L / memSpecDDR4->tCK;
+        memTimingSpec.CCD_S  = memSpecDDR4->tCCD_S / memSpecDDR4->tCK;
+        memTimingSpec.CKE    = memSpecDDR4->tCKE / memSpecDDR4->tCK;
+        memTimingSpec.CKESR  = memSpecDDR4->tCKESR / memSpecDDR4->tCK;
+        memTimingSpec.clkMhz = memSpecDDR4->fCKMHz;
         // See also MemTimingSpec.cc in DRAMPower
-        memTimingSpec.clkPeriod = 1000.0 / memSpec->fCKMHz;
-        memTimingSpec.DQSCK  = memSpec->tDQSCK / memSpec->tCK;
-        memTimingSpec.FAW    = memSpec->tFAW / memSpec->tCK;
-        memTimingSpec.RAS    = memSpec->tRAS / memSpec->tCK;
-        memTimingSpec.RC     = memSpec->tRC / memSpec->tCK;
-        memTimingSpec.RCD    = memSpec->tRCD / memSpec->tCK;
-        memTimingSpec.REFI   = memSpec->tREFI / memSpec->tCK;
-        memTimingSpec.RFC    = memSpec->tRFC / memSpec->tCK;
-        memTimingSpec.RL     = memSpec->tRL / memSpec->tCK;
-        memTimingSpec.RP     = memSpec->tRP / memSpec->tCK;
-        memTimingSpec.RRD    = memSpec->tRRD_S / memSpec->tCK;
-        memTimingSpec.RRD_L  = memSpec->tRRD_L / memSpec->tCK;
-        memTimingSpec.RRD_S  = memSpec->tRRD_S / memSpec->tCK;
-        memTimingSpec.RTP    = memSpec->tRTP / memSpec->tCK;
-        memTimingSpec.TAW    = memSpec->tFAW / memSpec->tCK;
-        memTimingSpec.WL     = memSpec->tWL / memSpec->tCK;
-        memTimingSpec.WR     = memSpec->tWR / memSpec->tCK;
-        memTimingSpec.WTR    = memSpec->tWTR_S / memSpec->tCK;
-        memTimingSpec.WTR_L  = memSpec->tWTR_L / memSpec->tCK;
-        memTimingSpec.WTR_S  = memSpec->tWTR_S / memSpec->tCK;
-        memTimingSpec.XP     = memSpec->tXP / memSpec->tCK;
-        memTimingSpec.XPDLL  = memSpec->tXPDLL / memSpec->tCK;
-        memTimingSpec.XS     = memSpec->tXS / memSpec->tCK;
-        memTimingSpec.XSDLL  = memSpec->tXSDLL / memSpec->tCK;
+        memTimingSpec.clkPeriod = 1000.0 / memSpecDDR4->fCKMHz;
+        memTimingSpec.DQSCK  = memSpecDDR4->tDQSCK / memSpecDDR4->tCK;
+        memTimingSpec.FAW    = memSpecDDR4->tFAW / memSpecDDR4->tCK;
+        memTimingSpec.RAS    = memSpecDDR4->tRAS / memSpecDDR4->tCK;
+        memTimingSpec.RC     = memSpecDDR4->tRC / memSpecDDR4->tCK;
+        memTimingSpec.RCD    = memSpecDDR4->tRCD / memSpecDDR4->tCK;
+        memTimingSpec.REFI   = memSpecDDR4->tREFI / memSpecDDR4->tCK;
+        memTimingSpec.RFC    = memSpecDDR4->tRFC / memSpecDDR4->tCK;
+        memTimingSpec.RL     = memSpecDDR4->tRL / memSpecDDR4->tCK;
+        memTimingSpec.RP     = memSpecDDR4->tRP / memSpecDDR4->tCK;
+        memTimingSpec.RRD    = memSpecDDR4->tRRD_S / memSpecDDR4->tCK;
+        memTimingSpec.RRD_L  = memSpecDDR4->tRRD_L / memSpecDDR4->tCK;
+        memTimingSpec.RRD_S  = memSpecDDR4->tRRD_S / memSpecDDR4->tCK;
+        memTimingSpec.RTP    = memSpecDDR4->tRTP / memSpecDDR4->tCK;
+        memTimingSpec.TAW    = memSpecDDR4->tFAW / memSpecDDR4->tCK;
+        memTimingSpec.WL     = memSpecDDR4->tWL / memSpecDDR4->tCK;
+        memTimingSpec.WR     = memSpecDDR4->tWR / memSpecDDR4->tCK;
+        memTimingSpec.WTR    = memSpecDDR4->tWTR_S / memSpecDDR4->tCK;
+        memTimingSpec.WTR_L  = memSpecDDR4->tWTR_L / memSpecDDR4->tCK;
+        memTimingSpec.WTR_S  = memSpecDDR4->tWTR_S / memSpecDDR4->tCK;
+        memTimingSpec.XP     = memSpecDDR4->tXP / memSpecDDR4->tCK;
+        memTimingSpec.XPDLL  = memSpecDDR4->tXPDLL / memSpecDDR4->tCK;
+        memTimingSpec.XS     = memSpecDDR4->tXS / memSpecDDR4->tCK;
+        memTimingSpec.XSDLL  = memSpecDDR4->tXSDLL / memSpecDDR4->tCK;
 
         MemPowerSpec  memPowerSpec;
-        memPowerSpec.idd0    = memSpec->iDD0;
-        memPowerSpec.idd02   = memSpec->iDD02;
-        memPowerSpec.idd2p0  = memSpec->iDD2P0;
+        memPowerSpec.idd0    = memSpecDDR4->iDD0;
+        memPowerSpec.idd02   = memSpecDDR4->iDD02;
+        memPowerSpec.idd2p0  = memSpecDDR4->iDD2P0;
         memPowerSpec.idd2p02 = 0;
-        memPowerSpec.idd2p1  = memSpec->iDD2P1;
+        memPowerSpec.idd2p1  = memSpecDDR4->iDD2P1;
         memPowerSpec.idd2p12 = 0;
-        memPowerSpec.idd2n   = memSpec->iDD2N;
+        memPowerSpec.idd2n   = memSpecDDR4->iDD2N;
         memPowerSpec.idd2n2  = 0;
-        memPowerSpec.idd3p0  = memSpec->iDD3P0;
+        memPowerSpec.idd3p0  = memSpecDDR4->iDD3P0;
         memPowerSpec.idd3p02 = 0;
-        memPowerSpec.idd3p1  = memSpec->iDD3P1;
+        memPowerSpec.idd3p1  = memSpecDDR4->iDD3P1;
         memPowerSpec.idd3p12 = 0;
-        memPowerSpec.idd3n   = memSpec->iDD3N;
+        memPowerSpec.idd3n   = memSpecDDR4->iDD3N;
         memPowerSpec.idd3n2  = 0;
-        memPowerSpec.idd4r   = memSpec->iDD4R;
+        memPowerSpec.idd4r   = memSpecDDR4->iDD4R;
         memPowerSpec.idd4r2  = 0;
-        memPowerSpec.idd4w   = memSpec->iDD4W;
+        memPowerSpec.idd4w   = memSpecDDR4->iDD4W;
         memPowerSpec.idd4w2  = 0;
-        memPowerSpec.idd5    = memSpec->iDD5;
+        memPowerSpec.idd5    = memSpecDDR4->iDD5;
         memPowerSpec.idd52   = 0;
-        memPowerSpec.idd6    = memSpec->iDD6;
-        memPowerSpec.idd62   = memSpec->iDD62;
-        memPowerSpec.vdd     = memSpec->vDD;
-        memPowerSpec.vdd2    = memSpec->vDD2;
+        memPowerSpec.idd6    = memSpecDDR4->iDD6;
+        memPowerSpec.idd62   = memSpecDDR4->iDD62;
+        memPowerSpec.vdd     = memSpecDDR4->vDD;
+        memPowerSpec.vdd2    = memSpecDDR4->vDD2;
 
         MemorySpecification powerSpec;
-        powerSpec.id = memSpec->memoryId;
+        powerSpec.id = memSpecDDR4->memoryId;
         powerSpec.memoryType = MemoryType::DDR4;
         powerSpec.memTimingSpec = memTimingSpec;
         powerSpec.memPowerSpec  = memPowerSpec;
         powerSpec.memArchSpec   = memArchSpec;
 
-        DRAMPower = new libDRAMPower(powerSpec, 0);
+        DRAMPower = std::make_unique<libDRAMPower>(powerSpec, false);
     }
 }

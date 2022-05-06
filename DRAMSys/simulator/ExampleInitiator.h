@@ -36,21 +36,22 @@
 #ifndef EXAMPLEINITIATOR_H
 #define EXAMPLEINITIATOR_H
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <iostream>
 
+#include <systemc>
 #include "MemoryManager.h"
 #include "common/dramExtensions.h"
 #include "TracePlayer.h"
 
-struct ExampleInitiator : sc_module
+struct ExampleInitiator : sc_core::sc_module
 {
     // TLM-2 socket, defaults to 32-bits wide, base protocol
     tlm_utils::simple_initiator_socket<ExampleInitiator> socket;
 
     SC_CTOR(ExampleInitiator)
         : socket("socket"),
-          request_in_progress(0),
+          request_in_progress(nullptr),
           m_peq(this, &ExampleInitiator::peq_cb)
     {
         socket.register_nb_transport_bw(this, &ExampleInitiator::nb_transport_bw);
@@ -61,14 +62,14 @@ struct ExampleInitiator : sc_module
     {
         tlm::tlm_generic_payload *trans;
         tlm::tlm_phase phase;
-        sc_time delay;
+        sc_core::sc_time delay;
 
         dump_mem();
         init_mem();
         dump_mem();
 
-        for (int i = 0; i < 64; i++)
-            data[i] = 0x55;
+        for (unsigned char &i : data)
+            i = 0x55;
 
         // Generate 2 write transactions
         for (int i = 0; i < 2; i++) {
@@ -80,14 +81,14 @@ struct ExampleInitiator : sc_module
             trans = m_mm.allocate();
             trans->acquire();
 
-            trans->set_command( cmd );
-            trans->set_address( adr );
-            trans->set_data_ptr( reinterpret_cast<unsigned char *>(&data[0]) );
-            trans->set_data_length( 64 );
-            trans->set_streaming_width( 4 );
-            trans->set_byte_enable_ptr( 0 );
-            trans->set_dmi_allowed( false );
-            trans->set_response_status( tlm::TLM_INCOMPLETE_RESPONSE );
+            trans->set_command(cmd);
+            trans->set_address(adr);
+            trans->set_data_ptr(reinterpret_cast<unsigned char *>(&data[0]));
+            trans->set_data_length(64);
+            trans->set_streaming_width(4);
+            trans->set_byte_enable_ptr(nullptr);
+            trans->set_dmi_allowed(false);
+            trans->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
 
             // ExampleInitiator must honor BEGIN_REQ/END_REQ exclusion rule
             if (request_in_progress)
@@ -96,13 +97,13 @@ struct ExampleInitiator : sc_module
             phase = tlm::BEGIN_REQ;
 
             // Timing annotation models processing time of initiator prior to call
-            delay = sc_time(100000, SC_PS);
+            delay = sc_core::sc_time(100000, sc_core::SC_PS);
 
-            cout << "Address " << hex << adr << " new, cmd=" << (cmd ? "write" : "read")
-                 << ", data=" << hex << data[0] << " at time " << sc_time_stamp()
-                 << " in " << name() << endl;
+            std::cout << "Address " << std::hex << adr << " new, cmd=" << (cmd ? "write" : "read")
+                 << ", data=" << std::hex << data[0] << " at time " << sc_core::sc_time_stamp()
+                 << " in " << name() << std::endl;
 
-            GenerationExtension *genExtension = new GenerationExtension(sc_time_stamp());
+            GenerationExtension *genExtension = new GenerationExtension(sc_core::sc_time_stamp());
             trans->set_auto_extension(genExtension);
 
 
@@ -116,7 +117,7 @@ struct ExampleInitiator : sc_module
                 m_peq.notify( *trans, phase, delay );
             } else if (status == tlm::TLM_COMPLETED) {
                 // The completion of the transaction necessarily ends the BEGIN_REQ phase
-                request_in_progress = 0;
+                request_in_progress = nullptr;
 
                 // The target has terminated the transaction
                 check_transaction( *trans );
@@ -125,21 +126,20 @@ struct ExampleInitiator : sc_module
                 trans->release();
             }
 
-            wait( sc_time(500, SC_NS) );
+            sc_core::wait(sc_core::sc_time(500, sc_core::SC_NS));
 
             dump_mem();
         }
 
-        wait( sc_time(500, SC_NS) );
-        sc_stop();
+        sc_core::wait(sc_core::sc_time(500, sc_core::SC_NS));
+        sc_core::sc_stop();
     }
 
-    void init_mem()
+    static void init_mem()
     {
         unsigned char buffer[64];
-        for (int i = 0; i < 64; i++) {
-            buffer[i] = 0xff;
-        }
+        for (unsigned char &i : buffer)
+            i = 0xff;
 
         for (int addr = 0; addr < 128; addr += 64) {
             tlm::tlm_generic_payload trans;
@@ -152,7 +152,7 @@ struct ExampleInitiator : sc_module
         }
     }
 
-    void dump_mem()
+    static void dump_mem()
     {
         for (int addr = 0; addr < 128; addr += 64) {
             unsigned char buffer[64];
@@ -164,16 +164,16 @@ struct ExampleInitiator : sc_module
 
             socket->transport_dbg( trans );
 
-            cout << "\nMemory dump\n";
+            std::cout << "\nMemory dump\n";
             for (int i = 0; i < 64; i++)
-                cout << "mem[" << addr + i << "] = " << hex << (int)buffer[i] << endl;
+                std::cout << "mem[" << addr + i << "] = " << std::hex << (int)buffer[i] << std::endl;
         }
     }
 
     // TLM-2 backward non-blocking transport method
 
     virtual tlm::tlm_sync_enum nb_transport_bw( tlm::tlm_generic_payload &trans,
-                                                tlm::tlm_phase &phase, sc_time &delay )
+                                                tlm::tlm_phase &phase, sc_core::sc_time &delay )
     {
         m_peq.notify( trans, phase, delay );
         return tlm::TLM_ACCEPTED;
@@ -187,7 +187,7 @@ struct ExampleInitiator : sc_module
         if (phase == tlm::END_REQ || (&trans == request_in_progress
                                       && phase == tlm::BEGIN_RESP)) {
             // The end of the BEGIN_REQ phase
-            request_in_progress = 0;
+            request_in_progress = nullptr;
             end_request_event.notify();
         } else if (phase == tlm::BEGIN_REQ || phase == tlm::END_RESP)
             SC_REPORT_FATAL("TLM-2", "Illegal transaction phase received by initiator");
@@ -197,7 +197,7 @@ struct ExampleInitiator : sc_module
 
             // Send final phase transition to target
             tlm::tlm_phase fw_phase = tlm::END_RESP;
-            sc_time delay = sc_time(60000, SC_PS);
+            sc_core::sc_time delay = sc_core::sc_time(60000, sc_core::SC_PS);
             socket->nb_transport_fw( trans, fw_phase, delay );
             // Ignore return value
 
@@ -220,9 +220,9 @@ struct ExampleInitiator : sc_module
         uint64_t    adr = trans.get_address();
         int             *ptr = reinterpret_cast<int *>( trans.get_data_ptr() );
 
-        cout << hex << adr << " check, cmd=" << (cmd ? "write" : "read")
-             << ", data=" << hex << *ptr << " at time " << sc_time_stamp()
-             << " in " << name() << endl;
+        std::cout << std::hex << adr << " check, cmd=" << (cmd ? "write" : "read")
+             << ", data=" << std::hex << *ptr << " at time " << sc_core::sc_time_stamp()
+             << " in " << sc_core::name() << std::endl;
 
         if (cmd == tlm::TLM_READ_COMMAND)
             assert( *ptr == -int(adr) );
@@ -231,7 +231,7 @@ struct ExampleInitiator : sc_module
     MemoryManager m_mm;
     unsigned char data[64];
     tlm::tlm_generic_payload *request_in_progress;
-    sc_event end_request_event;
+    sc_core::sc_event end_request_event;
     tlm_utils::peq_with_cb_and_phase<ExampleInitiator> m_peq;
 };
 

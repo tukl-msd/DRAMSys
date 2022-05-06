@@ -32,18 +32,23 @@
  * Author: Lukas Steiner
  */
 
+#include <algorithm>
+
 #include "CheckerDDR5.h"
 
-CheckerDDR5::CheckerDDR5()
+using namespace sc_core;
+using namespace tlm;
+
+CheckerDDR5::CheckerDDR5(const Configuration& config)
 {
     SC_REPORT_FATAL("CheckerDDR5", "DDR5 model not included!");
 }
 
-sc_time CheckerDDR5::timeToSatisfyConstraints(Command, Rank, BankGroup, Bank) const
+sc_time CheckerDDR5::timeToSatisfyConstraints(Command command, const tlm_generic_payload& payload) const
 {
     return SC_ZERO_TIME;
 }
 
-void CheckerDDR5::insert(Command, Rank, BankGroup, Bank)
+void CheckerDDR5::insert(Command command, const tlm_generic_payload& payload)
 {
 }

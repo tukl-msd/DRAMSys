@@ -31,67 +31,91 @@
  *
  * Authors:
  *    Lukas Steiner
+ *    Derek Christ
  */
 
+#include <iostream>
+
+#include "../../common/utils.h"
 #include "MemSpecLPDDR4.h"
 
+using namespace sc_core;
 using namespace tlm;
-using json = nlohmann::json;
 
-MemSpecLPDDR4::MemSpecLPDDR4(json &memspec)
-    : MemSpec(memspec, MemoryType::LPDDR4,
-      parseUint(memspec["memarchitecturespec"]["nbrOfChannels"],"nbrOfChannels"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks"),
+MemSpecLPDDR4::MemSpecLPDDR4(const DRAMSysConfiguration::MemSpec &memSpec)
+    : MemSpec(memSpec, MemoryType::LPDDR4,
+      memSpec.memArchitectureSpec.entries.at("nbrOfChannels"),
       1,
-      parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks")
-          * parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
-      1),
-      tREFI   (tCK * parseUint(memspec["memtimingspec"]["REFI"], "REFI")),
-      tREFIpb (tCK * parseUint(memspec["memtimingspec"]["REFIPB"], "REFIPB")),
-      tRFCab  (tCK * parseUint(memspec["memtimingspec"]["RFCAB"], "RFCAB")),
-      tRFCpb  (tCK * parseUint(memspec["memtimingspec"]["RFCPB"], "RFCPB")),
-      tRPab   (tCK * parseUint(memspec["memtimingspec"]["RPAB"], "RPAB")),
-      tRPpb   (tCK * parseUint(memspec["memtimingspec"]["RPPB"], "RPPB")),
-      tRCab   (tCK * parseUint(memspec["memtimingspec"]["RCAB"], "RCAB")),
-      tRCpb   (tCK * parseUint(memspec["memtimingspec"]["RCPB"], "RCPB")),
-      tPPD    (tCK * parseUint(memspec["memtimingspec"]["PPD"], "PPD")),
-      tRAS    (tCK * parseUint(memspec["memtimingspec"]["RAS"], "RAS")),
-      tRCD    (tCK * parseUint(memspec["memtimingspec"]["RCD"], "RCD")),
-      tFAW    (tCK * parseUint(memspec["memtimingspec"]["FAW"], "FAW")),
-      tRRD    (tCK * parseUint(memspec["memtimingspec"]["RRD"], "RRD")),
-      tCCD    (tCK * parseUint(memspec["memtimingspec"]["CCD"], "CCD")),
-      tRL     (tCK * parseUint(memspec["memtimingspec"]["RL"], "RL")),
-      tRPST   (tCK * parseUint(memspec["memtimingspec"]["RPST"], "RPST")),
-      tDQSCK  (tCK * parseUint(memspec["memtimingspec"]["DQSCK"], "DQSCK")),
-      tRTP    (tCK * parseUint(memspec["memtimingspec"]["RTP"], "RTP")),
-      tWL     (tCK * parseUint(memspec["memtimingspec"]["WL"], "WL")),
-      tDQSS   (tCK * parseUint(memspec["memtimingspec"]["DQSS"], "DQSS")),
-      tDQS2DQ (tCK * parseUint(memspec["memtimingspec"]["DQS2DQ"], "DQS2DQ")),
-      tWR     (tCK * parseUint(memspec["memtimingspec"]["WR"], "WR")),
-      tWPRE   (tCK * parseUint(memspec["memtimingspec"]["WPRE"], "WPRE")),
-      tWTR    (tCK * parseUint(memspec["memtimingspec"]["WTR"], "WTR")),
-      tXP     (tCK * parseUint(memspec["memtimingspec"]["XP"], "XP")),
-      tSR     (tCK * parseUint(memspec["memtimingspec"]["SR"], "SR")),
-      tXSR    (tCK * parseUint(memspec["memtimingspec"]["XSR"], "XSR")),
-      tESCKE  (tCK * parseUint(memspec["memtimingspec"]["ESCKE"], "ESCKE")),
-      tCKE    (tCK * parseUint(memspec["memtimingspec"]["CKE"], "CKE")),
-      tCMDCKE (tCK * parseUint(memspec["memtimingspec"]["CMDCKE"], "CMDCKE")),
-      tRTRS   (tCK * parseUint(memspec["memtimingspec"]["RTRS"], "RTRS"))
+      memSpec.memArchitectureSpec.entries.at("nbrOfRanks"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfBanks"),
+      1,
+      memSpec.memArchitectureSpec.entries.at("nbrOfBanks"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfBanks")
+          * memSpec.memArchitectureSpec.entries.at("nbrOfRanks"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfRanks"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfDevices")),
+      tREFI   (tCK * memSpec.memTimingSpec.entries.at("REFI")),
+      tREFIpb (tCK * memSpec.memTimingSpec.entries.at("REFIPB")),
+      tRFCab  (tCK * memSpec.memTimingSpec.entries.at("RFCAB")),
+      tRFCpb  (tCK * memSpec.memTimingSpec.entries.at("RFCPB")),
+      tRPab   (tCK * memSpec.memTimingSpec.entries.at("RPAB")),
+      tRPpb   (tCK * memSpec.memTimingSpec.entries.at("RPPB")),
+      tRCab   (tCK * memSpec.memTimingSpec.entries.at("RCAB")),
+      tRCpb   (tCK * memSpec.memTimingSpec.entries.at("RCPB")),
+      tPPD    (tCK * memSpec.memTimingSpec.entries.at("PPD")),
+      tRAS    (tCK * memSpec.memTimingSpec.entries.at("RAS")),
+      tRCD    (tCK * memSpec.memTimingSpec.entries.at("RCD")),
+      tFAW    (tCK * memSpec.memTimingSpec.entries.at("FAW")),
+      tRRD    (tCK * memSpec.memTimingSpec.entries.at("RRD")),
+      tCCD    (tCK * memSpec.memTimingSpec.entries.at("CCD")),
+      tRL     (tCK * memSpec.memTimingSpec.entries.at("RL")),
+      tRPST   (tCK * memSpec.memTimingSpec.entries.at("RPST")),
+      tDQSCK  (tCK * memSpec.memTimingSpec.entries.at("DQSCK")),
+      tRTP    (tCK * memSpec.memTimingSpec.entries.at("RTP")),
+      tWL     (tCK * memSpec.memTimingSpec.entries.at("WL")),
+      tDQSS   (tCK * memSpec.memTimingSpec.entries.at("DQSS")),
+      tDQS2DQ (tCK * memSpec.memTimingSpec.entries.at("DQS2DQ")),
+      tWR     (tCK * memSpec.memTimingSpec.entries.at("WR")),
+      tWPRE   (tCK * memSpec.memTimingSpec.entries.at("WPRE")),
+      tWTR    (tCK * memSpec.memTimingSpec.entries.at("WTR")),
+      tXP     (tCK * memSpec.memTimingSpec.entries.at("XP")),
+      tSR     (tCK * memSpec.memTimingSpec.entries.at("SR")),
+      tXSR    (tCK * memSpec.memTimingSpec.entries.at("XSR")),
+      tESCKE  (tCK * memSpec.memTimingSpec.entries.at("ESCKE")),
+      tCKE    (tCK * memSpec.memTimingSpec.entries.at("CKE")),
+      tCMDCKE (tCK * memSpec.memTimingSpec.entries.at("CMDCKE")),
+      tRTRS   (tCK * memSpec.memTimingSpec.entries.at("RTRS"))
 {
     commandLengthInCycles[Command::ACT] = 4;
-    commandLengthInCycles[Command::PRE] = 2;
-    commandLengthInCycles[Command::PREA] = 2;
+    commandLengthInCycles[Command::PREPB] = 2;
+    commandLengthInCycles[Command::PREAB] = 2;
     commandLengthInCycles[Command::RD] = 4;
     commandLengthInCycles[Command::RDA] = 4;
     commandLengthInCycles[Command::WR] = 4;
     commandLengthInCycles[Command::WRA] = 4;
-    commandLengthInCycles[Command::REFA] = 2;
-    commandLengthInCycles[Command::REFB] = 2;
+    commandLengthInCycles[Command::REFAB] = 2;
+    commandLengthInCycles[Command::REFPB] = 2;
     commandLengthInCycles[Command::SREFEN] = 2;
     commandLengthInCycles[Command::SREFEX] = 2;
+
+    uint64_t deviceSizeBits = static_cast<uint64_t>(banksPerRank) * rowsPerBank * columnsPerRow * bitWidth;
+    uint64_t deviceSizeBytes = deviceSizeBits / 8;
+    memorySizeBytes = deviceSizeBytes * ranksPerChannel * numberOfChannels;
+
+    std::cout << headline << std::endl;
+    std::cout << "Memory Configuration:" << std::endl << std::endl;
+    std::cout << " Memory type:           " << "LPDDR4"              << std::endl;
+    std::cout << " Memory size in bytes:  " << memorySizeBytes       << std::endl;
+    std::cout << " Channels:              " << numberOfChannels      << std::endl;
+    std::cout << " Ranks per channel:     " << ranksPerChannel << std::endl;
+    std::cout << " Banks per rank:        " << banksPerRank          << std::endl;
+    std::cout << " Rows per bank:         " << rowsPerBank << std::endl;
+    std::cout << " Columns per row:       " << columnsPerRow << std::endl;
+    std::cout << " Device width in bits:  " << bitWidth              << std::endl;
+    std::cout << " Device size in bits:   " << deviceSizeBits        << std::endl;
+    std::cout << " Device size in bytes:  " << deviceSizeBytes       << std::endl;
+    std::cout << " Devices per rank:      " << devicesPerRank << std::endl;
+    std::cout << std::endl;
 }
 
 sc_time MemSpecLPDDR4::getRefreshIntervalAB() const
@@ -106,9 +130,9 @@ sc_time MemSpecLPDDR4::getRefreshIntervalPB() const
 
 sc_time MemSpecLPDDR4::getExecutionTime(Command command, const tlm_generic_payload &) const
 {
-    if (command == Command::PRE)
+    if (command == Command::PREPB)
         return tRPpb + tCK;
-    else if (command == Command::PREA)
+    else if (command == Command::PREAB)
         return tRPab + tCK;
     else if (command == Command::ACT)
         return tRCD + 3 * tCK;
@@ -120,9 +144,9 @@ sc_time MemSpecLPDDR4::getExecutionTime(Command command, const tlm_generic_paylo
         return tWL + tDQSS + tDQS2DQ + burstDuration + 3 * tCK;
     else if (command == Command::WRA)
         return tWL + 4 * tCK + burstDuration + tWR + tRPpb;
-    else if (command == Command::REFA)
+    else if (command == Command::REFAB)
         return tRFCab + tCK;
-    else if (command == Command::REFB)
+    else if (command == Command::REFPB)
         return tRFCpb + tCK;
     else
     {
@@ -132,41 +156,15 @@ sc_time MemSpecLPDDR4::getExecutionTime(Command command, const tlm_generic_paylo
     }
 }
 
-TimeInterval MemSpecLPDDR4::getIntervalOnDataStrobe(Command command) const
+TimeInterval MemSpecLPDDR4::getIntervalOnDataStrobe(Command command, const tlm_generic_payload &) const
 {
     if (command == Command::RD || command == Command::RDA)
-        return TimeInterval(tRL + tDQSCK + 3 * tCK,
-                            tRL + tDQSCK + burstDuration + 3 * tCK);
+        return {tRL + tDQSCK + 3 * tCK, tRL + tDQSCK + burstDuration + 3 * tCK};
     else if (command == Command::WR || command == Command::WRA)
-        return TimeInterval(tWL + tDQSS + tDQS2DQ + 3 * tCK,
-                            tWL + tDQSS + tDQS2DQ + burstDuration + 3 * tCK);
+        return {tWL + tDQSS + tDQS2DQ + 3 * tCK, tWL + tDQSS + tDQS2DQ + burstDuration + 3 * tCK};
     else
     {
         SC_REPORT_FATAL("MemSpecLPDDR4", "Method was called with invalid argument");
-        return TimeInterval();
+        return {};
     }
 }
-
-uint64_t MemSpecLPDDR4::getSimMemSizeInBytes() const
-{
-    uint64_t deviceSizeBits = static_cast<uint64_t>(banksPerRank) * numberOfRows * numberOfColumns * bitWidth;
-    uint64_t deviceSizeBytes = deviceSizeBits / 8;
-    uint64_t memorySizeBytes = deviceSizeBytes * numberOfRanks;
-
-    std::cout << headline << std::endl;
-    std::cout << "Per Channel Configuration:" << std::endl << std::endl;
-    std::cout << " Memory type:           " << "LPDDR4"              << std::endl;
-    std::cout << " Memory size in bytes:  " << memorySizeBytes       << std::endl;
-    std::cout << " Ranks:                 " << numberOfRanks         << std::endl;
-    std::cout << " Banks per rank:        " << banksPerRank          << std::endl;
-    std::cout << " Rows per bank:         " << numberOfRows          << std::endl;
-    std::cout << " Columns per row:       " << numberOfColumns       << std::endl;
-    std::cout << " Device width in bits:  " << bitWidth              << std::endl;
-    std::cout << " Device size in bits:   " << deviceSizeBits        << std::endl;
-    std::cout << " Device size in bytes:  " << deviceSizeBytes       << std::endl;
-    std::cout << std::endl;
-
-    assert(memorySizeBytes > 0);
-    return memorySizeBytes;
-}
-

@@ -9,7 +9,7 @@
             "nbrOfRows": 8192,
             "width": 16,
             "nbrOfChannels": 1,
-            "nbrOfDevicesOnDIMM": 1,
+            "nbrOfDevices": 1,
         },
         "memoryId": "SAMSUNG_K4B1G1646E_1Gb_DDR3-1600_16bit",
         "memoryType": "DDR3",

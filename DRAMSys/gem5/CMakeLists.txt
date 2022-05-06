@@ -34,12 +34,13 @@
 cmake_minimum_required(VERSION 3.10)
 
 set(GEM5_VARIANT opt) # opt, fast
+set(GEM5_ISA ARM) # ARM, X86
 
 # Configuration:
 set(CMAKE_CXX_STANDARD 11 CACHE STRING "C++ Version")
 set(DCMAKE_SH="CMAKE_SH-NOTFOUND")
 
-find_library(GEM5_LIBRARY gem5_${GEM5_VARIANT} PATHS $ENV{GEM5}/build/ARM/ $ENV{GEM5}/build/X86/)
+find_library(GEM5_LIBRARY gem5_${GEM5_VARIANT} PATHS $ENV{GEM5}/build/${GEM5_ISA}/)
 
 if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/../library/src/simulation/DRAMSysRecordable.cpp)
     add_definitions(-DRECORDING)
@@ -59,12 +60,12 @@ add_executable(DRAMSys_gem5
 )
 
 target_include_directories(DRAMSys_gem5
-    PRIVATE $ENV{GEM5}/build/ARM/
+    PRIVATE $ENV{GEM5}/build/${GEM5_ISA}/
     PRIVATE $ENV{GEM5}/util/tlm/examples/slave_port/
     PRIVATE $ENV{GEM5}/util/tlm/examples/common/
     PRIVATE $ENV{GEM5}/util/tlm/src/
     PRIVATE $ENV{GEM5}/util/systemc/gem5_within_systemc/
-    PRIVATE ../library/src/simulation/
+    PRIVATE ../library/src/
 )
 
 target_link_libraries(DRAMSys_gem5 

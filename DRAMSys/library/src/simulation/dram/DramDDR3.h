@@ -36,15 +36,17 @@
 #ifndef DRAMDDR3_H
 #define DRAMDDR3_H
 
-#include <systemc.h>
+#include <systemc>
+
 #include "Dram.h"
+#include "../TemperatureController.h"
 
 class DramDDR3 : public Dram
 {
 public:
-    DramDDR3(sc_module_name);
+    DramDDR3(const sc_core::sc_module_name& name, const Configuration& config,
+             TemperatureController& temperatureController);
     SC_HAS_PROCESS(DramDDR3);
-    virtual ~DramDDR3() {}
 };
 
 #endif // DRAMDDR3_H

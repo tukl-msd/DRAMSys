@@ -5,6 +5,9 @@
 [submodule "DRAMSys/library/src/common/third_party/systemc"]
 	path = DRAMSys/library/src/common/third_party/systemc
 	url = https://github.com/accellera-official/systemc.git
+[submodule "DRAMSys/library/src/common/third_party/sqlite-amalgamation"]
+	path = DRAMSys/library/src/common/third_party/sqlite-amalgamation
+	url = https://github.com/azadkuh/sqlite-amalgamation.git
 [submodule "DRAMSys/library/src/common/third_party/nlohmann"]
 	path = DRAMSys/library/src/common/third_party/nlohmann
 	url = https://github.com/nlohmann/json

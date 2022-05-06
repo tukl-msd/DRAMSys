@@ -7,10 +7,11 @@
         "CmdMux": "Oldest",
         "RespQueue": "Fifo",
         "RefreshPolicy": "AllBank",
-        "RefreshMaxPostponed": 8,
-        "RefreshMaxPulledin": 8,
+        "RefreshMaxPostponed": 0,
+        "RefreshMaxPulledin": 0,
         "PowerDownPolicy": "NoPowerDown",
         "Arbiter": "Simple",
-        "MaxActiveTransactions": 128
+        "MaxActiveTransactions": 128,
+        "RefreshManagement": false
     }
 }

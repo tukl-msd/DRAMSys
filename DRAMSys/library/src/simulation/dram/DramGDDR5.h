@@ -36,15 +36,17 @@
 #ifndef DRAMGDDR5_H
 #define DRAMGDDR5_H
 
-#include <systemc.h>
+#include <systemc>
+
 #include "Dram.h"
+#include "../TemperatureController.h"
 
 class DramGDDR5 : public Dram
 {
 public:
-    DramGDDR5(sc_module_name);
+    DramGDDR5(const sc_core::sc_module_name& name, const Configuration& config,
+              TemperatureController& temperatureController);
     SC_HAS_PROCESS(DramGDDR5);
-    virtual ~DramGDDR5() {}
 };
 
 #endif // DRAMGDDR5_H

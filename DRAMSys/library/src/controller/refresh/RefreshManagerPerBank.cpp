@@ -33,40 +33,36 @@
  */
 
 #include "RefreshManagerPerBank.h"
+#include "../BankMachine.h"
+#include "../powerdown/PowerDownManagerIF.h"
 #include "../../configuration/Configuration.h"
 #include "../../common/utils.h"
 #include "../../common/dramExtensions.h"
 
+using namespace sc_core;
 using namespace tlm;
 
-RefreshManagerPerBank::RefreshManagerPerBank(std::vector<BankMachine *> &bankMachinesOnRank,
-        PowerDownManagerIF *powerDownManager, Rank rank, CheckerIF *checker)
-    : bankMachinesOnRank(bankMachinesOnRank), powerDownManager(powerDownManager), rank(rank), checker(checker)
+RefreshManagerPerBank::RefreshManagerPerBank(const Configuration& config, std::vector<BankMachine*>& bankMachinesOnRank,
+                                             PowerDownManagerIF& powerDownManager, Rank rank, const CheckerIF& checker)
+    : powerDownManager(powerDownManager), checker(checker), memSpec(*config.memSpec),
+    maxPostponed(static_cast<int>(config.refreshMaxPostponed * memSpec.banksPerRank)),
+    maxPulledin(-static_cast<int>(config.refreshMaxPulledin * memSpec.banksPerRank))
 {
-    Configuration &config = Configuration::getInstance();
-    memSpec = config.memSpec;
-    timeForNextTrigger = getTimeForFirstTrigger(memSpec->getRefreshIntervalPB(),
-                                                rank, memSpec->numberOfRanks);
-
-    refreshPayloads = std::vector<tlm_generic_payload>(memSpec->banksPerRank);
-    for (unsigned bankID = 0; bankID < memSpec->banksPerRank; bankID++)
+    timeForNextTrigger = getTimeForFirstTrigger(memSpec.tCK, memSpec.getRefreshIntervalPB(), rank,
+                                                memSpec.ranksPerChannel);
+    for (auto* it : bankMachinesOnRank)
     {
-        setUpDummy(refreshPayloads[bankID], 0, rank, bankMachinesOnRank[bankID]->getBankGroup(),
-                   bankMachinesOnRank[bankID]->getBank());
-        allBankMachines.push_back(bankMachinesOnRank[bankID]);
+        setUpDummy(refreshPayloads[it], 0, rank, it->getBankGroup(), it->getBank());
+        allBankMachines.push_back(it);
     }
-    remainingBankMachines = allBankMachines;
-    currentBankMachine = *remainingBankMachines.begin();
 
-    maxPostponed = static_cast<int>(config.refreshMaxPostponed * memSpec->banksPerRank);
-    maxPulledin = -static_cast<int>(config.refreshMaxPulledin * memSpec->banksPerRank);
+    remainingBankMachines = allBankMachines;
+    currentIterator = remainingBankMachines.begin();
 }
 
 CommandTuple::Type RefreshManagerPerBank::getNextCommand()
 {
-    return CommandTuple::Type(nextCommand, 
-            &refreshPayloads[currentBankMachine->getBank().ID() % memSpec->banksPerRank], 
-            std::max(timeToSchedule, sc_time_stamp()));
+    return {nextCommand, &refreshPayloads[*currentIterator], std::max(timeToSchedule, sc_time_stamp())};
 }
 
 sc_time RefreshManagerPerBank::start()
@@ -76,13 +72,13 @@ sc_time RefreshManagerPerBank::start()
 
     if (sc_time_stamp() >= timeForNextTrigger)
     {
-        powerDownManager->triggerInterruption();
+        powerDownManager.triggerInterruption();
         if (sleeping)
             return timeToSchedule;
 
-        if (sc_time_stamp() >= timeForNextTrigger + memSpec->getRefreshIntervalPB())
+        if (sc_time_stamp() >= timeForNextTrigger + memSpec.getRefreshIntervalPB())
         {
-            timeForNextTrigger += memSpec->getRefreshIntervalPB();
+            timeForNextTrigger += memSpec.getRefreshIntervalPB();
             state = State::Regular;
         }
 
@@ -94,14 +90,12 @@ sc_time RefreshManagerPerBank::start()
             if (!skipSelection)
             {
                 currentIterator = remainingBankMachines.begin();
-                currentBankMachine = *remainingBankMachines.begin();
 
                 for (auto it = remainingBankMachines.begin(); it != remainingBankMachines.end(); it++)
                 {
                     if ((*it)->isIdle())
                     {
                         currentIterator = it;
-                        currentBankMachine = *it;
                         allBanksBusy = false;
                         break;
                     }
@@ -111,26 +105,26 @@ sc_time RefreshManagerPerBank::start()
             if (allBanksBusy && !forcedRefresh)
             {
                 flexibilityCounter++;
-                timeForNextTrigger += memSpec->getRefreshIntervalPB();
+                timeForNextTrigger += memSpec.getRefreshIntervalPB();
                 return timeForNextTrigger;
             }
             else
             {
-                if (currentBankMachine->getState() == BankMachine::State::Activated)
-                    nextCommand = Command::PRE;
+                // TODO: bank should already be blocked for precharge and selection should be skipped
+                if ((*currentIterator)->isActivated())
+                    nextCommand = Command::PREPB;
                 else
                 {
-                    nextCommand = Command::REFB;
+                    nextCommand = Command::REFPB;
 
                     if (forcedRefresh)
                     {
-                        currentBankMachine->block();
+                        (*currentIterator)->block();
                         skipSelection = true;
                     }
                 }
 
-                timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank,
-                        currentBankMachine->getBankGroup(), currentBankMachine->getBank());
+                timeToSchedule = checker.timeToSatisfyConstraints(nextCommand, refreshPayloads[*currentIterator]);
                 return timeToSchedule;
             }
         }
@@ -143,7 +137,6 @@ sc_time RefreshManagerPerBank::start()
                 if ((*it)->isIdle())
                 {
                     currentIterator = it;
-                    currentBankMachine = *it;
                     allBanksBusy = false;
                     break;
                 }
@@ -152,17 +145,17 @@ sc_time RefreshManagerPerBank::start()
             if (allBanksBusy)
             {
                 state = State::Regular;
-                timeForNextTrigger += memSpec->getRefreshIntervalPB();
+                timeForNextTrigger += memSpec.getRefreshIntervalPB();
                 return timeForNextTrigger;
             }
             else
             {
-                if (currentBankMachine->getState() == BankMachine::State::Activated)
-                    nextCommand = Command::PRE;
+                if ((*currentIterator)->isActivated())
+                    nextCommand = Command::PREPB;
                 else
-                    nextCommand = Command::REFB;
-                timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank,
-                        currentBankMachine->getBankGroup(), currentBankMachine->getBank());
+                    nextCommand = Command::REFPB;
+
+                timeToSchedule = checker.timeToSatisfyConstraints(nextCommand, refreshPayloads[*currentIterator]);
                 return timeToSchedule;
             }
         }
@@ -175,40 +168,43 @@ void RefreshManagerPerBank::updateState(Command command)
 {
     switch (command)
     {
-    case Command::REFB:
-        skipSelection = false;
-        remainingBankMachines.erase(currentIterator);
-        if (remainingBankMachines.empty())
+        case Command::REFPB:
+            skipSelection = false;
+            remainingBankMachines.erase(currentIterator);
+            if (remainingBankMachines.empty())
+                remainingBankMachines = allBankMachines;
+
+            if (state == State::Pulledin)
+                flexibilityCounter--;
+            else
+                state = State::Pulledin;
+
+            if (flexibilityCounter == maxPulledin)
+            {
+                state = State::Regular;
+                timeForNextTrigger += memSpec.getRefreshIntervalPB();
+            }
+            break;
+        case Command::REFAB:
+            // Refresh command after SREFEX
+            state = State::Regular; // TODO: check if this assignment is necessary
+            timeForNextTrigger = sc_time_stamp() + memSpec.getRefreshIntervalPB();
+            sleeping = false;
             remainingBankMachines = allBankMachines;
-
-        if (state == State::Pulledin)
-            flexibilityCounter--;
-        else
-            state = State::Pulledin;
-
-        if (flexibilityCounter == maxPulledin)
-        {
-            state = State::Regular;
-            timeForNextTrigger += memSpec->getRefreshIntervalPB();
-        }
-        break;
-    case Command::REFA:
-        // Refresh command after SREFEX
-        state = State::Regular; // TODO: check if this assignment is necessary
-        timeForNextTrigger = sc_time_stamp() + memSpec->getRefreshIntervalPB();
-        sleeping = false;
-        break;
-    case Command::PDEA: case Command::PDEP:
-        sleeping = true;
-        break;
-    case Command::SREFEN:
-        sleeping = true;
-        timeForNextTrigger = sc_max_time();
-        break;
-    case Command::PDXA: case Command::PDXP:
-        sleeping = false;
-        break;
-    default:
-        break;
+            currentIterator = remainingBankMachines.begin();
+            skipSelection = false;
+            break;
+        case Command::PDEA: case Command::PDEP:
+            sleeping = true;
+            break;
+        case Command::SREFEN:
+            sleeping = true;
+            timeForNextTrigger = sc_max_time();
+            break;
+        case Command::PDXA: case Command::PDXP:
+            sleeping = false;
+            break;
+        default:
+            break;
     }
 }

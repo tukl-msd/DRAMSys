@@ -36,20 +36,24 @@
 
 #include "../configuration/Configuration.h"
 #include "../common/dramExtensions.h"
-#include "Command.h"
+
 #include "checker/CheckerDDR3.h"
 #include "checker/CheckerDDR4.h"
 #include "checker/CheckerDDR5.h"
 #include "checker/CheckerWideIO.h"
 #include "checker/CheckerLPDDR4.h"
+#include "checker/CheckerLPDDR5.h"
 #include "checker/CheckerWideIO2.h"
 #include "checker/CheckerHBM2.h"
 #include "checker/CheckerGDDR5.h"
 #include "checker/CheckerGDDR5X.h"
 #include "checker/CheckerGDDR6.h"
+#include "checker/CheckerSTTMRAM.h"
 #include "scheduler/SchedulerFifo.h"
 #include "scheduler/SchedulerFrFcfs.h"
 #include "scheduler/SchedulerFrFcfsGrp.h"
+#include "scheduler/SchedulerGrpFrFcfs.h"
+#include "scheduler/SchedulerGrpFrFcfsWm.h"
 #include "cmdmux/CmdMuxStrict.h"
 #include "cmdmux/CmdMuxOldest.h"
 #include "respqueue/RespQueueFifo.h"
@@ -57,180 +61,175 @@
 #include "refresh/RefreshManagerDummy.h"
 #include "refresh/RefreshManagerAllBank.h"
 #include "refresh/RefreshManagerPerBank.h"
+#include "refresh/RefreshManagerPer2Bank.h"
 #include "refresh/RefreshManagerSameBank.h"
 #include "powerdown/PowerDownManagerStaggered.h"
 #include "powerdown/PowerDownManagerDummy.h"
 
+using namespace sc_core;
 using namespace tlm;
 
-Controller::Controller(sc_module_name name) :
-    ControllerIF(name)
+Controller::Controller(const sc_module_name& name, const Configuration& config) :
+    ControllerIF(name, config), thinkDelayFw(config.thinkDelayFw), thinkDelayBw(config.thinkDelayBw),
+    phyDelayFw(config.phyDelayFw), phyDelayBw(config.phyDelayBw)
 {
     SC_METHOD(controllerMethod);
     sensitive << beginReqEvent << endRespEvent << controllerEvent << dataResponseEvent;
-
-    Configuration &config = Configuration::getInstance();
-    memSpec = config.memSpec;
-    ranksNumberOfPayloads = std::vector<unsigned>(memSpec->numberOfRanks);
-
-    thinkDelayFw = config.thinkDelayFw;
-    thinkDelayBw = config.thinkDelayBw;
-    phyDelayFw = config.phyDelayFw;
-    phyDelayBw = config.phyDelayBw;
+    
+    ranksNumberOfPayloads = std::vector<unsigned>(memSpec.ranksPerChannel);
 
     // reserve buffer for command tuples
-    readyCommands.reserve(memSpec->numberOfBanks);
+    readyCommands.reserve(memSpec.banksPerChannel);
 
     // instantiate timing checker
-    if (memSpec->memoryType == MemSpec::MemoryType::DDR3)
-        checker = new CheckerDDR3();
-    else if (memSpec->memoryType == MemSpec::MemoryType::DDR4)
-        checker = new CheckerDDR4();
-    else if (memSpec->memoryType == MemSpec::MemoryType::DDR5)
-        checker = new CheckerDDR5();
-    else if (memSpec->memoryType == MemSpec::MemoryType::WideIO)
-        checker = new CheckerWideIO();
-    else if (memSpec->memoryType == MemSpec::MemoryType::LPDDR4)
-        checker = new CheckerLPDDR4();
-    else if (memSpec->memoryType == MemSpec::MemoryType::WideIO2)
-        checker = new CheckerWideIO2();
-    else if (memSpec->memoryType == MemSpec::MemoryType::HBM2)
-        checker = new CheckerHBM2();
-    else if (memSpec->memoryType == MemSpec::MemoryType::GDDR5)
-        checker = new CheckerGDDR5();
-    else if (memSpec->memoryType == MemSpec::MemoryType::GDDR5X)
-        checker = new CheckerGDDR5X();
-    else if (memSpec->memoryType == MemSpec::MemoryType::GDDR6)
-        checker = new CheckerGDDR6();
+    if (memSpec.memoryType == MemSpec::MemoryType::DDR3)
+        checker = std::make_unique<CheckerDDR3>(config);
+    else if (memSpec.memoryType == MemSpec::MemoryType::DDR4)
+        checker = std::make_unique<CheckerDDR4>(config);
+    else if (memSpec.memoryType == MemSpec::MemoryType::DDR5)
+        checker = std::make_unique<CheckerDDR5>(config);
+    else if (memSpec.memoryType == MemSpec::MemoryType::WideIO)
+        checker = std::make_unique<CheckerWideIO>(config);
+    else if (memSpec.memoryType == MemSpec::MemoryType::LPDDR4)
+        checker = std::make_unique<CheckerLPDDR4>(config);
+    else if (memSpec.memoryType == MemSpec::MemoryType::LPDDR5)
+        checker = std::make_unique<CheckerLPDDR5>(config);
+    else if (memSpec.memoryType == MemSpec::MemoryType::WideIO2)
+        checker = std::make_unique<CheckerWideIO2>(config);
+    else if (memSpec.memoryType == MemSpec::MemoryType::HBM2)
+        checker = std::make_unique<CheckerHBM2>(config);
+    else if (memSpec.memoryType == MemSpec::MemoryType::GDDR5)
+        checker = std::make_unique<CheckerGDDR5>(config);
+    else if (memSpec.memoryType == MemSpec::MemoryType::GDDR5X)
+        checker = std::make_unique<CheckerGDDR5X>(config);
+    else if (memSpec.memoryType == MemSpec::MemoryType::GDDR6)
+        checker = std::make_unique<CheckerGDDR6>(config);
+    else if (memSpec.memoryType == MemSpec::MemoryType::STTMRAM)
+        checker = std::make_unique<CheckerSTTMRAM>(config);
 
     // instantiate scheduler and command mux
     if (config.scheduler == Configuration::Scheduler::Fifo)
-        scheduler = new SchedulerFifo();
+        scheduler = std::make_unique<SchedulerFifo>(config);
     else if (config.scheduler == Configuration::Scheduler::FrFcfs)
-        scheduler = new SchedulerFrFcfs();
+        scheduler = std::make_unique<SchedulerFrFcfs>(config);
     else if (config.scheduler == Configuration::Scheduler::FrFcfsGrp)
-        scheduler = new SchedulerFrFcfsGrp();
+        scheduler = std::make_unique<SchedulerFrFcfsGrp>(config);
+    else if (config.scheduler == Configuration::Scheduler::GrpFrFcfs)
+        scheduler = std::make_unique<SchedulerGrpFrFcfs>(config);
+    else if (config.scheduler == Configuration::Scheduler::GrpFrFcfsWm)
+        scheduler = std::make_unique<SchedulerGrpFrFcfsWm>(config);
 
     if (config.cmdMux == Configuration::CmdMux::Oldest)
     {
-        if (memSpec->hasRasAndCasBus())
-            cmdMux = new CmdMuxOldestRasCas();
+        if (memSpec.hasRasAndCasBus())
+            cmdMux = std::make_unique<CmdMuxOldestRasCas>(config);
         else
-            cmdMux = new CmdMuxOldest();
+            cmdMux = std::make_unique<CmdMuxOldest>(config);
     }
     else if (config.cmdMux == Configuration::CmdMux::Strict)
     {
-        if (memSpec->hasRasAndCasBus())
-            cmdMux = new CmdMuxStrictRasCas();
+        if (memSpec.hasRasAndCasBus())
+            cmdMux = std::make_unique<CmdMuxStrictRasCas>(config);
         else
-            cmdMux = new CmdMuxStrict();
+            cmdMux = std::make_unique<CmdMuxStrict>(config);
     }
 
     if (config.respQueue == Configuration::RespQueue::Fifo)
-        respQueue = new RespQueueFifo();
+        respQueue = std::make_unique<RespQueueFifo>();
     else if (config.respQueue == Configuration::RespQueue::Reorder)
-        respQueue = new RespQueueReorder();
+        respQueue = std::make_unique<RespQueueReorder>();
 
     // instantiate bank machines (one per bank)
     if (config.pagePolicy == Configuration::PagePolicy::Open)
     {
-        for (unsigned bankID = 0; bankID < memSpec->numberOfBanks; bankID++)
-            bankMachines.push_back(new BankMachineOpen(scheduler, checker, Bank(bankID)));
+        for (unsigned bankID = 0; bankID < memSpec.banksPerChannel; bankID++)
+            bankMachines.emplace_back(std::make_unique<BankMachineOpen>
+                    (config, *scheduler, *checker, Bank(bankID)));
     }
     else if (config.pagePolicy == Configuration::PagePolicy::OpenAdaptive)
     {
-        for (unsigned bankID = 0; bankID < memSpec->numberOfBanks; bankID++)
-            bankMachines.push_back(new BankMachineOpenAdaptive(scheduler, checker, Bank(bankID)));
+        for (unsigned bankID = 0; bankID < memSpec.banksPerChannel; bankID++)
+            bankMachines.emplace_back(std::make_unique<BankMachineOpenAdaptive>
+                    (config, *scheduler, *checker, Bank(bankID)));
     }
     else if (config.pagePolicy == Configuration::PagePolicy::Closed)
     {
-        for (unsigned bankID = 0; bankID < memSpec->numberOfBanks; bankID++)
-            bankMachines.push_back(new BankMachineClosed(scheduler, checker, Bank(bankID)));
+        for (unsigned bankID = 0; bankID < memSpec.banksPerChannel; bankID++)
+            bankMachines.emplace_back(std::make_unique<BankMachineClosed>
+                    (config, *scheduler, *checker, Bank(bankID)));
     }
     else if (config.pagePolicy == Configuration::PagePolicy::ClosedAdaptive)
     {
-        for (unsigned bankID = 0; bankID < memSpec->numberOfBanks; bankID++)
-            bankMachines.push_back(new BankMachineClosedAdaptive(scheduler, checker, Bank(bankID)));
+        for (unsigned bankID = 0; bankID < memSpec.banksPerChannel; bankID++)
+            bankMachines.emplace_back(std::make_unique<BankMachineClosedAdaptive>
+                    (config, *scheduler, *checker, Bank(bankID)));
     }
 
-    for (unsigned rankID = 0; rankID < memSpec->numberOfRanks; rankID++)
+    bankMachinesOnRank = std::vector<std::vector<BankMachine*>>(memSpec.ranksPerChannel,
+            std::vector<BankMachine*>(memSpec.banksPerRank));
+    for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
     {
-        bankMachinesOnRank.push_back(std::vector<BankMachine *>(bankMachines.begin() + rankID * memSpec->banksPerRank,
-                bankMachines.begin() + (rankID + 1) * memSpec->banksPerRank));
+        for (unsigned bankID = 0; bankID < memSpec.banksPerRank; bankID++)
+            bankMachinesOnRank[rankID][bankID] = bankMachines[rankID * memSpec.banksPerRank + bankID].get();
     }
 
     // instantiate power-down managers (one per rank)
     if (config.powerDownPolicy == Configuration::PowerDownPolicy::NoPowerDown)
     {
-        for (unsigned rankID = 0; rankID < memSpec->numberOfRanks; rankID++)
-        {
-            PowerDownManagerIF *manager = new PowerDownManagerDummy();
-            powerDownManagers.push_back(manager);
-        }
+        for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
+            powerDownManagers.emplace_back(std::make_unique<PowerDownManagerDummy>());
     }
     else if (config.powerDownPolicy == Configuration::PowerDownPolicy::Staggered)
     {
-        for (unsigned rankID = 0; rankID < memSpec->numberOfRanks; rankID++)
+        for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
         {
-            PowerDownManagerIF *manager = new PowerDownManagerStaggered(Rank(rankID), checker);
-            powerDownManagers.push_back(manager);
+            powerDownManagers.emplace_back(std::make_unique<PowerDownManagerStaggered>(bankMachinesOnRank[rankID],
+                    Rank(rankID), *checker));
         }
     }
 
     // instantiate refresh managers (one per rank)
     if (config.refreshPolicy == Configuration::RefreshPolicy::NoRefresh)
     {
-        for (unsigned rankID = 0; rankID < memSpec->numberOfRanks; rankID++)
-            refreshManagers.push_back(new RefreshManagerDummy());
+        for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
+            refreshManagers.emplace_back(std::make_unique<RefreshManagerDummy>());
     }
     else if (config.refreshPolicy == Configuration::RefreshPolicy::AllBank)
     {
-        for (unsigned rankID = 0; rankID < memSpec->numberOfRanks; rankID++)
+        for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
         {
-            RefreshManagerIF *manager = new RefreshManagerAllBank
-                    (bankMachinesOnRank[rankID], powerDownManagers[rankID], Rank(rankID), checker);
-            refreshManagers.push_back(manager);
+            refreshManagers.emplace_back(std::make_unique<RefreshManagerAllBank>
+                    (config, bankMachinesOnRank[rankID], *powerDownManagers[rankID].get(), Rank(rankID), *checker));
         }
     }
     else if (config.refreshPolicy == Configuration::RefreshPolicy::SameBank)
     {
-        for (unsigned rankID = 0; rankID < memSpec->numberOfRanks; rankID++)
+        for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
         {
-            RefreshManagerIF *manager = new RefreshManagerSameBank
-                    (bankMachinesOnRank[rankID], powerDownManagers[rankID], Rank(rankID), checker);
-            refreshManagers.push_back(manager);
+            refreshManagers.emplace_back(std::make_unique<RefreshManagerSameBank>
+                    (config, bankMachinesOnRank[rankID], *powerDownManagers[rankID].get(), Rank(rankID), *checker));
         }
     }
     else if (config.refreshPolicy == Configuration::RefreshPolicy::PerBank)
     {
-        for (unsigned rankID = 0; rankID < memSpec->numberOfRanks; rankID++)
+        for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
         {
             // TODO: remove bankMachines in constructor
-            RefreshManagerIF *manager = new RefreshManagerPerBank
-                    (bankMachinesOnRank[rankID], powerDownManagers[rankID], Rank(rankID), checker);
-            refreshManagers.push_back(manager);
+            refreshManagers.emplace_back(std::make_unique<RefreshManagerPerBank>
+                    (config, bankMachinesOnRank[rankID], *powerDownManagers[rankID], Rank(rankID), *checker));
+        }
+    }
+    else if (config.refreshPolicy == Configuration::RefreshPolicy::Per2Bank)
+    {
+        for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
+        {
+            // TODO: remove bankMachines in constructor
+            refreshManagers.emplace_back(std::make_unique<RefreshManagerPer2Bank>
+                    (config, bankMachinesOnRank[rankID], *powerDownManagers[rankID], Rank(rankID), *checker));
         }
     }
     else
         SC_REPORT_FATAL("Controller", "Selected refresh mode not supported!");
-
-    idleTimeCollector.start();
-}
-
-Controller::~Controller()
-{
-    idleTimeCollector.end();
-
-    for (auto it : refreshManagers)
-        delete it;
-    for (auto it : powerDownManagers)
-        delete it;
-    for (auto it : bankMachines)
-        delete it;
-    delete respQueue;
-    delete cmdMux;
-    delete scheduler;
-    delete checker;
 }
 
 void Controller::controllerMethod()
@@ -242,9 +241,9 @@ void Controller::controllerMethod()
     manageRequests(SC_ZERO_TIME);
 
     // (3) Start refresh and power-down managers to issue requests for the current time
-    for (auto it : refreshManagers)
+    for (auto& it : refreshManagers)
         it->start();
-    for (auto it : powerDownManagers)
+    for (auto& it : powerDownManagers)
         it->start();
 
     // (4) Collect all ready commands from BMs, RMs and PDMs
@@ -252,7 +251,7 @@ void Controller::controllerMethod()
     // clear command buffer
     readyCommands.clear();
 
-    for (unsigned rankID = 0; rankID < memSpec->numberOfRanks; rankID++)
+    for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
     {
         // (4.1) Check for power-down commands (PDEA/PDEP/SREFEN or PDXA/PDXP/SREFEX)
         commandTuple = powerDownManagers[rankID]->getNextCommand();
@@ -260,12 +259,12 @@ void Controller::controllerMethod()
             readyCommands.emplace_back(commandTuple);
         else
         {
-            // (4.2) Check for refresh commands (PREA/PRE or REFA/REFB)
+            // (4.2) Check for refresh commands (PREXX or REFXX)
             commandTuple = refreshManagers[rankID]->getNextCommand();
             if (std::get<CommandTuple::Command>(commandTuple) != Command::NOP)
                 readyCommands.emplace_back(commandTuple);
 
-            // (4.3) Check for bank commands (PRE, ACT, RD/RDA or WR/WRA)
+            // (4.3) Check for bank commands (PREPB, ACT, RD/RDA or WR/WRA)
             for (auto it : bankMachinesOnRank[rankID])
             {
                 commandTuple = it->getNextCommand();
@@ -285,34 +284,38 @@ void Controller::controllerMethod()
         if (command != Command::NOP) // can happen with FIFO strict
         {
             Rank rank = DramExtension::getRank(payload);
-            BankGroup bankgroup = DramExtension::getBankGroup(payload);
             Bank bank = DramExtension::getBank(payload);
 
-            if (isRankCommand(command))
+            if (command.isRankCommand())
             {
                 for (auto it : bankMachinesOnRank[rank.ID()])
                     it->updateState(command);
             }
-            else if (isGroupCommand(command))
+            else if (command.isGroupCommand())
             {
-                for (unsigned bankID = (bank.ID() % memSpec->banksPerGroup);
-                        bankID < memSpec->banksPerRank; bankID += memSpec->banksPerGroup)
+                for (unsigned bankID = (bank.ID() % memSpec.banksPerGroup);
+                        bankID < memSpec.banksPerRank; bankID += memSpec.banksPerGroup)
                     bankMachinesOnRank[rank.ID()][bankID]->updateState(command);
+            }
+            else if (command.is2BankCommand())
+            {
+                bankMachines[bank.ID()]->updateState(command);
+                bankMachines[bank.ID() + memSpec.getPer2BankOffset()]->updateState(command);
             }
             else // if (isBankCommand(command))
                 bankMachines[bank.ID()]->updateState(command);
 
             refreshManagers[rank.ID()]->updateState(command);
             powerDownManagers[rank.ID()]->updateState(command);
-            checker->insert(command, rank, bankgroup, bank);
+            checker->insert(command, *payload);
 
-            if (isCasCommand(command))
+            if (command.isCasCommand())
             {
-                scheduler->removeRequest(payload);
+                scheduler->removeRequest(*payload);
                 manageRequests(thinkDelayFw);
                 respQueue->insertPayload(payload, sc_time_stamp()
                         + thinkDelayFw + phyDelayFw
-                        + memSpec->getIntervalOnDataStrobe(command).end
+                        + memSpec.getIntervalOnDataStrobe(command, *payload).end
                         + phyDelayBw + thinkDelayBw);
 
                 sc_time triggerTime = respQueue->getTriggerTime();
@@ -324,7 +327,8 @@ void Controller::controllerMethod()
             if (ranksNumberOfPayloads[rank.ID()] == 0)
                 powerDownManagers[rank.ID()]->triggerEntry();
 
-            sendToDram(command, payload, thinkDelayFw + phyDelayFw);
+            sc_time fwDelay = thinkDelayFw + phyDelayFw;
+            sendToDram(command, *payload, fwDelay);
         }
         else
             readyCmdBlocked = true;
@@ -333,19 +337,19 @@ void Controller::controllerMethod()
     // (6) Restart bank machines, refresh managers and power-down managers to issue new requests for the future
     sc_time timeForNextTrigger = sc_max_time();
     sc_time localTime;
-    for (auto it : bankMachines)
+    for (auto& it : bankMachines)
     {
         localTime = it->start();
         if (!(localTime == sc_time_stamp() && readyCmdBlocked))
             timeForNextTrigger = std::min(timeForNextTrigger, localTime);
     }
-    for (auto it : refreshManagers)
+    for (auto& it : refreshManagers)
     {
         localTime = it->start();
         if (!(localTime == sc_time_stamp() && readyCmdBlocked))
             timeForNextTrigger = std::min(timeForNextTrigger, localTime);
     }
-    for (auto it : powerDownManagers)
+    for (auto& it : powerDownManagers)
     {
         localTime = it->start();
         if (!(localTime == sc_time_stamp() && readyCmdBlocked))
@@ -391,7 +395,7 @@ unsigned int Controller::transport_dbg(tlm_generic_payload &trans)
     return iSocket->transport_dbg(trans);
 }
 
-void Controller::manageRequests(sc_time delay)
+void Controller::manageRequests(const sc_time &delay)
 {
     if (transToAcquire.payload != nullptr && transToAcquire.time <= sc_time_stamp())
     {
@@ -410,14 +414,16 @@ void Controller::manageRequests(sc_time delay)
 
             ranksNumberOfPayloads[rank.ID()]++;
 
-            scheduler->storeRequest(transToAcquire.payload);
+            scheduler->storeRequest(*transToAcquire.payload);
             transToAcquire.payload->acquire();
 
             Bank bank = DramExtension::getBank(transToAcquire.payload);
             bankMachines[bank.ID()]->start();
 
             transToAcquire.payload->set_response_status(TLM_OK_RESPONSE);
-            sendToFrontend(transToAcquire.payload, END_REQ, delay);
+            tlm_phase bwPhase = END_REQ;
+            sc_time bwDelay = delay;
+            sendToFrontend(*transToAcquire.payload, bwPhase, bwDelay);
             transToAcquire.payload = nullptr;
         }
         else
@@ -437,9 +443,9 @@ void Controller::manageResponses()
             NDEBUG_UNUSED(uint64_t id) = DramExtension::getChannelPayloadID(transToRelease.payload);
             PRINTDEBUGMESSAGE(name(), "Payload " + std::to_string(id) + " left system.");
 
+            numberOfBeatsServed += DramExtension::getBurstLength(transToRelease.payload);
             transToRelease.payload->release();
             transToRelease.payload = nullptr;
-            numberOfTransactionsServed++;
             totalNumberOfPayloads--;
 
             if (totalNumberOfPayloads == 0)
@@ -453,7 +459,9 @@ void Controller::manageResponses()
                 if (transToRelease.payload != nullptr)
                 {
                     // last payload was released in this cycle
-                    sendToFrontend(transToRelease.payload, BEGIN_RESP, memSpec->tCK);
+                    tlm_phase bwPhase = BEGIN_RESP;
+                    sc_time bwDelay = memSpec.tCK;
+                    sendToFrontend(*transToRelease.payload, bwPhase, bwDelay);
                     transToRelease.time = sc_max_time();
                 }
                 else
@@ -471,11 +479,14 @@ void Controller::manageResponses()
 
         if (transToRelease.payload != nullptr)
         {
+            tlm_phase bwPhase = BEGIN_RESP;
+            sc_time bwDelay;
             if (transToRelease.time == sc_time_stamp()) // last payload was released in this cycle
-                sendToFrontend(transToRelease.payload, BEGIN_RESP, memSpec->tCK);
+                bwDelay = memSpec.tCK;
             else
-                sendToFrontend(transToRelease.payload, BEGIN_RESP, SC_ZERO_TIME);
+                bwDelay = SC_ZERO_TIME;
 
+            sendToFrontend(*transToRelease.payload, bwPhase, bwDelay);
             transToRelease.time = sc_max_time();
         }
         else
@@ -487,13 +498,13 @@ void Controller::manageResponses()
     }
 }
 
-void Controller::sendToFrontend(tlm_generic_payload *payload, tlm_phase phase, sc_time delay)
+void Controller::sendToFrontend(tlm_generic_payload& payload, tlm_phase& phase, sc_time& delay)
 {
-    tSocket->nb_transport_bw(*payload, phase, delay);
+    tSocket->nb_transport_bw(payload, phase, delay);
 }
 
-void Controller::sendToDram(Command command, tlm_generic_payload *payload, sc_time delay)
+void Controller::sendToDram(Command command, tlm_generic_payload& payload, sc_time& delay)
 {
-    tlm_phase phase = commandToPhase(command);
-    iSocket->nb_transport_fw(*payload, phase, delay);
+    tlm_phase phase = command.toPhase();
+    iSocket->nb_transport_fw(payload, phase, delay);
 }

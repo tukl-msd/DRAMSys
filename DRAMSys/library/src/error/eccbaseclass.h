@@ -37,8 +37,8 @@
 #ifndef ECCBASECLASS_H
 #define ECCBASECLASS_H
 
-#include <systemc.h>
-#include <tlm.h>
+#include <systemc>
+#include <tlm>
 #include <tlm_utils/multi_passthrough_initiator_socket.h>
 #include <tlm_utils/multi_passthrough_target_socket.h>
 
@@ -46,7 +46,7 @@
 
 #include "../common/DebugManager.h"
 
-class ECCBaseClass : sc_module
+class ECCBaseClass : sc_core::sc_module
 {
 public:
     struct DataStruct {
@@ -68,16 +68,16 @@ protected:
     // Data pointer is provided in pDataIn, length in Bytes provided in nDataIn
     // Result should be written in pDataOut, which has a size of nDataOut.
     // pDataOut is already allocated with a size given by function AllocationEncode
-    virtual void Encode(const unsigned char *pDataIn, const unsigned nDataIn,
-                        unsigned char *pDataOut, const unsigned nDataOut) = 0;
+    virtual void Encode(const unsigned char *pDataIn, unsigned nDataIn,
+                        unsigned char *pDataOut, unsigned nDataOut) = 0;
 
 
     // Function prototype for decoding data.
     // Data pointer is provided in pDataIn, length in Bytes provided in nDataIn
     // Result should be written in pDataOut, which has a size of nDataOut.
     // pDataOut is already allocated with a size given by function AllocationDecode
-    virtual void Decode(const unsigned char *pDataIn, const unsigned nDataIn,
-                        unsigned char *pDataOut, const unsigned nDataOut) = 0;
+    virtual void Decode(const unsigned char *pDataIn, unsigned nDataIn,
+                        unsigned char *pDataOut, unsigned nDataOut) = 0;
 
 public:
     tlm_utils::multi_passthrough_target_socket<ECCBaseClass>    t_socket;
@@ -92,11 +92,11 @@ public:
     }
     // Forward interface
     tlm::tlm_sync_enum nb_transport_fw( int id, tlm::tlm_generic_payload &trans,
-                                        tlm::tlm_phase &phase, sc_time &delay );
+                                        tlm::tlm_phase &phase, sc_core::sc_time &delay );
 
     // Backward interface
     tlm::tlm_sync_enum nb_transport_bw( int id, tlm::tlm_generic_payload &trans,
-                                        tlm::tlm_phase &phase, sc_time &delay );
+                                        tlm::tlm_phase &phase, sc_core::sc_time &delay );
 };
 
 #endif // ECCBASECLASS_H

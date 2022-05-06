@@ -32,13 +32,15 @@
  * Author: Lukas Steiner
  */
 
+#include "../Command.h"
 #include "PowerDownManagerDummy.h"
 
+using namespace sc_core;
 using namespace tlm;
 
 CommandTuple::Type PowerDownManagerDummy::getNextCommand()
 {
-    return CommandTuple::Type(Command::NOP, nullptr, sc_max_time());
+    return {Command::NOP, nullptr, sc_max_time()};
 }
 
 sc_time PowerDownManagerDummy::start()

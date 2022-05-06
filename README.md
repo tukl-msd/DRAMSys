@@ -16,11 +16,11 @@ If you decide to use DRAMSys in your research please cite the papers [2] [3]. To
 
 - **standalone** simulator with trace players, **gem5**-coupled simulator and **TLM-AT-compliant library**
 - support for **DDR3/4**, **LPDDR4**, **Wide I/O 1/2**, **GDDR5/5X/6** and **HBM1/2**
-- support for **DDR5** and **LPDDR5** under development (contact [Matthias Jung](mailto:matthias.jung@iese.fraunhofer.de) for more information) 
+- support for **DDR5**, **LPDDR5** and **HBM3** under development (contact [Matthias Jung](mailto:matthias.jung@iese.fraunhofer.de) for more information) 
 - automatic source code generation for new JEDEC standards [3] [9] from the domain-specific language DRAMml
 - FIFO, FR-FCFS and FR-FCFS with read/write grouping scheduling policies
 - open, closed, open adaptive and closed adaptive page policy [8]
-- all-bank refresh and per-bank refresh with pulled-in and postponed refresh commands
+- all-bank refresh, same-bank refresh and per-bank refresh with pulled-in and postponed refresh commands
 - staggered power down [5]
 - coupling to **DRAMPower** [4] and **3D-ICE** [8] for power and thermal simulation
 - **Trace Analyzer** for visual and metric-based result analysis
@@ -39,23 +39,22 @@ All requests, responses and DRAM commands can be recorded in an SQLite trace dat
 
 The Trace Analyzer's main window is shown below.
 
-If you are interested in the database recording feature and the Trace Analyzer, if you need support on how to setup DRAMSys in a virtual platform of your company, or if you require custom modifications of the simulator please contact [Matthias Jung](mailto:matthias.jung@iese.fraunhofer.de).
+If you are interested in the Trace Analyzer, if you need support with the setup of DRAMSys in a virtual platform of your company, or if you require custom modifications of the simulator please contact [Matthias Jung](mailto:matthias.jung@iese.fraunhofer.de).
 
 ![Trace Analyzer Main Window](DRAMSys/docs/images/traceanalyzer.png) 
 
 ## Basic Setup
 
 Start using DRAMSys by cloning the repository.
-Use the `--recursive` flag to initialize all submodules within the repository, namely **DRAMPower**, **SystemC** and **nlohmann json**.
+Use the `--recursive` flag to initialize all submodules within the repository, namely **DRAMPower**, **SystemC**, **nlohmann JSON** and **SQLite Amalgamation**.
 
 ### Dependencies
 
-DRAMSys is based on the SystemC library. SystemC is included as a submodule and will be build automatically with the DRAMSys project. If you want to use an external SystemC version, export the environment variables `SYSTEMC_HOME` (SystemC root directory) and `SYSTEMC_TARGET_ARCH` (e.g. linux64) and add the path of the library to `LD_LIBRARY_PATH`.
+DRAMSys requires a **C++17** compiler. The build process is based on **CMake** (minimum version **3.10**). Furthermore, the simulator is based on **SystemC**. SystemC is included as a submodule and will be build automatically with the project. If you want to use an external SystemC version, export the environment variables `SYSTEMC_HOME` (SystemC root directory) and `SYSTEMC_TARGET_ARCH` (e.g., linux64).
 
 ### Building DRAMSys
-DRAMSys uses CMake for the build process, the minimum required version is **CMake 3.10**.
 
-To build the standalone simulator for running memory trace files, create a build folder in the project root directory, then run CMake and make:
+To build the standalone simulator for running memory trace files or a traffic generator, create a build folder in the project root directory, then run CMake and make:
 
 ```bash
 $ cd DRAMSys
@@ -88,7 +87,7 @@ $ cd simulator
 $ ./DRAMSys
 ```
 
-The default base config file is *ddr3-example.json* and located in *DRAMSys/library/resources/simulations*, the default resource folder for all nested config files is *DRAMSys/library/resources*.
+The default base config file is *ddr3-example.json* located in *DRAMSys/library/resources/simulations*, the default resource folder for all nested config files is *DRAMSys/library/resources*.
 
 To run DRAMSys with a specific base config file:
 
@@ -104,7 +103,7 @@ $ ./DRAMSys ../../DRAMSys/tests/example_ddr3/simulations/ddr3-example.json ../..
 
 ### DRAMSys Configuration
 
-The DRAMSys executable supports one argument which is a JSON file that contains certain arguments and the path of other configuration files for the desired simulation.
+The DRAMSys executable supports one argument, which is a JSON file that contains certain arguments and the name of nested configuration files for the desired simulation. Alternatively, the contents of nested configuration files can also be added directly to the top configuration file instead of the file name.
 
 The JSON code below shows an example configuration:
 
@@ -120,17 +119,34 @@ The JSON code below shows an example configuration:
         "tracesetup": [
             {
                 "clkMhz": 300,
-                "name": "ddr3_example.stl"
+                "name": "ddr3_example.stl",
+                "addLengthConverter": true
             },
             {
-                "clkMhz": 400,
-                "name": "ddr3_example.stl"
+                "clkMhz": 2000,
+                "type": "generator",
+                "name": "gen0",
+                "numRequests": 2000,
+                "rwRatio": 0.85,
+                "addressDistribution": "random",
+                "seed": 123456,
+                "maxPendingReadRequests": 8,
+                "maxPendingWriteRequests": 8,
+                "minAddress": 16384,
+                "maxAddress": 32767
+            },
+            {
+                "clkMhz": 1000,
+                "type": "hammer",
+                "name": "ham0",
+                "numRequests": 4000,
+                "rowIncrement": 2097152
             }
         ]	
     }
 }
 ```
-Fields Description:
+Field Descriptions:
 - "simulationid": simulation file identifier
 - "simconfig": configuration file for the DRAMSys simulator
 - "thermalconfig": thermal simulation configuration file
@@ -139,12 +155,21 @@ Fields Description:
 - "mcconfig": memory controller configuration file
 - "tracesetup": The trace setup is only used in standalone mode. In library mode or gem5 mode the trace setup is ignored. Each device should be added as a json object inside the "tracesetup" array. 
 
-Each **trace setup** device configuration consists of two parameters, **clkMhz** (operation frequency of the **trace player**) and a trace file **name**. Most configuration fields reference other JSON files which contain more specialized chunks of the configuration like a memory specification, an address mapping and a memory controller configuration.
+Each **trace setup** device configuration can be a **trace player** ("type": "player"), a **traffic generator** ("type": "generator") or a **row hammer generator** ("type": "hammer"). By not specifing the **type** parameter, the device will act as a **trace player**.
+All device configurations must define a **clkMhz** (operation frequency of the **traffic initiator**) and a **name** (in case of a trace player this specifies the **trace file** to play; in case of a generator this field is only for identification purposes).
+The optional parameter **addLengthConverter** adds a transaction length converter between initiator and DRAMSys. This unit divides a large transaction up into several smaller transactions with the maximum length of one DRAM burst access.
+The **maxPendingReadRequests** and **maxPendingWriteRequests** parameters define the maximum number of outstanding read/write requests. The current implementation delays all memory accesses if one limit is reached. The default value (0) disables the limit.
+
+A **traffic generator** can be configured to generate **numRequests** requests in total, of which the **rwRatio** field defines the probability of one request being a read request. The length of a request (in bytes) can be specified with the **dataLength** parameter. The **seed** parameter can be used to produce identical results for all simulations. **minAddress** and **maxAddress** specify the address range, by default the whole address range is used. The parameter **addressDistribution** can either be set to **random** or **sequential**. In case of **sequential** the additional **addressIncrement** field must be specified, defining the address increment after each request.
+
+The **row hammer generator** is a special traffic generator that mimics a row hammer attack. It generates **numRequests** alternating read requests to two different addresses. The first address is 0x0, the second address is specified by the **rowIncrement** parameter and should decode to a different row in the same bank. Since only one outstanding request is allowed, the controller cannot perform any reordering, forcing a row switch (precharge and activate) for each access. That way the number of activations on the target rows are maximized.
+
+Most configuration fields reference other JSON files which contain more specialized chunks of the configuration like a memory specification, an address mapping and a memory controller configuration.
 
 
 #### Trace Files
 
-A **trace file** is a prerecorded file containing memory transactions. Each memory transaction has a time stamp that tells the simulator when it shall happen, a transaction type (*read* or *write*) and a hexadecimal memory address.
+A **trace file** is a prerecorded file containing memory transactions. Each memory transaction has a time stamp that tells the simulator when it shall happen, a transaction type (*read* or *write*) and a hexadecimal memory address. The optional length parameter (in bytes) allows sending transactions with a custom length that does not match the length of a single DRAM burst access. In this case a length converter has to be added. Write transactions also have to specify a data field when storage is enabled in DRAMSys.
 
 There are two different kinds of trace files. They differ in their timing behavior and are distinguished by their file extension.
 
@@ -156,11 +181,11 @@ Syntax example:
 
 ```
 # Comment lines begin with #
-# [clock-cyle]: [write|read] [hex-address] [hex-data (optional)]
-31:	read	0x400140
-33:	read	0x400160
-56:	write	0x7fff8000 0x123456789abcdef...
-81:	read	0x400180
+# cycle: [(length)] command hex-address [hex-data]
+31: read 0x400140
+33: read 0x400160
+56: write 0x7fff8000 0x123456789abcdef...
+81: (128) read 0x400180
 ```
 
 ##### Relative STL Traces (.rstl)
@@ -171,11 +196,11 @@ Syntax example:
 
 ```
 # Comment lines begin with #
-# [clock-cyle]: [write|read] [hex-address] [hex-data (optional)]
-31:	read	0x400140
-2:	read	0x400160
-23:	write	0x7fff8000 0x123456789abcdef...
-25:	read	0x400180
+# cycle: [(length)] command hex-address [hex-data]
+31: read 0x400140
+2: (512) read 0x400160
+23: write 0x7fff8000 0x123456789abcdef...
+10: read 0x400180
 ```
 
 ##### Elastic Traces
@@ -318,7 +343,8 @@ An example follows.
         "RefreshMaxPulledin": 8, 
         "PowerDownPolicy": "NoPowerDown", 
         "Arbiter": "Fifo",
-        "MaxActiveTransactions": 128 
+        "MaxActiveTransactions": 128,
+        "RefreshManagement": true
     }
 }
 ```
@@ -363,6 +389,8 @@ An example follows.
     - "Reorder": based on "Fifo", in addition, the original request order is restored for outgoing responses (separately for each initiator and globally to all channels)
   - *MaxActiveTransactions* (unsigned int)
     - maximum number of active transactions per initiator (only applies to "Fifo" and "Reorder" arbiter policy)
+- *RefreshManagement* (boolean)
+  - enable the sending of refresh management commands when the number of activates to one bank exceeds a certain management threshold (only supported in DDR5 and LPDDR5)
 
 ## DRAMSys with Thermal Simulation
 
@@ -535,6 +563,7 @@ The content of [config.json](DRAMSys/library/resources/configs/thermalsim/config
 The development of DRAMSys was supported by the German Research Foundation (DFG) as part of the priority program [Dependable Embedded Systems SPP1500](http://spp1500.itec.kit.edu) and the DFG grant no. [WE2442/10-1](https://www.uni-kl.de/en/3d-dram/). Furthermore, it was supported within the Fraunhofer and DFG cooperation program (grant no. [WE2442/14-1](https://www.iese.fraunhofer.de/en/innovation_trends/autonomous-systems/memtonomy.html)) and by the [Fraunhofer High Performance Center for Simulation- and Software-Based Innovation](https://www.leistungszentrum-simulation-software.de/en.html). Special thanks go to all listed contributors for their work and commitment during seven years of development. 
 
 Shama Bhosale  
+Derek Christ  
 Luiza Correa  
 Peter Ehses  
 Johannes Feldmann  
@@ -544,7 +573,8 @@ Matthias Jung
 Frederik Lauer  
 Ana Mativi  
 Felipe S. Prado  
-Tran Anh Quoc   
+Iron Prando  
+Tran Anh Quoc  
 Janik Schlemminger  
 Lukas Steiner  
 Thanh C. Tran  

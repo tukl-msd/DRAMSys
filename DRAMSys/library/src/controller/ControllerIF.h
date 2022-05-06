@@ -37,76 +37,91 @@
 #ifndef CONTROLLERIF_H
 #define CONTROLLERIF_H
 
-#include <systemc.h>
-#include <tlm.h>
+#include <iomanip>
+
+#include <systemc>
+#include <tlm>
 #include <tlm_utils/simple_initiator_socket.h>
 #include <tlm_utils/simple_target_socket.h>
 #include "../configuration/Configuration.h"
 
 // Utiliy class to pass around the DRAMSys, without having to propagate the template defintions
 // throughout all classes
-class ControllerIF : public sc_module
+class ControllerIF : public sc_core::sc_module
 {
 public:
     // Already create and bind sockets to the virtual functions
     tlm_utils::simple_target_socket<ControllerIF> tSocket; // Arbiter side
     tlm_utils::simple_initiator_socket<ControllerIF> iSocket; // DRAM side
 
-    // Destructor
-    virtual ~ControllerIF()
+    void end_of_simulation() override
     {
-        sc_time activeTime = numberOfTransactionsServed
-                             * Configuration::getInstance().memSpec->burstLength
-                             / Configuration::getInstance().memSpec->dataRate
-                             * Configuration::getInstance().memSpec->tCK;
+        idleTimeCollector.end();
 
-        double bandwidth = activeTime / sc_time_stamp();
-        double bandwidthWoIdle = activeTime / (sc_time_stamp() - idleTimeCollector.getIdleTime());
+        sc_core::sc_time activeTime = static_cast<double>(numberOfBeatsServed)
+                                      / memSpec.dataRate
+                                      * memSpec.tCK
+                                      / memSpec.pseudoChannelsPerChannel;
+
+        double bandwidth = activeTime / sc_core::sc_time_stamp();
+        double bandwidthWoIdle = activeTime / (sc_core::sc_time_stamp() - idleTimeCollector.getIdleTime());
 
         double maxBandwidth = (
-                                  // fCK in GHz e.g. 1 [GHz] (tCK in ps):
-                                  (1000 / Configuration::getInstance().memSpec->tCK.to_double())
-                                  // DataRate e.g. 2
-                                  * Configuration::getInstance().memSpec->dataRate
-                                  // BusWidth e.g. 8 or 64
-                                  * Configuration::getInstance().memSpec->bitWidth
-                                  //   Number of devices on a DIMM e.g. 8
-                                  * Configuration::getInstance().memSpec->numberOfDevicesOnDIMM );
+                // fCK in GHz e.g. 1 [GHz] (tCK in ps):
+                (1000 / memSpec.tCK.to_double())
+                // DataRate e.g. 2
+                * memSpec.dataRate
+                // BusWidth e.g. 8 or 64
+                * memSpec.bitWidth
+                // Number of devices that form a rank, e.g., 8 on a DDR3 DIMM
+                * memSpec.devicesPerRank
+                // HBM specific, one or two pseudo channels per channel
+                * memSpec.pseudoChannelsPerChannel);
 
         std::cout << name() << std::string("  Total Time:     ")
-             << sc_time_stamp().to_string()
-             << std::endl;
+                  << sc_core::sc_time_stamp().to_string()
+                  << std::endl;
         std::cout << name() << std::string("  AVG BW:         ")
-             << std::fixed << std::setprecision(2)
-             << (bandwidth * maxBandwidth)
-             << " Gb/s (" << (bandwidth * 100) << " %)"
-             << std::endl;
+                  << std::fixed << std::setprecision(2)
+                  << std::setw(6) << (bandwidth * maxBandwidth) << " Gb/s | "
+                  << std::setw(6) << (bandwidth * maxBandwidth / 8) << " GB/s | "
+                  << std::setw(6) << (bandwidth * 100) << " %"
+                  << std::endl;
         std::cout << name() << std::string("  AVG BW\\IDLE:    ")
-             << std::fixed << std::setprecision(2)
-             << (bandwidthWoIdle * maxBandwidth)
-             << " Gb/s (" << (bandwidthWoIdle * 100) << " %)"
-             << endl;
+                  << std::fixed << std::setprecision(2)
+                  << std::setw(6) << (bandwidthWoIdle * maxBandwidth) << " Gb/s | "
+                  << std::setw(6) << (bandwidthWoIdle * maxBandwidth / 8) << " GB/s | "
+                  << std::setw(6) << (bandwidthWoIdle * 100) << " %"
+                  << std::endl;
         std::cout << name() << std::string("  MAX BW:         ")
-             << std::fixed << std::setprecision(2)
-             << maxBandwidth << " Gb/s"
-             << std::endl;
+                  << std::fixed << std::setprecision(2)
+                  << std::setw(6) << maxBandwidth << " Gb/s | "
+                  << std::setw(6) << maxBandwidth / 8 << " GB/s | "
+                  << std::setw(6) << 100.0 << " %"
+                  << std::endl;
     }
 
 protected:
+    const MemSpec& memSpec;
+
     // Bind sockets with virtual functions
-    ControllerIF(sc_module_name name) :
-        sc_module(name), tSocket("tSocket"), iSocket("iSocket")
+    ControllerIF(const sc_core::sc_module_name& name, const Configuration& config)
+        : sc_core::sc_module(name), tSocket("tSocket"), iSocket("iSocket"), memSpec(*config.memSpec)
     {
         tSocket.register_nb_transport_fw(this, &ControllerIF::nb_transport_fw);
         tSocket.register_transport_dbg(this, &ControllerIF::transport_dbg);
         iSocket.register_nb_transport_bw(this, &ControllerIF::nb_transport_bw);
+
+        idleTimeCollector.start();
     }
     SC_HAS_PROCESS(ControllerIF);
 
     // Virtual transport functions
-    virtual tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload &, tlm::tlm_phase &, sc_time &) = 0;
-    virtual unsigned int transport_dbg(tlm::tlm_generic_payload &) = 0;
-    virtual tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload &, tlm::tlm_phase &, sc_time &) = 0;
+    virtual tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans, tlm::tlm_phase& phase,
+                                               sc_core::sc_time& delay) = 0;
+    virtual unsigned int transport_dbg(tlm::tlm_generic_payload& trans) = 0;
+    virtual tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload& trans, tlm::tlm_phase& phase,
+                                               sc_core::sc_time& delay) = 0;
 
     // Bandwidth related
     class IdleTimeCollector
@@ -117,7 +132,7 @@ protected:
             if (!isIdle)
             {
                 PRINTDEBUGMESSAGE("IdleTimeCollector", "IDLE start");
-                idleStart = sc_time_stamp();
+                idleStart = sc_core::sc_time_stamp();
                 isIdle = true;
             }
         }
@@ -127,23 +142,23 @@ protected:
             if (isIdle)
             {
                 PRINTDEBUGMESSAGE("IdleTimeCollector", "IDLE end");
-                idleTime += sc_time_stamp() - idleStart;
+                idleTime += sc_core::sc_time_stamp() - idleStart;
                 isIdle = false;
             }
         }
 
-        sc_time getIdleTime()
+        sc_core::sc_time getIdleTime()
         {
             return idleTime;
         }
 
     private:
         bool isIdle = false;
-        sc_time idleTime = SC_ZERO_TIME;
-        sc_time idleStart;
+        sc_core::sc_time idleTime = sc_core::SC_ZERO_TIME;
+        sc_core::sc_time idleStart;
     } idleTimeCollector;
 
-    uint64_t numberOfTransactionsServed = 0;
+    uint64_t numberOfBeatsServed = 0;
 };
 
 

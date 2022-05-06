@@ -35,47 +35,48 @@
 #ifndef CHECKERLPDDR4_H
 #define CHECKERLPDDR4_H
 
-#include "CheckerIF.h"
 #include <queue>
 #include <vector>
+
+#include "CheckerIF.h"
 #include "../../configuration/memspec/MemSpecLPDDR4.h"
 #include "../../configuration/Configuration.h"
 
 class CheckerLPDDR4 final : public CheckerIF
 {
 public:
-    CheckerLPDDR4();
-    virtual sc_time timeToSatisfyConstraints(Command, Rank, BankGroup, Bank) const override;
-    virtual void insert(Command, Rank, BankGroup, Bank) override;
+    explicit CheckerLPDDR4(const Configuration& config);
+    sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const override;
+    void insert(Command command, const tlm::tlm_generic_payload& payload) override;
 
 private:
     const MemSpecLPDDR4 *memSpec;
 
-    std::vector<std::vector<sc_time>> lastScheduledByCommandAndBank;
-    std::vector<std::vector<sc_time>> lastScheduledByCommandAndRank;
-    std::vector<sc_time> lastScheduledByCommand;
-    sc_time lastCommandOnBus;
+    std::vector<std::vector<sc_core::sc_time>> lastScheduledByCommandAndBank;
+    std::vector<std::vector<sc_core::sc_time>> lastScheduledByCommandAndRank;
+    std::vector<sc_core::sc_time> lastScheduledByCommand;
+    sc_core::sc_time lastCommandOnBus;
 
     // Four activate window
-    std::vector<std::queue<sc_time>> last4Activates;
+    std::vector<std::queue<sc_core::sc_time>> last4Activates;
 
-    sc_time tBURST;
-    sc_time tRDWR;
-    sc_time tRDWR_R;
-    sc_time tWRRD;
-    sc_time tWRRD_R;
-    sc_time tRDPRE;
-    sc_time tRDAPRE;
-    sc_time tRDAACT;
-    sc_time tWRPRE;
-    sc_time tWRAPRE;
-    sc_time tWRAACT;
-    sc_time tACTPDEN;
-    sc_time tPRPDEN;
-    sc_time tRDPDEN;
-    sc_time tWRPDEN;
-    sc_time tWRAPDEN;
-    sc_time tREFPDEN;
+    sc_core::sc_time tBURST;
+    sc_core::sc_time tRDWR;
+    sc_core::sc_time tRDWR_R;
+    sc_core::sc_time tWRRD;
+    sc_core::sc_time tWRRD_R;
+    sc_core::sc_time tRDPRE;
+    sc_core::sc_time tRDAPRE;
+    sc_core::sc_time tRDAACT;
+    sc_core::sc_time tWRPRE;
+    sc_core::sc_time tWRAPRE;
+    sc_core::sc_time tWRAACT;
+    sc_core::sc_time tACTPDEN;
+    sc_core::sc_time tPRPDEN;
+    sc_core::sc_time tRDPDEN;
+    sc_core::sc_time tWRPDEN;
+    sc_core::sc_time tWRAPDEN;
+    sc_core::sc_time tREFPDEN;
 };
 
 #endif // CHECKERLPDDR4_H

@@ -34,6 +34,8 @@
 
 #include "BufferCounterReadWrite.h"
 
+using namespace tlm;
+
 BufferCounterReadWrite::BufferCounterReadWrite(unsigned requestBufferSize)
     : requestBufferSize(requestBufferSize)
 {
@@ -45,17 +47,17 @@ bool BufferCounterReadWrite::hasBufferSpace() const
     return (numReadWriteRequests[0] < requestBufferSize && numReadWriteRequests[1] < requestBufferSize);
 }
 
-void BufferCounterReadWrite::storeRequest(tlm::tlm_generic_payload *payload)
+void BufferCounterReadWrite::storeRequest(const tlm_generic_payload& trans)
 {
-    if (payload->is_read())
+    if (trans.is_read())
         numReadWriteRequests[0]++;
     else
         numReadWriteRequests[1]++;
 }
 
-void BufferCounterReadWrite::removeRequest(tlm::tlm_generic_payload *payload)
+void BufferCounterReadWrite::removeRequest(const tlm_generic_payload& trans)
 {
-    if (payload->is_read())
+    if (trans.is_read())
         numReadWriteRequests[0]--;
     else
         numReadWriteRequests[1]--;
@@ -64,4 +66,14 @@ void BufferCounterReadWrite::removeRequest(tlm::tlm_generic_payload *payload)
 const std::vector<unsigned> &BufferCounterReadWrite::getBufferDepth() const
 {
     return numReadWriteRequests;
+}
+
+unsigned BufferCounterReadWrite::getNumReadRequests() const
+{
+    return numReadWriteRequests[0];
+}
+
+unsigned BufferCounterReadWrite::getNumWriteRequests() const
+{
+    return numReadWriteRequests[1];
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Technische Universität Kaiserslautern
+ * Copyright (c) 2021, Technische Universität Kaiserslautern
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,47 +30,29 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Janik Schlemminger
- *    Robert Gernhardt
- *    Matthias Jung
+ *    Lukas Steiner
  */
 
-#include "TraceGenerator.h"
+#include <iostream>
 
-TraceGenerator::TraceGenerator(sc_module_name name,
-        unsigned int fCKMhz, TraceSetup *setup)
-    : TracePlayer(name, setup), transCounter(0)
+#include "../../common/utils.h"
+#include "MemSpecLPDDR5.h"
+
+using namespace sc_core;
+using namespace tlm;
+
+MemSpecLPDDR5::MemSpecLPDDR5(const DRAMSysConfiguration::MemSpec &memSpec)
+    : MemSpec(memSpec, MemoryType::LPDDR5, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 {
-    if (fCKMhz == 0)
-        tCK = Configuration::getInstance().memSpec->tCK;
-    else
-        tCK = sc_time(1.0 / fCKMhz, SC_US);
-
-    burstlenght = Configuration::getInstance().memSpec->burstLength;
+    SC_REPORT_FATAL("MemSpecLPDDR5", "LPDDR5 model not included!");
 }
 
-void TraceGenerator::nextPayload()
+sc_time MemSpecLPDDR5::getExecutionTime(Command command, const tlm_generic_payload &) const
 {
-    if (transCounter >= 1000) // TODO set limit!
-        terminate();
+    return SC_ZERO_TIME;
+}
 
-    tlm::tlm_generic_payload *payload = setup->allocatePayload();
-    payload->acquire();
-    unsigned char *dataElement = new unsigned char[16];
-    // TODO: column / burst breite
-
-    payload->set_address(0x0);
-    payload->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
-    payload->set_dmi_allowed(false);
-    payload->set_byte_enable_length(0);
-    payload->set_streaming_width(burstlenght);
-    payload->set_data_ptr(dataElement);
-    payload->set_data_length(16);
-    payload->set_command(tlm::TLM_READ_COMMAND);
-    transCounter++;
-
-    // TODO: do not send two requests in the same cycle
-    sendToTarget(*payload, tlm::BEGIN_REQ, SC_ZERO_TIME);
-    transactionsSent++;
-    PRINTDEBUGMESSAGE(name(), "Performing request #" + std::to_string(transactionsSent));
+TimeInterval MemSpecLPDDR5::getIntervalOnDataStrobe(Command command, const tlm_generic_payload &) const
+{
+    return TimeInterval();
 }

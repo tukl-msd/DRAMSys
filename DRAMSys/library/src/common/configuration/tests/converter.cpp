@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Technische Universität Kaiserslautern
+ * Copyright (c) 2021, Technische Universität Kaiserslautern
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,28 +30,29 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Janik Schlemminger
- *    Robert Gernhardt
- *    Matthias Jung
+ *    Derek Christ
  */
 
-#ifndef TRACEGENERATOR_H
-#define TRACEGENERATOR_H
+#include <nlohmann/json.hpp>
+#include <fstream>
+#include <iostream>
+#include <Configuration.h>
 
-#include "TracePlayer.h"
-#include "TraceSetup.h"
-
-class TraceGenerator : public TracePlayer
+int main(int argc, char **argv)
 {
-public:
-    TraceGenerator(sc_module_name name, unsigned int fCKMhz, TraceSetup *setup);
-    virtual void nextPayload() override;
+    if (argc != 2)
+    {
+        std::cerr << "Must specify a simulation json as single argument.\n";
+        return -1;
+    }
 
-private:
-    unsigned int burstlenght;
-    sc_time tCK;
-    unsigned int transCounter;
-};
+    std::string pathToJson = argv[1];
+    auto configuration = DRAMSysConfiguration::from_path(pathToJson);
+    nlohmann::json json;
+    json["simulation"] = configuration;
 
-#endif // TRACEGENERATOR_H
+    std::ofstream output(pathToJson + "_converted.json");
+    output << json.dump(4);
 
+    return 0;
+}

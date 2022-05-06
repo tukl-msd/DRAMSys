@@ -8,7 +8,7 @@
             "nbrOfRanks": 1,
             "nbrOfRows": 8192,
             "width": 16,
-       	    "nbrOfDevicesOnDIMM": 4,
+       	    "nbrOfDevices": 4,
             "nbrOfChannels": 1
         },
         "memoryId": "MICRON_1Gb_DDR2-1066_16bit_H",

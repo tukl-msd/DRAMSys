@@ -8,7 +8,7 @@
             "nbrOfRanks": 1,
             "nbrOfRows": 32768,
             "width": 8,
-       	    "nbrOfDevicesOnDIMM": 8,
+       	    "nbrOfDevices": 8,
             "nbrOfChannels": 1
         },
         "memoryId": "MICRON_2Gb_DDR3-1066_8bit_D_mu",

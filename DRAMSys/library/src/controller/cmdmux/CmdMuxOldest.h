@@ -41,22 +41,22 @@
 class CmdMuxOldest : public CmdMuxIF
 {
 public:
-    CmdMuxOldest();
-    virtual CommandTuple::Type selectCommand(const ReadyCommands &) override;
+    explicit CmdMuxOldest(const Configuration& config);
+    CommandTuple::Type selectCommand(const ReadyCommands &) override;
 
 private:
-    const MemSpec *memSpec;
+    const MemSpec& memSpec;
 };
 
 
 class CmdMuxOldestRasCas : public CmdMuxIF
 {
 public:
-    CmdMuxOldestRasCas();
-    virtual CommandTuple::Type selectCommand(const ReadyCommands &) override;
+    explicit CmdMuxOldestRasCas(const Configuration& config);
+    CommandTuple::Type selectCommand(const ReadyCommands &) override;
 
 private:
-    const MemSpec *memSpec;
+    const MemSpec& memSpec;
     ReadyCommands readyRasCommands;
     ReadyCommands readyCasCommands;
     ReadyCommands readyRasCasCommands;

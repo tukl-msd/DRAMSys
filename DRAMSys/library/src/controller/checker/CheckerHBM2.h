@@ -35,44 +35,45 @@
 #ifndef CHECKERHBM2_H
 #define CHECKERHBM2_H
 
-#include "CheckerIF.h"
 #include <queue>
 #include <vector>
+
+#include "CheckerIF.h"
 #include "../../configuration/memspec/MemSpecHBM2.h"
 #include "../../configuration/Configuration.h"
 
 class CheckerHBM2 final : public CheckerIF
 {
 public:
-    CheckerHBM2();
-    virtual sc_time timeToSatisfyConstraints(Command, Rank, BankGroup, Bank) const override;
-    virtual void insert(Command, Rank, BankGroup, Bank) override;
+    explicit CheckerHBM2(const Configuration& config);
+    sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const override;
+    void insert(Command command, const tlm::tlm_generic_payload& payload) override;
 
 private:
     const MemSpecHBM2 *memSpec;
 
-    std::vector<std::vector<sc_time>> lastScheduledByCommandAndBank;
-    std::vector<std::vector<sc_time>> lastScheduledByCommandAndBankGroup;
-    std::vector<std::vector<sc_time>> lastScheduledByCommandAndRank;
-    std::vector<sc_time> lastScheduledByCommand;
+    std::vector<std::vector<sc_core::sc_time>> lastScheduledByCommandAndBank;
+    std::vector<std::vector<sc_core::sc_time>> lastScheduledByCommandAndBankGroup;
+    std::vector<std::vector<sc_core::sc_time>> lastScheduledByCommandAndRank;
+    std::vector<sc_core::sc_time> lastScheduledByCommand;
 
-    sc_time lastCommandOnRasBus;
-    sc_time lastCommandOnCasBus;
+    sc_core::sc_time lastCommandOnRasBus;
+    sc_core::sc_time lastCommandOnCasBus;
 
     // Four activate window
-    std::vector<std::queue<sc_time>> last4Activates;
+    std::vector<std::queue<sc_core::sc_time>> last4Activates;
     std::vector<unsigned> bankwiseRefreshCounter;
 
-    sc_time tBURST;
-    sc_time tRDPDE;
-    sc_time tRDSRE;
-    sc_time tWRPRE;
-    sc_time tWRPDE;
-    sc_time tWRAPDE;
-    sc_time tRTWR;
-    sc_time tWRRDS;
-    sc_time tWRRDL;
-    sc_time tWRRDR;
+    sc_core::sc_time tBURST;
+    sc_core::sc_time tRDPDE;
+    sc_core::sc_time tRDSRE;
+    sc_core::sc_time tWRPRE;
+    sc_core::sc_time tWRPDE;
+    sc_core::sc_time tWRAPDE;
+    sc_core::sc_time tRTWR;
+    sc_core::sc_time tWRRDS;
+    sc_core::sc_time tWRRDL;
+    sc_core::sc_time tWRRDR;
 };
 
 #endif // CHECKERHBM2_H

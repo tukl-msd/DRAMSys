@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, Technische Universität Kaiserslautern
+ * Copyright (c) 2021, Technische Universität Kaiserslautern
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,51 +30,41 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Robert Gernhardt
- *    Matthias Jung
- *    Éder F. Zulian
- *    Felipe S. Prado
+ *    Derek Christ
  */
 
-#ifndef TRACEPLAYER_H
-#define TRACEPLAYER_H
+#ifndef DRAMSYSCONFIGURATION_MEMSPEC_H
+#define DRAMSYSCONFIGURATION_MEMSPEC_H
 
-#include <deque>
-#include <tlm.h>
-#include <systemc.h>
-#include <tlm_utils/simple_initiator_socket.h>
-#include <tlm_utils/peq_with_cb_and_phase.h>
-#include <iostream>
-#include <string>
-#include "configuration/Configuration.h"
-#include "common/DebugManager.h"
-#include "TraceSetup.h"
+#include "MemArchitectureSpec.h"
+#include "MemPowerSpec.h"
+#include "MemTimingSpec.h"
+#include "util.h"
 
-class TracePlayer : public sc_module
+#include <nlohmann/json.hpp>
+#include <optional>
+
+namespace DRAMSysConfiguration
 {
-public:
-    tlm_utils::simple_initiator_socket<TracePlayer> iSocket;
-    TracePlayer(sc_module_name name, TraceSetup *setup);
-    SC_HAS_PROCESS(TracePlayer);
-    virtual void nextPayload() = 0;
-    uint64_t getNumberOfLines(std::string pathToTrace);
+using json = nlohmann::json;
 
-protected:
-    tlm_utils::peq_with_cb_and_phase<TracePlayer> payloadEventQueue;
-    void terminate();
-    bool storageEnabled = false;
-    TraceSetup *setup;
-    void sendToTarget(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase,
-                      const sc_time &delay);
-    uint64_t numberOfTransactions = 0;
-    uint64_t transactionsSent = 0;
-    bool finished = false;
+const std::string memSpecPath = "configs/memspecs";
 
-private:
-    tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload &payload, tlm::tlm_phase &phase,
-                                  sc_time &bwDelay);
-    void peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase);
-    uint64_t transactionsReceived = 0;
+struct MemSpec
+{
+    MemArchitectureSpec memArchitectureSpec;
+    std::string memoryId;
+    std::string memoryType;
+    MemTimingSpec memTimingSpec;
+    std::optional<MemPowerSpec> memPowerSpec;
 };
 
-#endif // TRACEPLAYER_H
+void to_json(json &j, const MemSpec &c);
+void from_json(const json &j, MemSpec &c);
+
+void from_dump(const std::string &dump, MemSpec &c);
+std::string dump(const MemSpec &c, unsigned int indentation = -1);
+
+} // namespace Configuration
+
+#endif // DRAMSYSCONFIGURATION_MEMSPEC_H

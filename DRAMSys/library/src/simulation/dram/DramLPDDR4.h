@@ -36,15 +36,17 @@
 #ifndef DRAMLPDDR4_H
 #define DRAMLPDDR4_H
 
-#include <systemc.h>
+#include <systemc>
+
 #include "Dram.h"
+#include "../TemperatureController.h"
 
 class DramLPDDR4 : public Dram
 {
 public:
-    DramLPDDR4(sc_module_name);
+    DramLPDDR4(const sc_core::sc_module_name& name, const Configuration& config,
+               TemperatureController& temperatureController);
     SC_HAS_PROCESS(DramLPDDR4);
-    virtual ~DramLPDDR4() {}
 };
 
 #endif // DRAMLPDDR4_H

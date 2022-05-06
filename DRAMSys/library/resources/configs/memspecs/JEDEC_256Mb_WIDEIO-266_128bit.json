@@ -8,6 +8,7 @@
             "nbrOfRanks": 1,
             "nbrOfRows": 4096,
             "width": 128,
+            "nbrOfDevices": 1,
             "nbrOfChannels": 4
         },
         "memoryId": "JEDEC_256Mb_WIDEIO_SDR-266_128bit",

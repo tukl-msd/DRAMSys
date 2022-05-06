@@ -31,64 +31,91 @@
  *
  * Authors:
  *    Lukas Steiner
+ *    Derek Christ
  */
 
+#include <iostream>
+
+#include "../../common/utils.h"
 #include "MemSpecDDR3.h"
 
+using namespace sc_core;
 using namespace tlm;
-using json = nlohmann::json;
 
-MemSpecDDR3::MemSpecDDR3(json &memspec)
-    : MemSpec(memspec, MemoryType::DDR3,
-      parseUint(memspec["memarchitecturespec"]["nbrOfChannels"],"nbrOfChannels"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks"),
+MemSpecDDR3::MemSpecDDR3(const DRAMSysConfiguration::MemSpec &memSpec)
+    : MemSpec(memSpec, MemoryType::DDR3,
+      memSpec.memArchitectureSpec.entries.at("nbrOfChannels"),
       1,
-      parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks")
-          * parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfDevicesOnDIMM"],"nbrOfDevicesOnDIMM")),
-      tCKE     (tCK * parseUint(memspec["memtimingspec"]["CKE"], "CKE")),
+      memSpec.memArchitectureSpec.entries.at("nbrOfRanks"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfBanks"),
+      1,
+      memSpec.memArchitectureSpec.entries.at("nbrOfBanks"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfBanks")
+          * memSpec.memArchitectureSpec.entries.at("nbrOfRanks"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfRanks"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfDevices")),
+      tCKE     (tCK * memSpec.memTimingSpec.entries.at("CKE")),
       tPD      (tCKE),
-      tCKESR   (tCK * parseUint(memspec["memtimingspec"]["CKESR"], "CKESR")),
-      tDQSCK   (tCK * parseUint(memspec["memtimingspec"]["DQSCK"], "DQSCK")),
-      tRAS     (tCK * parseUint(memspec["memtimingspec"]["RAS"], "RAS")),
-      tRC      (tCK * parseUint(memspec["memtimingspec"]["RC"], "RC")),
-      tRCD     (tCK * parseUint(memspec["memtimingspec"]["RCD"], "RCD")),
-      tRL      (tCK * parseUint(memspec["memtimingspec"]["RL"], "RL")),
-      tRTP     (tCK * parseUint(memspec["memtimingspec"]["RTP"], "RTP")),
-      tWL      (tCK * parseUint(memspec["memtimingspec"]["WL"], "WL")),
-      tWR      (tCK * parseUint(memspec["memtimingspec"]["WR"], "WR")),
-      tXP      (tCK * parseUint(memspec["memtimingspec"]["XP"], "XP")),
-      tXS      (tCK * parseUint(memspec["memtimingspec"]["XS"], "XS")),
-      tCCD     (tCK * parseUint(memspec["memtimingspec"]["CCD"], "CCD")),
-      tFAW     (tCK * parseUint(memspec["memtimingspec"]["FAW"], "FAW")),
-      tREFI    (tCK * parseUint(memspec["memtimingspec"]["REFI"], "REFI")),
-      tRFC     (tCK * parseUint(memspec["memtimingspec"]["RFC"], "RFC")),
-      tRP      (tCK * parseUint(memspec["memtimingspec"]["RP"], "RP")),
-      tRRD     (tCK * parseUint(memspec["memtimingspec"]["RRD"], "RRD")),
-      tWTR     (tCK * parseUint(memspec["memtimingspec"]["WTR"], "WTR")),
-      tAL      (tCK * parseUint(memspec["memtimingspec"]["AL"], "AL")),
-      tXPDLL   (tCK * parseUint(memspec["memtimingspec"]["XPDLL"], "XPDLL")),
-      tXSDLL   (tCK * parseUint(memspec["memtimingspec"]["XSDLL"], "XSDLL")),
-      tACTPDEN (tCK * parseUint(memspec["memtimingspec"]["ACTPDEN"], "ACTPDEN")),
-      tPRPDEN  (tCK * parseUint(memspec["memtimingspec"]["PRPDEN"], "PRPDEN")),
-      tREFPDEN (tCK * parseUint(memspec["memtimingspec"]["REFPDEN"], "REFPDEN")),
-      tRTRS    (tCK * parseUint(memspec["memtimingspec"]["RTRS"], "RTRS")),
-      iDD0     (parseUdouble(memspec["mempowerspec"]["idd0"], "idd0")),
-      iDD2N    (parseUdouble(memspec["mempowerspec"]["idd2n"], "idd2n")),
-      iDD3N    (parseUdouble(memspec["mempowerspec"]["idd3n"], "idd3n")),
-      iDD4R    (parseUdouble(memspec["mempowerspec"]["idd4r"], "idd4r")),
-      iDD4W    (parseUdouble(memspec["mempowerspec"]["idd4w"], "idd4w")),
-      iDD5     (parseUdouble(memspec["mempowerspec"]["idd5"], "idd5")),
-      iDD6     (parseUdouble(memspec["mempowerspec"]["idd6"], "idd6")),
-      vDD      (parseUdouble(memspec["mempowerspec"]["vdd"], "vdd")),
-      iDD2P0   (parseUdouble(memspec["mempowerspec"]["idd2p0"], "idd2p0")),
-      iDD2P1   (parseUdouble(memspec["mempowerspec"]["idd2p1"], "idd2p1")),
-      iDD3P0   (parseUdouble(memspec["mempowerspec"]["idd3p0"], "idd3p0")),
-      iDD3P1   (parseUdouble(memspec["mempowerspec"]["idd3p1"], "idd3p1"))
-{}
+      tCKESR   (tCK * memSpec.memTimingSpec.entries.at("CKESR")),
+      tDQSCK   (tCK * memSpec.memTimingSpec.entries.at("DQSCK")),
+      tRAS     (tCK * memSpec.memTimingSpec.entries.at("RAS")),
+      tRC      (tCK * memSpec.memTimingSpec.entries.at("RC")),
+      tRCD     (tCK * memSpec.memTimingSpec.entries.at("RCD")),
+      tRL      (tCK * memSpec.memTimingSpec.entries.at("RL")),
+      tRTP     (tCK * memSpec.memTimingSpec.entries.at("RTP")),
+      tWL      (tCK * memSpec.memTimingSpec.entries.at("WL")),
+      tWR      (tCK * memSpec.memTimingSpec.entries.at("WR")),
+      tXP      (tCK * memSpec.memTimingSpec.entries.at("XP")),
+      tXS      (tCK * memSpec.memTimingSpec.entries.at("XS")),
+      tCCD     (tCK * memSpec.memTimingSpec.entries.at("CCD")),
+      tFAW     (tCK * memSpec.memTimingSpec.entries.at("FAW")),
+      tREFI    (tCK * memSpec.memTimingSpec.entries.at("REFI")),
+      tRFC     (tCK * memSpec.memTimingSpec.entries.at("RFC")),
+      tRP      (tCK * memSpec.memTimingSpec.entries.at("RP")),
+      tRRD     (tCK * memSpec.memTimingSpec.entries.at("RRD")),
+      tWTR     (tCK * memSpec.memTimingSpec.entries.at("WTR")),
+      tAL      (tCK * memSpec.memTimingSpec.entries.at("AL")),
+      tXPDLL   (tCK * memSpec.memTimingSpec.entries.at("XPDLL")),
+      tXSDLL   (tCK * memSpec.memTimingSpec.entries.at("XSDLL")),
+      tACTPDEN (tCK * memSpec.memTimingSpec.entries.at("ACTPDEN")),
+      tPRPDEN  (tCK * memSpec.memTimingSpec.entries.at("PRPDEN")),
+      tREFPDEN (tCK * memSpec.memTimingSpec.entries.at("REFPDEN")),
+      tRTRS    (tCK * memSpec.memTimingSpec.entries.at("RTRS")),
+      iDD0     (memSpec.memPowerSpec.has_value() ? memSpec.memPowerSpec.value().entries.at("idd0") : 0),
+      iDD2N    (memSpec.memPowerSpec.has_value() ? memSpec.memPowerSpec.value().entries.at("idd2n") : 0),
+      iDD3N    (memSpec.memPowerSpec.has_value() ? memSpec.memPowerSpec.value().entries.at("idd3n") : 0),
+      iDD4R    (memSpec.memPowerSpec.has_value() ? memSpec.memPowerSpec.value().entries.at("idd4r") : 0),
+      iDD4W    (memSpec.memPowerSpec.has_value() ? memSpec.memPowerSpec.value().entries.at("idd4w") : 0),
+      iDD5     (memSpec.memPowerSpec.has_value() ? memSpec.memPowerSpec.value().entries.at("idd5") : 0),
+      iDD6     (memSpec.memPowerSpec.has_value() ? memSpec.memPowerSpec.value().entries.at("idd6") : 0),
+      vDD      (memSpec.memPowerSpec.has_value() ? memSpec.memPowerSpec.value().entries.at("vdd") : 0),
+      iDD2P0   (memSpec.memPowerSpec.has_value() ? memSpec.memPowerSpec.value().entries.at("idd2p0") : 0),
+      iDD2P1   (memSpec.memPowerSpec.has_value() ? memSpec.memPowerSpec.value().entries.at("idd2p1") : 0),
+      iDD3P0   (memSpec.memPowerSpec.has_value() ? memSpec.memPowerSpec.value().entries.at("idd3p0") : 0),
+      iDD3P1   (memSpec.memPowerSpec.has_value() ? memSpec.memPowerSpec.value().entries.at("idd3p1") : 0)
+{
+    uint64_t deviceSizeBits = static_cast<uint64_t>(banksPerRank) * rowsPerBank * columnsPerRow * bitWidth;
+    uint64_t deviceSizeBytes = deviceSizeBits / 8;
+    memorySizeBytes = deviceSizeBytes * devicesPerRank * ranksPerChannel * numberOfChannels;
+
+    if (!memSpec.memPowerSpec.has_value())
+        SC_REPORT_FATAL("MemSpec", "No power spec defined!");
+
+    std::cout << headline << std::endl;
+    std::cout << "Memory Configuration:" << std::endl << std::endl;
+    std::cout << " Memory type:           " << "DDR3"           << std::endl;
+    std::cout << " Memory size in bytes:  " << memorySizeBytes  << std::endl;
+    std::cout << " Channels:              " << numberOfChannels << std::endl;
+    std::cout << " Ranks per channel:     " << ranksPerChannel << std::endl;
+    std::cout << " Banks per rank:        " << banksPerRank     << std::endl;
+    std::cout << " Rows per bank:         " << rowsPerBank << std::endl;
+    std::cout << " Columns per row:       " << columnsPerRow << std::endl;
+    std::cout << " Device width in bits:  " << bitWidth         << std::endl;
+    std::cout << " Device size in bits:   " << deviceSizeBits   << std::endl;
+    std::cout << " Device size in bytes:  " << deviceSizeBytes  << std::endl;
+    std::cout << " Devices per rank:      " << devicesPerRank << std::endl;
+    std::cout << std::endl;
+}
 
 sc_time MemSpecDDR3::getRefreshIntervalAB() const
 {
@@ -98,7 +125,7 @@ sc_time MemSpecDDR3::getRefreshIntervalAB() const
 // Returns the execution time for commands that have a fixed execution time
 sc_time MemSpecDDR3::getExecutionTime(Command command, const tlm_generic_payload &) const
 {
-    if (command == Command::PRE || command == Command::PREA)
+    if (command == Command::PREPB || command == Command::PREAB)
         return tRP;
     else if (command == Command::ACT)
         return tRCD;
@@ -110,7 +137,7 @@ sc_time MemSpecDDR3::getExecutionTime(Command command, const tlm_generic_payload
         return tWL + burstDuration;
     else if (command == Command::WRA)
         return tWL + burstDuration + tWR + tRP;
-    else if (command == Command::REFA)
+    else if (command == Command::REFAB)
         return tRFC;
     else
     {
@@ -120,39 +147,15 @@ sc_time MemSpecDDR3::getExecutionTime(Command command, const tlm_generic_payload
     }
 }
 
-TimeInterval MemSpecDDR3::getIntervalOnDataStrobe(Command command) const
+TimeInterval MemSpecDDR3::getIntervalOnDataStrobe(Command command, const tlm_generic_payload &) const
 {
     if (command == Command::RD || command == Command::RDA)
-        return TimeInterval(tRL, tRL + burstDuration);
+        return {tRL, tRL + burstDuration};
     else if (command == Command::WR || command == Command::WRA)
-        return TimeInterval(tWL, tWL + burstDuration);
+        return {tWL, tWL + burstDuration};
     else
     {
         SC_REPORT_FATAL("MemSpec", "Method was called with invalid argument");
-        return TimeInterval();
+        return {};
     }
-}
-
-uint64_t MemSpecDDR3::getSimMemSizeInBytes() const
-{
-    uint64_t deviceSizeBits = static_cast<uint64_t>(banksPerRank) * numberOfRows * numberOfColumns * bitWidth;
-    uint64_t deviceSizeBytes = deviceSizeBits / 8;
-    uint64_t memorySizeBytes = deviceSizeBytes * numberOfDevicesOnDIMM * numberOfRanks;
-
-    std::cout << headline << std::endl;
-    std::cout << "Per Channel Configuration:" << std::endl << std::endl;
-    std::cout << " Memory type:           " << "DDR3"                << std::endl;
-    std::cout << " Memory size in bytes:  " << memorySizeBytes       << std::endl;
-    std::cout << " Ranks:                 " << numberOfRanks         << std::endl;
-    std::cout << " Banks per rank:        " << banksPerRank          << std::endl;
-    std::cout << " Rows per bank:         " << numberOfRows          << std::endl;
-    std::cout << " Columns per row:       " << numberOfColumns       << std::endl;
-    std::cout << " Device width in bits:  " << bitWidth              << std::endl;
-    std::cout << " Device size in bits:   " << deviceSizeBits        << std::endl;
-    std::cout << " Device size in bytes:  " << deviceSizeBytes       << std::endl;
-    std::cout << " Devices on DIMM:       " << numberOfDevicesOnDIMM << std::endl;
-    std::cout << std::endl;
-
-    assert(memorySizeBytes > 0);
-    return memorySizeBytes;
 }

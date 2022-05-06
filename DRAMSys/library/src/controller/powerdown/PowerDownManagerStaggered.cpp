@@ -33,12 +33,15 @@
  */
 
 #include "PowerDownManagerStaggered.h"
+#include "../BankMachine.h"
 #include "../../common/utils.h"
 
+using namespace sc_core;
 using namespace tlm;
 
-PowerDownManagerStaggered::PowerDownManagerStaggered(Rank rank, CheckerIF *checker)
-    : rank(rank), checker(checker)
+PowerDownManagerStaggered::PowerDownManagerStaggered(std::vector<BankMachine*>& bankMachinesOnRank,
+        Rank rank, CheckerIF& checker)
+    : bankMachinesOnRank(bankMachinesOnRank), checker(checker)
 {
     setUpDummy(powerDownPayload, UINT64_MAX - 1, rank);
 }
@@ -71,7 +74,7 @@ void PowerDownManagerStaggered::triggerInterruption()
 
 CommandTuple::Type PowerDownManagerStaggered::getNextCommand()
 {
-    return CommandTuple::Type(nextCommand, &powerDownPayload, std::max(timeToSchedule, sc_time_stamp()));
+    return {nextCommand, &powerDownPayload, std::max(timeToSchedule, sc_time_stamp())};
 }
 
 sc_time PowerDownManagerStaggered::start()
@@ -88,23 +91,28 @@ sc_time PowerDownManagerStaggered::start()
         else if (state == State::SelfRefresh)
             nextCommand = Command::SREFEX;
         else if (state == State::ExtraRefresh)
-            nextCommand = Command::REFA;
+            nextCommand = Command::REFAB;
 
-        timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank, BankGroup(0), Bank(0));
+        timeToSchedule = checker.timeToSatisfyConstraints(nextCommand, powerDownPayload);
     }
     else if (entryTriggered)
     {
-        if (activatedBanks != 0)
-            nextCommand = Command::PDEA;
-        else
-            nextCommand = Command::PDEP;
+        nextCommand = Command::PDEP;
+        for (auto it : bankMachinesOnRank)
+        {
+            if (it->isActivated())
+            {
+                nextCommand = Command::PDEA;
+                break;
+            }
+        }
 
-        timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank, BankGroup(0), Bank(0));
+        timeToSchedule = checker.timeToSatisfyConstraints(nextCommand, powerDownPayload);
     }
     else if (enterSelfRefresh)
     {
         nextCommand = Command::SREFEN;
-        timeToSchedule = checker->timeToSatisfyConstraints(nextCommand, rank, BankGroup(0), Bank(0));
+        timeToSchedule = checker.timeToSatisfyConstraints(nextCommand, powerDownPayload);
     }
 
     return timeToSchedule;
@@ -114,55 +122,46 @@ void PowerDownManagerStaggered::updateState(Command command)
 {
     switch (command)
     {
-    case Command::ACT:
-        activatedBanks++;
-        break;
-    case Command::PRE:
-        activatedBanks--;
-        break;
-    case Command::PREA:
-        activatedBanks = 0;
-        break;
-    case Command::PDEA:
-        state = State::ActivePdn;
-        entryTriggered = false;
-        break;
-    case Command::PDEP:
-        state = State::PrechargePdn;
-        entryTriggered = false;
-        break;
-    case Command::SREFEN:
-        state = State::SelfRefresh;
-        entryTriggered = false;
-        enterSelfRefresh = false;
-        break;
-    case Command::PDXA:
-        state = State::Idle;
-        exitTriggered = false;
-        break;
-    case Command::PDXP:
-        state = State::Idle;
-        exitTriggered = false;
-        if (controllerIdle)
-            enterSelfRefresh = true;
-        break;
-    case Command::SREFEX:
-        state = State::ExtraRefresh;
-        break;
-    case Command::REFA:
-        if (state == State::ExtraRefresh)
-        {
+        case Command::PDEA:
+            state = State::ActivePdn;
+            entryTriggered = false;
+            break;
+        case Command::PDEP:
+            state = State::PrechargePdn;
+            entryTriggered = false;
+            break;
+        case Command::SREFEN:
+            state = State::SelfRefresh;
+            entryTriggered = false;
+            enterSelfRefresh = false;
+            break;
+        case Command::PDXA:
             state = State::Idle;
             exitTriggered = false;
-        }
-        else if (controllerIdle)
-            entryTriggered = true;
-        break;
-    case Command::REFB:
-        if (controllerIdle)
-            entryTriggered = true;
-        break;
-    default:
-        break;
+            break;
+        case Command::PDXP:
+            state = State::Idle;
+            exitTriggered = false;
+            if (controllerIdle)
+                enterSelfRefresh = true;
+            break;
+        case Command::SREFEX:
+            state = State::ExtraRefresh;
+            break;
+        case Command::REFAB:
+            if (state == State::ExtraRefresh)
+            {
+                state = State::Idle;
+                exitTriggered = false;
+            }
+            else if (controllerIdle)
+                entryTriggered = true;
+            break;
+        case Command::REFPB: case Command::REFP2B: case Command::REFSB:
+            if (controllerIdle)
+                entryTriggered = true;
+            break;
+        default:
+            break;
     }
 }

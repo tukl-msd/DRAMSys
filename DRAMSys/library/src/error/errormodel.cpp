@@ -43,21 +43,32 @@
 #include <chrono>
 #include <bitset>
 #include <cmath>
+#include <sstream>
+#include <fstream>
 
-void errorModel::init()
+using namespace sc_core;
+
+errorModel::errorModel(const sc_module_name& name, const Configuration& config,
+                       TemperatureController& temperatureController, libDRAMPower *dramPower)
+        : sc_module(name), memSpec(*config.memSpec), temperatureController(temperatureController)
 {
-    powerAnalysis = Configuration::getInstance().powerAnalysis;
-    thermalSim = Configuration::getInstance().thermalSimulation;
+    this->DRAMPower = dramPower;
+    init(config);
+}
+
+void errorModel::init(const Configuration& config)
+{
+    powerAnalysis = config.powerAnalysis;
+    thermalSim = config.thermalSimulation;
     // Get Configuration parameters:
-    burstLenght = Configuration::getInstance().memSpec->burstLength;
-    numberOfColumns = Configuration::getInstance().memSpec->numberOfColumns;
-    bytesPerColumn = std::log2(Configuration::getInstance().memSpec->dataBusWidth);
+    burstLenght = config.memSpec->defaultBurstLength;
+    numberOfColumns = config.memSpec->columnsPerRow;
+    bytesPerColumn = std::log2(config.memSpec->dataBusWidth);
 
     // Adjust number of bytes per column dynamically to the selected ecc controller
-    bytesPerColumn = Configuration::getInstance().adjustNumBytesAfterECC(
-                         bytesPerColumn);
+    //TODO: bytesPerColumn = Configuration::getInstance().adjustNumBytesAfterECC(bytesPerColumn);
 
-    numberOfRows = Configuration::getInstance().memSpec->numberOfRows;
+    numberOfRows = config.memSpec->rowsPerBank;
     numberOfBitErrorEvents = 0;
 
 
@@ -70,7 +81,7 @@ void errorModel::init()
     contextStr = "";
 
     // Parse data input:
-    parseInputData();
+    parseInputData(config);
     prepareWeakCells();
 
     // Initialize context variables:
@@ -112,17 +123,6 @@ void errorModel::init()
     //weakCells[0].dependent = true;
 
     markBitFlips();
-}
-
-errorModel::errorModel(sc_module_name name, libDRAMPower *dp) : sc_module(name)
-{
-    this->DRAMPower = dp;
-    init();
-}
-
-errorModel::errorModel(sc_module_name name) : sc_module(name)
-{
-    init();
 }
 
 errorModel::~errorModel()
@@ -213,7 +213,7 @@ void errorModel::store(tlm::tlm_generic_payload &trans)
 
         // Check that there is no column overfow:
         std::stringstream msg;
-        msg << "key.column is " << key.column << " numberOfColumns is " <<
+        msg << "key.column is " << key.column << " columnsPerRow is " <<
             numberOfColumns;
         PRINTDEBUGMESSAGE(name(), msg.str());
         assert(key.column <= numberOfColumns);
@@ -259,7 +259,7 @@ void errorModel::markBitFlips()
 {
     double temp = getTemperature();
     for (unsigned int row = 0;
-            row < Configuration::getInstance().memSpec->numberOfRows; row++) {
+            row < memSpec.rowsPerBank; row++) {
         // If the row has never been accessed ignore it and go to the next one
         if (lastRowAccess[row] != SC_ZERO_TIME) {
             // Get the time interval between now and the last acivate/refresh
@@ -272,7 +272,7 @@ void errorModel::markBitFlips()
             // and temperature, if yes mark it as flipped:
             for (unsigned int i = 0; i < n; i++) {
                 // Check if Bit has marked as flipped yet, if yes mark it as flipped
-                if (weakCells[i].flipped == false && weakCells[i].row == row) {
+                if (!weakCells[i].flipped && weakCells[i].row == row) {
                     std::stringstream msg;
                     msg << "Maked weakCell[" << i << "] as flipped" << std::endl;
                     PRINTDEBUGMESSAGE(name(), msg.str());
@@ -499,28 +499,27 @@ double errorModel::getTemperature()
     // requesting the temperature.
     double temperature = 89;
 
-    if (this->myChannel != -1) {
-        if (thermalSim == true && powerAnalysis == true) {
+    if (this->myChannel != -1)
+    {
+        if (thermalSim && powerAnalysis)
+        {
             // TODO
             // check if this is best way to request information to DRAMPower.
-            unsigned long long clk_cycles = sc_time_stamp() /
-                                            Configuration::getInstance().memSpec->tCK;
+            unsigned long long clk_cycles = sc_time_stamp() / memSpec.tCK;
             DRAMPower->calcWindowEnergy(clk_cycles);
             float average_power = (float)DRAMPower->getPower().average_power;
-            temperature = TemperatureController::getInstance().getTemperature(
-                              this->myChannel, average_power);
+            temperature = temperatureController.getTemperature(this->myChannel, average_power);
         } else {
-            temperature = TemperatureController::getInstance().getTemperature(
-                              this->myChannel, 0);
+            temperature = temperatureController.getTemperature(this->myChannel, 0);
         }
     }
 
     return temperature;
 }
 
-void errorModel::parseInputData()
+void errorModel::parseInputData(const Configuration& config)
 {
-    std::string fileName = Configuration::getInstance().errorCSVFile;
+    std::string fileName = config.errorCSVFile;
     std::ifstream inputFile(fileName);
 
     if (inputFile.is_open()) {
@@ -642,7 +641,7 @@ void errorModel::prepareWeakCells()
             }
         }
         // If a cell was already choosen as weak we have to roll the dice again:
-        if (found == true) {
+        if (found) {
             i--;
         } else {
             weakCells[i].row = row;         // Row in the bank
@@ -660,7 +659,7 @@ void errorModel::prepareWeakCells()
         unsigned int r = (rand() % maxNumberOfWeakCells);
 
         // If the dependent weak cell was choosen before roll the dice again:
-        if (weakCells[r].dependent == true) {
+        if (weakCells[r].dependent) {
             i--;
         } else {
             weakCells[r].dependent = true;

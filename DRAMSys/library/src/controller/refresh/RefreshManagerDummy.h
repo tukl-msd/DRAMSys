@@ -35,18 +35,15 @@
 #ifndef REFRESHMANAGERDUMMY_H
 #define REFRESHMANAGERDUMMY_H
 
-#include <systemc.h>
-#include <tlm.h>
-#include <utility>
+#include <systemc>
 #include "RefreshManagerIF.h"
-#include "../Command.h"
 
 class RefreshManagerDummy final : public RefreshManagerIF
 {
 public:
-    virtual CommandTuple::Type getNextCommand() override;
-    virtual sc_time start() override;
-    virtual void updateState(Command) override {}
+    CommandTuple::Type getNextCommand() override;
+    sc_core::sc_time start() override;
+    void updateState(Command) override {}
 };
 
 #endif // REFRESHMANAGERDUMMY_H

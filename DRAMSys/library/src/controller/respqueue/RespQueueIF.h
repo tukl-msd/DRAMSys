@@ -35,16 +35,16 @@
 #ifndef RESPQUEUEIF_H
 #define RESPQUEUEIF_H
 
-#include <systemc.h>
-#include <tlm.h>
+#include <systemc>
+#include <tlm>
 
 class RespQueueIF
 {
 public:
-    virtual void insertPayload(tlm::tlm_generic_payload *, sc_time) = 0;
+    virtual void insertPayload(tlm::tlm_generic_payload *, sc_core::sc_time) = 0;
     virtual tlm::tlm_generic_payload *nextPayload() = 0;
-    virtual sc_time getTriggerTime() const = 0;
-    virtual ~RespQueueIF() {}
+    virtual sc_core::sc_time getTriggerTime() const = 0;
+    virtual ~RespQueueIF() = default;
 };
 
 #endif // RESPQUEUEIF_H

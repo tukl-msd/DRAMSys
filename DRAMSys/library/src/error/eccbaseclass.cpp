@@ -36,6 +36,7 @@
 
 #include "eccbaseclass.h"
 
+using namespace sc_core;
 using namespace tlm;
 
 tlm::tlm_sync_enum ECCBaseClass::nb_transport_fw( int id,

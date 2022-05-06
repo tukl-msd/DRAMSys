@@ -34,17 +34,19 @@
  */
 
 #include "DramGDDR6.h"
-
-#include "Dram.h"
 #include "../../configuration/Configuration.h"
 #include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 #include "../../configuration/memspec/MemSpecGDDR6.h"
 
-DramGDDR6::DramGDDR6(sc_module_name name) : Dram(name)
+using namespace sc_core;
+
+DramGDDR6::DramGDDR6(const sc_module_name& name, const Configuration& config,
+                     TemperatureController& temperatureController)
+    : Dram(name, config)
 {
     if (storeMode == Configuration::StoreMode::ErrorModel)
         SC_REPORT_FATAL("DramGDDR6", "Error Model not supported for GDDR6");
 
-    if (Configuration::getInstance().powerAnalysis)
+    if (powerAnalysis)
         SC_REPORT_FATAL("DramGDDR6", "DRAMPower does not support GDDR6");
 }

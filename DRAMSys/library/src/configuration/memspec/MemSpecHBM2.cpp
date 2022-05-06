@@ -31,57 +31,81 @@
  *
  * Authors:
  *    Lukas Steiner
+ *    Derek Christ
  */
 
+#include <iostream>
+
+#include "../../common/utils.h"
 #include "MemSpecHBM2.h"
 
+using namespace sc_core;
 using namespace tlm;
-using json = nlohmann::json;
 
-MemSpecHBM2::MemSpecHBM2(json &memspec)
-    : MemSpec(memspec, MemoryType::HBM2,
-      parseUint(memspec["memarchitecturespec"]["nbrOfChannels"],"nbrOfChannels"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfBankGroups"], "nbrOfBankGroups"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks")
-          / parseUint(memspec["memarchitecturespec"]["nbrOfBankGroups"], "nbrOfBankGroups"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks")
-          * parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfBankGroups"], "nbrOfBankGroups")
-          * parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
-      1),
-      tDQSCK  (tCK * parseUint(memspec["memtimingspec"]["DQSCK"], "DQSCK")),
-      tRC     (tCK * parseUint(memspec["memtimingspec"]["RC"], "RC")),
-      tRAS    (tCK * parseUint(memspec["memtimingspec"]["RAS"], "RAS")),
-      tRCDRD  (tCK * parseUint(memspec["memtimingspec"]["RCDRD"], "RCDRD")),
-      tRCDWR  (tCK * parseUint(memspec["memtimingspec"]["RCDWR"], "RCDWR")),
-      tRRDL   (tCK * parseUint(memspec["memtimingspec"]["RRDL"], "RRDL")),
-      tRRDS   (tCK * parseUint(memspec["memtimingspec"]["RRDS"], "RRDS")),
-      tFAW    (tCK * parseUint(memspec["memtimingspec"]["FAW"], "FAW")),
-      tRTP    (tCK * parseUint(memspec["memtimingspec"]["RTP"], "RTP")),
-      tRP     (tCK * parseUint(memspec["memtimingspec"]["RP"], "RP")),
-      tRL     (tCK * parseUint(memspec["memtimingspec"]["RL"], "RL")),
-      tWL     (tCK * parseUint(memspec["memtimingspec"]["WL"], "WL")),
-      tPL     (tCK * parseUint(memspec["memtimingspec"]["PL"], "PL")),
-      tWR     (tCK * parseUint(memspec["memtimingspec"]["WR"], "WR")),
-      tCCDL   (tCK * parseUint(memspec["memtimingspec"]["CCDL"], "CCDL")),
-      tCCDS   (tCK * parseUint(memspec["memtimingspec"]["CCDS"], "CCDS")),
-      tWTRL   (tCK * parseUint(memspec["memtimingspec"]["WTRL"], "WTRL")),
-      tWTRS   (tCK * parseUint(memspec["memtimingspec"]["WTRS"], "WTRS")),
-      tRTW    (tCK * parseUint(memspec["memtimingspec"]["RTW"], "RTW")),
-      tXP     (tCK * parseUint(memspec["memtimingspec"]["XP"], "XP")),
-      tCKE    (tCK * parseUint(memspec["memtimingspec"]["CKE"], "CKE")),
+MemSpecHBM2::MemSpecHBM2(const DRAMSysConfiguration::MemSpec &memSpec)
+    : MemSpec(memSpec, MemoryType::HBM2,
+      memSpec.memArchitectureSpec.entries.at("nbrOfChannels"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfPseudoChannels"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfPseudoChannels"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfBanks"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfBankGroups"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfBanks")
+          / memSpec.memArchitectureSpec.entries.at("nbrOfBankGroups"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfBanks")
+          * memSpec.memArchitectureSpec.entries.at("nbrOfPseudoChannels"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfBankGroups")
+          * memSpec.memArchitectureSpec.entries.at("nbrOfPseudoChannels"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfDevices")),
+      tDQSCK  (tCK * memSpec.memTimingSpec.entries.at("DQSCK")),
+      tRC     (tCK * memSpec.memTimingSpec.entries.at("RC")),
+      tRAS    (tCK * memSpec.memTimingSpec.entries.at("RAS")),
+      tRCDRD  (tCK * memSpec.memTimingSpec.entries.at("RCDRD")),
+      tRCDWR  (tCK * memSpec.memTimingSpec.entries.at("RCDWR")),
+      tRRDL   (tCK * memSpec.memTimingSpec.entries.at("RRDL")),
+      tRRDS   (tCK * memSpec.memTimingSpec.entries.at("RRDS")),
+      tFAW    (tCK * memSpec.memTimingSpec.entries.at("FAW")),
+      tRTP    (tCK * memSpec.memTimingSpec.entries.at("RTP")),
+      tRP     (tCK * memSpec.memTimingSpec.entries.at("RP")),
+      tRL     (tCK * memSpec.memTimingSpec.entries.at("RL")),
+      tWL     (tCK * memSpec.memTimingSpec.entries.at("WL")),
+      tPL     (tCK * memSpec.memTimingSpec.entries.at("PL")),
+      tWR     (tCK * memSpec.memTimingSpec.entries.at("WR")),
+      tCCDL   (tCK * memSpec.memTimingSpec.entries.at("CCDL")),
+      tCCDS   (tCK * memSpec.memTimingSpec.entries.at("CCDS")),
+      tWTRL   (tCK * memSpec.memTimingSpec.entries.at("WTRL")),
+      tWTRS   (tCK * memSpec.memTimingSpec.entries.at("WTRS")),
+      tRTW    (tCK * memSpec.memTimingSpec.entries.at("RTW")),
+      tXP     (tCK * memSpec.memTimingSpec.entries.at("XP")),
+      tCKE    (tCK * memSpec.memTimingSpec.entries.at("CKE")),
       tPD     (tCKE),
       tCKESR  (tCKE + tCK),
-      tXS     (tCK * parseUint(memspec["memtimingspec"]["XS"], "XS")),
-      tRFC    (tCK * parseUint(memspec["memtimingspec"]["RFC"], "RFC")),
-      tRFCSB  (tCK * parseUint(memspec["memtimingspec"]["RFCSB"], "RFCSB")),
-      tRREFD  (tCK * parseUint(memspec["memtimingspec"]["RREFD"], "RREFD")),
-      tREFI   (tCK * parseUint(memspec["memtimingspec"]["REFI"], "REFI")),
-      tREFISB (tCK * parseUint(memspec["memtimingspec"]["REFISB"], "REFISB"))
+      tXS     (tCK * memSpec.memTimingSpec.entries.at("XS")),
+      tRFC    (tCK * memSpec.memTimingSpec.entries.at("RFC")),
+      tRFCSB  (tCK * memSpec.memTimingSpec.entries.at("RFCSB")),
+      tRREFD  (tCK * memSpec.memTimingSpec.entries.at("RREFD")),
+      tREFI   (tCK * memSpec.memTimingSpec.entries.at("REFI")),
+      tREFISB (tCK * memSpec.memTimingSpec.entries.at("REFISB"))
 {
     commandLengthInCycles[Command::ACT] = 2;
+
+    uint64_t deviceSizeBits = static_cast<uint64_t>(banksPerRank) * rowsPerBank * columnsPerRow * bitWidth;
+    uint64_t deviceSizeBytes = deviceSizeBits / 8;
+    memorySizeBytes = deviceSizeBytes * ranksPerChannel * numberOfChannels;
+
+    std::cout << headline << std::endl;
+    std::cout << "Memory Configuration:" << std::endl << std::endl;
+    std::cout << " Memory type:                    " << "HBM2"           << std::endl;
+    std::cout << " Memory size in bytes:           " << memorySizeBytes  << std::endl;
+    std::cout << " Channels:                       " << numberOfChannels << std::endl;
+    std::cout << " Pseudo channels per channel:    " << ranksPerChannel  << std::endl;
+    std::cout << " Bank groups per pseudo channel: " << groupsPerRank    << std::endl;
+    std::cout << " Banks per pseudo channel:       " << banksPerRank     << std::endl;
+    std::cout << " Rows per bank:                  " << rowsPerBank      << std::endl;
+    std::cout << " Columns per row:                " << columnsPerRow    << std::endl;
+    std::cout << " Pseudo channel width in bits:   " << bitWidth         << std::endl;
+    std::cout << " Pseudo channel size in bits:    " << deviceSizeBits   << std::endl;
+    std::cout << " Pseudo channel size in bytes:   " << deviceSizeBytes  << std::endl;
+    std::cout << std::endl;
 }
 
 sc_time MemSpecHBM2::getRefreshIntervalAB() const
@@ -101,7 +125,7 @@ bool MemSpecHBM2::hasRasAndCasBus() const
 
 sc_time MemSpecHBM2::getExecutionTime(Command command, const tlm_generic_payload &payload) const
 {
-    if (command == Command::PRE || command == Command::PREA)
+    if (command == Command::PREPB || command == Command::PREAB)
         return tRP;
     else if (command == Command::ACT)
     {
@@ -118,9 +142,9 @@ sc_time MemSpecHBM2::getExecutionTime(Command command, const tlm_generic_payload
         return tWL + burstDuration;
     else if (command == Command::WRA)
         return tWL + burstDuration + tWR + tRP;
-    else if (command == Command::REFA)
+    else if (command == Command::REFAB)
         return tRFC;
-    else if (command == Command::REFB)
+    else if (command == Command::REFPB)
         return tRFCSB;
     else
     {
@@ -130,39 +154,15 @@ sc_time MemSpecHBM2::getExecutionTime(Command command, const tlm_generic_payload
     }
 }
 
-TimeInterval MemSpecHBM2::getIntervalOnDataStrobe(Command command) const
+TimeInterval MemSpecHBM2::getIntervalOnDataStrobe(Command command, const tlm_generic_payload &) const
 {
     if (command == Command::RD || command == Command::RDA)
-        return TimeInterval(tRL + tDQSCK, tRL + tDQSCK + burstDuration);
+        return {tRL + tDQSCK, tRL + tDQSCK + burstDuration};
     else if (command == Command::WR || command == Command::WRA)
-        return TimeInterval(tWL, tWL + burstDuration);
+        return {tWL, tWL + burstDuration};
     else
     {
         SC_REPORT_FATAL("MemSpecHBM2", "Method was called with invalid argument");
-        return TimeInterval();
+        return {};
     }
-}
-
-uint64_t MemSpecHBM2::getSimMemSizeInBytes() const
-{
-    uint64_t deviceSizeBits = static_cast<uint64_t>(banksPerRank) * numberOfRows * numberOfColumns * bitWidth;
-    uint64_t deviceSizeBytes = deviceSizeBits / 8;
-    uint64_t memorySizeBytes = deviceSizeBytes * numberOfRanks;
-
-    std::cout << headline << std::endl;
-    std::cout << "Per Channel Configuration:" << std::endl << std::endl;
-    std::cout << " Memory type:           " << "HBM2"               << std::endl;
-    std::cout << " Memory size in bytes:  " << memorySizeBytes       << std::endl;
-    std::cout << " Ranks:                 " << numberOfRanks         << std::endl;
-    std::cout << " Bank groups per rank:  " << groupsPerRank         << std::endl;
-    std::cout << " Banks per rank:        " << banksPerRank          << std::endl;
-    std::cout << " Rows per bank:         " << numberOfRows          << std::endl;
-    std::cout << " Columns per row:       " << numberOfColumns       << std::endl;
-    std::cout << " Device width in bits:  " << bitWidth              << std::endl;
-    std::cout << " Device size in bits:   " << deviceSizeBits        << std::endl;
-    std::cout << " Device size in bytes:  " << deviceSizeBytes       << std::endl;
-    std::cout << std::endl;
-
-    assert(memorySizeBytes > 0);
-    return memorySizeBytes;
 }

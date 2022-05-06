@@ -37,9 +37,10 @@
 #ifndef DRAMEXTENSIONS_H
 #define DRAMEXTENSIONS_H
 
-#include <tlm.h>
 #include <iostream>
-#include <systemc.h>
+
+#include <systemc>
+#include <tlm>
 
 class Thread
 {
@@ -100,19 +101,14 @@ private:
 class Bank
 {
 public:
-    Bank(unsigned int id) : id(id) {}
+    explicit Bank(unsigned int id) : id(id) {}
 
     unsigned int ID() const
     {
         return id;
     }
 
-    unsigned int getStartAddress()
-    {
-        return 0;
-    }
-
-    std::string toString()
+    std::string toString() const
     {
         return std::to_string(id);
     }
@@ -135,7 +131,7 @@ public:
         return id;
     }
 
-    const Row operator++();
+    Row operator++();
 
 private:
     unsigned int id;
@@ -164,22 +160,21 @@ class DramExtension : public tlm::tlm_extension<DramExtension>
 public:
     DramExtension();
     DramExtension(Thread thread, Channel channel, Rank rank,
-                  BankGroup bankgroup, Bank bank, Row row,
-                  Column column, unsigned int burstlength,
+                  BankGroup bankGroup, Bank bank, Row row,
+                  Column column, unsigned int burstLength,
                   uint64_t threadPayloadID, uint64_t channelPayloadID);
-
-    virtual tlm::tlm_extension_base *clone() const;
-    virtual void copy_from(const tlm::tlm_extension_base &ext);
+    tlm::tlm_extension_base *clone() const override;
+    void copy_from(const tlm::tlm_extension_base &ext) override;
 
     static void setExtension(tlm::tlm_generic_payload *payload,
                              Thread thread, Channel channel, Rank rank,
-                             BankGroup bankgroup, Bank bank, Row row,
-                             Column column, unsigned int burstlength,
+                             BankGroup bankGroup, Bank bank, Row row,
+                             Column column, unsigned int burstLength,
                              uint64_t threadPayloadID, uint64_t channelPayloadID);
     static void setExtension(tlm::tlm_generic_payload &payload,
                              Thread thread, Channel channel, Rank rank,
-                             BankGroup bankgroup, Bank bank, Row row,
-                             Column column, unsigned int burstlength,
+                             BankGroup bankGroup, Bank bank, Row row,
+                             Column column, unsigned int burstLength,
                              uint64_t threadPayloadID, uint64_t channelPayloadID);
 
     static DramExtension &getExtension(const tlm::tlm_generic_payload *payload);
@@ -205,6 +200,8 @@ public:
     static Row getRow(const tlm::tlm_generic_payload &payload);
     static Column getColumn(const tlm::tlm_generic_payload *payload);
     static Column getColumn(const tlm::tlm_generic_payload &payload);
+    static unsigned getBurstLength(const tlm::tlm_generic_payload *payload);
+    static unsigned getBurstLength(const tlm::tlm_generic_payload &payload);
     static uint64_t getThreadPayloadID(const tlm::tlm_generic_payload *payload);
     static uint64_t getThreadPayloadID(const tlm::tlm_generic_payload &payload);
     static uint64_t getChannelPayloadID(const tlm::tlm_generic_payload *payload);
@@ -218,20 +215,19 @@ public:
     Row getRow() const;
     Column getColumn() const;
 
-    unsigned int getBurstlength() const;
+    unsigned int getBurstLength() const;
     uint64_t getThreadPayloadID() const;
     uint64_t getChannelPayloadID() const;
-    void incrementRow();
 
 private:
     Thread thread;
     Channel channel;
     Rank rank;
-    BankGroup bankgroup;
+    BankGroup bankGroup;
     Bank bank;
     Row row;
     Column column;
-    unsigned int burstlength;
+    unsigned int burstLength;
     uint64_t threadPayloadID;
     uint64_t channelPayloadID;
 };
@@ -243,19 +239,19 @@ private:
 class GenerationExtension : public tlm::tlm_extension<GenerationExtension>
 {
 public:
-    GenerationExtension(sc_time timeOfGeneration)
+    explicit GenerationExtension(const sc_core::sc_time &timeOfGeneration)
         : timeOfGeneration(timeOfGeneration) {}
-    virtual tlm::tlm_extension_base *clone() const;
-    virtual void copy_from(const tlm::tlm_extension_base &ext);
-    static void setExtension(tlm::tlm_generic_payload *payload, sc_time timeOfGeneration);
-    static void setExtension(tlm::tlm_generic_payload &payload, sc_time timeOfGeneration);
+    tlm::tlm_extension_base *clone() const override;
+    void copy_from(const tlm::tlm_extension_base &ext) override;
+    static void setExtension(tlm::tlm_generic_payload *payload, const sc_core::sc_time &timeOfGeneration);
+    static void setExtension(tlm::tlm_generic_payload &payload, const sc_core::sc_time &timeOfGeneration);
     static GenerationExtension &getExtension(const tlm::tlm_generic_payload *payload);
     static GenerationExtension &getExtension(const tlm::tlm_generic_payload &payload);
-    static sc_time getTimeOfGeneration(const tlm::tlm_generic_payload *payload);
-    static sc_time getTimeOfGeneration(const tlm::tlm_generic_payload &payload);
+    static sc_core::sc_time getTimeOfGeneration(const tlm::tlm_generic_payload *payload);
+    static sc_core::sc_time getTimeOfGeneration(const tlm::tlm_generic_payload &payload);
 
 private:
-    sc_time timeOfGeneration;
+    sc_core::sc_time timeOfGeneration;
 };
 
 

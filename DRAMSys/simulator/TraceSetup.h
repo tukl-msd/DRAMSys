@@ -31,37 +31,45 @@
  *
  * Authors:
  *    Matthias Jung
+ *    Derek Christ
  */
 
 #ifndef TRACESETUP_H
 #define TRACESETUP_H
 
+#include <Configuration.h>
 #include <vector>
 #include <string>
-#include <tlm.h>
-#include "MemoryManager.h"
+#include <memory>
+#include <tlm>
 
-class TracePlayer;
+#include "MemoryManager.h"
+#include "configuration/Configuration.h"
+
+class TrafficInitiator;
 
 class TraceSetup
 {
 public:
-    TraceSetup(std::string uri,
-               std::string pathToResources,
-               std::vector<TracePlayer *> *devices);
+    TraceSetup(const Configuration& config,
+               const DRAMSysConfiguration::TraceSetup &traceSetup,
+               const std::string &pathToResources,
+               std::vector<std::unique_ptr<TrafficInitiator>> &devices);
 
-    void tracePlayerTerminates();
+    void trafficInitiatorTerminates();
     void transactionFinished();
-    tlm::tlm_generic_payload *allocatePayload();
+    tlm::tlm_generic_payload& allocatePayload(unsigned dataLength);
+    tlm::tlm_generic_payload& allocatePayload();
 
 private:
-    unsigned int numberOfTracePlayers;
+    unsigned int numberOfTrafficInitiators;
     uint64_t totalTransactions = 0;
     uint64_t remainingTransactions;
-    unsigned int finishedTracePlayers = 0;
+    unsigned int finishedTrafficInitiators = 0;
     MemoryManager memoryManager;
+    unsigned defaultDataLength = 64;
 
-    void loadbar(uint64_t x, uint64_t n, unsigned int w = 50, unsigned int granularity = 1);
+    static void loadBar(uint64_t x, uint64_t n, unsigned int w = 50, unsigned int granularity = 1);
 };
 
 #endif // TRACESETUP_H

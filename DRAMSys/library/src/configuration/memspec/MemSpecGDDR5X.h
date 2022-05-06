@@ -31,67 +31,66 @@
  *
  * Authors:
  *    Lukas Steiner
+ *    Derek Christ
  */
 
 #ifndef MEMSPECGDDR5X_H
 #define MEMSPECGDDR5X_H
 
+#include <systemc>
 #include "MemSpec.h"
-#include "../../common/third_party/nlohmann/single_include/nlohmann/json.hpp"
 
 class MemSpecGDDR5X final : public MemSpec
 {
 public:
-    MemSpecGDDR5X(nlohmann::json &memspec);
+    explicit MemSpecGDDR5X(const DRAMSysConfiguration::MemSpec &memSpec);
 
     // Memspec Variables:
-    const sc_time tRP;
-    const sc_time tRAS;
-    const sc_time tRC;
-    const sc_time tRCDRD;
-    const sc_time tRCDWR;
-    const sc_time tRTP;
-    const sc_time tRRDS;
-    const sc_time tRRDL;
-    const sc_time tCCDS;
-    const sc_time tCCDL;
-    const sc_time tRL;
-    const sc_time tWCK2CKPIN;
-    const sc_time tWCK2CK;
-    const sc_time tWCK2DQO;
-    const sc_time tRTW;
-    const sc_time tWL;
-    const sc_time tWCK2DQI;
-    const sc_time tWR;
-    const sc_time tWTRS;
-    const sc_time tWTRL;
-    const sc_time tCKE;
-    const sc_time tPD;
-    const sc_time tXP;
-    const sc_time tREFI;
-    const sc_time tREFIPB;
-    const sc_time tRFC;
-    const sc_time tRFCPB;
-    const sc_time tRREFD;
-    const sc_time tXS;
-    const sc_time tFAW;
-    const sc_time t32AW;
+    const sc_core::sc_time tRP;
+    const sc_core::sc_time tRAS;
+    const sc_core::sc_time tRC;
+    const sc_core::sc_time tRCDRD;
+    const sc_core::sc_time tRCDWR;
+    const sc_core::sc_time tRTP;
+    const sc_core::sc_time tRRDS;
+    const sc_core::sc_time tRRDL;
+    const sc_core::sc_time tCCDS;
+    const sc_core::sc_time tCCDL;
+    const sc_core::sc_time tRL;
+    const sc_core::sc_time tWCK2CKPIN;
+    const sc_core::sc_time tWCK2CK;
+    const sc_core::sc_time tWCK2DQO;
+    const sc_core::sc_time tRTW;
+    const sc_core::sc_time tWL;
+    const sc_core::sc_time tWCK2DQI;
+    const sc_core::sc_time tWR;
+    const sc_core::sc_time tWTRS;
+    const sc_core::sc_time tWTRL;
+    const sc_core::sc_time tCKE;
+    const sc_core::sc_time tPD;
+    const sc_core::sc_time tXP;
+    const sc_core::sc_time tREFI;
+    const sc_core::sc_time tREFIPB;
+    const sc_core::sc_time tRFC;
+    const sc_core::sc_time tRFCPB;
+    const sc_core::sc_time tRREFD;
+    const sc_core::sc_time tXS;
+    const sc_core::sc_time tFAW;
+    const sc_core::sc_time t32AW;
 //    sc_time tRDSRE; // = tCL + tWCK2CKPIN + tWCK2CK + tWCK2DQO + BurstLength / DataRate * tCK;
 //    sc_time tWRSRE; // = tWL + tWCK2CKPIN + tWCK2CK + tWCK2DQI + BurstLength / DataRate * tCK;
-    const sc_time tPPD;
-    const sc_time tLK;
-    const sc_time tRTRS;
+    const sc_core::sc_time tPPD;
+    const sc_core::sc_time tLK;
+    const sc_core::sc_time tRTRS;
 
     // Currents and Voltages:
     // TODO: to be completed
 
-    virtual sc_time getRefreshIntervalAB() const override;
-    virtual sc_time getRefreshIntervalPB() const override;
+    sc_core::sc_time getRefreshIntervalAB() const override;
+    sc_core::sc_time getRefreshIntervalPB() const override;
 
-    virtual sc_time getExecutionTime(Command, const tlm::tlm_generic_payload &) const override;
-    virtual TimeInterval getIntervalOnDataStrobe(Command) const override;
-
-    virtual uint64_t getSimMemSizeInBytes() const override;
+    sc_core::sc_time getExecutionTime(Command command, const tlm::tlm_generic_payload &payload) const override;
+    TimeInterval getIntervalOnDataStrobe(Command command, const tlm::tlm_generic_payload &payload) const override;
 };
 
 #endif // MEMSPECGDDR5X_H

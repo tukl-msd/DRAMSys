@@ -6,9 +6,10 @@
             "nbrOfBankGroups": 4,
             "nbrOfBanks": 16,
             "nbrOfColumns": 128,
-            "nbrOfRanks": 2,
+            "nbrOfPseudoChannels": 2,
             "nbrOfRows": 32768,
             "width": 64,
+            "nbrOfDevices": 1,
             "nbrOfChannels": 1
         },
         "memoryId": "https://www.computerbase.de/2019-05/amd-memory-tweak-vram-oc/#bilder",

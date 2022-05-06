@@ -33,120 +33,86 @@
  *    Johannes Feldmann
  *    Lukas Steiner
  *    Luiza Correa
+ *    Derek Christ
  */
 
 #include <cmath>
+#include <iostream>
+#include <iomanip>
 #include <bitset>
 
 #include "AddressDecoder.h"
 #include "../common/utils.h"
 #include "../configuration/Configuration.h"
 
-using json = nlohmann::json;
-
-unsigned int AddressDecoder::getUnsignedAttrFromJson(nlohmann::json obj, std::string strName)
+AddressDecoder::AddressDecoder(const Configuration& config, const DRAMSysConfiguration::AddressMapping &addressMapping)
 {
-    if (!obj[strName].empty())
+    if (const auto &channelBits = addressMapping.channelBits)
     {
-        if (obj[strName].is_number_unsigned())
-        {
-            return obj[strName];
-        }
-        else
-        {
-            SC_REPORT_FATAL("AddressDecoder", ("Attribute " + strName + " is not a number.").c_str());
-            return static_cast<unsigned>(-1);
-        }
+        std::copy(channelBits->begin(), channelBits->end(), std::back_inserter(vChannelBits));
     }
-    else
-    {
-        SC_REPORT_FATAL("AddressDecoder", ("Attribute " + strName + " is empty or not found.").c_str());
-        return static_cast<unsigned>(-1);
-    }
-}
 
-std::vector<unsigned> AddressDecoder::getAttrToVectorFromJson(nlohmann::json obj, std::string strName)
-{
-    std::vector<unsigned> vParameter;
-    if (!obj[strName].empty())
+    if (const auto &rankBits = addressMapping.rankBits)
     {
-        for (auto it : obj[strName].items())
+        std::copy(rankBits->begin(), rankBits->end(), std::back_inserter(vRankBits));
+    }
+
+    if (const auto &bankGroupBits = addressMapping.bankGroupBits)
+    {
+        std::copy(bankGroupBits->begin(), bankGroupBits->end(), std::back_inserter(vBankGroupBits));
+    }
+
+    if (const auto &byteBits = addressMapping.byteBits)
+    {
+        std::copy(byteBits->begin(), byteBits->end(), std::back_inserter(vByteBits));
+    }
+
+    if (const auto &xorBits = addressMapping.xorBits)
+    {
+        for (const auto &xorBit : *xorBits)
         {
-            auto valor = it.value();
-            if (valor.is_number_unsigned())
-                vParameter.push_back(it.value());
-            else
-                SC_REPORT_FATAL("AddressDecoder", ("Attribute " + strName + " is not a number.").c_str());
+            vXor.emplace_back(xorBit.first, xorBit.second);
         }
     }
-    return vParameter;
-}
 
-AddressDecoder::AddressDecoder(std::string pathToAddressMapping)
-{
-    json addrFile = parseJSON(pathToAddressMapping);
-    json mapping;
-    if (addrFile["CONGEN"].empty())
-        SC_REPORT_FATAL("AddressDecorder", "Root node name differs from \"CONGEN\". File format not supported.");
-
-    // Load address mapping
-    if (!addrFile["CONGEN"]["SOLUTION"].empty())
+    if (const auto &bankBits = addressMapping.bankBits)
     {
-        bool foundID0 = false;
-        for (auto it : addrFile["CONGEN"]["SOLUTION"].items())
-        {
-            if (getUnsignedAttrFromJson(it.value(), "ID") == 0)
-            {
-                foundID0 = true;
-                mapping = it.value();
-                break;
-            }
-        }
-        if (!foundID0)
-            SC_REPORT_FATAL("AddressDecoder", "No mapping with ID 0 was found.");
-    }
-    else
-        mapping = addrFile["CONGEN"];
-
-    for (auto xorItem : mapping["XOR"].items())
-    {
-        auto value = xorItem.value();
-        if (!value.empty())
-            vXor.push_back(std::pair<unsigned, unsigned>(getUnsignedAttrFromJson(value, "FIRST"),
-                                                         getUnsignedAttrFromJson(value, "SECOND")));
+        std::copy(bankBits->begin(), bankBits->end(), std::back_inserter(vBankBits));
     }
 
-    vChannelBits = getAttrToVectorFromJson(mapping,"CHANNEL_BIT");
-    vRankBits = getAttrToVectorFromJson(mapping,"RANK_BIT");
-    vBankGroupBits = getAttrToVectorFromJson(mapping,"BANKGROUP_BIT");
-    vBankBits = getAttrToVectorFromJson(mapping,"BANK_BIT");
-    vRowBits = getAttrToVectorFromJson(mapping,"ROW_BIT");
-    vColumnBits = getAttrToVectorFromJson(mapping,"COLUMN_BIT");
-    vByteBits = getAttrToVectorFromJson(mapping,"BYTE_BIT");
+    if (const auto &rowBits = addressMapping.rowBits)
+    {
+        std::copy(rowBits->begin(), rowBits->end(), std::back_inserter(vRowBits));
+    }
 
-    unsigned channels = static_cast<unsigned>(pow(2.0, vChannelBits.size()) + 0.5);
-    unsigned ranks = static_cast<unsigned>(pow(2.0, vRankBits.size()) + 0.5);
-    unsigned bankgroups = static_cast<unsigned>(pow(2.0, vBankGroupBits.size()) + 0.5);
-    unsigned banks = static_cast<unsigned>(pow(2.0, vBankBits.size()) + 0.5);
-    unsigned rows = static_cast<unsigned>(pow(2.0, vRowBits.size()) + 0.5);
-    unsigned columns = static_cast<unsigned>(pow(2.0, vColumnBits.size()) + 0.5);
-    unsigned bytes = static_cast<unsigned>(pow(2.0, vByteBits.size()) + 0.5);
+    if (const auto &columnBits = addressMapping.columnBits)
+    {
+        std::copy(columnBits->begin(), columnBits->end(), std::back_inserter(vColumnBits));
+    }
 
-    maximumAddress = static_cast<uint64_t>(bytes) * columns * rows * banks * bankgroups * ranks * channels - 1;
+    unsigned channels = std::lround(std::pow(2.0, vChannelBits.size()));
+    unsigned ranks = std::lround(std::pow(2.0, vRankBits.size()));
+    unsigned bankGroups = std::lround(std::pow(2.0, vBankGroupBits.size()));
+    unsigned banks = std::lround(std::pow(2.0, vBankBits.size()));
+    unsigned rows = std::lround(std::pow(2.0, vRowBits.size()));
+    unsigned columns = std::lround(std::pow(2.0, vColumnBits.size()));
+    unsigned bytes = std::lround(std::pow(2.0, vByteBits.size()));
+
+    maximumAddress = static_cast<uint64_t>(bytes) * columns * rows * banks
+            * bankGroups * ranks * channels - 1;
+
+    bankgroupsPerRank = bankGroups;
+    bankGroups = bankgroupsPerRank * ranks;
 
     banksPerGroup = banks;
-    banks = banksPerGroup * bankgroups * ranks;
+    banks = banksPerGroup * bankGroups;
 
-    bankgroupsPerRank = bankgroups;
-    bankgroups = bankgroupsPerRank * ranks;
+    const MemSpec& memSpec = *config.memSpec;
 
-    Configuration &config = Configuration::getInstance();
-    const MemSpec *memSpec = config.memSpec;
-
-    if (memSpec->numberOfChannels != channels || memSpec->numberOfRanks != ranks
-            || memSpec->numberOfBankGroups != bankgroups || memSpec->numberOfBanks != banks
-            || memSpec->numberOfRows != rows || memSpec->numberOfColumns != columns
-            || memSpec->numberOfDevicesOnDIMM * memSpec->bitWidth != bytes * 8)
+    if (memSpec.numberOfChannels != channels || memSpec.ranksPerChannel != ranks
+        || memSpec.bankGroupsPerChannel != bankGroups || memSpec.banksPerChannel != banks
+        || memSpec.rowsPerBank != rows || memSpec.columnsPerRow != columns
+        || memSpec.devicesPerRank * memSpec.bitWidth != bytes * 8)
         SC_REPORT_FATAL("AddressDecoder", "Memspec and address mapping do not match");
 }
 
@@ -158,12 +124,12 @@ DecodedAddress AddressDecoder::decodeAddress(uint64_t encAddr)
     // Apply XOR
     // For each used xor:
     //   Get the first bit and second bit. Apply a bitwise xor operator and save it back to the first bit.
-    for (auto it = vXor.begin(); it != vXor.end(); it++)
+    for (auto &it : vXor)
     {
         uint64_t xoredBit;
-        xoredBit = (((encAddr >> it->first) & UINT64_C(1)) ^ ((encAddr >> it->second) & UINT64_C(1)));
-        encAddr &= ~(UINT64_C(1) << it->first);
-        encAddr |= xoredBit << it->first;
+        xoredBit = (((encAddr >> it.first) & UINT64_C(1)) ^ ((encAddr >> it.second) & UINT64_C(1)));
+        encAddr &= ~(UINT64_C(1) << it.first);
+        encAddr |= xoredBit << it.first;
     }
 
     DecodedAddress decAddr;

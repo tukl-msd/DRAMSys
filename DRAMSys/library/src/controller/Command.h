@@ -32,89 +32,132 @@
  * Authors:
  *    Janik Schlemminger
  *    Matthias Jung
+ *    Lukas Steiner
  */
 #ifndef COMMAND_H
 #define COMMAND_H
 
 #include <string>
 #include <vector>
-#include <list>
-#include <algorithm>
-#include <array>
-#include <systemc.h>
-#include <tlm.h>
+#include <tuple>
+
+#include <systemc>
+#include <tlm>
 #include "../common/third_party/DRAMPower/src/MemCommand.h"
 
 // DO NOT CHANGE THE ORDER!
-DECLARE_EXTENDED_PHASE(BEGIN_RD);    // 5
-DECLARE_EXTENDED_PHASE(BEGIN_WR);    // 6
-DECLARE_EXTENDED_PHASE(BEGIN_RDA);   // 7
-DECLARE_EXTENDED_PHASE(BEGIN_WRA);   // 8
-DECLARE_EXTENDED_PHASE(BEGIN_ACT);   // 9
-DECLARE_EXTENDED_PHASE(BEGIN_PRE);   // 10
-DECLARE_EXTENDED_PHASE(BEGIN_REFB);  // 11
-DECLARE_EXTENDED_PHASE(BEGIN_PRESB); // 12
-DECLARE_EXTENDED_PHASE(BEGIN_REFSB); // 13
-DECLARE_EXTENDED_PHASE(BEGIN_PREA);  // 14
-DECLARE_EXTENDED_PHASE(BEGIN_REFA);  // 15
-DECLARE_EXTENDED_PHASE(BEGIN_PDNA);  // 16
-DECLARE_EXTENDED_PHASE(END_PDNA);    // 17
-DECLARE_EXTENDED_PHASE(BEGIN_PDNP);  // 18
-DECLARE_EXTENDED_PHASE(END_PDNP);    // 19
-DECLARE_EXTENDED_PHASE(BEGIN_SREF);  // 20
-DECLARE_EXTENDED_PHASE(END_SREF);    // 21
 
-DECLARE_EXTENDED_PHASE(END_RD);      // 22
-DECLARE_EXTENDED_PHASE(END_WR);      // 23
-DECLARE_EXTENDED_PHASE(END_RDA);     // 24
-DECLARE_EXTENDED_PHASE(END_WRA);     // 25
-DECLARE_EXTENDED_PHASE(END_ACT);     // 26
-DECLARE_EXTENDED_PHASE(END_PRE);     // 27
-DECLARE_EXTENDED_PHASE(END_REFB);    // 28
-DECLARE_EXTENDED_PHASE(END_PRESB);   // 29
-DECLARE_EXTENDED_PHASE(END_REFSB);   // 30
-DECLARE_EXTENDED_PHASE(END_PREA);    // 31
-DECLARE_EXTENDED_PHASE(END_REFA);    // 32
+//                     BEGIN_REQ      // 1
+//                     END_REQ        // 2
+//                     BEGIN_RESP     // 3
+//                     END_RESP       // 4
 
-enum Command
+DECLARE_EXTENDED_PHASE(BEGIN_NOP);    // 5
+DECLARE_EXTENDED_PHASE(BEGIN_RD);     // 6
+DECLARE_EXTENDED_PHASE(BEGIN_WR);     // 7
+DECLARE_EXTENDED_PHASE(BEGIN_RDA);    // 8
+DECLARE_EXTENDED_PHASE(BEGIN_WRA);    // 9
+DECLARE_EXTENDED_PHASE(BEGIN_ACT);    // 10
+DECLARE_EXTENDED_PHASE(BEGIN_PREPB);  // 11
+DECLARE_EXTENDED_PHASE(BEGIN_REFPB);  // 12
+DECLARE_EXTENDED_PHASE(BEGIN_RFMPB);  // 13
+DECLARE_EXTENDED_PHASE(BEGIN_REFP2B); // 14
+DECLARE_EXTENDED_PHASE(BEGIN_RFMP2B); // 15
+DECLARE_EXTENDED_PHASE(BEGIN_PRESB);  // 16
+DECLARE_EXTENDED_PHASE(BEGIN_REFSB);  // 17
+DECLARE_EXTENDED_PHASE(BEGIN_RFMSB);  // 18
+DECLARE_EXTENDED_PHASE(BEGIN_PREAB);  // 19
+DECLARE_EXTENDED_PHASE(BEGIN_REFAB);  // 20
+DECLARE_EXTENDED_PHASE(BEGIN_RFMAB);  // 21
+DECLARE_EXTENDED_PHASE(BEGIN_PDNA);   // 22
+DECLARE_EXTENDED_PHASE(BEGIN_PDNP);   // 23
+DECLARE_EXTENDED_PHASE(BEGIN_SREF);   // 24
+
+DECLARE_EXTENDED_PHASE(END_PDNA);     // 25
+DECLARE_EXTENDED_PHASE(END_PDNP);     // 26
+DECLARE_EXTENDED_PHASE(END_SREF);     // 27
+
+DECLARE_EXTENDED_PHASE(END_NOP);      // 28
+DECLARE_EXTENDED_PHASE(END_RD);       // 29
+DECLARE_EXTENDED_PHASE(END_WR);       // 30
+DECLARE_EXTENDED_PHASE(END_RDA);      // 31
+DECLARE_EXTENDED_PHASE(END_WRA);      // 32
+DECLARE_EXTENDED_PHASE(END_ACT);      // 33
+DECLARE_EXTENDED_PHASE(END_PREPB);    // 34
+DECLARE_EXTENDED_PHASE(END_REFPB);    // 35
+DECLARE_EXTENDED_PHASE(END_RFMPB);    // 36
+DECLARE_EXTENDED_PHASE(END_REFP2B);   // 37
+DECLARE_EXTENDED_PHASE(END_RFMP2B);   // 38
+DECLARE_EXTENDED_PHASE(END_PRESB);    // 39
+DECLARE_EXTENDED_PHASE(END_REFSB);    // 40
+DECLARE_EXTENDED_PHASE(END_RFMSB);    // 41
+DECLARE_EXTENDED_PHASE(END_PREAB);    // 42
+DECLARE_EXTENDED_PHASE(END_REFAB);    // 43
+DECLARE_EXTENDED_PHASE(END_RFMAB);    // 44
+
+class Command
 {
-    NOP,
-    RD,
-    WR,
-    RDA,
-    WRA,
-    ACT,
-    PRE,
-    REFB,
-    PRESB,
-    REFSB,
-    PREA,
-    REFA,
-    PDEA,
-    PDXA,
-    PDEP,
-    PDXP,
-    SREFEN,
-    SREFEX
+public:
+    enum Type : uint8_t
+    {
+        NOP = 0, // 0
+        RD,      // 1
+        WR,      // 2
+        RDA,     // 3
+        WRA,     // 4
+        ACT,     // 5
+        PREPB,   // 6
+        REFPB,   // 7
+        RFMPB,   // 8
+        REFP2B,  // 9
+        RFMP2B,  // 10
+        PRESB,   // 11
+        REFSB,   // 12
+        RFMSB,   // 13
+        PREAB,   // 14
+        REFAB,   // 15
+        RFMAB,   // 16
+        PDEA,    // 17
+        PDEP,    // 18
+        SREFEN,  // 19
+        PDXA,    // 20
+        PDXP,    // 21
+        SREFEX,  // 22
+        END_ENUM // 23, To mark the end of this enumeration
+    };
+
+private:
+    Type type;
+
+public:
+    Command() = default;
+    Command(Type type);
+    Command(tlm::tlm_phase phase);
+
+    std::string toString() const;
+    tlm::tlm_phase toPhase() const;
+    static unsigned numberOfCommands();
+    bool isBankCommand() const;
+    bool is2BankCommand() const;
+    bool isGroupCommand() const;
+    bool isRankCommand() const;
+    bool isCasCommand() const;
+    bool isRasCommand() const;
+
+    constexpr operator uint8_t() const
+    {
+        return type;
+    }
 };
 
-std::string commandToString(Command);
-tlm::tlm_phase commandToPhase(Command);
-Command phaseToCommand(tlm::tlm_phase);
 DRAMPower::MemCommand::cmds phaseToDRAMPowerCommand(tlm::tlm_phase);
 bool phaseNeedsEnd(tlm::tlm_phase);
 tlm::tlm_phase getEndPhase(tlm::tlm_phase);
-unsigned numberOfCommands();
-bool isBankCommand(Command);
-bool isGroupCommand(Command);
-bool isRankCommand(Command);
-bool isCasCommand(Command);
-bool isRasCommand(Command);
 
-struct CommandTuple 
-{ 
-    using Type = std::tuple<::Command, tlm::tlm_generic_payload *, sc_time>;
-    enum Accessor 
+struct CommandTuple
+{
+    using Type = std::tuple<::Command, tlm::tlm_generic_payload *, sc_core::sc_time>;
+    enum Accessor
     {
         Command = 0,
         Payload = 1,

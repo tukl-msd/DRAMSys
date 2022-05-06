@@ -34,38 +34,42 @@
  *    Matthias Jung
  *    Eder F. Zulian
  *    Lukas Steiner
+ *    Derek Christ
  */
 
 #ifndef ARBITER_H
 #define ARBITER_H
 
-#include <tlm.h>
-#include <systemc.h>
 #include <iostream>
 #include <vector>
 #include <queue>
 #include <set>
+
+#include <tlm>
+#include <systemc>
 #include <tlm_utils/multi_passthrough_target_socket.h>
 #include <tlm_utils/multi_passthrough_initiator_socket.h>
 #include <tlm_utils/peq_with_cb_and_phase.h>
 #include "AddressDecoder.h"
 #include "../common/dramExtensions.h"
 
-class Arbiter : public sc_module
+DECLARE_EXTENDED_PHASE(REQ_ARBITRATION);
+DECLARE_EXTENDED_PHASE(RESP_ARBITRATION);
+
+class Arbiter : public sc_core::sc_module
 {
 public:
     tlm_utils::multi_passthrough_initiator_socket<Arbiter> iSocket;
     tlm_utils::multi_passthrough_target_socket<Arbiter> tSocket;
 
-    virtual ~Arbiter() override;
-
 protected:
-    Arbiter(sc_module_name, std::string);
+    Arbiter(const sc_core::sc_module_name &name, const Configuration& config,
+            const DRAMSysConfiguration::AddressMapping &addressMapping);
     SC_HAS_PROCESS(Arbiter);
 
-    virtual void end_of_elaboration() override;
+    void end_of_elaboration() override;
 
-    AddressDecoder *addressDecoder;
+    AddressDecoder addressDecoder;
 
     tlm_utils::peq_with_cb_and_phase<Arbiter> payloadEventQueue;
     virtual void peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase) = 0;
@@ -79,25 +83,29 @@ protected:
     std::vector<uint64_t> nextChannelPayloadIDToAppend;
 
     tlm::tlm_sync_enum nb_transport_fw(int id, tlm::tlm_generic_payload &payload,
-                                  tlm::tlm_phase &phase, sc_time &fwDelay);
+                                  tlm::tlm_phase &phase, sc_core::sc_time &fwDelay);
     tlm::tlm_sync_enum nb_transport_bw(int, tlm::tlm_generic_payload &payload,
-                                  tlm::tlm_phase &phase, sc_time &bwDelay);
+                                  tlm::tlm_phase &phase, sc_core::sc_time &bwDelay);
     unsigned int transport_dbg(int /*id*/, tlm::tlm_generic_payload &trans);
 
-    sc_time tCK;
-    sc_time arbitrationDelayFw;
-    sc_time arbitrationDelayBw;
+    const sc_core::sc_time tCK;
+    const sc_core::sc_time arbitrationDelayFw;
+    const sc_core::sc_time arbitrationDelayBw;
+
+    const unsigned bytesPerBeat;
+    const uint64_t addressOffset;
 };
 
 class ArbiterSimple final : public Arbiter
 {
 public:
-    ArbiterSimple(sc_module_name, std::string);
+    ArbiterSimple(const sc_core::sc_module_name &name, const Configuration& config,
+                  const DRAMSysConfiguration::AddressMapping &addressMapping);
     SC_HAS_PROCESS(ArbiterSimple);
 
 private:
-    virtual void end_of_elaboration() override;
-    virtual void peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase) override;
+    void end_of_elaboration() override;
+    void peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase) override;
 
     std::vector<std::queue<tlm::tlm_generic_payload *>> pendingResponses;
 };
@@ -105,12 +113,13 @@ private:
 class ArbiterFifo final : public Arbiter
 {
 public:
-    ArbiterFifo(sc_module_name, std::string);
+    ArbiterFifo(const sc_core::sc_module_name &name, const Configuration& config,
+                const DRAMSysConfiguration::AddressMapping &addressMapping);
     SC_HAS_PROCESS(ArbiterFifo);
 
 private:
-    virtual void end_of_elaboration() override;
-    virtual void peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase) override;
+    void end_of_elaboration() override;
+    void peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase) override;
 
     std::vector<unsigned int> activeTransactions;
     const unsigned maxActiveTransactions;
@@ -118,19 +127,20 @@ private:
     std::vector<tlm::tlm_generic_payload *> outstandingEndReq;
     std::vector<std::queue<tlm::tlm_generic_payload *>> pendingResponses;
 
-    std::vector<sc_time> lastEndReq;
-    std::vector<sc_time> lastEndResp;
+    std::vector<sc_core::sc_time> lastEndReq;
+    std::vector<sc_core::sc_time> lastEndResp;
 };
 
 class ArbiterReorder final : public Arbiter
 {
 public:
-    ArbiterReorder(sc_module_name, std::string);
+    ArbiterReorder(const sc_core::sc_module_name &name, const Configuration& config,
+                   const DRAMSysConfiguration::AddressMapping &addressMapping);
     SC_HAS_PROCESS(ArbiterReorder);
 
 private:
-    virtual void end_of_elaboration() override;
-    virtual void peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase) override;
+    void end_of_elaboration() override;
+    void peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase) override;
 
     std::vector<unsigned int> activeTransactions;
     const unsigned maxActiveTransactions;
@@ -146,8 +156,8 @@ private:
     std::vector<tlm::tlm_generic_payload *> outstandingEndReq;
     std::vector<std::set<tlm::tlm_generic_payload*, ThreadPayloadIDCompare>> pendingResponses;
 
-    std::vector<sc_time> lastEndReq;
-    std::vector<sc_time> lastEndResp;
+    std::vector<sc_core::sc_time> lastEndReq;
+    std::vector<sc_core::sc_time> lastEndResp;
 
     std::vector<uint64_t> nextThreadPayloadIDToReturn;
 };

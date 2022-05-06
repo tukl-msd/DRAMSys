@@ -32,16 +32,15 @@
  * Authors:
  *    Eder F. Zulian
  *    Matthias Jung
+ *    Derek Christ
  */
 
 #ifndef TEMPERATURECONTROLLER_H
 #define TEMPERATURECONTROLLER_H
 
-#include <systemc.h>
-#include <iostream>
 #include <string>
-#include <fstream>
 
+#include <systemc>
 #include "../common/DebugManager.h"
 #include "../common/utils.h"
 #include "../configuration/Configuration.h"
@@ -50,64 +49,62 @@
 #include "IceWrapper.h"
 #endif
 
-SC_MODULE(TemperatureController)
+class TemperatureController : sc_core::sc_module
 {
 public:
-    static inline TemperatureController &getInstance() {
-        static TemperatureController temperaturectrl("TemperatureController");
-        return temperaturectrl;
-    }
+    TemperatureController(const TemperatureController&) = delete;
+    TemperatureController& operator=(const TemperatureController&) = delete;
 
-    SC_CTOR(TemperatureController) {
-        temperatureScale = Configuration::getInstance().temperatureSim.temperatureScale;
+    SC_HAS_PROCESS(TemperatureController);
+    TemperatureController() = default;
+    TemperatureController(const sc_core::sc_module_name& name, const Configuration& config) : sc_core::sc_module(name)
+    {
+        temperatureScale = config.temperatureSim.temperatureScale;
+        dynamicTempSimEnabled = config.thermalSimulation;
+        staticTemperature = config.temperatureSim.staticTemperatureDefaultValue;
 
-        dynamicTempSimEnabled = Configuration::getInstance().thermalSimulation;
-
-        staticTemperature =
-            Configuration::getInstance().temperatureSim.staticTemperatureDefaultValue;
-
-        if (dynamicTempSimEnabled == true) {
+        if (dynamicTempSimEnabled)
+        {
 #ifdef THERMALSIM
             // Connect to the server
-            std::string ip = Configuration::getInstance().temperatureSim.iceServerIp;
-            unsigned int port = Configuration::getInstance().temperatureSim.iceServerPort;
+            std::string ip = config.temperatureSim.iceServerIp;
+            unsigned int port = config.temperatureSim.iceServerPort;
             thermalSimulation = new IceWrapper(ip, port);
             PRINTDEBUGMESSAGE(name(), "Dynamic temperature simulation. Server @ "
                               + ip + ":" + std::to_string(port));
 #else
-            SC_REPORT_FATAL(name(),
+            SC_REPORT_FATAL(sc_module::name(),
                             "DRAMSys was build without support to dynamic temperature simulation. Check the README file for further details.");
 #endif
             // Initial power dissipation values (got from config)
-            currentPowerValues =
-                Configuration::getInstance().temperatureSim.powerInitialValues;
+            currentPowerValues = config.temperatureSim.powerInitialValues;
             lastPowerValues = currentPowerValues;
 
             // Substantial changes in power will trigger adjustments in the simulaiton period. Get the thresholds from config.
-            powerThresholds = Configuration::getInstance().temperatureSim.powerThresholds;
+            powerThresholds = config.temperatureSim.powerThresholds;
             decreaseSimPeriod = false;
-            periodAdjustFactor =
-                Configuration::getInstance().temperatureSim.simPeriodAdjustFactor;
-            nPowStableCyclesToIncreasePeriod =
-                Configuration::getInstance().temperatureSim.nPowStableCyclesToIncreasePeriod;
+            periodAdjustFactor = config.temperatureSim.simPeriodAdjustFactor;
+            nPowStableCyclesToIncreasePeriod = config.temperatureSim.nPowStableCyclesToIncreasePeriod;
             cyclesSinceLastPeriodAdjust = 0;
 
             // Get the target period for the thermal simulation from config.
-            targetPeriod = Configuration::getInstance().temperatureSim.thermalSimPeriod;
+            targetPeriod = config.temperatureSim.thermalSimPeriod;
             period = targetPeriod;
-            t_unit = Configuration::getInstance().temperatureSim.thermalSimUnit;
+            t_unit = config.temperatureSim.thermalSimUnit;
 
-            genTempMap = Configuration::getInstance().temperatureSim.generateTemperatureMap;
+            genTempMap = config.temperatureSim.generateTemperatureMap;
             temperatureMapFile = "temperature_map";
             std::system("rm -f temperature_map*");
 
-            genPowerMap = Configuration::getInstance().temperatureSim.generatePowerMap;
+            genPowerMap = config.temperatureSim.generatePowerMap;
             powerMapFile = "power_map";
             std::system("rm -f power_map*");
 
             SC_THREAD(temperatureThread);
-        } else {
-            PRINTDEBUGMESSAGE(name(), "Static temperature simulation. Temperature set to " +
+        }
+        else
+        {
+            PRINTDEBUGMESSAGE(sc_module::name(), "Static temperature simulation. Temperature set to " +
                               std::to_string(staticTemperature));
         }
     }
@@ -115,7 +112,7 @@ public:
     double getTemperature(int deviceId, float currentPower);
 
 private:
-    std::string temperatureScale;
+    TemperatureSimConfig::TemperatureScale temperatureScale;
     double temperatureConvert(double tKelvin);
 
     double staticTemperature;
@@ -134,7 +131,7 @@ private:
 
     double targetPeriod;
     double period;
-    enum sc_time_unit t_unit;
+    enum sc_core::sc_time_unit t_unit;
     void temperatureThread();
     void updateTemperatures();
     double adjustThermalSimPeriod();

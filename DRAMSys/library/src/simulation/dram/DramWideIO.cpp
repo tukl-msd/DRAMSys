@@ -33,124 +33,125 @@
  *    Lukas Steiner
  */
 
-#include "DramWideIO.h"
+#include <cmath>
+#include <memory>
 
-#include <systemc.h>
-#include <tlm.h>
-#include "Dram.h"
+#include "DramWideIO.h"
 #include "../../configuration/Configuration.h"
 #include "../../error/errormodel.h"
 #include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 #include "../../configuration/memspec/MemSpecWideIO.h"
 
+using namespace sc_core;
 using namespace tlm;
 using namespace DRAMPower;
 
-DramWideIO::DramWideIO(sc_module_name name) : Dram(name)
+DramWideIO::DramWideIO(const sc_module_name& name, const Configuration& config,
+                       TemperatureController& temperatureController)
+    : Dram(name, config)
 {
-    if (Configuration::getInstance().powerAnalysis)
+    if (powerAnalysis)
     {
-        const MemSpecWideIO *memSpec = dynamic_cast<const MemSpecWideIO *>(this->memSpec);
-        if (memSpec == nullptr)
+        const auto* memSpecWideIO = dynamic_cast<const MemSpecWideIO *>(config.memSpec.get());
+        if (memSpecWideIO == nullptr)
             SC_REPORT_FATAL("DramWideIO", "Wrong MemSpec chosen");
 
         MemArchitectureSpec memArchSpec;
-        memArchSpec.burstLength       = memSpec->burstLength;
-        memArchSpec.dataRate          = memSpec->dataRate;
-        memArchSpec.nbrOfRows         = memSpec->numberOfRows;
-        memArchSpec.nbrOfBanks        = memSpec->numberOfBanks;
-        memArchSpec.nbrOfColumns      = memSpec->numberOfColumns;
-        memArchSpec.nbrOfRanks        = memSpec->numberOfRanks;
-        memArchSpec.width             = memSpec->bitWidth;
-        memArchSpec.nbrOfBankGroups   = memSpec->numberOfBankGroups;
+        memArchSpec.burstLength       = memSpecWideIO->defaultBurstLength;
+        memArchSpec.dataRate          = memSpecWideIO->dataRate;
+        memArchSpec.nbrOfRows         = memSpecWideIO->rowsPerBank;
+        memArchSpec.nbrOfBanks        = memSpecWideIO->banksPerChannel;
+        memArchSpec.nbrOfColumns      = memSpecWideIO->columnsPerRow;
+        memArchSpec.nbrOfRanks        = memSpecWideIO->ranksPerChannel;
+        memArchSpec.width             = memSpecWideIO->bitWidth;
+        memArchSpec.nbrOfBankGroups   = memSpecWideIO->bankGroupsPerChannel;
         memArchSpec.twoVoltageDomains = true;
         memArchSpec.dll               = false;
 
         MemTimingSpec memTimingSpec;
-        //FIXME: memTimingSpec.FAWB   = memSpec->tTAW / memSpec->tCK;
-        //FIXME: memTimingSpec.RASB   = memSpec->tRAS / memSpec->tCK;
-        //FIXME: memTimingSpec.RCB    = memSpec->tRC / memSpec->tCK;
-        //FIXME: memTimingSpec.RPB    = memSpec->tRP / memSpec->tCK;
-        //FIXME: memTimingSpec.RRDB   = memSpec->tRRD / memSpec->tCK;
-        //FIXME: memTimingSpec.RRDB_L = memSpec->tRRD / memSpec->tCK;
-        //FIXME: memTimingSpec.RRDB_S = memSpec->tRRD / memSpec->tCK;
+        //FIXME: memTimingSpec.FAWB   = memSpecWideIO->tTAW / memSpecWideIO->tCK;
+        //FIXME: memTimingSpec.RASB   = memSpecWideIO->tRAS / memSpecWideIO->tCK;
+        //FIXME: memTimingSpec.RCB    = memSpecWideIO->tRC / memSpecWideIO->tCK;
+        //FIXME: memTimingSpec.RPB    = memSpecWideIO->tRP / memSpecWideIO->tCK;
+        //FIXME: memTimingSpec.RRDB   = memSpecWideIO->tRRD / memSpecWideIO->tCK;
+        //FIXME: memTimingSpec.RRDB_L = memSpecWideIO->tRRD / memSpecWideIO->tCK;
+        //FIXME: memTimingSpec.RRDB_S = memSpecWideIO->tRRD / memSpecWideIO->tCK;
         memTimingSpec.AL     = 0;
-        memTimingSpec.CCD    = memSpec->burstLength;
-        memTimingSpec.CCD_L  = memSpec->burstLength;
-        memTimingSpec.CCD_S  = memSpec->burstLength;
-        memTimingSpec.CKE    = memSpec->tCKE / memSpec->tCK;
-        memTimingSpec.CKESR  = memSpec->tCKESR / memSpec->tCK;
-        memTimingSpec.clkMhz = memSpec->fCKMHz;
+        memTimingSpec.CCD    = memSpecWideIO->defaultBurstLength;
+        memTimingSpec.CCD_L  = memSpecWideIO->defaultBurstLength;
+        memTimingSpec.CCD_S  = memSpecWideIO->defaultBurstLength;
+        memTimingSpec.CKE    = memSpecWideIO->tCKE / memSpecWideIO->tCK;
+        memTimingSpec.CKESR  = memSpecWideIO->tCKESR / memSpecWideIO->tCK;
+        memTimingSpec.clkMhz = memSpecWideIO->fCKMHz;
         // See also MemTimingSpec.cc in DRAMPower
-        memTimingSpec.clkPeriod = 1000.0 / memSpec->fCKMHz;
-        memTimingSpec.DQSCK  = memSpec->tDQSCK / memSpec->tCK;
-        memTimingSpec.FAW    = memSpec->tTAW / memSpec->tCK;
-        memTimingSpec.RAS    = memSpec->tRAS / memSpec->tCK;
-        memTimingSpec.RC     = memSpec->tRC / memSpec->tCK;
-        memTimingSpec.RCD    = memSpec->tRCD / memSpec->tCK;
-        memTimingSpec.REFI   = memSpec->tREFI / memSpec->tCK;
-        memTimingSpec.RFC    = memSpec->tRFC / memSpec->tCK;
-        memTimingSpec.RL     = memSpec->tRL / memSpec->tCK;
-        memTimingSpec.RP     = memSpec->tRP / memSpec->tCK;
-        memTimingSpec.RRD    = memSpec->tRRD / memSpec->tCK;
-        memTimingSpec.RRD_L  = memSpec->tRRD / memSpec->tCK;
-        memTimingSpec.RRD_S  = memSpec->tRRD / memSpec->tCK;
-        memTimingSpec.RTP    = memSpec->burstLength;
-        memTimingSpec.TAW    = memSpec->tTAW / memSpec->tCK;
-        memTimingSpec.WL     = memSpec->tWL / memSpec->tCK;
-        memTimingSpec.WR     = memSpec->tWR / memSpec->tCK;
-        memTimingSpec.WTR    = memSpec->tWTR / memSpec->tCK;
-        memTimingSpec.WTR_L  = memSpec->tWTR / memSpec->tCK;
-        memTimingSpec.WTR_S  = memSpec->tWTR / memSpec->tCK;
-        memTimingSpec.XP     = memSpec->tXP / memSpec->tCK;
-        memTimingSpec.XPDLL  = memSpec->tXP / memSpec->tCK;
-        memTimingSpec.XS     = memSpec->tXSR / memSpec->tCK;
-        memTimingSpec.XSDLL  = memSpec->tXSR / memSpec->tCK;
+        memTimingSpec.clkPeriod = 1000.0 / memSpecWideIO->fCKMHz;
+        memTimingSpec.DQSCK  = memSpecWideIO->tDQSCK / memSpecWideIO->tCK;
+        memTimingSpec.FAW    = memSpecWideIO->tTAW / memSpecWideIO->tCK;
+        memTimingSpec.RAS    = memSpecWideIO->tRAS / memSpecWideIO->tCK;
+        memTimingSpec.RC     = memSpecWideIO->tRC / memSpecWideIO->tCK;
+        memTimingSpec.RCD    = memSpecWideIO->tRCD / memSpecWideIO->tCK;
+        memTimingSpec.REFI   = memSpecWideIO->tREFI / memSpecWideIO->tCK;
+        memTimingSpec.RFC    = memSpecWideIO->tRFC / memSpecWideIO->tCK;
+        memTimingSpec.RL     = memSpecWideIO->tRL / memSpecWideIO->tCK;
+        memTimingSpec.RP     = memSpecWideIO->tRP / memSpecWideIO->tCK;
+        memTimingSpec.RRD    = memSpecWideIO->tRRD / memSpecWideIO->tCK;
+        memTimingSpec.RRD_L  = memSpecWideIO->tRRD / memSpecWideIO->tCK;
+        memTimingSpec.RRD_S  = memSpecWideIO->tRRD / memSpecWideIO->tCK;
+        memTimingSpec.RTP    = memSpecWideIO->defaultBurstLength;
+        memTimingSpec.TAW    = memSpecWideIO->tTAW / memSpecWideIO->tCK;
+        memTimingSpec.WL     = memSpecWideIO->tWL / memSpecWideIO->tCK;
+        memTimingSpec.WR     = memSpecWideIO->tWR / memSpecWideIO->tCK;
+        memTimingSpec.WTR    = memSpecWideIO->tWTR / memSpecWideIO->tCK;
+        memTimingSpec.WTR_L  = memSpecWideIO->tWTR / memSpecWideIO->tCK;
+        memTimingSpec.WTR_S  = memSpecWideIO->tWTR / memSpecWideIO->tCK;
+        memTimingSpec.XP     = memSpecWideIO->tXP / memSpecWideIO->tCK;
+        memTimingSpec.XPDLL  = memSpecWideIO->tXP / memSpecWideIO->tCK;
+        memTimingSpec.XS     = memSpecWideIO->tXSR / memSpecWideIO->tCK;
+        memTimingSpec.XSDLL  = memSpecWideIO->tXSR / memSpecWideIO->tCK;
 
         MemPowerSpec  memPowerSpec;
-        memPowerSpec.idd0    = memSpec->iDD0;
-        memPowerSpec.idd02   = memSpec->iDD02;
-        memPowerSpec.idd2p0  = memSpec->iDD2P0;
-        memPowerSpec.idd2p02 = memSpec->iDD2P02;
-        memPowerSpec.idd2p1  = memSpec->iDD2P1;
-        memPowerSpec.idd2p12 = memSpec->iDD2P12;
-        memPowerSpec.idd2n   = memSpec->iDD2N;
-        memPowerSpec.idd2n2  = memSpec->iDD2N2;
-        memPowerSpec.idd3p0  = memSpec->iDD3P0;
-        memPowerSpec.idd3p02 = memSpec->iDD3P02;
-        memPowerSpec.idd3p1  = memSpec->iDD3P1;
-        memPowerSpec.idd3p12 = memSpec->iDD3P12;
-        memPowerSpec.idd3n   = memSpec->iDD3N;
-        memPowerSpec.idd3n2  = memSpec->iDD3N2;
-        memPowerSpec.idd4r   = memSpec->iDD4R;
-        memPowerSpec.idd4r2  = memSpec->iDD4R2;
-        memPowerSpec.idd4w   = memSpec->iDD4W;
-        memPowerSpec.idd4w2  = memSpec->iDD4W2;
-        memPowerSpec.idd5    = memSpec->iDD5;
-        memPowerSpec.idd52   = memSpec->iDD52;
-        memPowerSpec.idd6    = memSpec->iDD6;
-        memPowerSpec.idd62   = memSpec->iDD62;
-        memPowerSpec.vdd     = memSpec->vDD;
-        memPowerSpec.vdd2    = memSpec->vDD2;
+        memPowerSpec.idd0    = memSpecWideIO->iDD0;
+        memPowerSpec.idd02   = memSpecWideIO->iDD02;
+        memPowerSpec.idd2p0  = memSpecWideIO->iDD2P0;
+        memPowerSpec.idd2p02 = memSpecWideIO->iDD2P02;
+        memPowerSpec.idd2p1  = memSpecWideIO->iDD2P1;
+        memPowerSpec.idd2p12 = memSpecWideIO->iDD2P12;
+        memPowerSpec.idd2n   = memSpecWideIO->iDD2N;
+        memPowerSpec.idd2n2  = memSpecWideIO->iDD2N2;
+        memPowerSpec.idd3p0  = memSpecWideIO->iDD3P0;
+        memPowerSpec.idd3p02 = memSpecWideIO->iDD3P02;
+        memPowerSpec.idd3p1  = memSpecWideIO->iDD3P1;
+        memPowerSpec.idd3p12 = memSpecWideIO->iDD3P12;
+        memPowerSpec.idd3n   = memSpecWideIO->iDD3N;
+        memPowerSpec.idd3n2  = memSpecWideIO->iDD3N2;
+        memPowerSpec.idd4r   = memSpecWideIO->iDD4R;
+        memPowerSpec.idd4r2  = memSpecWideIO->iDD4R2;
+        memPowerSpec.idd4w   = memSpecWideIO->iDD4W;
+        memPowerSpec.idd4w2  = memSpecWideIO->iDD4W2;
+        memPowerSpec.idd5    = memSpecWideIO->iDD5;
+        memPowerSpec.idd52   = memSpecWideIO->iDD52;
+        memPowerSpec.idd6    = memSpecWideIO->iDD6;
+        memPowerSpec.idd62   = memSpecWideIO->iDD62;
+        memPowerSpec.vdd     = memSpecWideIO->vDD;
+        memPowerSpec.vdd2    = memSpecWideIO->vDD2;
 
         MemorySpecification powerSpec;
-        powerSpec.id = memSpec->memoryId;
+        powerSpec.id = memSpecWideIO->memoryId;
         powerSpec.memoryType = MemoryType::WIDEIO_SDR;
         powerSpec.memTimingSpec = memTimingSpec;
         powerSpec.memPowerSpec  = memPowerSpec;
         powerSpec.memArchSpec   = memArchSpec;
 
-        DRAMPower = new libDRAMPower(powerSpec, 0);
+        DRAMPower = std::make_unique<libDRAMPower>(powerSpec, false);
 
         // For each bank in a channel a error Model is created:
         if (storeMode == Configuration::StoreMode::ErrorModel)
         {
-            for (unsigned i = 0; i < memSpec->numberOfBanks; i++)
+            for (unsigned i = 0; i < memSpec.banksPerChannel; i++)
             {
-                errorModel *em;
                 std::string errorModelStr = "errorModel_bank" + std::to_string(i);
-                em = new errorModel(errorModelStr.c_str(), DRAMPower);
-                ememory.push_back(em);
+                ememory.emplace_back(std::make_unique<errorModel>(errorModelStr.c_str(), config,
+                                                                  temperatureController, DRAMPower.get()));
             }
         }
     }
@@ -158,22 +159,14 @@ DramWideIO::DramWideIO(sc_module_name name) : Dram(name)
     {
         if (storeMode == Configuration::StoreMode::ErrorModel)
         {
-            for (unsigned i = 0; i < memSpec->numberOfBanks; i++)
+            for (unsigned i = 0; i < memSpec.banksPerChannel; i++)
             {
-                errorModel *em;
                 std::string errorModelStr = "errorModel_bank" + std::to_string(i);
-                em = new errorModel(errorModelStr.c_str());
-                ememory.push_back(em);
+                ememory.emplace_back(std::make_unique<errorModel>(errorModelStr.c_str(), config,
+                                                                  temperatureController));
             }
         }
     }
-}
-
-DramWideIO::~DramWideIO()
-{
-    // Clean up:
-    for (auto e : ememory)
-        delete e;
 }
 
 tlm_sync_enum DramWideIO::nb_transport_fw(tlm_generic_payload &payload,
@@ -181,10 +174,10 @@ tlm_sync_enum DramWideIO::nb_transport_fw(tlm_generic_payload &payload,
 {
     assert(phase >= 5 && phase <= 19);
 
-    if (Configuration::getInstance().powerAnalysis)
+    if (powerAnalysis)
     {
         int bank = static_cast<int>(DramExtension::getExtension(payload).getBank().ID());
-        int64_t cycle = static_cast<int64_t>((sc_time_stamp() + delay) / memSpec->tCK + 0.5);
+        int64_t cycle = std::lround((sc_time_stamp() + delay) / memSpec.tCK);
         DRAMPower->doCommand(phaseToDRAMPowerCommand(phase), bank, cycle);
     }
 
@@ -212,7 +205,7 @@ tlm_sync_enum DramWideIO::nb_transport_fw(tlm_generic_payload &payload,
             ememory[bank]->load(payload);
         else if (phase == BEGIN_WR || phase == BEGIN_WRA)
             ememory[bank]->store(payload);
-        else if (phase == BEGIN_REFA)
+        else if (phase == BEGIN_REFAB)
             ememory[bank]->refresh(DramExtension::getExtension(payload).getRow().ID());
     }
 

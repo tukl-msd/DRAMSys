@@ -41,7 +41,7 @@ option(DRAMSYS_COVERAGE_CHECK "Coverage check of DRAMSys")
 option(DRAMSYS_WITH_GEM5 "Build DRAMSys with gem5 coupling")
 
 # Configuration:
-set(CMAKE_CXX_STANDARD 11 CACHE STRING "C++ Version")
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ Version")
 set(DCMAKE_SH "CMAKE_SH-NOTFOUND" CACHE STRING "Ignore sh.exe error on Windows")
 
 if(DRAMSYS_COVERAGE_CHECK)

@@ -36,15 +36,17 @@
 #ifndef DRAMHBM2_H
 #define DRAMHBM2_H
 
-#include <systemc.h>
+#include <systemc>
+
 #include "Dram.h"
+#include "../TemperatureController.h"
 
 class DramHBM2 : public Dram
 {
 public:
-    DramHBM2(sc_module_name);
+    DramHBM2(const sc_core::sc_module_name &name, const Configuration& config,
+             TemperatureController& temperatureController);
     SC_HAS_PROCESS(DramHBM2);
-    virtual ~DramHBM2() {}
 };
 
 #endif // DRAMHBM2_H

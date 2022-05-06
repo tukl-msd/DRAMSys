@@ -37,21 +37,23 @@
 #ifndef MEMORYMANAGER_H
 #define MEMORYMANAGER_H
 
-#include <tlm.h>
-#include <vector>
+#include <unordered_map>
+#include <stack>
+
+#include <tlm>
 
 class MemoryManager : public tlm::tlm_mm_interface
 {
 public:
-    MemoryManager();
-    virtual ~MemoryManager();
-    virtual tlm::tlm_generic_payload *allocate();
-    virtual void free(tlm::tlm_generic_payload *payload);
+    MemoryManager(bool storageEnabled);
+    ~MemoryManager() override;
+    tlm::tlm_generic_payload& allocate(unsigned dataLength);
+    void free(tlm::tlm_generic_payload* payload) override;
 
 private:
     uint64_t numberOfAllocations;
     uint64_t numberOfFrees;
-    std::vector<tlm::tlm_generic_payload *> freePayloads;
+    std::unordered_map<unsigned, std::stack<tlm::tlm_generic_payload*>> freePayloads;
     bool storageEnabled = false;
 };
 

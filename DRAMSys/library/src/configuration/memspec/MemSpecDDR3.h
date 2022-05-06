@@ -31,47 +31,50 @@
  *
  * Authors:
  *    Lukas Steiner
+ *    Derek Christ
  */
 
 #ifndef MEMSPECDDR3_H
 #define MEMSPECDDR3_H
 
 #include "MemSpec.h"
-#include "../../common/third_party/nlohmann/single_include/nlohmann/json.hpp"
+
+#include <systemc>
+#include <Configuration.h>
 
 class MemSpecDDR3 final : public MemSpec
 {
 public:
-    MemSpecDDR3(nlohmann::json &memspec);
+    explicit MemSpecDDR3(const DRAMSysConfiguration::MemSpec &memSpec);
 
     // Memspec Variables:
-    const sc_time tCKE;
-    const sc_time tPD;
-    const sc_time tCKESR;
-    const sc_time tRAS;
-    const sc_time tRC;
-    const sc_time tRCD;
-    const sc_time tRL;
-    const sc_time tRTP;
-    const sc_time tWL;
-    const sc_time tWR;
-    const sc_time tXP;
-    const sc_time tXS;
-    const sc_time tREFI;
-    const sc_time tRFC;
-    const sc_time tRP;
-    const sc_time tDQSCK;
-    const sc_time tCCD;
-    const sc_time tFAW;
-    const sc_time tRRD;
-    const sc_time tWTR;
-    const sc_time tXPDLL;
-    const sc_time tXSDLL;
-    const sc_time tAL;
-    const sc_time tACTPDEN;
-    const sc_time tPRPDEN;
-    const sc_time tREFPDEN;
-    const sc_time tRTRS;
+    const sc_core::sc_time tCKE;
+    const sc_core::sc_time tPD;
+    const sc_core::sc_time tCKESR;
+    const sc_core::sc_time tRAS;
+    const sc_core::sc_time tRC;
+    const sc_core::sc_time tRCD;
+    const sc_core::sc_time tRL;
+    const sc_core::sc_time tRTP;
+    const sc_core::sc_time tWL;
+    const sc_core::sc_time tWR;
+    const sc_core::sc_time tXP;
+    const sc_core::sc_time tXS;
+    const sc_core::sc_time tREFI;
+    const sc_core::sc_time tRFC;
+    const sc_core::sc_time tRP;
+    const sc_core::sc_time tDQSCK;
+    const sc_core::sc_time tCCD;
+    const sc_core::sc_time tFAW;
+    const sc_core::sc_time tRRD;
+    const sc_core::sc_time tWTR;
+    const sc_core::sc_time tXPDLL;
+    const sc_core::sc_time tXSDLL;
+    const sc_core::sc_time tAL;
+    const sc_core::sc_time tACTPDEN;
+    const sc_core::sc_time tPRPDEN;
+    const sc_core::sc_time tREFPDEN;
+    const sc_core::sc_time tRTRS;
 
     // Currents and Voltages:
     const double iDD0;
@@ -87,12 +90,10 @@ public:
     const double iDD3P0;
     const double iDD3P1;
 
-    virtual sc_time getRefreshIntervalAB() const override;
+    sc_core::sc_time getRefreshIntervalAB() const override;
 
-    virtual sc_time getExecutionTime(Command, const tlm::tlm_generic_payload &) const override;
-    virtual TimeInterval getIntervalOnDataStrobe(Command) const override;
-
-    virtual uint64_t getSimMemSizeInBytes() const override;
+    sc_core::sc_time getExecutionTime(Command command, const tlm::tlm_generic_payload &payload) const override;
+    TimeInterval getIntervalOnDataStrobe(Command command, const tlm::tlm_generic_payload &payload) const override;
 };
 
 #endif // MEMSPECDDR3_H

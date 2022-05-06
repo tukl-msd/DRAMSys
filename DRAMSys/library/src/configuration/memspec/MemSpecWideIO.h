@@ -31,41 +31,42 @@
  *
  * Authors:
  *    Lukas Steiner
+ *    Derek Christ
  */
 
 #ifndef MEMSPECWIDEIO_H
 #define MEMSPECWIDEIO_H
 
+#include <systemc>
 #include "MemSpec.h"
-#include "../../common/third_party/nlohmann/single_include/nlohmann/json.hpp"
 
 class MemSpecWideIO final : public MemSpec
 {
 public:
-    MemSpecWideIO(nlohmann::json &memspec);
+    explicit MemSpecWideIO(const DRAMSysConfiguration::MemSpec &memSpec);
 
     // Memspec Variables:
-    const sc_time tCKE;
-    const sc_time tCKESR;
-    const sc_time tRAS;
-    const sc_time tRC;
-    const sc_time tRCD;
-    const sc_time tRL;
-    const sc_time tWL;
-    const sc_time tWR;
-    const sc_time tXP;
-    const sc_time tXSR;
-    const sc_time tREFI;
-    const sc_time tRFC;
-    const sc_time tRP;
-    const sc_time tDQSCK;
-    const sc_time tAC;
-    const sc_time tCCD_R;
-    const sc_time tCCD_W;
-    const sc_time tRRD;
-    const sc_time tTAW;
-    const sc_time tWTR;
-    const sc_time tRTRS;
+    const sc_core::sc_time tCKE;
+    const sc_core::sc_time tCKESR;
+    const sc_core::sc_time tRAS;
+    const sc_core::sc_time tRC;
+    const sc_core::sc_time tRCD;
+    const sc_core::sc_time tRL;
+    const sc_core::sc_time tWL;
+    const sc_core::sc_time tWR;
+    const sc_core::sc_time tXP;
+    const sc_core::sc_time tXSR;
+    const sc_core::sc_time tREFI;
+    const sc_core::sc_time tRFC;
+    const sc_core::sc_time tRP;
+    const sc_core::sc_time tDQSCK;
+    const sc_core::sc_time tAC;
+    const sc_core::sc_time tCCD_R;
+    const sc_core::sc_time tCCD_W;
+    const sc_core::sc_time tRRD;
+    const sc_core::sc_time tTAW;
+    const sc_core::sc_time tWTR;
+    const sc_core::sc_time tRTRS;
 
     // Currents and Voltages:
     const double iDD0;
@@ -93,12 +94,10 @@ public:
     const double iDD62;
     const double vDD2;
 
-    virtual sc_time getRefreshIntervalAB() const override;
+    sc_core::sc_time getRefreshIntervalAB() const override;
 
-    virtual sc_time getExecutionTime(Command, const tlm::tlm_generic_payload &) const override;
-    virtual TimeInterval getIntervalOnDataStrobe(Command) const override;
-
-    virtual uint64_t getSimMemSizeInBytes() const override;
+    sc_core::sc_time getExecutionTime(Command command, const tlm::tlm_generic_payload &payload) const override;
+    TimeInterval getIntervalOnDataStrobe(Command command, const tlm::tlm_generic_payload &payload) const override;
 };
 
 #endif // MEMSPECWIDEIO_H

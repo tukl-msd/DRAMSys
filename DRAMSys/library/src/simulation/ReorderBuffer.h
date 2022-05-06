@@ -40,13 +40,14 @@
 
 #include <deque>
 #include <set>
-#include <systemc.h>
-#include <tlm.h>
+
+#include <systemc>
+#include <tlm>
 #include <tlm_utils/simple_initiator_socket.h>
 #include <tlm_utils/simple_target_socket.h>
 #include <tlm_utils/peq_with_cb_and_phase.h>
 
-struct ReorderBuffer : public sc_module
+struct ReorderBuffer : public sc_core::sc_module
 {
 public:
     tlm_utils::simple_initiator_socket<ReorderBuffer> iSocket;
@@ -70,7 +71,7 @@ private:
 
     // Initiated by dram side
     tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload &payload, tlm::tlm_phase &phase,
-                                  sc_time &bwDelay)
+                                       sc_core::sc_time &bwDelay)
     {
         payloadEventQueue.notify(payload, phase, bwDelay);
         return tlm::TLM_ACCEPTED;
@@ -78,7 +79,7 @@ private:
 
     // Initiated by initator side (players)
     tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload &payload, tlm::tlm_phase &phase,
-                                  sc_time &fwDelay)
+                                       sc_core::sc_time &fwDelay)
     {
         if (phase == tlm::BEGIN_REQ) {
             payload.acquire();
@@ -95,7 +96,7 @@ private:
         //Phases initiated by initiator side
         if (phase == tlm::BEGIN_REQ) {
             pendingRequestsInOrder.push_back(&payload);
-            sendToTarget(payload, phase, SC_ZERO_TIME );
+            sendToTarget(payload, phase, sc_core::SC_ZERO_TIME);
         }
 
         else if (phase == tlm::END_RESP) {
@@ -107,9 +108,9 @@ private:
 
         //Phases initiated by dram side
         else if (phase == tlm::END_REQ) {
-            sendToInitiator(payload, phase, SC_ZERO_TIME);
+            sendToInitiator(payload, phase, sc_core::SC_ZERO_TIME);
         } else if (phase == tlm::BEGIN_RESP) {
-            sendToTarget(payload, tlm::END_RESP, SC_ZERO_TIME);
+            sendToTarget(payload, tlm::END_RESP, sc_core::SC_ZERO_TIME);
             receivedResponses.emplace(&payload);
             sendNextResponse();
         }
@@ -121,16 +122,14 @@ private:
         }
     }
 
-    void sendToTarget(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase,
-                      const sc_time &delay)
+    void sendToTarget(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase, const sc_core::sc_time &delay)
     {
         tlm::tlm_phase TPhase = phase;
-        sc_time TDelay = delay;
+        sc_core::sc_time TDelay = delay;
         iSocket->nb_transport_fw(payload, TPhase, TDelay);
     }
 
-    void sendToInitiator(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase,
-                         const sc_time &delay)
+    void sendToInitiator(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase, const sc_core::sc_time &delay)
     {
 
 
@@ -139,7 +138,7 @@ private:
                    && receivedResponses.count(&payload)));
 
         tlm::tlm_phase TPhase = phase;
-        sc_time TDelay = delay;
+        sc_core::sc_time TDelay = delay;
         tSocket->nb_transport_bw(payload, TPhase, TDelay);
     }
 
@@ -151,7 +150,7 @@ private:
                 && receivedResponses.count(pendingRequestsInOrder.front())) {
             tlm::tlm_generic_payload *payloadToSend = pendingRequestsInOrder.front();
             responseIsPendingInInitator = true;
-            sendToInitiator(*payloadToSend, tlm::BEGIN_RESP, SC_ZERO_TIME);
+            sendToInitiator(*payloadToSend, tlm::BEGIN_RESP, sc_core::SC_ZERO_TIME);
         }
 //        else if(!responseIsPendingInInitator && receivedResponses.size()>0 && !receivedResponses.count(pendingRequestsInOrder.front())>0)
 //        {

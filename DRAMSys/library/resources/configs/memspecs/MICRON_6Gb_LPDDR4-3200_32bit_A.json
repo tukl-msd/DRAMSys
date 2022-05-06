@@ -8,6 +8,7 @@
             "nbrOfRanks": 1,
             "nbrOfRows": 49152,
             "width": 16,
+            "nbrOfDevices": 1,
             "nbrOfChannels": 1
         },
         "memoryId": "MICRON_6Gb_LPDDR3-3200_16bit_A",

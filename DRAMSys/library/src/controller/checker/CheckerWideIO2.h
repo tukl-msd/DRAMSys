@@ -35,40 +35,41 @@
 #ifndef CHECKERWIDEIO2_H
 #define CHECKERWIDEIO2_H
 
-#include "CheckerIF.h"
 #include <queue>
 #include <vector>
+
+#include "CheckerIF.h"
 #include "../../configuration/memspec/MemSpecWideIO2.h"
 #include "../../configuration/Configuration.h"
 
 class CheckerWideIO2 final : public CheckerIF
 {
 public:
-    CheckerWideIO2();
-    virtual sc_time timeToSatisfyConstraints(Command, Rank, BankGroup, Bank) const override;
-    virtual void insert(Command, Rank, BankGroup, Bank) override;
+    explicit CheckerWideIO2(const Configuration& config);
+    sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const override;
+    void insert(Command command, const tlm::tlm_generic_payload& payload) override;
 
 private:
     const MemSpecWideIO2 *memSpec;
 
-    std::vector<std::vector<sc_time>> lastScheduledByCommandAndBank;
-    std::vector<std::vector<sc_time>> lastScheduledByCommandAndRank;
-    std::vector<sc_time> lastScheduledByCommand;
-    sc_time lastCommandOnBus;
+    std::vector<std::vector<sc_core::sc_time>> lastScheduledByCommandAndBank;
+    std::vector<std::vector<sc_core::sc_time>> lastScheduledByCommandAndRank;
+    std::vector<sc_core::sc_time> lastScheduledByCommand;
+    sc_core::sc_time lastCommandOnBus;
 
     // Four activate window
-    std::vector<std::queue<sc_time>> last4Activates;
+    std::vector<std::queue<sc_core::sc_time>> last4Activates;
 
-    sc_time tBURST;
-    sc_time tRDPRE;
-    sc_time tRDPDEN;
-    sc_time tRDWR;
-    sc_time tRDWR_R;
-    sc_time tWRPRE;
-    sc_time tWRPDEN;
-    sc_time tWRAPDEN;
-    sc_time tWRRD;
-    sc_time tWRRD_R;
+    sc_core::sc_time tBURST;
+    sc_core::sc_time tRDPRE;
+    sc_core::sc_time tRDPDEN;
+    sc_core::sc_time tRDWR;
+    sc_core::sc_time tRDWR_R;
+    sc_core::sc_time tWRPRE;
+    sc_core::sc_time tWRPDEN;
+    sc_core::sc_time tWRAPDEN;
+    sc_core::sc_time tWRRD;
+    sc_core::sc_time tWRRD_R;
 };
 
 #endif // CHECKERWIDEIO2_H

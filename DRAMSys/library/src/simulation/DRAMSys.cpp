@@ -35,16 +35,16 @@
  *    Eder F. Zulian
  *    Felipe S. Prado
  *    Lukas Steiner
+ *    Derek Christ
  */
 
-#include <stdlib.h>
+#include <cstdlib>
 #include <iostream>
-#include <fstream>
+#include <memory>
 #include <vector>
 #include <stdexcept>
 
 #include "DRAMSys.h"
-#include "../common/third_party/nlohmann/single_include/nlohmann/json.hpp"
 #include "../common/DebugManager.h"
 #include "../common/utils.h"
 #include "../simulation/TemperatureController.h"
@@ -54,88 +54,61 @@
 #include "dram/DramDDR5.h"
 #include "dram/DramWideIO.h"
 #include "dram/DramLPDDR4.h"
+#include "dram/DramLPDDR5.h"
 #include "dram/DramWideIO2.h"
 #include "dram/DramHBM2.h"
 #include "dram/DramGDDR5.h"
 #include "dram/DramGDDR5X.h"
 #include "dram/DramGDDR6.h"
+#include "dram/DramSTTMRAM.h"
 #include "../controller/Controller.h"
 
-DRAMSys::DRAMSys(sc_module_name name,
-                 std::string simulationToRun,
-                 std::string pathToResources)
-    : DRAMSys(name, simulationToRun, pathToResources, true)
+DRAMSys::DRAMSys(const sc_core::sc_module_name &name,
+                 const DRAMSysConfiguration::Configuration &configLib)
+    : DRAMSys(name, configLib, true)
 {}
 
-DRAMSys::DRAMSys(sc_module_name name,
-                 std::string simulationToRun,
-                 std::string pathToResources,
+DRAMSys::DRAMSys(const sc_core::sc_module_name &name,
+                 const DRAMSysConfiguration::Configuration &configLib,
                  bool initAndBind)
     : sc_module(name), tSocket("DRAMSys_tSocket")
 {
-    // Initialize ecc pointer
-    ecc = nullptr;
-
     logo();
 
-    // Read Configuration Setup:
-    nlohmann::json simulationdoc = parseJSON(simulationToRun);
+    // Load configLib and initialize modules
+    // Important: The memSpec needs to be the first configuration to be loaded!
+    config.loadMemSpec(configLib.memSpec);
+    config.loadMCConfig(configLib.mcConfig);
+    config.loadSimConfig(configLib.simConfig);
 
-    Configuration::getInstance().setPathToResources(pathToResources);
-
-    // Load config and initialize modules
-    Configuration::getInstance().loadMemSpec(Configuration::getInstance(),
-            pathToResources
-            + "configs/memspecs/"
-            + std::string(simulationdoc["simulation"]["memspec"]));
-
-    Configuration::getInstance().loadMCConfig(Configuration::getInstance(),
-            pathToResources
-            + "configs/mcconfigs/"
-            + std::string(simulationdoc["simulation"]["mcconfig"]));
-
-    Configuration::getInstance().loadSimConfig(Configuration::getInstance(),
-            pathToResources
-            + "configs/simulator/"
-            + std::string(simulationdoc["simulation"]["simconfig"]));
-
-    Configuration::getInstance().loadTemperatureSimConfig(Configuration::getInstance(),
-            pathToResources
-            + "configs/thermalsim/"
-            + std::string(simulationdoc["simulation"]["thermalconfig"]));
+    if (const auto &thermalConfig = configLib.thermalConfig)
+        config.loadTemperatureSimConfig(*thermalConfig);
 
     // Setup the debug manager:
-    setupDebugManager(Configuration::getInstance().simulationName);
+    setupDebugManager(config.simulationName);
 
     if (initAndBind)
     {
         // Instantiate all internal DRAMSys modules:
-        std::string amconfig = simulationdoc["simulation"]["addressmapping"];
-        instantiateModules(pathToResources, amconfig);
+        instantiateModules(configLib.addressMapping);
         // Connect all internal DRAMSys modules:
         bindSockets();
         report(headline);
     }
 }
 
-DRAMSys::~DRAMSys()
+const Configuration& DRAMSys::getConfig()
 {
-    if (ecc)
-        delete ecc;
+    return config;
+}
 
-    delete arbiter;
-
-    for (auto dram : drams)
-        delete dram;
-
-    for (auto controller : controllers)
-        delete controller;
-
-    for (auto tlmChecker : playersTlmCheckers)
-        delete tlmChecker;
-
-    for (auto tlmChecker : controllersTlmCheckers)
-        delete tlmChecker;
+void DRAMSys::end_of_simulation()
+{
+    if (config.powerAnalysis)
+    {
+        for (auto& dram : drams)
+            dram->reportPower();
+    }
 }
 
 void DRAMSys::logo()
@@ -166,118 +139,97 @@ void DRAMSys::logo()
 void DRAMSys::setupDebugManager(NDEBUG_UNUSED(const std::string &traceName))
 {
 #ifndef NDEBUG
-    auto &dbg = DebugManager::getInstance();
-    dbg.writeToConsole = false;
-    dbg.writeToFile = true;
-    if (dbg.writeToFile)
+    auto& dbg = DebugManager::getInstance();
+    bool debugEnabled = config.debug;
+    bool writeToConsole = false;
+    bool writeToFile = true;
+    dbg.setup(debugEnabled, writeToConsole, writeToFile);
+    if (writeToFile)
         dbg.openDebugFile(traceName + ".txt");
 #endif
 }
 
-void DRAMSys::instantiateModules(const std::string &pathToResources,
-                                 const std::string &amconfig)
+void DRAMSys::instantiateModules(const DRAMSysConfiguration::AddressMapping &addressMapping)
 {
-    // The first call to getInstance() creates the Temperature Controller.
-    // The same instance will be accessed by all other modules.
-    TemperatureController::getInstance();
-    Configuration &config = Configuration::getInstance();
-
-    // Create new ECC Controller
-    if (config.eccMode == Configuration::ECCMode::Hamming)
-        ecc = new ECCHamming("ECCHamming");
-    else if (config.eccMode == Configuration::ECCMode::Disabled)
-        ecc = nullptr;
-
-    // Save ECC Controller into the configuration struct to adjust it dynamically
-    config.pECC = ecc;
+    temperatureController = std::make_unique<TemperatureController>("TemperatureController", config);
 
     // Create arbiter
     if (config.arbiter == Configuration::Arbiter::Simple)
-        arbiter = new ArbiterSimple("arbiter", pathToResources + "configs/amconfigs/" + amconfig);
+        arbiter = std::make_unique<ArbiterSimple>("arbiter", config, addressMapping);
     else if (config.arbiter == Configuration::Arbiter::Fifo)
-        arbiter = new ArbiterFifo("arbiter", pathToResources + "configs/amconfigs/" + amconfig);
+        arbiter = std::make_unique<ArbiterFifo>("arbiter", config, addressMapping);
     else if (config.arbiter == Configuration::Arbiter::Reorder)
-        arbiter = new ArbiterReorder("arbiter", pathToResources + "configs/amconfigs/" + amconfig);
+        arbiter = std::make_unique<ArbiterReorder>("arbiter", config, addressMapping);
 
     // Create controllers and DRAMs
     MemSpec::MemoryType memoryType = config.memSpec->memoryType;
-    for (size_t i = 0; i < config.memSpec->numberOfChannels; i++)
+    for (std::size_t i = 0; i < config.memSpec->numberOfChannels; i++)
     {
-        std::string str = "controller" + std::to_string(i);
-
-        ControllerIF *controller = new Controller(str.c_str());
-        controllers.push_back(controller);
-
-        str = "dram" + std::to_string(i);
-        Dram *dram;
+        controllers.emplace_back(std::make_unique<Controller>(("controller" + std::to_string(i)).c_str(), config));
 
         if (memoryType == MemSpec::MemoryType::DDR3)
-            dram = new DramDDR3(str.c_str());
+            drams.emplace_back(std::make_unique<DramDDR3>(("dram" + std::to_string(i)).c_str(), config,
+                                                          *temperatureController));
         else if (memoryType == MemSpec::MemoryType::DDR4)
-            dram = new DramDDR4(str.c_str());
+            drams.emplace_back(std::make_unique<DramDDR4>(("dram" + std::to_string(i)).c_str(), config,
+                                                          *temperatureController));
         else if (memoryType == MemSpec::MemoryType::DDR5)
-            dram = new DramDDR5(str.c_str());
+            drams.emplace_back(std::make_unique<DramDDR5>(("dram" + std::to_string(i)).c_str(), config,
+                                                          *temperatureController));
         else if (memoryType == MemSpec::MemoryType::WideIO)
-            dram = new DramWideIO(str.c_str());
+            drams.emplace_back(std::make_unique<DramWideIO>(("dram" + std::to_string(i)).c_str(), config,
+                                                            *temperatureController));
         else if (memoryType == MemSpec::MemoryType::LPDDR4)
-            dram = new DramLPDDR4(str.c_str());
+            drams.emplace_back(std::make_unique<DramLPDDR4>(("dram" + std::to_string(i)).c_str(), config,
+                                                            *temperatureController));
+        else if (memoryType == MemSpec::MemoryType::LPDDR5)
+            drams.emplace_back(std::make_unique<DramLPDDR5>(("dram" + std::to_string(i)).c_str(), config,
+                                                            *temperatureController));
         else if (memoryType == MemSpec::MemoryType::WideIO2)
-            dram = new DramWideIO2(str.c_str());
+            drams.emplace_back(std::make_unique<DramWideIO2>(("dram" + std::to_string(i)).c_str(), config,
+                                                             *temperatureController));
         else if (memoryType == MemSpec::MemoryType::HBM2)
-            dram = new DramHBM2(str.c_str());
+            drams.emplace_back(std::make_unique<DramHBM2>(("dram" + std::to_string(i)).c_str(), config,
+                                                          *temperatureController));
         else if (memoryType == MemSpec::MemoryType::GDDR5)
-            dram = new DramGDDR5(str.c_str());
+            drams.emplace_back(std::make_unique<DramGDDR5>(("dram" + std::to_string(i)).c_str(), config,
+                                                           *temperatureController));
         else if (memoryType == MemSpec::MemoryType::GDDR5X)
-            dram = new DramGDDR5X(str.c_str());
+            drams.emplace_back(std::make_unique<DramGDDR5X>(("dram" + std::to_string(i)).c_str(), config,
+                                                            *temperatureController));
         else if (memoryType == MemSpec::MemoryType::GDDR6)
-            dram = new DramGDDR6(str.c_str());
+            drams.emplace_back(std::make_unique<DramGDDR6>(("dram" + std::to_string(i)).c_str(), config,
+                                                           *temperatureController));
+        else if (memoryType == MemSpec::MemoryType::STTMRAM)
+            drams.emplace_back(std::make_unique<DramSTTMRAM>(("dram" + std::to_string(i)).c_str(), config,
+                                                             *temperatureController));
 
-        drams.push_back(dram);
-
-        if (Configuration::getInstance().checkTLM2Protocol)
-        {
-            str = "TLMCheckerController" + std::to_string(i);
-            tlm_utils::tlm2_base_protocol_checker<> *controllerTlmChecker =
-                new tlm_utils::tlm2_base_protocol_checker<>(str.c_str());
-            controllersTlmCheckers.push_back(controllerTlmChecker);
-        }
+        if (config.checkTLM2Protocol)
+            controllersTlmCheckers.push_back(std::make_unique<tlm_utils::tlm2_base_protocol_checker<>>
+                    (("TlmCheckerController" + std::to_string(i)).c_str()));
     }
 }
 
 void DRAMSys::bindSockets()
 {
-    Configuration &config = Configuration::getInstance();
+    tSocket.bind(arbiter->tSocket);
 
-    // If ECC Controller enabled, put it between Trace and arbiter
-    if (config.eccMode == Configuration::ECCMode::Hamming)
+    for (unsigned i = 0; i < config.memSpec->numberOfChannels; i++)
     {
-        assert(ecc != nullptr);
-        tSocket.bind(ecc->t_socket);
-        ecc->i_socket.bind(arbiter->tSocket);
-    }
-    else if (config.eccMode == Configuration::ECCMode::Disabled)
-        tSocket.bind(arbiter->tSocket);
-
-    if (config.checkTLM2Protocol)
-    {
-        for (size_t i = 0; i < config.memSpec->numberOfChannels; i++)
+        if (config.checkTLM2Protocol)
         {
             arbiter->iSocket.bind(controllersTlmCheckers[i]->target_socket);
             controllersTlmCheckers[i]->initiator_socket.bind(controllers[i]->tSocket);
-            controllers[i]->iSocket.bind(drams[i]->tSocket);
         }
-    }
-    else
-    {
-        for (size_t i = 0; i < config.memSpec->numberOfChannels; i++)
+        else
         {
             arbiter->iSocket.bind(controllers[i]->tSocket);
-            controllers[i]->iSocket.bind(drams[i]->tSocket);
         }
+        controllers[i]->iSocket.bind(drams[i]->tSocket);
     }
 }
 
-void DRAMSys::report(std::string message)
+void DRAMSys::report(const std::string &message)
 {
     PRINTDEBUGMESSAGE(name(), message);
     std::cout << message << std::endl;

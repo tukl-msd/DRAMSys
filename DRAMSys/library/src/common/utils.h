@@ -34,47 +34,37 @@
  *    Matthias Jung
  *    Eder F. Zulian
  *    Luiza Correa
+ *    Derek Christ
  */
 
 #ifndef UTILS_H
 #define UTILS_H
 
-#include <systemc.h>
-#include <map>
 #include <string>
-#include <ostream>
-#include <tlm.h>
-#include <iomanip>
+
+#include <systemc>
+#include <tlm>
 #include "dramExtensions.h"
-#include <fstream>
-#include <sstream>
-#include "../common/third_party/nlohmann/single_include/nlohmann/json.hpp"
 
 class TimeInterval
 {
 public:
-    sc_time start, end;
-    TimeInterval() : start(SC_ZERO_TIME), end(SC_ZERO_TIME) {}
-    TimeInterval(sc_time start, sc_time end) : start(start), end(end) {}
+    sc_core::sc_time start, end;
+    TimeInterval() : start(sc_core::SC_ZERO_TIME), end(sc_core::SC_ZERO_TIME) {}
+    TimeInterval(const sc_core::sc_time& start, const sc_core::sc_time& end) : start(start), end(end) {}
 
-    sc_time getLength();
-    bool timeIsInInterval(sc_time time);
-    bool intersects(TimeInterval other);
+    sc_core::sc_time getLength() const;
+    bool timeIsInInterval(const sc_core::sc_time &time) const;
+    bool intersects(const TimeInterval &other) const;
 };
 
 constexpr const char headline[] =
     "===========================================================================";
 
-std::string getPhaseName(tlm::tlm_phase phase);
-
-nlohmann::json parseJSON(std::string path);
-bool parseBool(nlohmann::json &obj, std::string name);
-unsigned int parseUint(nlohmann::json &obj, std::string name);
-double parseUdouble(nlohmann::json &obj, std::string name);
-std::string parseString(nlohmann::json &obj, std::string name);
+std::string getPhaseName(const tlm::tlm_phase &phase);
 
 void setUpDummy(tlm::tlm_generic_payload &payload, uint64_t channelPayloadID,
-                Rank rank = Rank(0), BankGroup bankgroup = BankGroup(0), Bank bank = Bank(0));
+                Rank rank = Rank(0), BankGroup bankGroup = BankGroup(0), Bank bank = Bank(0));
 
 #endif // UTILS_H
 

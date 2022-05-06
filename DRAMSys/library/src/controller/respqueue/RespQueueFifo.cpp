@@ -34,6 +34,7 @@
 
 #include "RespQueueFifo.h"
 
+using namespace sc_core;
 using namespace tlm;
 
 void RespQueueFifo::insertPayload(tlm_generic_payload *payload, sc_time strobeEnd)

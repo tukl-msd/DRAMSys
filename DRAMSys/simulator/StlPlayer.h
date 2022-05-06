@@ -35,6 +35,7 @@
  *    Matthias Jung
  *    Éder F. Zulian
  *    Felipe S. Prado
+ *    Derek Christ
  */
 
 #ifndef STLPLAYER_H
@@ -44,57 +45,57 @@
 #include <vector>
 #include <array>
 #include <thread>
+#include <fstream>
+
+#include <systemc>
+#include <tlm>
 #include "TraceSetup.h"
-#include "TracePlayer.h"
+#include "TrafficInitiator.h"
 
 struct LineContent
 {
-    sc_time sendingTime;
-    tlm::tlm_command cmd;
-    uint64_t addr;
+    sc_core::sc_time sendingTime;
+    unsigned dataLength;
+    tlm::tlm_command command;
+    uint64_t address;
     std::vector<unsigned char> data;
 };
 
-class StlPlayer : public TracePlayer
+class StlPlayer : public TrafficInitiator
 {
 public:
-    StlPlayer(sc_module_name name,
-              std::string pathToTrace,
-              sc_time playerClk,
-              TraceSetup *setup,
+    StlPlayer(const sc_core::sc_module_name &name,
+              const Configuration& config,
+              const std::string &pathToTrace,
+              const sc_core::sc_time &playerClk,
+              unsigned int maxPendingReadRequests,
+              unsigned int maxPendingWriteRequests,
+              bool addLengthConverter,
+              TraceSetup& setup,
               bool relative);
 
-    virtual ~StlPlayer() override;
-
-    virtual void nextPayload() override;
+    ~StlPlayer() override;
+    void sendNextPayload() override;
+    uint64_t getNumberOfLines() const;
 
 private:
     void parseTraceFile();
     std::vector<LineContent>::const_iterator swapBuffers();
 
     std::ifstream file;
-    uint64_t lineCnt;
+    uint64_t lineCnt = 0;
+    uint64_t numberOfLines = 0;
 
-    unsigned int burstlength;
-    unsigned int dataLength;
-    sc_time playerClk;  // May be different from the memory clock!
+    const sc_core::sc_time playerClk;  // May be different from the memory clock!
 
     static constexpr unsigned lineBufferSize = 10000;
 
-    std::vector<LineContent> *currentBuffer;
-    std::vector<LineContent> *parseBuffer;
+    std::vector<LineContent>* currentBuffer;
+    std::vector<LineContent>* parseBuffer;
     std::array<std::vector<LineContent>, 2> lineContents;
     std::vector<LineContent>::const_iterator lineIterator;
 
     std::thread parserThread;
-
-    std::string time;
-    std::string command;
-    std::string address;
-    std::string dataStr;
-
-    std::string line;
-    std::istringstream iss;
 
     const bool relative;
 };

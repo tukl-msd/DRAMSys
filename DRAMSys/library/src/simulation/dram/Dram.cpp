@@ -37,46 +37,41 @@
  *    Felipe S. Prado
  */
 
-#include "Dram.h"
-
 #ifdef _WIN32
     #include <windows.h>
 #else
     #include <sys/mman.h>
 #endif
-#include <tlm.h>
-#include <systemc.h>
-#include <tlm_utils/simple_target_socket.h>
+
 #include <vector>
 #include <array>
 #include <cassert>
 #include <cstdint>
-#include <stdlib.h>
+#include <cstdlib>
+#include <cmath>
+#include <iomanip>
+
+#include "Dram.h"
 #include "../../common/DebugManager.h"
 #include "../../common/dramExtensions.h"
-#include "../../configuration/Configuration.h"
 #include "../../common/utils.h"
-#include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 #include "../../common/third_party/DRAMPower/src/MemCommand.h"
 #include "../../controller/Command.h"
 
+using namespace sc_core;
 using namespace tlm;
 using namespace DRAMPower;
 
-Dram::Dram(sc_module_name name) : sc_module(name), tSocket("socket")
+Dram::Dram(const sc_module_name& name, const Configuration& config)
+    : sc_module(name), memSpec(*config.memSpec), tSocket("socket"), storeMode(config.storeMode),
+    powerAnalysis(config.powerAnalysis), useMalloc(config.useMalloc)
 {
-    Configuration &config = Configuration::getInstance();
-    // Adjust number of bytes per burst dynamically to the selected ecc controller
-    bytesPerBurst = config.adjustNumBytesAfterECC(bytesPerBurst);
-
-    storeMode = config.storeMode;
-
-    uint64_t memorySize = config.memSpec->getSimMemSizeInBytes();
+    uint64_t channelSize = memSpec.getSimMemSizeInBytes() / memSpec.numberOfChannels;
     if (storeMode == Configuration::StoreMode::Store)
     {
-        if (config.useMalloc)
+        if (useMalloc)
         {
-            memory = (unsigned char *)malloc(memorySize);
+            memory = (unsigned char *)malloc(channelSize);
             if (!memory)
                 SC_REPORT_FATAL(this->name(), "Memory allocation failed");
         }
@@ -87,7 +82,7 @@ Dram::Dram(sc_module_name name) : sc_module(name), tSocket("socket")
                 SC_REPORT_FATAL("Dram", "On Windows Storage is not yet supported");
                 memory = 0; // FIXME
             #else
-                memory = (unsigned char *)mmap(NULL, memorySize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_NORESERVE, -1, 0);
+                memory = (unsigned char *)mmap(nullptr, channelSize, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_NORESERVE, -1, 0);
             #endif
         }
     }
@@ -98,49 +93,39 @@ Dram::Dram(sc_module_name name) : sc_module(name), tSocket("socket")
 
 Dram::~Dram()
 {
-    if (Configuration::getInstance().powerAnalysis)
-    {
-        reportPower();
-        delete DRAMPower;
-    }
-
-    if (Configuration::getInstance().useMalloc)
+    if (useMalloc)
         free(memory);
 }
 
 void Dram::reportPower()
 {
-    if (!powerReported)
-    {
-        powerReported = true;
-        DRAMPower->calcEnergy();
+    DRAMPower->calcEnergy();
 
-        // Print the final total energy and the average power for
-        // the simulation:
-        std::cout << name() << std::string("  Total Energy:   ")
-             << std::fixed << std::setprecision( 2 )
-             << DRAMPower->getEnergy().total_energy
-             * Configuration::getInstance().memSpec->numberOfDevicesOnDIMM
-             << std::string(" pJ")
-             << std::endl;
+    // Print the final total energy and the average power for
+    // the simulation:
+    std::cout << name() << std::string("  Total Energy:   ")
+         << std::fixed << std::setprecision( 2 )
+         << DRAMPower->getEnergy().total_energy
+         * memSpec.devicesPerRank
+         << std::string(" pJ")
+         << std::endl;
 
-        std::cout << name() << std::string("  Average Power:  ")
-             << std::fixed << std::setprecision( 2 )
-             << DRAMPower->getPower().average_power
-             * Configuration::getInstance().memSpec->numberOfDevicesOnDIMM
-             << std::string(" mW") << std::endl;
-    }
+    std::cout << name() << std::string("  Average Power:  ")
+         << std::fixed << std::setprecision( 2 )
+         << DRAMPower->getPower().average_power
+         * memSpec.devicesPerRank
+         << std::string(" mW") << std::endl;
 }
 
 tlm_sync_enum Dram::nb_transport_fw(tlm_generic_payload &payload,
                                            tlm_phase &phase, sc_time &delay)
 {
-    assert(phase >= 5 && phase <= 21);
+    assert(phase >= BEGIN_RD && phase <= END_SREF);
 
-    if (Configuration::getInstance().powerAnalysis)
+    if (powerAnalysis)
     {
         int bank = static_cast<int>(DramExtension::getExtension(payload).getBank().ID());
-        int64_t cycle = static_cast<int64_t>((sc_time_stamp() + delay) / memSpec->tCK + 0.5);
+        int64_t cycle = std::lround((sc_time_stamp() + delay) / memSpec.tCK);
         DRAMPower->doCommand(phaseToDRAMPowerCommand(phase), bank, cycle);
     }
 

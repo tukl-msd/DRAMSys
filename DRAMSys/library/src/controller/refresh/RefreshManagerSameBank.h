@@ -35,22 +35,51 @@
 #ifndef REFRESHMANAGERSAMEBANK_H
 #define REFRESHMANAGERSAMEBANK_H
 
-#include "RefreshManagerIF.h"
-#include "../../configuration/memspec/MemSpec.h"
-#include "../BankMachine.h"
-#include "../powerdown/PowerDownManagerIF.h"
 #include <vector>
-#include <utility>
 #include <list>
+
+#include <systemc>
+#include <tlm>
+#include "RefreshManagerIF.h"
+#include "../checker/CheckerIF.h"
+#include "../../configuration/memspec/MemSpec.h"
+#include "../../configuration/Configuration.h"
+
+class BankMachine;
+class PowerDownManagerIF;
 
 class RefreshManagerSameBank final : public RefreshManagerIF
 {
 public:
-    RefreshManagerSameBank(std::vector<BankMachine *> &, PowerDownManagerIF *, Rank, CheckerIF *);
+    RefreshManagerSameBank(const Configuration& config, std::vector<BankMachine *>& bankMachinesOnRank,
+                           PowerDownManagerIF& powerDownManager, Rank rank, const CheckerIF& checker);
 
-    virtual CommandTuple::Type getNextCommand() override;
-    virtual sc_time start() override;
-    virtual void updateState(Command) override;
+    CommandTuple::Type getNextCommand() override;
+    sc_core::sc_time start() override;
+    void updateState(Command) override;
+
+private:
+    enum class State {Regular, Pulledin} state = State::Regular;
+    const MemSpec& memSpec;
+    PowerDownManagerIF& powerDownManager;
+    std::vector<tlm::tlm_generic_payload> refreshPayloads;
+    sc_core::sc_time timeForNextTrigger = sc_core::sc_max_time();
+    sc_core::sc_time timeToSchedule = sc_core::sc_max_time();
+    const CheckerIF& checker;
+    Command nextCommand = Command::NOP;
+
+    std::list<std::vector<BankMachine *>> remainingBankMachines;
+    std::list<std::vector<BankMachine *>> allBankMachines;
+    std::list<std::vector<BankMachine *>>::iterator currentIterator;
+
+    int flexibilityCounter = 0;
+    const int maxPostponed;
+    const int maxPulledin;
+
+    bool sleeping = false;
+    bool skipSelection = false;
+
+    const bool refreshManagement;
 };
 
 #endif // REFRESHMANAGERSAMEBANK_H

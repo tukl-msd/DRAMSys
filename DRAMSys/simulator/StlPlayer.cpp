@@ -35,29 +35,40 @@
  *    Matthias Jung
  *    Éder F. Zulian
  *    Felipe S. Prado
+ *    Derek Christ
  */
 
 #include "StlPlayer.h"
 
+using namespace sc_core;
 using namespace tlm;
 
-StlPlayer::StlPlayer(sc_module_name name,
-        std::string pathToTrace,
-        sc_time playerClk,
-        TraceSetup *setup,
-        bool relative)
-    : TracePlayer(name, setup), file(pathToTrace),
-        currentBuffer(&lineContents[0]),
-        parseBuffer(&lineContents[1]),
-        relative(relative)
+StlPlayer::StlPlayer(const sc_module_name &name, const Configuration& config, const std::string &pathToTrace,
+                     const sc_time &playerClk, unsigned int maxPendingReadRequests, unsigned int maxPendingWriteRequests,
+                     bool addLengthConverter, TraceSetup& setup, bool relative) :
+    TrafficInitiator(name, config, setup, maxPendingReadRequests, maxPendingWriteRequests,
+                     config.memSpec->defaultBytesPerBurst, addLengthConverter),
+    file(pathToTrace), relative(relative), playerClk(playerClk)
 {
+    currentBuffer = &lineContents[0];
+    parseBuffer = &lineContents[1];
+
     if (!file.is_open())
         SC_REPORT_FATAL("StlPlayer", (std::string("Could not open trace ") + pathToTrace).c_str());
+    else
+    {
+        std::string line;
+        while (std::getline(file, line))
+        {
+            if (line.size() > 1 && line[0] != '#')
+                numberOfLines++;
+        }
+        file.clear();
+        file.seekg(0);
 
-    this->playerClk = playerClk;
-    burstlength = Configuration::getInstance().memSpec->burstLength;
-    dataLength = Configuration::getInstance().memSpec->bytesPerBurst;
-    lineCnt = 0;
+        if (numberOfLines == 0)
+            SC_REPORT_FATAL("StlPlayer", "Trace file is empty");
+    }
 
     currentBuffer->reserve(lineBufferSize);
     parseBuffer->reserve(lineBufferSize);
@@ -72,7 +83,7 @@ StlPlayer::~StlPlayer()
         parserThread.join();
 }
 
-void StlPlayer::nextPayload()
+void StlPlayer::sendNextPayload()
 {
     if (lineIterator == currentBuffer->cend())
     {
@@ -85,26 +96,23 @@ void StlPlayer::nextPayload()
         }
     }
 
-    numberOfTransactions++;
-
     // Allocate a generic payload for this request.
-    tlm_generic_payload *payload = setup->allocatePayload();
-    payload->acquire();
+    tlm_generic_payload& payload = setup.allocatePayload(lineIterator->dataLength);
+    payload.acquire();
 
     // Fill up the payload.
-    payload->set_address(lineIterator->addr);
-    payload->set_response_status(TLM_INCOMPLETE_RESPONSE);
-    payload->set_dmi_allowed(false);
-    payload->set_byte_enable_length(0);
-    payload->set_streaming_width(burstlength);
-    payload->set_data_length(dataLength);
-    payload->set_command(lineIterator->cmd);
-    std::copy(lineIterator->data.begin(), lineIterator->data.end(), payload->get_data_ptr());
+    payload.set_address(lineIterator->address);
+    payload.set_response_status(TLM_INCOMPLETE_RESPONSE);
+    payload.set_dmi_allowed(false);
+    payload.set_byte_enable_length(0);
+    payload.set_data_length(lineIterator->dataLength);
+    payload.set_command(lineIterator->command);
+    std::copy(lineIterator->data.begin(), lineIterator->data.end(), payload.get_data_ptr());
 
     sc_time sendingTime;
     sc_time sendingOffset;
 
-    if (numberOfTransactions == 1)
+    if (transactionsSent == 0)
         sendingOffset = SC_ZERO_TIME;
     else
         sendingOffset = playerClk - (sc_time_stamp() % playerClk);
@@ -114,9 +122,15 @@ void StlPlayer::nextPayload()
     else
         sendingTime = sc_time_stamp() + sendingOffset + lineIterator->sendingTime;
 
-    sendToTarget(*payload, BEGIN_REQ, sendingTime - sc_time_stamp());
+    sendToTarget(payload, BEGIN_REQ, sendingTime - sc_time_stamp());
 
     transactionsSent++;
+
+    if (payload.get_command() == tlm::TLM_READ_COMMAND)
+        pendingReadRequests++;
+    else if (payload.get_command() == tlm::TLM_WRITE_COMMAND)
+        pendingWriteRequests++;
+
     PRINTDEBUGMESSAGE(name(), "Performing request #" + std::to_string(transactionsSent));
     lineIterator++;
 }
@@ -128,6 +142,7 @@ void StlPlayer::parseTraceFile()
     while (file && !file.eof() && parsedLines < lineBufferSize)
     {
         // Get a new line from the input file.
+        std::string line;
         std::getline(file, line);
         lineCnt++;
 
@@ -142,67 +157,60 @@ void StlPlayer::parseTraceFile()
         // Trace files MUST provide timestamp, command and address for every
         // transaction. The data information depends on the storage mode
         // configuration.
-        time.clear();
-        command.clear();
-        address.clear();
-        dataStr.clear();
+        std::string element;
+        std::istringstream iss;
 
-        iss.clear();
         iss.str(line);
 
         // Get the timestamp for the transaction.
-        iss >> time;
-        if (time.empty())
-            SC_REPORT_FATAL("StlPlayer",
-            ("Malformed trace file. Timestamp could not be found (line " + std::to_string(
-                lineCnt) + ").").c_str());
-        content.sendingTime = std::stoull(time.c_str()) * playerClk;
+        iss >> element;
+        if (element.empty())
+            SC_REPORT_FATAL("StlPlayer", ("Malformed trace file line " + std::to_string(lineCnt) + ".").c_str());
+        content.sendingTime = playerClk * static_cast<double>(std::stoull(element));
 
-        // Get the command.
-        iss >> command;
-        if (command.empty())
-            SC_REPORT_FATAL("StlPlayer",
-            ("Malformed trace file. Command could not be found (line " + std::to_string(
-                lineCnt) + ").").c_str());
-
-        if (command == "read")
-            content.cmd = TLM_READ_COMMAND;
-        else if (command == "write")
-            content.cmd = TLM_WRITE_COMMAND;
+        // Get the optional burst length and command
+        iss >> element;
+        if (element.empty())
+            SC_REPORT_FATAL("StlPlayer", ("Malformed trace file line " + std::to_string(lineCnt) + ".").c_str());
+        if (element.at(0) == '(')
+        {
+            element.erase(0, 1);
+            content.dataLength = std::stoul(element);
+            iss >> element;
+            if (element.empty())
+                SC_REPORT_FATAL("StlPlayer", ("Malformed trace file line " + std::to_string(lineCnt) + ".").c_str());
+        }
         else
-            SC_REPORT_FATAL("StlPlayer",
-                (std::string("Corrupted tracefile, command ") + command +
-                    std::string(" unknown")).c_str());
+            content.dataLength = defaultDataLength;
+
+        if (element == "read")
+            content.command = TLM_READ_COMMAND;
+        else if (element == "write")
+            content.command = TLM_WRITE_COMMAND;
+        else
+            SC_REPORT_FATAL("StlPlayer", ("Malformed trace file line " + std::to_string(lineCnt) + ".").c_str());
 
         // Get the address.
-        iss >> address;
-        if (address.empty())
-            SC_REPORT_FATAL("StlPlayer",
-            ("Malformed trace file. Address could not be found (line "
-                + std::to_string(lineCnt) + ").").c_str());
-        content.addr = std::stoull(address.c_str(), nullptr, 16);
+        iss >> element;
+        if (element.empty())
+            SC_REPORT_FATAL("StlPlayer", ("Malformed trace file line " + std::to_string(lineCnt) + ".").c_str());
+        content.address = std::stoull(element, nullptr, 16);
 
         // Get the data if necessary.
-        if (storageEnabled && content.cmd == TLM_WRITE_COMMAND)
+        if (storageEnabled && content.command == TLM_WRITE_COMMAND)
         {
             // The input trace file must provide the data to be stored into the memory.
-            iss >> dataStr;
-            if (dataStr.empty())
-                SC_REPORT_FATAL("StlPlayer",
-                ("Malformed trace file. Data information could not be found (line " + std::to_string(
-                    lineCnt) + ").").c_str());
+            iss >> element;
 
             // Check if data length in the trace file is correct.
             // We need two characters to represent 1 byte in hexadecimal. Offset for 0x prefix.
-            if (dataStr.length() != (dataLength * 2 + 2))
-                SC_REPORT_FATAL("StlPlayer",
-                ("Data in the trace file has an invalid length (line " + std::to_string(
-                    lineCnt) + ").").c_str());
+            if (element.length() != (content.dataLength * 2 + 2))
+                SC_REPORT_FATAL("StlPlayer", ("Malformed trace file line " + std::to_string(lineCnt) + ".").c_str());
 
             // Set data
-            for (unsigned i = 0; i < dataLength; i++)
+            for (unsigned i = 0; i < content.dataLength; i++)
                 content.data.emplace_back(static_cast<unsigned char>
-                                          (std::stoi(dataStr.substr(i * 2 + 2, 2).c_str(), nullptr, 16)));
+                                          (std::stoi(element.substr(i * 2 + 2, 2), nullptr, 16)));
         }
     }
 }
@@ -220,4 +228,9 @@ std::vector<LineContent>::const_iterator StlPlayer::swapBuffers()
     parserThread = std::thread(&StlPlayer::parseTraceFile, this);
 
     return currentBuffer->cbegin();
+}
+
+uint64_t StlPlayer::getNumberOfLines() const
+{
+    return numberOfLines;
 }

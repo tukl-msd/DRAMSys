@@ -31,52 +31,76 @@
  *
  * Authors:
  *    Lukas Steiner
+ *    Derek Christ
  */
 
+#include <iostream>
+
+#include "../../common/utils.h"
 #include "MemSpecWideIO2.h"
 
+using namespace sc_core;
 using namespace tlm;
-using json = nlohmann::json;
 
-MemSpecWideIO2::MemSpecWideIO2(json &memspec)
-    : MemSpec(memspec, MemoryType::WideIO2,
-      parseUint(memspec["memarchitecturespec"]["nbrOfChannels"],"nbrOfChannels"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks"),
+MemSpecWideIO2::MemSpecWideIO2(const DRAMSysConfiguration::MemSpec &memSpec)
+    : MemSpec(memSpec, MemoryType::WideIO2,
+      memSpec.memArchitectureSpec.entries.at("nbrOfChannels"),
       1,
-      parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks")
-          * parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
-      1),
-      tDQSCK  (tCK * parseUint(memspec["memtimingspec"]["DQSCK"], "DQSCK")),
-      tDQSS   (tCK * parseUint(memspec["memtimingspec"]["DQSS"], "DQSS")),
-      tCKE    (tCK * parseUint(memspec["memtimingspec"]["CKE"], "CKE")),
-      tRL     (tCK * parseUint(memspec["memtimingspec"]["RL"], "RL")),
-      tWL     (tCK * parseUint(memspec["memtimingspec"]["WL"], "WL")),
-      tRCpb   (tCK * parseUint(memspec["memtimingspec"]["RCPB"], "RCPB")),
-      tRCab   (tCK * parseUint(memspec["memtimingspec"]["RCAB"], "RCAB")),
-      tCKESR  (tCK * parseUint(memspec["memtimingspec"]["CKESR"], "CKESR")),
-      tXSR    (tCK * parseUint(memspec["memtimingspec"]["XSR"], "XSR")),
-      tXP     (tCK * parseUint(memspec["memtimingspec"]["XP"], "XP")),
-      tCCD    (tCK * parseUint(memspec["memtimingspec"]["CCD"], "CCD")),
-      tRTP    (tCK * parseUint(memspec["memtimingspec"]["RTP"], "RTP")),
-      tRCD    (tCK * parseUint(memspec["memtimingspec"]["RCD"], "RCD")),
-      tRPpb   (tCK * parseUint(memspec["memtimingspec"]["RPPB"], "RPPB")),
-      tRPab   (tCK * parseUint(memspec["memtimingspec"]["RPAB"], "RPAB")),
-      tRAS    (tCK * parseUint(memspec["memtimingspec"]["RAS"], "RAS")),
-      tWR     (tCK * parseUint(memspec["memtimingspec"]["WR"], "WR")),
-      tWTR    (tCK * parseUint(memspec["memtimingspec"]["WTR"], "WTR")),
-      tRRD    (tCK * parseUint(memspec["memtimingspec"]["RRD"], "RRD")),
-      tFAW    (tCK * parseUint(memspec["memtimingspec"]["FAW"], "FAW")),
-      tREFI   (tCK * static_cast<unsigned>(parseUint(memspec["memtimingspec"]["REFI"], "REFI")
-              * parseUdouble(memspec["memtimingspec"]["REFM"], "REFM"))),
-      tREFIpb (tCK * static_cast<unsigned>(parseUint(memspec["memtimingspec"]["REFIPB"], "REFIPB")
-              * parseUdouble(memspec["memtimingspec"]["REFM"], "REFM"))),
-      tRFCab  (tCK * parseUint(memspec["memtimingspec"]["RFCAB"], "RFCAB")),
-      tRFCpb  (tCK * parseUint(memspec["memtimingspec"]["RFCPB"], "RFCPB")),
-      tRTRS   (tCK * parseUint(memspec["memtimingspec"]["RTRS"], "RTRS"))
-{}
+      memSpec.memArchitectureSpec.entries.at("nbrOfRanks"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfBanks"),
+      1,
+      memSpec.memArchitectureSpec.entries.at("nbrOfBanks"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfBanks")
+          * memSpec.memArchitectureSpec.entries.at("nbrOfRanks"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfRanks"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfDevices")),
+      tDQSCK  (tCK * memSpec.memTimingSpec.entries.at("DQSCK")),
+      tDQSS   (tCK * memSpec.memTimingSpec.entries.at("DQSS")),
+      tCKE    (tCK * memSpec.memTimingSpec.entries.at("CKE")),
+      tRL     (tCK * memSpec.memTimingSpec.entries.at("RL")),
+      tWL     (tCK * memSpec.memTimingSpec.entries.at("WL")),
+      tRCpb   (tCK * memSpec.memTimingSpec.entries.at("RCPB")),
+      tRCab   (tCK * memSpec.memTimingSpec.entries.at("RCAB")),
+      tCKESR  (tCK * memSpec.memTimingSpec.entries.at("CKESR")),
+      tXSR    (tCK * memSpec.memTimingSpec.entries.at("XSR")),
+      tXP     (tCK * memSpec.memTimingSpec.entries.at("XP")),
+      tCCD    (tCK * memSpec.memTimingSpec.entries.at("CCD")),
+      tRTP    (tCK * memSpec.memTimingSpec.entries.at("RTP")),
+      tRCD    (tCK * memSpec.memTimingSpec.entries.at("RCD")),
+      tRPpb   (tCK * memSpec.memTimingSpec.entries.at("RPPB")),
+      tRPab   (tCK * memSpec.memTimingSpec.entries.at("RPAB")),
+      tRAS    (tCK * memSpec.memTimingSpec.entries.at("RAS")),
+      tWR     (tCK * memSpec.memTimingSpec.entries.at("WR")),
+      tWTR    (tCK * memSpec.memTimingSpec.entries.at("WTR")),
+      tRRD    (tCK * memSpec.memTimingSpec.entries.at("RRD")),
+      tFAW    (tCK * memSpec.memTimingSpec.entries.at("FAW")),
+      tREFI   (tCK * static_cast<unsigned>(memSpec.memTimingSpec.entries.at("REFI")
+              * memSpec.memTimingSpec.entries.at("REFM"))),
+      tREFIpb (tCK * static_cast<unsigned>(memSpec.memTimingSpec.entries.at("REFIPB")
+              * memSpec.memTimingSpec.entries.at("REFM"))),
+      tRFCab  (tCK * memSpec.memTimingSpec.entries.at("RFCAB")),
+      tRFCpb  (tCK * memSpec.memTimingSpec.entries.at("RFCPB")),
+      tRTRS   (tCK * memSpec.memTimingSpec.entries.at("RTRS"))
+{
+    uint64_t deviceSizeBits = static_cast<uint64_t>(banksPerRank) * rowsPerBank * columnsPerRow * bitWidth;
+    uint64_t deviceSizeBytes = deviceSizeBits / 8;
+    memorySizeBytes = deviceSizeBytes * ranksPerChannel * numberOfChannels;
+
+    std::cout << headline << std::endl;
+    std::cout << "Memory Configuration:" << std::endl << std::endl;
+    std::cout << " Memory type:           " << "Wide I/O 2"          << std::endl;
+    std::cout << " Memory size in bytes:  " << memorySizeBytes       << std::endl;
+    std::cout << " Channels:              " << numberOfChannels      << std::endl;
+    std::cout << " Ranks per channel:     " << ranksPerChannel << std::endl;
+    std::cout << " Banks per rank:        " << banksPerRank          << std::endl;
+    std::cout << " Rows per bank:         " << rowsPerBank << std::endl;
+    std::cout << " Columns per row:       " << columnsPerRow << std::endl;
+    std::cout << " Device width in bits:  " << bitWidth              << std::endl;
+    std::cout << " Device size in bits:   " << deviceSizeBits        << std::endl;
+    std::cout << " Device size in bytes:  " << deviceSizeBytes       << std::endl;
+    std::cout << " Devices per rank:      " << devicesPerRank << std::endl;
+    std::cout << std::endl;
+}
 
 sc_time MemSpecWideIO2::getRefreshIntervalAB() const
 {
@@ -91,9 +115,9 @@ sc_time MemSpecWideIO2::getRefreshIntervalPB() const
 // Returns the execution time for commands that have a fixed execution time
 sc_time MemSpecWideIO2::getExecutionTime(Command command, const tlm_generic_payload &) const
 {
-    if (command == Command::PRE)
+    if (command == Command::PREPB)
         return tRPpb;
-    else if (command == Command::PREA)
+    else if (command == Command::PREAB)
         return tRPab;
     else if (command == Command::ACT)
         return tRCD;
@@ -105,9 +129,9 @@ sc_time MemSpecWideIO2::getExecutionTime(Command command, const tlm_generic_payl
         return tWL + tDQSS + burstDuration;
     else if (command == Command::WRA)
         return tWL + burstDuration + tCK + tWR + tRPpb;
-    else if (command == Command::REFA)
+    else if (command == Command::REFAB)
         return tRFCab;
-    else if (command == Command::REFB)
+    else if (command == Command::REFPB)
         return tRFCpb;
     else
     {
@@ -117,38 +141,15 @@ sc_time MemSpecWideIO2::getExecutionTime(Command command, const tlm_generic_payl
     }
 }
 
-TimeInterval MemSpecWideIO2::getIntervalOnDataStrobe(Command command) const
+TimeInterval MemSpecWideIO2::getIntervalOnDataStrobe(Command command, const tlm_generic_payload &) const
 {
     if (command == Command::RD || command == Command::RDA)
-        return TimeInterval(tRL + tDQSCK, tRL + tDQSCK + burstDuration);
+        return {tRL + tDQSCK, tRL + tDQSCK + burstDuration};
     else if (command == Command::WR || command == Command::WRA)
-        return TimeInterval(tWL + tDQSS, tWL + tDQSS + burstDuration);
+        return {tWL + tDQSS, tWL + tDQSS + burstDuration};
     else
     {
         SC_REPORT_FATAL("MemSpec", "Method was called with invalid argument");
-        return TimeInterval();
+        return {};
     }
-}
-
-uint64_t MemSpecWideIO2::getSimMemSizeInBytes() const
-{
-    uint64_t deviceSizeBits = static_cast<uint64_t>(banksPerRank) * numberOfRows * numberOfColumns * bitWidth;
-    uint64_t deviceSizeBytes = deviceSizeBits / 8;
-    uint64_t memorySizeBytes = deviceSizeBytes * numberOfRanks;
-
-    std::cout << headline << std::endl;
-    std::cout << "Per Channel Configuration:" << std::endl << std::endl;
-    std::cout << " Memory type:           " << "Wide I/O 2"          << std::endl;
-    std::cout << " Memory size in bytes:  " << memorySizeBytes       << std::endl;
-    std::cout << " Ranks:                 " << numberOfRanks         << std::endl;
-    std::cout << " Banks per rank:        " << banksPerRank          << std::endl;
-    std::cout << " Rows per bank:         " << numberOfRows          << std::endl;
-    std::cout << " Columns per row:       " << numberOfColumns       << std::endl;
-    std::cout << " Device width in bits:  " << bitWidth              << std::endl;
-    std::cout << " Device size in bits:   " << deviceSizeBits        << std::endl;
-    std::cout << " Device size in bytes:  " << deviceSizeBytes       << std::endl;
-    std::cout << std::endl;
-
-    assert(memorySizeBytes > 0);
-    return memorySizeBytes;
 }

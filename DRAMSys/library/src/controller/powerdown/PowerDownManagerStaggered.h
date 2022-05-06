@@ -35,37 +35,40 @@
 #ifndef POWERDOWNMANAGERSTAGGERED_H
 #define POWERDOWNMANAGERSTAGGERED_H
 
+#include <systemc>
 #include "PowerDownManagerIF.h"
-#include "../BankMachine.h"
+#include "../../common/dramExtensions.h"
 #include "../checker/CheckerIF.h"
+
+class BankMachine;
 
 class PowerDownManagerStaggered final : public PowerDownManagerIF
 {
 public:
-    PowerDownManagerStaggered(Rank, CheckerIF *);
+    PowerDownManagerStaggered(std::vector<BankMachine*>& bankMachinesOnRank,
+                              Rank rank, CheckerIF& checker);
 
-    virtual void triggerEntry() override;
-    virtual void triggerExit() override;
-    virtual void triggerInterruption() override;
+    void triggerEntry() override;
+    void triggerExit() override;
+    void triggerInterruption() override;
 
-    virtual CommandTuple::Type getNextCommand() override;
-    virtual void updateState(Command) override;
-    virtual sc_time start() override;
+    CommandTuple::Type getNextCommand() override;
+    void updateState(Command) override;
+    sc_core::sc_time start() override;
 
 private:
     enum class State {Idle, ActivePdn, PrechargePdn, SelfRefresh, ExtraRefresh} state = State::Idle;
     tlm::tlm_generic_payload powerDownPayload;
-    Rank rank;
-    CheckerIF *checker;
+    std::vector<BankMachine*>& bankMachinesOnRank;
+    CheckerIF& checker;
 
-    sc_time timeToSchedule = sc_max_time();
+    sc_core::sc_time timeToSchedule = sc_core::sc_max_time();
     Command nextCommand = Command::NOP;
 
     bool controllerIdle = true;
     bool entryTriggered = true;
     bool exitTriggered = false;
     bool enterSelfRefresh = false;
-    unsigned activatedBanks = 0;
 };
 
 #endif // POWERDOWNMANAGERSTAGGERED_H

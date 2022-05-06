@@ -40,22 +40,16 @@
 
 using namespace tlm;
 
-SchedulerFrFcfs::SchedulerFrFcfs()
+SchedulerFrFcfs::SchedulerFrFcfs(const Configuration& config)
 {
-    Configuration &config = Configuration::getInstance();
-    buffer = std::vector<std::list<tlm_generic_payload *>>(config.memSpec->numberOfBanks);
+    buffer = std::vector<std::list<tlm_generic_payload *>>(config.memSpec->banksPerChannel);
 
     if (config.schedulerBuffer == Configuration::SchedulerBuffer::Bankwise)
-        bufferCounter = new BufferCounterBankwise(config.requestBufferSize, config.memSpec->numberOfBanks);
+        bufferCounter = std::make_unique<BufferCounterBankwise>(config.requestBufferSize, config.memSpec->banksPerChannel);
     else if (config.schedulerBuffer == Configuration::SchedulerBuffer::ReadWrite)
-        bufferCounter = new BufferCounterReadWrite(config.requestBufferSize);
+        bufferCounter = std::make_unique<BufferCounterReadWrite>(config.requestBufferSize);
     else if (config.schedulerBuffer == Configuration::SchedulerBuffer::Shared)
-        bufferCounter = new BufferCounterShared(config.requestBufferSize);
-}
-
-SchedulerFrFcfs::~SchedulerFrFcfs()
-{
-    delete bufferCounter;
+        bufferCounter = std::make_unique<BufferCounterShared>(config.requestBufferSize);
 }
 
 bool SchedulerFrFcfs::hasBufferSpace() const
@@ -63,19 +57,19 @@ bool SchedulerFrFcfs::hasBufferSpace() const
     return bufferCounter->hasBufferSpace();
 }
 
-void SchedulerFrFcfs::storeRequest(tlm_generic_payload *payload)
+void SchedulerFrFcfs::storeRequest(tlm_generic_payload& trans)
 {
-    buffer[DramExtension::getBank(payload).ID()].push_back(payload);
-    bufferCounter->storeRequest(payload);
+    buffer[DramExtension::getBank(trans).ID()].push_back(&trans);
+    bufferCounter->storeRequest(trans);
 }
 
-void SchedulerFrFcfs::removeRequest(tlm_generic_payload *payload)
+void SchedulerFrFcfs::removeRequest(tlm_generic_payload& trans)
 {
-    bufferCounter->removeRequest(payload);
-    unsigned bankID = DramExtension::getBank(payload).ID();
+    bufferCounter->removeRequest(trans);
+    unsigned bankID = DramExtension::getBank(trans).ID();
     for (auto it = buffer[bankID].begin(); it != buffer[bankID].end(); it++)
     {
-        if (*it == payload)
+        if (*it == &trans)
         {
             buffer[bankID].erase(it);
             break;
@@ -83,19 +77,19 @@ void SchedulerFrFcfs::removeRequest(tlm_generic_payload *payload)
     }
 }
 
-tlm_generic_payload *SchedulerFrFcfs::getNextRequest(BankMachine *bankMachine) const
+tlm_generic_payload *SchedulerFrFcfs::getNextRequest(const BankMachine& bankMachine) const
 {
-    unsigned bankID = bankMachine->getBank().ID();
+    unsigned bankID = bankMachine.getBank().ID();
     if (!buffer[bankID].empty())
     {
-        if (bankMachine->getState() == BankMachine::State::Activated)
+        if (bankMachine.isActivated())
         {
             // Search for row hit
-            Row openRow = bankMachine->getOpenRow();
-            for (auto it = buffer[bankID].begin(); it != buffer[bankID].end(); it++)
+            Row openRow = bankMachine.getOpenRow();
+            for (auto it : buffer[bankID])
             {
-                if (DramExtension::getRow(*it) == openRow)
-                    return *it;
+                if (DramExtension::getRow(it) == openRow)
+                    return it;
             }
         }
         // No row hit found or bank precharged
@@ -104,12 +98,12 @@ tlm_generic_payload *SchedulerFrFcfs::getNextRequest(BankMachine *bankMachine) c
     return nullptr;
 }
 
-bool SchedulerFrFcfs::hasFurtherRowHit(Bank bank, Row row) const
+bool SchedulerFrFcfs::hasFurtherRowHit(Bank bank, Row row, tlm_command command) const
 {
     unsigned rowHitCounter = 0;
-    for (auto it = buffer[bank.ID()].begin(); it != buffer[bank.ID()].end(); it++)
+    for (auto it : buffer[bank.ID()])
     {
-        if (DramExtension::getRow(*it) == row)
+        if (DramExtension::getRow(it) == row)
         {
             rowHitCounter++;
             if (rowHitCounter == 2)
@@ -119,7 +113,7 @@ bool SchedulerFrFcfs::hasFurtherRowHit(Bank bank, Row row) const
     return false;
 }
 
-bool SchedulerFrFcfs::hasFurtherRequest(Bank bank) const
+bool SchedulerFrFcfs::hasFurtherRequest(Bank bank, tlm_command command) const
 {
     return (buffer[bank.ID()].size() >= 2);
 }

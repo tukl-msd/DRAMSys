@@ -31,32 +31,30 @@
  *
  * Authors:
  *    Lukas Steiner
+ *    Derek Christ
  */
 
+#include <iostream>
+
+#include "../../common/utils.h"
 #include "MemSpecDDR5.h"
-#include "../Configuration.h"
 
+using namespace sc_core;
 using namespace tlm;
-using json = nlohmann::json;
 
-MemSpecDDR5::MemSpecDDR5(json &memspec)
-    : MemSpec(memspec, MemoryType::DDR5, 0, 0, 0, 0, 0, 0, 0, 0)
+MemSpecDDR5::MemSpecDDR5(const DRAMSysConfiguration::MemSpec &memSpec)
+    : MemSpec(memSpec, MemoryType::DDR5, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 {
     SC_REPORT_FATAL("MemSpecDDR5", "DDR5 model not included!");
 }
 
 // Returns the execution time for commands that have a fixed execution time
-sc_time MemSpecDDR5::getExecutionTime(Command, const tlm_generic_payload &) const
+sc_time MemSpecDDR5::getExecutionTime(Command command, const tlm_generic_payload &payload) const
 {
     return SC_ZERO_TIME;
 }
 
-TimeInterval MemSpecDDR5::getIntervalOnDataStrobe(Command) const
+TimeInterval MemSpecDDR5::getIntervalOnDataStrobe(Command command, const tlm_generic_payload &payload) const
 {
     return TimeInterval();
-}
-
-uint64_t MemSpecDDR5::getSimMemSizeInBytes() const
-{
-    return 0;
 }

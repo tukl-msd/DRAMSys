@@ -35,16 +35,12 @@
 #ifndef CMDMUXIF_H
 #define CMDMUXIF_H
 
-#include <systemc.h>
-#include <tlm.h>
-#include <utility>
-#include <list>
 #include "../Command.h"
 
 class CmdMuxIF
 {
 public:
-    virtual ~CmdMuxIF() {}
+    virtual ~CmdMuxIF() = default;
     virtual CommandTuple::Type selectCommand(const ReadyCommands &) = 0;
 };
 

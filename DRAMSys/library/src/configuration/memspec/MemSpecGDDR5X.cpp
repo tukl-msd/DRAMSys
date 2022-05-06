@@ -31,61 +31,85 @@
  *
  * Authors:
  *    Lukas Steiner
+ *    Derek Christ
  */
+#include <iostream>
 
+#include "../../common/utils.h"
 #include "MemSpecGDDR5X.h"
 
+using namespace sc_core;
 using namespace tlm;
-using json = nlohmann::json;
 
-MemSpecGDDR5X::MemSpecGDDR5X(json &memspec)
-    : MemSpec(memspec, MemoryType::GDDR5X,
-      parseUint(memspec["memarchitecturespec"]["nbrOfChannels"],"nbrOfChannels"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfBankGroups"], "nbrOfBankGroups"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks")
-          / parseUint(memspec["memarchitecturespec"]["nbrOfBankGroups"], "nbrOfBankGroups"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfBanks"],"nbrOfBanks")
-          * parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
-      parseUint(memspec["memarchitecturespec"]["nbrOfBankGroups"], "nbrOfBankGroups")
-          * parseUint(memspec["memarchitecturespec"]["nbrOfRanks"],"nbrOfRanks"),
-      1),
-      tRP        (tCK * parseUint(memspec["memtimingspec"]["RP"], "RP")),
-      tRAS       (tCK * parseUint(memspec["memtimingspec"]["RAS"], "RAS")),
-      tRC        (tCK * parseUint(memspec["memtimingspec"]["RC"], "RC")),
-      tRCDRD     (tCK * parseUint(memspec["memtimingspec"]["RCDRD"], "RCDRD")),
-      tRCDWR     (tCK * parseUint(memspec["memtimingspec"]["RCDWR"], "RCDWR")),
-      tRTP       (tCK * parseUint(memspec["memtimingspec"]["RTP"], "RTP")),
-      tRRDS      (tCK * parseUint(memspec["memtimingspec"]["RRDS"], "RRDS")),
-      tRRDL      (tCK * parseUint(memspec["memtimingspec"]["RRDL"], "RRDL")),
-      tCCDS      (tCK * parseUint(memspec["memtimingspec"]["CCDS"], "CCDS")),
-      tCCDL      (tCK * parseUint(memspec["memtimingspec"]["CCDL"], "CCDL")),
-      tRL        (tCK * parseUint(memspec["memtimingspec"]["CL"], "CL")),
-      tWCK2CKPIN (tCK * parseUint(memspec["memtimingspec"]["WCK2CKPIN"], "WCK2CKPIN")),
-      tWCK2CK    (tCK * parseUint(memspec["memtimingspec"]["WCK2CK"], "WCK2CK")),
-      tWCK2DQO   (tCK * parseUint(memspec["memtimingspec"]["WCK2DQO"], "WCK2DQO")),
-      tRTW       (tCK * parseUint(memspec["memtimingspec"]["RTW"], "RTW")),
-      tWL        (tCK * parseUint(memspec["memtimingspec"]["WL"], "WL")),
-      tWCK2DQI   (tCK * parseUint(memspec["memtimingspec"]["WCK2DQI"], "WCK2DQI")),
-      tWR        (tCK * parseUint(memspec["memtimingspec"]["WR"], "WR")),
-      tWTRS      (tCK * parseUint(memspec["memtimingspec"]["WTRS"], "WTRS")),
-      tWTRL      (tCK * parseUint(memspec["memtimingspec"]["WTRL"], "WTRL")),
-      tCKE       (tCK * parseUint(memspec["memtimingspec"]["CKE"], "CKE")),
-      tPD        (tCK * parseUint(memspec["memtimingspec"]["PD"], "PD")),
-      tXP        (tCK * parseUint(memspec["memtimingspec"]["XP"], "XP")),
-      tREFI      (tCK * parseUint(memspec["memtimingspec"]["REFI"], "REFI")),
-      tREFIPB    (tCK * parseUint(memspec["memtimingspec"]["REFIPB"], "REFIPB")),
-      tRFC       (tCK * parseUint(memspec["memtimingspec"]["RFC"], "RFC")),
-      tRFCPB     (tCK * parseUint(memspec["memtimingspec"]["RFCPB"], "RFCPB")),
-      tRREFD     (tCK * parseUint(memspec["memtimingspec"]["RREFD"], "RREFD")),
-      tXS        (tCK * parseUint(memspec["memtimingspec"]["XS"], "XS")),
-      tFAW       (tCK * parseUint(memspec["memtimingspec"]["FAW"], "FAW")),
-      t32AW      (tCK * parseUint(memspec["memtimingspec"]["32AW"], "32AW")),
-      tPPD       (tCK * parseUint(memspec["memtimingspec"]["PPD"], "PPD")),
-      tLK        (tCK * parseUint(memspec["memtimingspec"]["LK"], "LK")),
-      tRTRS      (tCK * parseUint(memspec["memtimingspec"]["RTRS"], "RTRS"))
-{}
+MemSpecGDDR5X::MemSpecGDDR5X(const DRAMSysConfiguration::MemSpec &memSpec)
+    : MemSpec(memSpec, MemoryType::GDDR5X,
+      memSpec.memArchitectureSpec.entries.at("nbrOfChannels"),
+      1,
+      memSpec.memArchitectureSpec.entries.at("nbrOfRanks"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfBanks"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfBankGroups"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfBanks")
+          / memSpec.memArchitectureSpec.entries.at("nbrOfBankGroups"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfBanks")
+          * memSpec.memArchitectureSpec.entries.at("nbrOfRanks"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfBankGroups")
+          * memSpec.memArchitectureSpec.entries.at("nbrOfRanks"),
+      memSpec.memArchitectureSpec.entries.at("nbrOfDevices")),
+      tRP        (tCK * memSpec.memTimingSpec.entries.at("RP")),
+      tRAS       (tCK * memSpec.memTimingSpec.entries.at("RAS")),
+      tRC        (tCK * memSpec.memTimingSpec.entries.at("RC")),
+      tRCDRD     (tCK * memSpec.memTimingSpec.entries.at("RCDRD")),
+      tRCDWR     (tCK * memSpec.memTimingSpec.entries.at("RCDWR")),
+      tRTP       (tCK * memSpec.memTimingSpec.entries.at("RTP")),
+      tRRDS      (tCK * memSpec.memTimingSpec.entries.at("RRDS")),
+      tRRDL      (tCK * memSpec.memTimingSpec.entries.at("RRDL")),
+      tCCDS      (tCK * memSpec.memTimingSpec.entries.at("CCDS")),
+      tCCDL      (tCK * memSpec.memTimingSpec.entries.at("CCDL")),
+      tRL        (tCK * memSpec.memTimingSpec.entries.at("CL")),
+      tWCK2CKPIN (tCK * memSpec.memTimingSpec.entries.at("WCK2CKPIN")),
+      tWCK2CK    (tCK * memSpec.memTimingSpec.entries.at("WCK2CK")),
+      tWCK2DQO   (tCK * memSpec.memTimingSpec.entries.at("WCK2DQO")),
+      tRTW       (tCK * memSpec.memTimingSpec.entries.at("RTW")),
+      tWL        (tCK * memSpec.memTimingSpec.entries.at("WL")),
+      tWCK2DQI   (tCK * memSpec.memTimingSpec.entries.at("WCK2DQI")),
+      tWR        (tCK * memSpec.memTimingSpec.entries.at("WR")),
+      tWTRS      (tCK * memSpec.memTimingSpec.entries.at("WTRS")),
+      tWTRL      (tCK * memSpec.memTimingSpec.entries.at("WTRL")),
+      tCKE       (tCK * memSpec.memTimingSpec.entries.at("CKE")),
+      tPD        (tCK * memSpec.memTimingSpec.entries.at("PD")),
+      tXP        (tCK * memSpec.memTimingSpec.entries.at("XP")),
+      tREFI      (tCK * memSpec.memTimingSpec.entries.at("REFI")),
+      tREFIPB    (tCK * memSpec.memTimingSpec.entries.at("REFIPB")),
+      tRFC       (tCK * memSpec.memTimingSpec.entries.at("RFC")),
+      tRFCPB     (tCK * memSpec.memTimingSpec.entries.at("RFCPB")),
+      tRREFD     (tCK * memSpec.memTimingSpec.entries.at("RREFD")),
+      tXS        (tCK * memSpec.memTimingSpec.entries.at("XS")),
+      tFAW       (tCK * memSpec.memTimingSpec.entries.at("FAW")),
+      t32AW      (tCK * memSpec.memTimingSpec.entries.at("32AW")),
+      tPPD       (tCK * memSpec.memTimingSpec.entries.at("PPD")),
+      tLK        (tCK * memSpec.memTimingSpec.entries.at("LK")),
+      tRTRS      (tCK * memSpec.memTimingSpec.entries.at("TRS"))
+{
+    uint64_t deviceSizeBits = static_cast<uint64_t>(banksPerRank) * rowsPerBank * columnsPerRow * bitWidth;
+    uint64_t deviceSizeBytes = deviceSizeBits / 8;
+    memorySizeBytes = deviceSizeBytes * ranksPerChannel * numberOfChannels;
+
+    std::cout << headline << std::endl;
+    std::cout << "Memory Configuration:" << std::endl << std::endl;
+    std::cout << " Memory type:           " << "GDDR5X"              << std::endl;
+    std::cout << " Memory size in bytes:  " << memorySizeBytes       << std::endl;
+    std::cout << " Channels:              " << numberOfChannels      << std::endl;
+    std::cout << " Ranks per channel:     " << ranksPerChannel << std::endl;
+    std::cout << " Bank groups per rank:  " << groupsPerRank         << std::endl;
+    std::cout << " Banks per rank:        " << banksPerRank          << std::endl;
+    std::cout << " Rows per bank:         " << rowsPerBank << std::endl;
+    std::cout << " Columns per row:       " << columnsPerRow << std::endl;
+    std::cout << " Device width in bits:  " << bitWidth              << std::endl;
+    std::cout << " Device size in bits:   " << deviceSizeBits        << std::endl;
+    std::cout << " Device size in bytes:  " << deviceSizeBytes       << std::endl;
+    std::cout << " Devices per rank:      " << devicesPerRank << std::endl;
+    std::cout << std::endl;
+}
 
 sc_time MemSpecGDDR5X::getRefreshIntervalAB() const
 {
@@ -99,7 +123,7 @@ sc_time MemSpecGDDR5X::getRefreshIntervalPB() const
 
 sc_time MemSpecGDDR5X::getExecutionTime(Command command, const tlm_generic_payload &payload) const
 {
-    if (command == Command::PRE || command == Command::PREA)
+    if (command == Command::PREPB || command == Command::PREAB)
         return tRP;
     else if (command == Command::ACT)
     {
@@ -116,9 +140,9 @@ sc_time MemSpecGDDR5X::getExecutionTime(Command command, const tlm_generic_paylo
         return tWL + tWCK2CKPIN + tWCK2CK + tWCK2DQI + burstDuration;
     else if (command == Command::WRA)
         return tWL + burstDuration + tWR + tRP;
-    else if (command == Command::REFA)
+    else if (command == Command::REFAB)
         return tRFC;
-    else if (command == Command::REFB)
+    else if (command == Command::REFPB)
         return tRFCPB;
     else
     {
@@ -128,41 +152,15 @@ sc_time MemSpecGDDR5X::getExecutionTime(Command command, const tlm_generic_paylo
     }
 }
 
-TimeInterval MemSpecGDDR5X::getIntervalOnDataStrobe(Command command) const
+TimeInterval MemSpecGDDR5X::getIntervalOnDataStrobe(Command command, const tlm_generic_payload &) const
 {
     if (command == Command::RD || command == Command::RDA)
-        return TimeInterval(tRL + tWCK2CKPIN + tWCK2CK + tWCK2DQO,
-                tRL + tWCK2CKPIN + tWCK2CK + tWCK2DQO + burstDuration);
+        return {tRL + tWCK2CKPIN + tWCK2CK + tWCK2DQO, tRL + tWCK2CKPIN + tWCK2CK + tWCK2DQO + burstDuration};
     else if (command == Command::WR || command == Command::WRA)
-        return TimeInterval(tWL + tWCK2CKPIN + tWCK2CK + tWCK2DQI,
-                tWL + tWCK2CKPIN + tWCK2CK + tWCK2DQI + burstDuration);
+        return {tWL + tWCK2CKPIN + tWCK2CK + tWCK2DQI, tWL + tWCK2CKPIN + tWCK2CK + tWCK2DQI + burstDuration};
     else
     {
         SC_REPORT_FATAL("MemSpecGDDR5X", "Method was called with invalid argument");
-        return TimeInterval();
+        return {};
     }
-}
-
-uint64_t MemSpecGDDR5X::getSimMemSizeInBytes() const
-{
-    uint64_t deviceSizeBits = static_cast<uint64_t>(banksPerRank) * numberOfRows * numberOfColumns * bitWidth;
-    uint64_t deviceSizeBytes = deviceSizeBits / 8;
-    uint64_t memorySizeBytes = deviceSizeBytes * numberOfRanks;
-
-    std::cout << headline << std::endl;
-    std::cout << "Per Channel Configuration:" << std::endl << std::endl;
-    std::cout << " Memory type:           " << "GDDR5X"              << std::endl;
-    std::cout << " Memory size in bytes:  " << memorySizeBytes       << std::endl;
-    std::cout << " Ranks:                 " << numberOfRanks         << std::endl;
-    std::cout << " Bank groups per rank:  " << groupsPerRank         << std::endl;
-    std::cout << " Banks per rank:        " << banksPerRank          << std::endl;
-    std::cout << " Rows per bank:         " << numberOfRows          << std::endl;
-    std::cout << " Columns per row:       " << numberOfColumns       << std::endl;
-    std::cout << " Device width in bits:  " << bitWidth              << std::endl;
-    std::cout << " Device size in bits:   " << deviceSizeBits        << std::endl;
-    std::cout << " Device size in bytes:  " << deviceSizeBytes       << std::endl;
-    std::cout << std::endl;
-
-    assert(memorySizeBytes > 0);
-    return memorySizeBytes;
 }

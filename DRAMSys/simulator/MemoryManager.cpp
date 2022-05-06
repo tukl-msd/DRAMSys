@@ -37,32 +37,27 @@
 #include "MemoryManager.h"
 #include "common/DebugManager.h"
 #include "configuration/Configuration.h"
-#include <iostream>
 
 using namespace tlm;
 
-MemoryManager::MemoryManager()
-    : numberOfAllocations(0), numberOfFrees(0)
-{
-    if (Configuration::getInstance().storeMode == Configuration::StoreMode::NoStorage)
-        storageEnabled = false;
-    else
-        storageEnabled = true;
-}
+MemoryManager::MemoryManager(bool storageEnabled)
+    : numberOfAllocations(0), numberOfFrees(0), storageEnabled(storageEnabled)
+{}
 
 MemoryManager::~MemoryManager()
 {
-    for (tlm_generic_payload *payload : freePayloads)
+    for (auto& innerBuffer : freePayloads)
     {
-        if (storageEnabled)
+        while (!innerBuffer.second.empty())
         {
-            // Delete data buffer
-            delete[] payload->get_data_ptr();
+            tlm_generic_payload* payload = innerBuffer.second.top();
+            if (storageEnabled)
+                delete[] payload->get_data_ptr();
+            payload->reset();
+            delete payload;
+            innerBuffer.second.pop();
+            numberOfFrees++;
         }
-        // Delete all extensions
-        payload->reset();
-        delete payload;
-        numberOfFrees++;
     }
 
     // Comment in if you are suspecting a memory leak in the manager
@@ -70,33 +65,33 @@ MemoryManager::~MemoryManager()
     //PRINTDEBUGMESSAGE("MemoryManager","Number of freed payloads: " + to_string(numberOfFrees));
 }
 
-tlm_generic_payload *MemoryManager::allocate()
+tlm_generic_payload& MemoryManager::allocate(unsigned dataLength)
 {
-    if (freePayloads.empty())
+    if (freePayloads[dataLength].empty())
     {
         numberOfAllocations++;
-        tlm_generic_payload *payload = new tlm_generic_payload(this);
+        auto* payload = new tlm_generic_payload(this);
 
         if (storageEnabled)
         {
             // Allocate a data buffer and initialize it with zeroes:
-            unsigned int dataLength = Configuration::getInstance().memSpec->bytesPerBurst;
-            unsigned char *data = new unsigned char[dataLength];
+            auto* data = new unsigned char[dataLength];
             std::fill(data, data + dataLength, 0);
             payload->set_data_ptr(data);
         }
 
-        return payload;
+        return *payload;
     }
     else
     {
-        tlm_generic_payload *result = freePayloads.back();
-        freePayloads.pop_back();
-        return result;
+        tlm_generic_payload* result = freePayloads[dataLength].top();
+        freePayloads[dataLength].pop();
+        return *result;
     }
 }
 
-void MemoryManager::free(tlm_generic_payload *payload)
+void MemoryManager::free(tlm_generic_payload* payload)
 {
-    freePayloads.push_back(payload);
+    unsigned dataLength = payload->get_data_length();
+    freePayloads[dataLength].push(payload);
 }

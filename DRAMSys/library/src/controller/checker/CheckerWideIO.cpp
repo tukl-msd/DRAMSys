@@ -32,24 +32,28 @@
  * Author: Lukas Steiner
  */
 
+#include <algorithm>
+
 #include "CheckerWideIO.h"
 
-CheckerWideIO::CheckerWideIO()
+using namespace sc_core;
+using namespace tlm;
+
+CheckerWideIO::CheckerWideIO(const Configuration& config)
 {
-    Configuration &config = Configuration::getInstance();
-    memSpec = dynamic_cast<const MemSpecWideIO *>(config.memSpec);
+    memSpec = dynamic_cast<const MemSpecWideIO *>(config.memSpec.get());
     if (memSpec == nullptr)
         SC_REPORT_FATAL("CheckerWideIO", "Wrong MemSpec chosen");
 
     lastScheduledByCommandAndBank = std::vector<std::vector<sc_time>>
-            (numberOfCommands(), std::vector<sc_time>(memSpec->numberOfBanks, sc_max_time()));
+            (Command::numberOfCommands(), std::vector<sc_time>(memSpec->banksPerChannel, sc_max_time()));
     lastScheduledByCommandAndRank = std::vector<std::vector<sc_time>>
-            (numberOfCommands(), std::vector<sc_time>(memSpec->numberOfRanks, sc_max_time()));
-    lastScheduledByCommand = std::vector<sc_time>(numberOfCommands(), sc_max_time());
+            (Command::numberOfCommands(), std::vector<sc_time>(memSpec->ranksPerChannel, sc_max_time()));
+    lastScheduledByCommand = std::vector<sc_time>(Command::numberOfCommands(), sc_max_time());
     lastCommandOnBus = sc_max_time();
-    last2Activates = std::vector<std::queue<sc_time>>(memSpec->numberOfRanks);
+    last2Activates = std::vector<std::queue<sc_time>>(memSpec->ranksPerChannel);
 
-    tBURST = memSpec->burstLength * memSpec->tCK;
+    tBURST = memSpec->defaultBurstLength * memSpec->tCK;
     tRDWR = memSpec->tRL + tBURST + memSpec->tCK;
     tRDWR_R = memSpec->tRL + tBURST + memSpec->tRTRS - memSpec->tWL;
     tWRPRE = memSpec->tWL + tBURST - memSpec->tCK + memSpec->tWR;
@@ -60,13 +64,20 @@ CheckerWideIO::CheckerWideIO()
     tWRAPDEN = memSpec->tWL + tBURST + memSpec->tWR; // + memSpec->tCK; ??
 }
 
-sc_time CheckerWideIO::timeToSatisfyConstraints(Command command, Rank rank, BankGroup, Bank bank) const
+sc_time CheckerWideIO::timeToSatisfyConstraints(Command command, const tlm_generic_payload& payload) const
 {
+    Rank rank = DramExtension::getRank(payload);
+    Bank bank = DramExtension::getBank(payload);
+
     sc_time lastCommandStart;
     sc_time earliestTimeToStart = sc_time_stamp();
 
     if (command == Command::RD || command == Command::RDA)
     {
+        unsigned burstLength = DramExtension::getBurstLength(payload);
+        assert((burstLength == 2) || (burstLength == 4));
+        assert(burstLength <= memSpec->maxBurstLength);
+
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRCD);
@@ -116,6 +127,10 @@ sc_time CheckerWideIO::timeToSatisfyConstraints(Command command, Rank rank, Bank
     }
     else if (command == Command::WR || command == Command::WRA)
     {
+        unsigned burstLength = DramExtension::getBurstLength(payload);
+        assert((burstLength == 2) || (burstLength == 4));
+        assert(burstLength <= memSpec->maxBurstLength);
+
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRCD);
@@ -174,15 +189,15 @@ sc_time CheckerWideIO::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec->tRP);
 
-        lastCommandStart = lastScheduledByCommandAndBank[Command::PRE][bank.ID()];
+        lastCommandStart = lastScheduledByCommandAndBank[Command::PREPB][bank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PREA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFC);
 
@@ -201,7 +216,7 @@ sc_time CheckerWideIO::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (last2Activates[rank.ID()].size() >= 2)
             earliestTimeToStart = std::max(earliestTimeToStart, last2Activates[rank.ID()].front() + memSpec->tTAW);
     }
-    else if (command == Command::PRE)
+    else if (command == Command::PREPB)
     {
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank.ID()];
         if (lastCommandStart != sc_max_time())
@@ -219,7 +234,7 @@ sc_time CheckerWideIO::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXP);
     }
-    else if (command == Command::PREA)
+    else if (command == Command::PREAB)
     {
         lastCommandStart = lastScheduledByCommandAndRank[Command::ACT][rank.ID()];
         if (lastCommandStart != sc_max_time())
@@ -245,7 +260,7 @@ sc_time CheckerWideIO::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXP);
     }
-    else if (command == Command::REFA)
+    else if (command == Command::REFAB)
     {
         lastCommandStart = lastScheduledByCommandAndRank[Command::ACT][rank.ID()];
         if (lastCommandStart != sc_max_time())
@@ -259,15 +274,15 @@ sc_time CheckerWideIO::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec->tRP);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PRE][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PREA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFC);
 
@@ -349,11 +364,11 @@ sc_time CheckerWideIO::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + std::max(tWRAPDEN, tWRPRE + memSpec->tRP));
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PRE][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PREA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
 
@@ -361,7 +376,7 @@ sc_time CheckerWideIO::timeToSatisfyConstraints(Command command, Rank rank, Bank
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXP);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFC);
 
@@ -385,10 +400,13 @@ sc_time CheckerWideIO::timeToSatisfyConstraints(Command command, Rank rank, Bank
     return earliestTimeToStart;
 }
 
-void CheckerWideIO::insert(Command command, Rank rank, BankGroup, Bank bank)
+void CheckerWideIO::insert(Command command, const tlm_generic_payload& payload)
 {
+    Rank rank = DramExtension::getRank(payload);
+    Bank bank = DramExtension::getBank(payload);
+
     PRINTDEBUGMESSAGE("CheckerWideIO", "Changing state on bank " + std::to_string(bank.ID())
-                      + " command is " + commandToString(command));
+                      + " command is " + command.toString());
 
     lastScheduledByCommandAndBank[command][bank.ID()] = sc_time_stamp();
     lastScheduledByCommandAndRank[command][rank.ID()] = sc_time_stamp();

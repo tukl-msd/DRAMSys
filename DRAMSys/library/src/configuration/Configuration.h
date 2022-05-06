@@ -36,58 +36,49 @@
  *    Felipe S. Prado
  *    Lukas Steiner
  *    Luiza Correa
+ *    Derek Christ
  */
 
 #ifndef CONFIGURATION_H
 #define CONFIGURATION_H
 
-#include <systemc.h>
 #include <string>
-#include <cstdint>
+#include <Configuration.h>
+#include <systemc>
 #include "memspec/MemSpec.h"
 #include "TemperatureSimConfig.h"
-#include "../common/utils.h"
-
-#include "../error/eccbaseclass.h"
 
 class Configuration
 {
 public:
-    static Configuration &getInstance()
-    {
-        static Configuration _instance;
-        return _instance;
-    }
-private:
-    Configuration() {}
-    Configuration(const Configuration &);
-    Configuration & operator = (const Configuration &);
+    Configuration() = default;
+    Configuration(const Configuration&) = delete;
+    Configuration& operator=(const Configuration &) = delete;
 
 public:
-    static std::string memspecUri;
-    static std::string mcconfigUri;
-    std::string pathToResources;
-
     // MCConfig:
-    enum class PagePolicy {Open, Closed, OpenAdaptive, ClosedAdaptive} pagePolicy;
-    enum class Scheduler {Fifo, FrFcfs, FrFcfsGrp} scheduler;
-    enum class SchedulerBuffer {Bankwise, ReadWrite, Shared} schedulerBuffer;
-    enum class CmdMux {Oldest, Strict} cmdMux;
-    enum class RespQueue {Fifo, Reorder} respQueue;
-    enum class Arbiter {Simple, Fifo, Reorder} arbiter;
+    enum class PagePolicy {Open, Closed, OpenAdaptive, ClosedAdaptive} pagePolicy = PagePolicy::Open;
+    enum class Scheduler {Fifo, FrFcfs, FrFcfsGrp, GrpFrFcfs, GrpFrFcfsWm} scheduler = Scheduler::FrFcfs;
+    enum class SchedulerBuffer {Bankwise, ReadWrite, Shared} schedulerBuffer = SchedulerBuffer::Bankwise;
+    unsigned int lowWatermark = 0;
+    unsigned int highWatermark = 0;
+    enum class CmdMux {Oldest, Strict} cmdMux = CmdMux::Oldest;
+    enum class RespQueue {Fifo, Reorder} respQueue = RespQueue::Fifo;
+    enum class Arbiter {Simple, Fifo, Reorder} arbiter = Arbiter::Simple;
     unsigned int requestBufferSize = 8;
-    enum class RefreshPolicy {NoRefresh, AllBank, PerBank, SameBank} refreshPolicy;
+    enum class RefreshPolicy {NoRefresh, PerBank, Per2Bank, SameBank, AllBank} refreshPolicy = RefreshPolicy::AllBank;
     unsigned int refreshMaxPostponed = 0;
     unsigned int refreshMaxPulledin = 0;
-    enum class PowerDownPolicy {NoPowerDown, Staggered} powerDownPolicy;
+    enum class PowerDownPolicy {NoPowerDown, Staggered} powerDownPolicy = PowerDownPolicy::NoPowerDown;
     unsigned int powerDownTimeout = 3;
     unsigned int maxActiveTransactions = 64;
-    sc_time arbitrationDelayFw = SC_ZERO_TIME;
-    sc_time arbitrationDelayBw = SC_ZERO_TIME;
-    sc_time thinkDelayFw = SC_ZERO_TIME;
-    sc_time thinkDelayBw = SC_ZERO_TIME;
-    sc_time phyDelayFw = SC_ZERO_TIME;
-    sc_time phyDelayBw = SC_ZERO_TIME;
+    bool refreshManagement = false;
+    sc_core::sc_time arbitrationDelayFw = sc_core::SC_ZERO_TIME;
+    sc_core::sc_time arbitrationDelayBw = sc_core::SC_ZERO_TIME;
+    sc_core::sc_time thinkDelayFw = sc_core::SC_ZERO_TIME;
+    sc_core::sc_time thinkDelayBw = sc_core::SC_ZERO_TIME;
+    sc_core::sc_time phyDelayFw = sc_core::SC_ZERO_TIME;
+    sc_core::sc_time phyDelayBw = sc_core::SC_ZERO_TIME;
 
     // SimConfig
     std::string simulationName = "default";
@@ -99,31 +90,24 @@ public:
     bool thermalSimulation = false;
     bool simulationProgressBar = false;
     bool checkTLM2Protocol = false;
-    enum class ECCMode {Disabled, Hamming} eccMode;
-    ECCBaseClass *pECC = nullptr;
     bool useMalloc = false;
     unsigned long long int addressOffset = 0;
 
-    // MemSpec (from DRAM-Power)
-    const MemSpec *memSpec;
-
-    void setParameter(std::string name, nlohmann::json value);
-
     //Configs for Seed, csv file and StorageMode
-    unsigned int errorChipSeed;
+    unsigned int errorChipSeed = 0;
     std::string errorCSVFile = "not defined.";
-    enum class StoreMode {NoStorage, Store, ErrorModel} storeMode;
+    enum class StoreMode {NoStorage, Store, ErrorModel} storeMode = StoreMode::NoStorage;
+
+    // MemSpec (from DRAM-Power)
+    std::unique_ptr<const MemSpec> memSpec;
 
     // Temperature Simulation related
     TemperatureSimConfig temperatureSim;
 
-    unsigned int adjustNumBytesAfterECC(unsigned bytes);
-    void setPathToResources(std::string path);
-
-    void loadMCConfig(Configuration &config, std::string amconfigUri);
-    void loadSimConfig(Configuration &config, std::string simconfigUri);
-    void loadMemSpec(Configuration &config, std::string memspecUri);
-    void loadTemperatureSimConfig(Configuration &config, std::string simconfigUri);
+    void loadMCConfig(const DRAMSysConfiguration::McConfig& mcConfig);
+    void loadSimConfig(const DRAMSysConfiguration::SimConfig& simConfig);
+    void loadMemSpec(const DRAMSysConfiguration::MemSpec& memSpec);
+    void loadTemperatureSimConfig(const DRAMSysConfiguration::ThermalConfig& thermalConfig);
 };
 
 #endif // CONFIGURATION_H

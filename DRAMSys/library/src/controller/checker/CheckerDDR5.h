@@ -35,18 +35,20 @@
 #ifndef CHECKERDDR5_H
 #define CHECKERDDR5_H
 
-#include "CheckerIF.h"
 #include <queue>
 #include <vector>
+
+#include "CheckerIF.h"
 #include "../../configuration/memspec/MemSpecDDR5.h"
 #include "../../configuration/Configuration.h"
+#include "../../common/utils.h"
 
 class CheckerDDR5 final : public CheckerIF
 {
 public:
-    CheckerDDR5();
-    virtual sc_time timeToSatisfyConstraints(Command, Rank, BankGroup, Bank) const override;
-    virtual void insert(Command, Rank, BankGroup, Bank) override;
+    explicit CheckerDDR5(const Configuration& config);
+    sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const override;
+    void insert(Command command, const tlm::tlm_generic_payload& payload) override;
 };
 
 #endif // CHECKERDDR5_H

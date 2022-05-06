@@ -32,13 +32,13 @@
  * Author: Lukas Steiner
  */
 
+#include <systemc>
 #include "CmdMuxOldest.h"
-
 #include "../../common/dramExtensions.h"
 
-using namespace tlm;
+using namespace sc_core;
 
-CmdMuxOldest::CmdMuxOldest() : memSpec(Configuration::getInstance().memSpec) {}
+CmdMuxOldest::CmdMuxOldest(const Configuration& config) : memSpec(*config.memSpec) {}
 
 CommandTuple::Type CmdMuxOldest::selectCommand(const ReadyCommands &readyCommands)
 {    
@@ -51,7 +51,7 @@ CommandTuple::Type CmdMuxOldest::selectCommand(const ReadyCommands &readyCommand
     for (auto it = readyCommands.cbegin(); it != readyCommands.cend(); it++)
     {
         newTimestamp = std::get<CommandTuple::Timestamp>(*it) +
-                memSpec->getCommandLength(std::get<CommandTuple::Command>(*it));
+                memSpec.getCommandLength(std::get<CommandTuple::Command>(*it));
         newPayloadID = DramExtension::getChannelPayloadID(std::get<CommandTuple::Payload>(*it));
 
         if (newTimestamp < lastTimestamp)
@@ -71,14 +71,14 @@ CommandTuple::Type CmdMuxOldest::selectCommand(const ReadyCommands &readyCommand
             std::get<CommandTuple::Timestamp>(*result) == sc_time_stamp())
         return *result;
     else
-        return CommandTuple::Type(Command::NOP, nullptr, sc_max_time());
+        return {Command::NOP, nullptr, sc_max_time()};
 }
 
 
-CmdMuxOldestRasCas::CmdMuxOldestRasCas() : memSpec(Configuration::getInstance().memSpec)
+CmdMuxOldestRasCas::CmdMuxOldestRasCas(const Configuration& config) : memSpec(*config.memSpec)
 {
-    readyRasCommands.reserve(memSpec->numberOfBanks);
-    readyCasCommands.reserve(memSpec->numberOfBanks);
+    readyRasCommands.reserve(memSpec.banksPerChannel);
+    readyCasCommands.reserve(memSpec.banksPerChannel);
     readyRasCasCommands.reserve(2);
 }
 
@@ -89,7 +89,7 @@ CommandTuple::Type CmdMuxOldestRasCas::selectCommand(const ReadyCommands &readyC
 
     for (auto it : readyCommands)
     {
-        if (isRasCommand(std::get<CommandTuple::Command>(it)))
+        if (std::get<CommandTuple::Command>(it).isRasCommand())
             readyRasCommands.emplace_back(it);
         else
             readyCasCommands.emplace_back(it);
@@ -107,7 +107,7 @@ CommandTuple::Type CmdMuxOldestRasCas::selectCommand(const ReadyCommands &readyC
     for (auto it = readyRasCommands.cbegin(); it != readyRasCommands.cend(); it++)
     {
         newTimestamp = std::get<CommandTuple::Timestamp>(*it) +
-                memSpec->getCommandLength(std::get<CommandTuple::Command>(*it));
+                memSpec.getCommandLength(std::get<CommandTuple::Command>(*it));
         newPayloadID = DramExtension::getChannelPayloadID(std::get<CommandTuple::Payload>(*it));
 
         if (newTimestamp < lastTimestamp)
@@ -129,7 +129,7 @@ CommandTuple::Type CmdMuxOldestRasCas::selectCommand(const ReadyCommands &readyC
     for (auto it = readyCasCommands.cbegin(); it != readyCasCommands.cend(); it++)
     {
         newTimestamp = std::get<CommandTuple::Timestamp>(*it) +
-                memSpec->getCommandLength(std::get<CommandTuple::Command>(*it));
+                memSpec.getCommandLength(std::get<CommandTuple::Command>(*it));
         newPayloadID = DramExtension::getChannelPayloadID(std::get<CommandTuple::Payload>(*it));
 
         if (newTimestamp < lastTimestamp)
@@ -177,5 +177,5 @@ CommandTuple::Type CmdMuxOldestRasCas::selectCommand(const ReadyCommands &readyC
             std::get<CommandTuple::Timestamp>(*result) == sc_time_stamp())
         return *result;
     else
-        return CommandTuple::Type(Command::NOP, nullptr, sc_max_time());
+        return {Command::NOP, nullptr, sc_max_time()};
 }

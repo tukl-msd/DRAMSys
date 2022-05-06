@@ -33,69 +33,84 @@
  *    Janik Schlemminger
  *    Matthias Jung
  *    Lukas Steiner
+ *    Derek Christ
  */
 
 #ifndef MEMSPEC_H
 #define MEMSPEC_H
 
-#include <systemc.h>
 #include <vector>
-#include "../../common/dramExtensions.h"
-#include "../../controller/Command.h"
+#include <string>
+#include <Configuration.h>
+#include <systemc>
+#include <tlm>
 #include "../../common/utils.h"
-#include "../../common/third_party/nlohmann/single_include/nlohmann/json.hpp"
+#include "../../controller/Command.h"
 
 class MemSpec
 {
 public:
     const unsigned numberOfChannels;
-    const unsigned numberOfRanks;
+    const unsigned pseudoChannelsPerChannel;
+    const unsigned ranksPerChannel;
     const unsigned banksPerRank;
     const unsigned groupsPerRank;
     const unsigned banksPerGroup;
-    const unsigned numberOfBanks;
-    const unsigned numberOfBankGroups;
-    const unsigned numberOfDevicesOnDIMM;
-    const unsigned numberOfRows;
-    const unsigned numberOfColumns;
-    const unsigned burstLength;
+    const unsigned banksPerChannel;
+    const unsigned bankGroupsPerChannel;
+    const unsigned devicesPerRank;
+    const unsigned rowsPerBank;
+    const unsigned columnsPerRow;
+    const unsigned defaultBurstLength;
+    const unsigned maxBurstLength;
     const unsigned dataRate;
     const unsigned bitWidth;
     const unsigned dataBusWidth;
-    const unsigned bytesPerBurst;
+    const unsigned defaultBytesPerBurst;
+    const unsigned maxBytesPerBurst;
 
     // Clock
     const double fCKMHz;
-    const sc_time tCK;
+    const sc_core::sc_time tCK;
 
     const std::string memoryId;
-    const enum class MemoryType {DDR3, DDR4, DDR5, LPDDR4, WideIO, WideIO2, GDDR5, GDDR5X, GDDR6, HBM2} memoryType;
+    const enum class MemoryType {DDR3, DDR4, DDR5, LPDDR4, LPDDR5, WideIO,
+            WideIO2, GDDR5, GDDR5X, GDDR6, HBM2, STTMRAM} memoryType;
 
-    virtual ~MemSpec() {}
+    virtual ~MemSpec() = default;
 
-    virtual sc_time getRefreshIntervalAB() const;
-    virtual sc_time getRefreshIntervalPB() const;
-    virtual sc_time getRefreshIntervalSB() const;
+    virtual sc_core::sc_time getRefreshIntervalAB() const;
+    virtual sc_core::sc_time getRefreshIntervalPB() const;
+    virtual sc_core::sc_time getRefreshIntervalP2B() const;
+    virtual sc_core::sc_time getRefreshIntervalSB() const;
+
+    virtual unsigned getPer2BankOffset() const;
+
+    virtual unsigned getRAAIMT() const;
+    virtual unsigned getRAAMMT() const;
+    virtual unsigned getRAACDR() const;
 
     virtual bool hasRasAndCasBus() const;
 
-    virtual sc_time getExecutionTime(Command, const tlm::tlm_generic_payload &) const = 0;
-    virtual TimeInterval getIntervalOnDataStrobe(Command) const = 0;
+    virtual sc_core::sc_time getExecutionTime(Command command, const tlm::tlm_generic_payload &payload) const = 0;
+    virtual TimeInterval getIntervalOnDataStrobe(Command command, const tlm::tlm_generic_payload &payload) const = 0;
 
-    sc_time getCommandLength(Command) const;
-    virtual uint64_t getSimMemSizeInBytes() const = 0; 
+    sc_core::sc_time getCommandLength(Command) const;
+    uint64_t getSimMemSizeInBytes() const;
 
 protected:
-    MemSpec(nlohmann::json &memspec, MemoryType memoryType,
-            unsigned numberOfChannels,
-            unsigned numberOfRanks, unsigned banksPerRank,
+    MemSpec(const DRAMSysConfiguration::MemSpec &memSpec,
+            MemoryType memoryType,
+            unsigned numberOfChannels, unsigned pseudoChannelsPerChannel,
+            unsigned ranksPerChannel, unsigned banksPerRank,
             unsigned groupsPerRank, unsigned banksPerGroup,
-            unsigned numberOfBanks, unsigned numberOfBankGroups,
-            unsigned numberOfDevicesOnDIMM);
+            unsigned banksPerChannel, unsigned bankGroupsPerChannel,
+            unsigned devicesPerRank);
 
     // Command lengths in cycles on bus, usually one clock cycle
     std::vector<unsigned> commandLengthInCycles;
-    sc_time burstDuration;
+    sc_core::sc_time burstDuration;
+    uint64_t memorySizeBytes;
 };
 
 #endif // MEMSPEC_H

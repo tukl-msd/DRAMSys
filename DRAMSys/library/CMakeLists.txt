@@ -31,6 +31,7 @@
 # Authors: 
 #   Matthias Jung
 #   Lukas Steiner
+#   Derek Christ
 
 cmake_minimum_required(VERSION 3.10)
 
@@ -44,15 +45,14 @@ set(DCMAKE_SH="CMAKE_SH-NOTFOUND")
 # Add DRAMPower:
 add_subdirectory(src/common/third_party/DRAMPower)
 
-# Add nlohmann:
-set(JSON_BuildTests OFF CACHE INTERNAL "")
-add_subdirectory(src/common/third_party/nlohmann)
+# Add Configuration
+add_subdirectory(src/common/configuration)
 
 # Add SystemC:
 if(DEFINED ENV{SYSTEMC_HOME})
     find_library(SYSTEMC_LIBRARY 
         NAMES systemc SnpsVP 
-        PATHS $ENV{SYSTEMC_HOME}/lib-$ENV{SYSTEMC_TARGET_ARCH}/ $ENV{SYSTEMC_HOME}/lib-linux64/ $ENV{SYSTEMC_HOME}/libso-$ENV{COWARE_CXX_COMPILER}/
+	PATHS $ENV{SYSTEMC_HOME}/lib-$ENV{SYSTEMC_TARGET_ARCH}/ $ENV{SYSTEMC_HOME}/lib-linux64/ $ENV{SYSTEMC_HOME}/lib64 $ENV{SYSTEMC_HOME}/libso-$ENV{COWARE_CXX_COMPILER}/
     )
     message("== Building with external SystemC located in $ENV{SYSTEMC_HOME}")
 else()
@@ -91,12 +91,14 @@ add_library(DRAMSysLibrary
     src/configuration/memspec/MemSpecDDR4.cpp
     src/configuration/memspec/MemSpecDDR5.cpp
     src/configuration/memspec/MemSpecLPDDR4.cpp
+    src/configuration/memspec/MemSpecLPDDR5.cpp
     src/configuration/memspec/MemSpecWideIO.cpp
     src/configuration/memspec/MemSpecWideIO2.cpp
     src/configuration/memspec/MemSpecGDDR5.cpp
     src/configuration/memspec/MemSpecGDDR5X.cpp
     src/configuration/memspec/MemSpecGDDR6.cpp
     src/configuration/memspec/MemSpecHBM2.cpp
+    src/configuration/memspec/MemSpecSTTMRAM.cpp
     
     src/controller/BankMachine.cpp
     src/controller/Command.cpp
@@ -108,12 +110,14 @@ add_library(DRAMSysLibrary
     src/controller/checker/CheckerDDR4.cpp
     src/controller/checker/CheckerDDR5.cpp
     src/controller/checker/CheckerLPDDR4.cpp
+    src/controller/checker/CheckerLPDDR5.cpp
     src/controller/checker/CheckerWideIO.cpp
     src/controller/checker/CheckerWideIO2.cpp
     src/controller/checker/CheckerGDDR5.cpp
     src/controller/checker/CheckerGDDR5X.cpp
     src/controller/checker/CheckerGDDR6.cpp
     src/controller/checker/CheckerHBM2.cpp
+    src/controller/checker/CheckerSTTMRAM.cpp
     
     src/controller/cmdmux/CmdMuxIF.h
     src/controller/cmdmux/CmdMuxOldest.cpp
@@ -127,6 +131,7 @@ add_library(DRAMSysLibrary
     src/controller/refresh/RefreshManagerDummy.cpp
     src/controller/refresh/RefreshManagerAllBank.cpp
     src/controller/refresh/RefreshManagerPerBank.cpp
+    src/controller/refresh/RefreshManagerPer2Bank.cpp
     src/controller/refresh/RefreshManagerSameBank.cpp
     
     src/controller/respqueue/RespQueueIF.h
@@ -137,6 +142,8 @@ add_library(DRAMSysLibrary
     src/controller/scheduler/SchedulerFifo.cpp
     src/controller/scheduler/SchedulerFrFcfs.cpp
     src/controller/scheduler/SchedulerFrFcfsGrp.cpp
+    src/controller/scheduler/SchedulerGrpFrFcfs.cpp
+    src/controller/scheduler/SchedulerGrpFrFcfsWm.cpp
 
     src/controller/scheduler/BufferCounterIF.h
     src/controller/scheduler/BufferCounterBankwise.cpp
@@ -162,12 +169,14 @@ add_library(DRAMSysLibrary
     src/simulation/dram/DramDDR4.cpp 
     src/simulation/dram/DramDDR5.cpp
     src/simulation/dram/DramLPDDR4.cpp
+    src/simulation/dram/DramLPDDR5.cpp
     src/simulation/dram/DramWideIO.cpp
     src/simulation/dram/DramWideIO2.cpp
     src/simulation/dram/DramGDDR5.cpp
     src/simulation/dram/DramGDDR5X.cpp
     src/simulation/dram/DramGDDR6.cpp
     src/simulation/dram/DramHBM2.cpp
+    src/simulation/dram/DramSTTMRAM.cpp
 
     ${RECORDING_SOURCES}
 	
@@ -316,4 +325,5 @@ endif()
 target_link_libraries(DRAMSysLibrary
     PUBLIC ${SYSTEMC_LIBRARY}
     PRIVATE DRAMPower
+    PUBLIC DRAMSysConfiguration
 )

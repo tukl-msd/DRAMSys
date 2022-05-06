@@ -35,21 +35,22 @@
 #ifndef RESPQUEUEREORDER_H
 #define RESPQUEUEREORDER_H
 
-#include <systemc.h>
-#include <tlm.h>
-#include "RespQueueIF.h"
 #include <map>
+
+#include <systemc>
+#include <tlm>
+#include "RespQueueIF.h"
 
 class RespQueueReorder final : public RespQueueIF
 {
 public:
-    virtual void insertPayload(tlm::tlm_generic_payload *, sc_time) override;
-    virtual tlm::tlm_generic_payload *nextPayload() override;
-    virtual sc_time getTriggerTime() const override;
+    void insertPayload(tlm::tlm_generic_payload *, sc_core::sc_time) override;
+    tlm::tlm_generic_payload *nextPayload() override;
+    sc_core::sc_time getTriggerTime() const override;
 
 private:
     uint64_t nextPayloadID = 1;
-    std::map<uint64_t, std::pair<tlm::tlm_generic_payload *, sc_time>> buffer;
+    std::map<uint64_t, std::pair<tlm::tlm_generic_payload *, sc_core::sc_time>> buffer;
 };
 
 #endif // RESPQUEUEREORDER_H

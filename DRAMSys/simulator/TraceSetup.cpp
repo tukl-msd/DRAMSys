@@ -32,80 +32,159 @@
  * Authors:
  *    Matthias Jung
  *    Luiza Correa
+ *    Derek Christ
  */
 
 #include "TraceSetup.h"
 #include "StlPlayer.h"
+#include "TrafficGenerator.h"
+#include <algorithm>
+#include <iomanip>
+#include <map>
 
+using namespace sc_core;
 using namespace tlm;
 
-TraceSetup::TraceSetup(std::string uri,
-                       std::string pathToResources,
-                       std::vector<TracePlayer *> *players)
+TraceSetup::TraceSetup(const Configuration& config,
+                       const DRAMSysConfiguration::TraceSetup& traceSetup,
+                       const std::string& pathToResources,
+                       std::vector<std::unique_ptr<TrafficInitiator>>& players)
+    : memoryManager(config.storeMode != Configuration::StoreMode::NoStorage)
 {
-    // Load Simulation:
-    nlohmann::json simulationdoc = parseJSON(uri);
+    if (traceSetup.initiators.empty())
+        SC_REPORT_FATAL("TraceSetup", "No traffic initiators specified");
 
-    if (simulationdoc["simulation"].empty())
-        SC_REPORT_FATAL("TraceSetup",
-                    "Cannot load simulation: simulation node expected");
-
-    // Load TracePlayers:
-    if (simulationdoc["simulation"]["tracesetup"].empty())
-        SC_REPORT_FATAL("TraceSetup", "tracesetup is empty");
-    for (auto it : simulationdoc["simulation"]["tracesetup"].items())
+    for (const auto &initiator : traceSetup.initiators)
     {
-        auto value = it.value();
-        if (!value.empty())
+        std::visit(
+            [&](auto &&initiator)
+            {
+                std::string name = initiator.name;
+                double frequencyMHz = initiator.clkMhz;
+                sc_time playerClk = sc_time(1.0 / frequencyMHz, SC_US);
+
+                unsigned int maxPendingReadRequests = [=]() -> unsigned int
+                {
+                    if (const auto &maxPendingReadRequests = initiator.maxPendingReadRequests)
+                        return *maxPendingReadRequests;
+                    else
+                        return 0;
+                }();
+
+                unsigned int maxPendingWriteRequests = [=]() -> unsigned int
+                {
+                    if (const auto &maxPendingWriteRequests = initiator.maxPendingWriteRequests)
+                        return *maxPendingWriteRequests;
+                    else
+                        return 0;
+                }();
+
+                bool addLengthConverter = [=]() -> bool
+                {
+                    if (const auto &addLengthConverter = initiator.addLengthConverter)
+                        return *addLengthConverter;
+                    else
+                        return false;
+                }();
+
+                using T = std::decay_t<decltype(initiator)>;
+                if constexpr (std::is_same_v<T, DRAMSysConfiguration::TracePlayer>)
+                {
+                    size_t pos = name.rfind('.');
+                    if (pos == std::string::npos)
+                        throw std::runtime_error("Name of the trace file does not contain a valid extension.");
+
+                    // Get the extension and make it lower case
+                    std::string ext = name.substr(pos + 1);
+                    std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+                    std::stringstream stlFileStream;
+                    stlFileStream << pathToResources << "/traces/" << name;
+                    std::string stlFile = stlFileStream.str();
+                    std::string moduleName = name;
+
+                    // replace all '.' to '_'
+                    std::replace(moduleName.begin(), moduleName.end(), '.', '_');
+
+                    StlPlayer *player;
+                    if (ext == "stl")
+                        player = new StlPlayer(moduleName.c_str(), config, stlFile, playerClk, maxPendingReadRequests,
+                                               maxPendingWriteRequests, addLengthConverter, *this, false);
+                    else if (ext == "rstl")
+                        player = new StlPlayer(moduleName.c_str(), config, stlFile, playerClk, maxPendingReadRequests,
+                                               maxPendingWriteRequests, addLengthConverter, *this, true);
+                    else
+                        throw std::runtime_error("Unsupported file extension in " + name);
+
+                    players.push_back(std::unique_ptr<TrafficInitiator>(player));
+                    totalTransactions += player->getNumberOfLines();
+                }
+                else if constexpr (std::is_same_v<T, DRAMSysConfiguration::TraceGenerator>)
+                {
+                    TrafficGenerator *trafficGenerator = new TrafficGenerator(name.c_str(), config, initiator, *this);
+                    players.push_back(std::unique_ptr<TrafficInitiator>(trafficGenerator));
+
+                    totalTransactions += trafficGenerator->getTotalTransactions();
+                }
+                else // if constexpr (std::is_same_v<T, DRAMSysConfiguration::TraceHammer>)
+                {
+                    uint64_t numRequests = initiator.numRequests;
+                    uint64_t rowIncrement = initiator.rowIncrement;
+
+                    players.push_back(
+                        std::unique_ptr<TrafficInitiator>(new TrafficGeneratorHammer(name.c_str(), config, initiator, *this)));
+                    totalTransactions += numRequests;
+                }
+            },
+            initiator);
+    }
+
+    for (const auto &inititatorConf : traceSetup.initiators)
+    {
+        if (auto generatorConf = std::get_if<DRAMSysConfiguration::TraceGenerator>(&inititatorConf))
         {
-            sc_time playerClk;
-            unsigned int frequencyMHz = value["clkMhz"];
+            if (const auto &idleUntil = generatorConf->idleUntil)
+            {
+                const std::string name = generatorConf->name;
+                auto listenerIt = std::find_if(players.begin(), players.end(),
+                                               [&name](const std::unique_ptr<TrafficInitiator> &initiator)
+                                               { return initiator->name() == name; });
 
-            if (frequencyMHz == 0)
-                SC_REPORT_FATAL("TraceSetup", "No frequency defined");
-            else
-                playerClk = sc_time(1.0 / frequencyMHz, SC_US);
+                // Should be found
+                auto listener = dynamic_cast<TrafficGenerator *>(listenerIt->get());
 
-            std::string name = value["name"];
+                auto notifierIt =
+                    std::find_if(players.begin(), players.end(),
+                                 [&idleUntil](const std::unique_ptr<TrafficInitiator> &initiator)
+                                 {
+                                     if (auto generator = dynamic_cast<const TrafficGenerator *>(initiator.get()))
+                                     {
+                                         if (generator->hasStateTransitionEvent(*idleUntil))
+                                             return true;
+                                     }
 
-            size_t pos = name.rfind('.');
-            if (pos == std::string::npos)
-                throw std::runtime_error("Name of the trace file does not contain a valid extension.");
+                                     return false;
+                                 });
 
-            // Get the extension and make it lower case
-            std::string ext = name.substr(pos + 1);
-            std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+                if (notifierIt == players.end())
+                    SC_REPORT_FATAL("TraceSetup", "Event to listen on not found.");
 
-            std::string stlFile =  pathToResources + std::string("traces/") + name;
-            std::string moduleName = name;
-
-            // replace all '.' to '_'
-            std::replace(moduleName.begin(), moduleName.end(), '.', '_');
-
-            TracePlayer *player;
-            if (ext == "stl")
-                player = new StlPlayer(moduleName.c_str(), stlFile, playerClk, this, false);
-            else if (ext == "rstl")
-                player = new StlPlayer(moduleName.c_str(), stlFile, playerClk, this, true);
-            else
-                throw std::runtime_error("Unsupported file extension in " + name);
-
-            players->push_back(player);
-
-            if (Configuration::getInstance().simulationProgressBar)
-                totalTransactions += player->getNumberOfLines(stlFile);
+                auto notifier = dynamic_cast<TrafficGenerator *>(notifierIt->get());
+                listener->waitUntil(&notifier->getStateTransitionEvent(*idleUntil));
+            }
         }
     }
 
     remainingTransactions = totalTransactions;
-    numberOfTracePlayers = players->size();
+    numberOfTrafficInitiators = players.size();
+    defaultDataLength = config.memSpec->defaultBytesPerBurst;
 }
 
-void TraceSetup::tracePlayerTerminates()
+void TraceSetup::trafficInitiatorTerminates()
 {
-    finishedTracePlayers++;
+    finishedTrafficInitiators++;
 
-    if (finishedTracePlayers == numberOfTracePlayers)
+    if (finishedTrafficInitiators == numberOfTrafficInitiators)
         sc_stop();
 }
 
@@ -113,23 +192,28 @@ void TraceSetup::transactionFinished()
 {
     remainingTransactions--;
 
-    loadbar(totalTransactions - remainingTransactions, totalTransactions);
+    loadBar(totalTransactions - remainingTransactions, totalTransactions);
 
     if (remainingTransactions == 0)
         std::cout << std::endl;
 }
 
-tlm_generic_payload *TraceSetup::allocatePayload()
+tlm_generic_payload& TraceSetup::allocatePayload(unsigned dataLength)
 {
-    return memoryManager.allocate();
+    return memoryManager.allocate(dataLength);
 }
 
-void TraceSetup::loadbar(uint64_t x, uint64_t n, unsigned int w, unsigned int granularity)
+tlm_generic_payload& TraceSetup::allocatePayload()
+{
+    return allocatePayload(defaultDataLength);
+}
+
+void TraceSetup::loadBar(uint64_t x, uint64_t n, unsigned int w, unsigned int granularity)
 {
     if ((n < 100) || ((x != n) && (x % (n / 100 * granularity) != 0)))
         return;
 
-    float ratio = x / (float) n;
+    float ratio = x / (float)n;
     unsigned int c = (ratio * w);
     float rest = (ratio * w) - c;
     std::cout << std::setw(3) << round(ratio * 100) << "% |";

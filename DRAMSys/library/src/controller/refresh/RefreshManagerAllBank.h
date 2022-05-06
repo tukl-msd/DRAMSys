@@ -35,40 +35,47 @@
 #ifndef REFRESHMANAGERALLBANK_H
 #define REFRESHMANAGERALLBANK_H
 
+#include <vector>
+
+#include <systemc>
+#include <tlm>
 #include "RefreshManagerIF.h"
-#include "../../configuration/memspec/MemSpec.h"
-#include "../BankMachine.h"
-#include "../powerdown/PowerDownManagerIF.h"
 #include "../checker/CheckerIF.h"
+#include "../../configuration/Configuration.h"
+#include "../../configuration/memspec/MemSpec.h"
+
+class BankMachine;
+class PowerDownManagerIF;
 
 class RefreshManagerAllBank final : public RefreshManagerIF
 {
 public:
-    RefreshManagerAllBank(std::vector<BankMachine *> &, PowerDownManagerIF *, Rank, CheckerIF *);
+    RefreshManagerAllBank(const Configuration& config, std::vector<BankMachine*>& bankMachinesOnRank,
+                          PowerDownManagerIF& powerDownManager, Rank rank, const CheckerIF& checker);
 
-    virtual CommandTuple::Type getNextCommand() override;
-    virtual sc_time start() override;
-    virtual void updateState(Command) override;
+    CommandTuple::Type getNextCommand() override;
+    sc_core::sc_time start() override;
+    void updateState(Command) override;
 
 private:
     enum class State {Regular, Pulledin} state = State::Regular;
-    const MemSpec *memSpec;
-    std::vector<BankMachine *> &bankMachinesOnRank;
-    PowerDownManagerIF *powerDownManager;
+    const MemSpec& memSpec;
+    std::vector<BankMachine*>& bankMachinesOnRank;
+    PowerDownManagerIF& powerDownManager;
     tlm::tlm_generic_payload refreshPayload;
-    sc_time timeForNextTrigger = sc_max_time();
-    sc_time timeToSchedule = sc_max_time();
-    Rank rank;
-    CheckerIF *checker;
+    sc_core::sc_time timeForNextTrigger = sc_core::sc_max_time();
+    sc_core::sc_time timeToSchedule = sc_core::sc_max_time();
+    const CheckerIF& checker;
     Command nextCommand = Command::NOP;
 
     unsigned activatedBanks = 0;
 
     int flexibilityCounter = 0;
-    int maxPostponed = 0;
-    int maxPulledin = 0;
+    const int maxPostponed;
+    const int maxPulledin;
 
     bool sleeping = false;
+    const bool refreshManagement;
 };
 
 #endif // REFRESHMANAGERALLBANK_H

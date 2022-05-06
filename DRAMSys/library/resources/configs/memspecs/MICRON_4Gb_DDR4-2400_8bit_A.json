@@ -9,7 +9,7 @@
             "nbrOfRanks": 1,
             "nbrOfRows": 32768,
             "width": 8,
-            "nbrOfDevicesOnDIMM": 8,
+            "nbrOfDevices": 8,
             "nbrOfChannels": 1
         },
         "memoryId": "MICRON_4Gb_DDR4-2400_8bit_A",

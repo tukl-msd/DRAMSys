@@ -35,10 +35,10 @@
 #ifndef SCHEDULERIF_H
 #define SCHEDULERIF_H
 
-#include <tlm.h>
+#include <vector>
 
+#include <tlm>
 #include "../../common/dramExtensions.h"
-#include "../../common/DebugManager.h"
 
 class BankMachine;
 
@@ -47,11 +47,11 @@ class SchedulerIF
 public:
     virtual ~SchedulerIF() = default;
     virtual bool hasBufferSpace() const = 0;
-    virtual void storeRequest(tlm::tlm_generic_payload *) = 0;
-    virtual void removeRequest(tlm::tlm_generic_payload *) = 0;
-    virtual tlm::tlm_generic_payload *getNextRequest(BankMachine *) const = 0;
-    virtual bool hasFurtherRowHit(Bank, Row) const = 0;
-    virtual bool hasFurtherRequest(Bank) const = 0;
+    virtual void storeRequest(tlm::tlm_generic_payload&) = 0;
+    virtual void removeRequest(tlm::tlm_generic_payload&) = 0;
+    virtual tlm::tlm_generic_payload *getNextRequest(const BankMachine&) const = 0;
+    virtual bool hasFurtherRowHit(Bank, Row, tlm::tlm_command) const = 0;
+    virtual bool hasFurtherRequest(Bank, tlm::tlm_command) const = 0;
     virtual const std::vector<unsigned> &getBufferDepth() const = 0;
 };
 

@@ -40,22 +40,16 @@
 
 using namespace tlm;
 
-SchedulerFrFcfsGrp::SchedulerFrFcfsGrp()
+SchedulerFrFcfsGrp::SchedulerFrFcfsGrp(const Configuration& config)
 {
-    Configuration &config = Configuration::getInstance();
-    buffer = std::vector<std::list<tlm_generic_payload *>>(config.memSpec->numberOfBanks);
+    buffer = std::vector<std::list<tlm_generic_payload *>>(config.memSpec->banksPerChannel);
 
     if (config.schedulerBuffer == Configuration::SchedulerBuffer::Bankwise)
-        bufferCounter = new BufferCounterBankwise(config.requestBufferSize, config.memSpec->numberOfBanks);
+        bufferCounter = std::make_unique<BufferCounterBankwise>(config.requestBufferSize, config.memSpec->banksPerChannel);
     else if (config.schedulerBuffer == Configuration::SchedulerBuffer::ReadWrite)
-        bufferCounter = new BufferCounterReadWrite(config.requestBufferSize);
+        bufferCounter = std::make_unique<BufferCounterReadWrite>(config.requestBufferSize);
     else if (config.schedulerBuffer == Configuration::SchedulerBuffer::Shared)
-        bufferCounter = new BufferCounterShared(config.requestBufferSize);
-}
-
-SchedulerFrFcfsGrp::~SchedulerFrFcfsGrp()
-{
-    delete bufferCounter;
+        bufferCounter = std::make_unique<BufferCounterShared>(config.requestBufferSize);
 }
 
 bool SchedulerFrFcfsGrp::hasBufferSpace() const
@@ -63,20 +57,20 @@ bool SchedulerFrFcfsGrp::hasBufferSpace() const
     return bufferCounter->hasBufferSpace();
 }
 
-void SchedulerFrFcfsGrp::storeRequest(tlm_generic_payload *payload)
+void SchedulerFrFcfsGrp::storeRequest(tlm_generic_payload& trans)
 {
-    buffer[DramExtension::getBank(payload).ID()].push_back(payload);
-    bufferCounter->storeRequest(payload);
+    buffer[DramExtension::getBank(trans).ID()].push_back(&trans);
+    bufferCounter->storeRequest(trans);
 }
 
-void SchedulerFrFcfsGrp::removeRequest(tlm_generic_payload *payload)
+void SchedulerFrFcfsGrp::removeRequest(tlm_generic_payload& trans)
 {
-    bufferCounter->removeRequest(payload);
-    lastCommand = payload->get_command();
-    unsigned bankID = DramExtension::getBank(payload).ID();
+    bufferCounter->removeRequest(trans);
+    lastCommand = trans.get_command();
+    unsigned bankID = DramExtension::getBank(trans).ID();
     for (auto it = buffer[bankID].begin(); it != buffer[bankID].end(); it++)
     {
-        if (*it == payload)
+        if (*it == &trans)
         {
             buffer[bankID].erase(it);
             break;
@@ -84,20 +78,20 @@ void SchedulerFrFcfsGrp::removeRequest(tlm_generic_payload *payload)
     }
 }
 
-tlm_generic_payload *SchedulerFrFcfsGrp::getNextRequest(BankMachine *bankMachine) const
+tlm_generic_payload *SchedulerFrFcfsGrp::getNextRequest(const BankMachine& bankMachine) const
 {
-    unsigned bankID = bankMachine->getBank().ID();
+    unsigned bankID = bankMachine.getBank().ID();
     if (!buffer[bankID].empty())
     {
-        if (bankMachine->getState() == BankMachine::State::Activated)
+        if (bankMachine.isActivated())
         {
             // Filter all row hits
-            Row openRow = bankMachine->getOpenRow();
+            Row openRow = bankMachine.getOpenRow();
             std::list<tlm_generic_payload *> rowHits;
-            for (auto it = buffer[bankID].begin(); it != buffer[bankID].end(); it++)
+            for (auto it : buffer[bankID])
             {
-                if (DramExtension::getRow(*it) == openRow)
-                    rowHits.push_back(*it);
+                if (DramExtension::getRow(it) == openRow)
+                    rowHits.push_back(it);
             }
 
             if (!rowHits.empty())
@@ -129,12 +123,12 @@ tlm_generic_payload *SchedulerFrFcfsGrp::getNextRequest(BankMachine *bankMachine
     return nullptr;
 }
 
-bool SchedulerFrFcfsGrp::hasFurtherRowHit(Bank bank, Row row) const
+bool SchedulerFrFcfsGrp::hasFurtherRowHit(Bank bank, Row row, tlm_command command) const
 {
     unsigned rowHitCounter = 0;
-    for (auto it = buffer[bank.ID()].begin(); it != buffer[bank.ID()].end(); it++)
+    for (auto it : buffer[bank.ID()])
     {
-        if (DramExtension::getRow(*it) == row)
+        if (DramExtension::getRow(it) == row)
         {
             rowHitCounter++;
             if (rowHitCounter == 2)
@@ -144,7 +138,7 @@ bool SchedulerFrFcfsGrp::hasFurtherRowHit(Bank bank, Row row) const
     return false;
 }
 
-bool SchedulerFrFcfsGrp::hasFurtherRequest(Bank bank) const
+bool SchedulerFrFcfsGrp::hasFurtherRequest(Bank bank, tlm_command command) const
 {
     if (buffer[bank.ID()].size() >= 2)
         return true;

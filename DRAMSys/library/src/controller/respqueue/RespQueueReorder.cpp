@@ -35,6 +35,7 @@
 #include "RespQueueReorder.h"
 #include "../../common/dramExtensions.h"
 
+using namespace sc_core;
 using namespace tlm;
 
 void RespQueueReorder::insertPayload(tlm_generic_payload *payload, sc_time strobeEnd)

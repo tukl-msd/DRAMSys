@@ -36,10 +36,13 @@
  */
 
 #include <iostream>
-#include <systemc>
-#include <tlm>
 #include <string>
 #include <cstdlib>
+
+#include <systemc>
+#include <tlm>
+#include <tlm_utils/simple_initiator_socket.h>
+#include <tlm_utils/simple_target_socket.h>
 
 #include "report_handler.hh"
 #include "sc_target.hh"
@@ -47,15 +50,14 @@
 #include "slave_transactor.hh"
 #include "stats.hh"
 
-#include "DRAMSys.h"
+#include "Configuration.h"
+#include "simulation/DRAMSys.h"
 
 #ifdef RECORDING
-#include "DRAMSysRecordable.h"
-#include "../common/third_party/nlohmann/single_include/nlohmann/json.hpp"
-
-using json = nlohmann::json;
+#include "simulation/DRAMSysRecordable.h"
 #endif
 
+using namespace sc_core;
 using namespace tlm;
 
 class Gem5SimControlDRAMsys : public Gem5SystemC::Gem5SimControl
@@ -141,8 +143,7 @@ int sc_main(int argc, char **argv)
     std::string gem5ConfigFile;
     std::string resources;
     unsigned int numTransactors;
-    Gem5SystemC::Gem5SlaveTransactor *t;
-    std::vector<Gem5SystemC::Gem5SlaveTransactor *> transactors;
+    std::vector<std::unique_ptr<Gem5SystemC::Gem5SlaveTransactor>> transactors;
 
     if (argc == 4)
     {
@@ -161,18 +162,17 @@ int sc_main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    // Instantiate DRAMSys:
-    DRAMSys *dramSys;
-#ifdef RECORDING
-    json simulationdoc = parseJSON(simulationJson);
-    json simulatordoc = parseJSON(resources + "configs/simulator/"
-                                  + std::string(simulationdoc["simulation"]["simconfig"]));
+    DRAMSysConfiguration::Configuration configLib = DRAMSysConfiguration::from_path(simulationJson, resources);
 
-    if (simulatordoc["simconfig"]["DatabaseRecording"])
-        dramSys = new DRAMSysRecordable("DRAMSys", simulationJson, resources);
+    // Instantiate DRAMSys:
+    std::unique_ptr<DRAMSys> dramSys;
+
+#ifdef RECORDING
+    if (configLib.simConfig.databaseRecording.value_or(false))
+        dramSys = std::make_unique<DRAMSysRecordable>("DRAMSys", configLib);
     else
 #endif
-        dramSys = new DRAMSys("DRAMSys", simulationJson, resources);
+        dramSys = std::make_unique<DRAMSys>("DRAMSys", configLib);
 
     // Instantiate gem5:
     Gem5SimControlDRAMsys sim_control(gem5ConfigFile);
@@ -183,10 +183,9 @@ int sc_main(int argc, char **argv)
     // Names generated here must match port names used by the gem5 config file, e.g., config.ini
     if (numTransactors == 1)
     {
-        t = new Gem5SystemC::Gem5SlaveTransactor("transactor", "transactor");
-        t->socket.bind(dramSys->tSocket);
-        t->sim_control.bind(sim_control);
-        transactors.push_back(t);
+        transactors.emplace_back(std::make_unique<Gem5SystemC::Gem5SlaveTransactor>("transactor", "transactor"));
+        transactors.back().get()->socket.bind(dramSys->tSocket);
+        transactors.back().get()->sim_control.bind(sim_control);
     }
     else
     {
@@ -196,10 +195,9 @@ int sc_main(int argc, char **argv)
             unsigned index = i + 1;
             std::string name = "transactor" + std::to_string(index);
             std::string portName = "transactor" + std::to_string(index);
-            t = new Gem5SystemC::Gem5SlaveTransactor(name.c_str(), portName.c_str());
-            t->socket.bind(dramSys->tSocket);
-            t->sim_control.bind(sim_control);
-            transactors.push_back(t);
+            transactors.emplace_back(std::make_unique<Gem5SystemC::Gem5SlaveTransactor>(name.c_str(), portName.c_str()));
+            transactors.back().get()->socket.bind(dramSys->tSocket);
+            transactors.back().get()->sim_control.bind(sim_control);
         }
     }
 
@@ -232,10 +230,8 @@ int sc_main(int argc, char **argv)
         sc_core::sc_stop();
     }
 
-    for (auto t : transactors)
-       delete t;
-
-    delete dramSys;
+    //for (auto t : transactors)
+    //   delete t;
 
     SC_REPORT_INFO("sc_main", "End of Simulation");
 

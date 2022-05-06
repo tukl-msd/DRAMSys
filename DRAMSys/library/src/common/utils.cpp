@@ -34,30 +34,29 @@
  *    Robert Gernhardt
  *    Matthias Jung
  *    Luiza Correa
+ *    Derek Christ
  */
 
-#include "utils.h"
-#include <string>
-#include <tlm.h>
-#include <fstream>
-#include "dramExtensions.h"
 #include <sstream>
+#include <fstream>
 
+#include "utils.h"
+
+using namespace sc_core;
 using namespace tlm;
-using json = nlohmann::json;
 
-bool TimeInterval::timeIsInInterval(sc_time time)
+bool TimeInterval::timeIsInInterval(const sc_time &time) const
 {
     return (start < time && time < end);
 }
 
-bool TimeInterval::intersects(TimeInterval other)
+bool TimeInterval::intersects(const TimeInterval &other) const
 {
     return other.timeIsInInterval(this->start)
            || this->timeIsInInterval(other.start);
 }
 
-sc_time TimeInterval::getLength()
+sc_time TimeInterval::getLength() const
 {
     if (end > start)
         return end - start;
@@ -65,90 +64,23 @@ sc_time TimeInterval::getLength()
         return start - end;
 }
 
-std::string getPhaseName(tlm_phase phase)
+std::string getPhaseName(const tlm_phase &phase)
 {
     std::ostringstream oss;
     oss << phase;
     return oss.str();
 }
 
-json parseJSON(std::string path)
+void setUpDummy(tlm_generic_payload &payload, uint64_t channelPayloadID, Rank rank, BankGroup bankGroup, Bank bank)
 {
-    std::ifstream file(path);
-    if (file.is_open())
-    {
-        json j = json::parse(file, nullptr, false);
-        if (!j.is_discarded())
-            return j;
-        else
-            throw std::invalid_argument("JSON parse error in file '" + path + "'.");
-    }
-    else
-        throw std::invalid_argument("Failed to open file '" + path + "'.");
-}
-
-bool parseBool(json &obj, std::string name)
-{
-    if (!obj.empty())
-    {
-        if (obj.is_boolean())
-            return obj;
-        else
-            throw std::invalid_argument("Expected type for parameter '" + name + "': bool");
-    }
-    else
-        throw std::invalid_argument("Parameter '" + name + "' does not exist.");
-}
-
-unsigned int parseUint(json &obj, std::string name)
-{
-    if (!obj.empty())
-    {
-        if (obj.is_number_unsigned())
-            return obj;
-        else
-            throw std::invalid_argument("Expected type for parameter '" + name + "': unsigned int");
-    }
-    else
-        throw std::invalid_argument("Parameter '" + name + "' does not exist.");
-}
-
-double parseUdouble(json &obj, std::string name)
-{
-    if (!obj.empty())
-    {
-        if (obj.is_number() && (obj > 0))
-            return obj;
-        else
-            throw std::invalid_argument("Expected type for parameter '" + name + "': positive double");
-    }
-    else
-        throw std::invalid_argument("Parameter '" + name + "' does not exist.");
-}
-
-std::string parseString(json &obj, std::string name)
-{
-    if (!obj.empty())
-    {
-        if (obj.is_string())
-            return obj;
-        else
-            throw std::invalid_argument("Expected type for parameter '" + name + "': string");
-    }
-    else
-        throw std::invalid_argument("Parameter '" + name + "' does not exist.");
-}
-
-void setUpDummy(tlm_generic_payload &payload, uint64_t channelPayloadID, Rank rank, BankGroup bankgroup, Bank bank)
-{
-    payload.set_address(bank.getStartAddress());
-    payload.set_command(TLM_READ_COMMAND);
+    payload.set_address(0);
+    payload.set_command(TLM_IGNORE_COMMAND);
     payload.set_data_length(0);
     payload.set_response_status(TLM_OK_RESPONSE);
     payload.set_dmi_allowed(false);
     payload.set_byte_enable_length(0);
     payload.set_streaming_width(0);
-    payload.set_extension(new DramExtension(Thread(UINT_MAX), Channel(0), rank, bankgroup,
-                                            bank, Row(0), Column(0), 0, 0, channelPayloadID));
+    payload.set_extension(new DramExtension(Thread(UINT_MAX), Channel(0), rank,
+                                            bankGroup, bank, Row(0), Column(0), 0, 0, channelPayloadID));
     payload.set_extension(new GenerationExtension(SC_ZERO_TIME));
 }

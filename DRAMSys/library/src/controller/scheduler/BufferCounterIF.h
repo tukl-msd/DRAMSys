@@ -35,16 +35,20 @@
 #ifndef BUFFERCOUNTERIF_H
 #define BUFFERCOUNTERIF_H
 
-#include <tlm.h>
+#include <vector>
+
+#include <tlm>
 
 class BufferCounterIF
 {
 public:
     virtual ~BufferCounterIF() = default;
     virtual bool hasBufferSpace() const = 0;
-    virtual void storeRequest(tlm::tlm_generic_payload *payload) = 0;
-    virtual void removeRequest(tlm::tlm_generic_payload *payload) = 0;
+    virtual void storeRequest(const tlm::tlm_generic_payload& trans) = 0;
+    virtual void removeRequest(const tlm::tlm_generic_payload& trans) = 0;
     virtual const std::vector<unsigned> &getBufferDepth() const = 0;
+    virtual unsigned getNumReadRequests() const = 0;
+    virtual unsigned getNumWriteRequests() const = 0;
 };
 
 #endif // BUFFERCOUNTERIF_H

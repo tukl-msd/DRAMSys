@@ -34,17 +34,19 @@
  */
 
 #include "DramGDDR5.h"
-
-#include "Dram.h"
 #include "../../configuration/Configuration.h"
 #include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 #include "../../configuration/memspec/MemSpecGDDR5.h"
 
-DramGDDR5::DramGDDR5(sc_module_name name) : Dram(name)
+using namespace sc_core;
+
+DramGDDR5::DramGDDR5(const sc_module_name& name, const Configuration& config,
+                     TemperatureController& temperatureController)
+    : Dram(name, config)
 {
     if (storeMode == Configuration::StoreMode::ErrorModel)
         SC_REPORT_FATAL("DramGDDR5", "Error Model not supported for GDDR5");
 
-    if (Configuration::getInstance().powerAnalysis)
+    if (powerAnalysis)
         SC_REPORT_FATAL("DramGDDR5", "DRAMPower does not support GDDR5");
 }

@@ -8,6 +8,7 @@
             "nbrOfRanks": 1,
             "nbrOfRows": 8192,
             "width": 64,
+            "nbrOfDevices": 1,
             "nbrOfChannels": 4
         },
         "memoryId": "JEDEC_4x64_2Gb_WIDEIO2-400_64bit",

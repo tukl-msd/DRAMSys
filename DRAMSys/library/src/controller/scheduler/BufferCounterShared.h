@@ -35,20 +35,27 @@
 #ifndef BUFFERCOUNTERSHARED_H
 #define BUFFERCOUNTERSHARED_H
 
+#include <vector>
+
+#include <tlm>
 #include "BufferCounterIF.h"
 
 class BufferCounterShared final : public BufferCounterIF
 {
 public:
-    BufferCounterShared(unsigned requestBufferSize);
-    virtual bool hasBufferSpace() const override;
-    virtual void storeRequest(tlm::tlm_generic_payload *payload) override;
-    virtual void removeRequest(tlm::tlm_generic_payload *payload) override;
-    virtual const std::vector<unsigned> &getBufferDepth() const override;
+    explicit BufferCounterShared(unsigned requestBufferSize);
+    bool hasBufferSpace() const override;
+    void storeRequest(const tlm::tlm_generic_payload& trans) override;
+    void removeRequest(const tlm::tlm_generic_payload& trans) override;
+    const std::vector<unsigned> &getBufferDepth() const override;
+    unsigned getNumReadRequests() const override;
+    unsigned getNumWriteRequests() const override;
 
 private:
     const unsigned requestBufferSize;
     std::vector<unsigned> numRequests;
+    unsigned numReadRequests = 0;
+    unsigned numWriteRequests = 0;
 };
 
 #endif // BUFFERCOUNTERSHARED_H

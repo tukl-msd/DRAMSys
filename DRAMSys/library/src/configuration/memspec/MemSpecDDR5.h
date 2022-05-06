@@ -31,23 +31,22 @@
  *
  * Authors:
  *    Lukas Steiner
+ *    Derek Christ
  */
 
 #ifndef MEMSPECDDR5_H
 #define MEMSPECDDR5_H
 
+#include <systemc>
 #include "MemSpec.h"
-#include "../../common/third_party/nlohmann/single_include/nlohmann/json.hpp"
 
 class MemSpecDDR5 final : public MemSpec
 {
 public:
-    MemSpecDDR5(nlohmann::json &memspec);
+    explicit MemSpecDDR5(const DRAMSysConfiguration::MemSpec &memSpec);
 
-    virtual sc_time getExecutionTime(Command, const tlm::tlm_generic_payload &) const override;
-    virtual TimeInterval getIntervalOnDataStrobe(Command) const override;
-
-    virtual uint64_t getSimMemSizeInBytes() const override;
+    sc_core::sc_time getExecutionTime(Command command, const tlm::tlm_generic_payload &payload) const override;
+    TimeInterval getIntervalOnDataStrobe(Command command, const tlm::tlm_generic_payload &payload) const override;
 };
 
 #endif // MEMSPECDDR5_H

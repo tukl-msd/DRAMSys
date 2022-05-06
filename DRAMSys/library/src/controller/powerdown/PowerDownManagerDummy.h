@@ -40,15 +40,15 @@
 class PowerDownManagerDummy final : public PowerDownManagerIF
 {
 public:
-    PowerDownManagerDummy() {}
+    PowerDownManagerDummy() = default;
 
-    virtual void triggerEntry() override {}
-    virtual void triggerExit() override {}
-    virtual void triggerInterruption() override {}
+    void triggerEntry() override {}
+    void triggerExit() override {}
+    void triggerInterruption() override {}
 
-    virtual CommandTuple::Type getNextCommand() override;
-    virtual void updateState(Command) override {}
-    virtual sc_time start() override;
+    CommandTuple::Type getNextCommand() override;
+    void updateState(Command) override {}
+    sc_core::sc_time start() override;
 };
 
 #endif // POWERDOWNMANAGERDUMMY_H

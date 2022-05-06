@@ -37,18 +37,19 @@
 #define ERRORMODEL_H
 
 #include <map>
-#include <iostream>
-#include <systemc.h>
+
+#include <systemc>
 #include "../configuration/Configuration.h"
 #include "../simulation/AddressDecoder.h"
 #include "../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
+#include "../simulation/TemperatureController.h"
 
-class errorModel : public sc_module
+class errorModel : public sc_core::sc_module
 {
 public:
-    errorModel(sc_module_name, libDRAMPower *);
-    errorModel(sc_module_name);
-    ~errorModel();
+    errorModel(const sc_core::sc_module_name& name, const Configuration& config,
+               TemperatureController& temperatureController, libDRAMPower* dramPower = nullptr);
+    ~errorModel() override;
 
     // Access Methods:
     void store(tlm::tlm_generic_payload &trans);
@@ -56,13 +57,15 @@ public:
     void refresh(unsigned int row);
     void activate(unsigned int row);
     void setTemperature(double t);
-    double getTemperature(void);
+    double getTemperature();
 
 private:
-    void init(void);
+    void init(const Configuration& config);
     bool powerAnalysis;
     libDRAMPower *DRAMPower;
     bool thermalSim;
+    TemperatureController& temperatureController;
+    const MemSpec& memSpec;
     // Configuration Parameters:
     unsigned int burstLenght;
     unsigned int numberOfColumns;
@@ -76,10 +79,10 @@ private:
     unsigned int numberOfBitErrorEvents;
 
     // Private Methods:
-    void parseInputData();
+    void parseInputData(const Configuration& config);
     void prepareWeakCells();
     void markBitFlips();
-    unsigned int getNumberOfFlips(double temp, sc_time time);
+    unsigned int getNumberOfFlips(double temp, sc_core::sc_time time);
     void setContext(DecodedAddress addr);
     unsigned int getBit(DecodedAddress key, unsigned int byte,
                         unsigned int bitInByte);
@@ -94,12 +97,12 @@ private:
 
     //    temperature          time     number of errors
     //         |                 |        |
-    std::map<double, std::map<sc_time, errors> > errorMap;
+    std::map<double, std::map<sc_core::sc_time, errors> > errorMap;
 
     unsigned int maxNumberOfWeakCells;
     unsigned int maxNumberOfDepWeakCells;
     double maxTemperature;
-    sc_time maxTime;
+    sc_core::sc_time maxTime;
 
     // Storage of weak cells:
     struct weakCell {
@@ -131,7 +134,7 @@ private:
     std::map<DecodedAddress, unsigned char *, DecodedAddressComparer> dataMap;
 
     // An array to save when the last ACT/REF to a row happened:
-    sc_time *lastRowAccess;
+    sc_core::sc_time *lastRowAccess;
 
     // Context Variables (will be written by the first dram access)
     int myChannel;

@@ -32,29 +32,33 @@
  * Author: Lukas Steiner
  */
 
+#include <algorithm>
+
 #include "CheckerHBM2.h"
 
-CheckerHBM2::CheckerHBM2()
+using namespace sc_core;
+using namespace tlm;
+
+CheckerHBM2::CheckerHBM2(const Configuration& config)
 {
-    Configuration &config = Configuration::getInstance();
-    memSpec = dynamic_cast<const MemSpecHBM2 *>(config.memSpec);
+    memSpec = dynamic_cast<const MemSpecHBM2 *>(config.memSpec.get());
     if (memSpec == nullptr)
         SC_REPORT_FATAL("CheckerHBM2", "Wrong MemSpec chosen");
 
     lastScheduledByCommandAndBank = std::vector<std::vector<sc_time>>
-            (numberOfCommands(), std::vector<sc_time>(memSpec->numberOfBanks, sc_max_time()));
+            (Command::numberOfCommands(), std::vector<sc_time>(memSpec->banksPerChannel, sc_max_time()));
     lastScheduledByCommandAndBankGroup = std::vector<std::vector<sc_time>>
-            (numberOfCommands(), std::vector<sc_time>(memSpec->numberOfBankGroups, sc_max_time()));
+            (Command::numberOfCommands(), std::vector<sc_time>(memSpec->bankGroupsPerChannel, sc_max_time()));
     lastScheduledByCommandAndRank = std::vector<std::vector<sc_time>>
-            (numberOfCommands(), std::vector<sc_time>(memSpec->numberOfRanks, sc_max_time()));
-    lastScheduledByCommand = std::vector<sc_time>(numberOfCommands(), sc_max_time());
+            (Command::numberOfCommands(), std::vector<sc_time>(memSpec->ranksPerChannel, sc_max_time()));
+    lastScheduledByCommand = std::vector<sc_time>(Command::numberOfCommands(), sc_max_time());
     lastCommandOnRasBus = sc_max_time();
     lastCommandOnCasBus = sc_max_time();
-    last4Activates = std::vector<std::queue<sc_time>>(memSpec->numberOfRanks);
+    last4Activates = std::vector<std::queue<sc_time>>(memSpec->ranksPerChannel);
 
-    bankwiseRefreshCounter = std::vector<unsigned>(memSpec->numberOfRanks);
+    bankwiseRefreshCounter = std::vector<unsigned>(memSpec->ranksPerChannel);
 
-    tBURST = memSpec->burstLength / memSpec->dataRate * memSpec->tCK;
+    tBURST = memSpec->defaultBurstLength / memSpec->dataRate * memSpec->tCK;
     tRDPDE = memSpec->tRL + memSpec->tPL + tBURST + memSpec->tCK;
     tRDSRE = tRDPDE;
     tWRPRE = memSpec->tWL + tBURST + memSpec->tWR;
@@ -64,18 +68,26 @@ CheckerHBM2::CheckerHBM2()
     tWRRDL = memSpec->tWL + tBURST + memSpec->tWTRL;
 }
 
-sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGroup bankgroup, Bank bank) const
+sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, const tlm_generic_payload& payload) const
 {
+    Rank rank = DramExtension::getRank(payload);
+    BankGroup bankGroup = DramExtension::getBankGroup(payload);
+    Bank bank = DramExtension::getBank(payload);
+    
     sc_time lastCommandStart;
     sc_time earliestTimeToStart = sc_time_stamp();
 
     if (command == Command::RD || command == Command::RDA)
     {
+        unsigned burstLength = DramExtension::getBurstLength(payload);
+        assert(!(memSpec->ranksPerChannel == 1) || (burstLength == 2 || burstLength == 4)); // Legacy mode
+        assert(!(memSpec->ranksPerChannel == 2) || (burstLength == 4)); // Pseudo-channel mode
+
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRCDRD + memSpec->tCK);
 
-        lastCommandStart = lastScheduledByCommandAndBankGroup[Command::RD][bankgroup.ID()];
+        lastCommandStart = lastScheduledByCommandAndBankGroup[Command::RD][bankGroup.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCCDL);
 
@@ -83,7 +95,7 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCCDS);
 
-        lastCommandStart = lastScheduledByCommandAndBankGroup[Command::RDA][bankgroup.ID()];
+        lastCommandStart = lastScheduledByCommandAndBankGroup[Command::RDA][bankGroup.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCCDL);
 
@@ -98,7 +110,7 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
                 earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRPRE - memSpec->tRTP);
         }
 
-        lastCommandStart = lastScheduledByCommandAndBankGroup[Command::WR][bankgroup.ID()];
+        lastCommandStart = lastScheduledByCommandAndBankGroup[Command::WR][bankGroup.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRRDL);
 
@@ -106,7 +118,7 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRRDS);
 
-        lastCommandStart = lastScheduledByCommandAndBankGroup[Command::WRA][bankgroup.ID()];
+        lastCommandStart = lastScheduledByCommandAndBankGroup[Command::WRA][bankGroup.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRRDL);
 
@@ -122,6 +134,10 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
     }
     else if (command == Command::WR || command == Command::WRA)
     {
+        unsigned burstLength = DramExtension::getBurstLength(payload);
+        assert(!(memSpec->ranksPerChannel == 1) || (burstLength == 2)); // Legacy mode
+        assert(!(memSpec->ranksPerChannel == 2) || (burstLength == 4)); // Pseudo-channel mode
+
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRCDWR + memSpec->tCK);
@@ -134,7 +150,7 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRTW);
 
-        lastCommandStart = lastScheduledByCommandAndBankGroup[Command::WR][bankgroup.ID()];
+        lastCommandStart = lastScheduledByCommandAndBankGroup[Command::WR][bankGroup.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCCDL);
 
@@ -142,7 +158,7 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCCDS);
 
-        lastCommandStart = lastScheduledByCommandAndBankGroup[Command::WRA][bankgroup.ID()];
+        lastCommandStart = lastScheduledByCommandAndBankGroup[Command::WRA][bankGroup.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCCDL);
 
@@ -162,7 +178,7 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRC);
 
-        lastCommandStart = lastScheduledByCommandAndBankGroup[Command::ACT][bankgroup.ID()];
+        lastCommandStart = lastScheduledByCommandAndBankGroup[Command::ACT][bankGroup.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRRDL);
 
@@ -178,11 +194,11 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec->tRP - memSpec->tCK);
 
-        lastCommandStart = lastScheduledByCommandAndBank[Command::PRE][bank.ID()];
+        lastCommandStart = lastScheduledByCommandAndBank[Command::PREPB][bank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP - memSpec->tCK);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PREA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP - memSpec->tCK);
 
@@ -194,15 +210,15 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXP - memSpec->tCK);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFC - memSpec->tCK);
 
-        lastCommandStart = lastScheduledByCommandAndBank[Command::REFB][bank.ID()];
+        lastCommandStart = lastScheduledByCommandAndBank[Command::REFPB][bank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCSB - memSpec->tCK);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFB][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRREFD - memSpec->tCK);
 
@@ -215,7 +231,7 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
 
         earliestTimeToStart = std::max(earliestTimeToStart, lastCommandOnRasBus + memSpec->tCK);
     }
-    else if (command == Command::PRE)
+    else if (command == Command::PREPB)
     {
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank.ID()];
         if (lastCommandStart != sc_max_time())
@@ -235,7 +251,7 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
 
         earliestTimeToStart = std::max(earliestTimeToStart, lastCommandOnRasBus + memSpec->tCK);
     }
-    else if (command == Command::PREA)
+    else if (command == Command::PREAB)
     {
         lastCommandStart = lastScheduledByCommandAndRank[Command::ACT][rank.ID()];
         if (lastCommandStart != sc_max_time())
@@ -261,13 +277,13 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXP);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFB][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCSB);
 
         earliestTimeToStart = std::max(earliestTimeToStart, lastCommandOnRasBus + memSpec->tCK);
     }
-    else if (command == Command::REFA)
+    else if (command == Command::REFAB)
     {
         lastCommandStart = lastScheduledByCommandAndRank[Command::ACT][rank.ID()];
         if (lastCommandStart != sc_max_time())
@@ -281,11 +297,11 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec->tRP);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PRE][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PREA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
 
@@ -293,11 +309,11 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXP);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFC);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFB][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCSB);
 
@@ -307,13 +323,13 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
 
         earliestTimeToStart = std::max(earliestTimeToStart, lastCommandOnRasBus + memSpec->tCK);
     }
-    else if (command == Command::REFB)
+    else if (command == Command::REFPB)
     {
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRC + memSpec->tCK);
 
-        lastCommandStart = lastScheduledByCommandAndBankGroup[Command::ACT][bankgroup.ID()];
+        lastCommandStart = lastScheduledByCommandAndBankGroup[Command::ACT][bankGroup.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRRDL + memSpec->tCK);
 
@@ -329,11 +345,11 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec->tRP);
 
-        lastCommandStart = lastScheduledByCommandAndBank[Command::PRE][bank.ID()];
+        lastCommandStart = lastScheduledByCommandAndBank[Command::PREPB][bank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::PREA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::PREAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
 
@@ -345,15 +361,15 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXP);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFA][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFAB][rank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFC);
 
-        lastCommandStart = lastScheduledByCommandAndBank[Command::REFB][bank.ID()];
+        lastCommandStart = lastScheduledByCommandAndBank[Command::REFPB][bank.ID()];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCSB);
 
-        lastCommandStart = lastScheduledByCommandAndRank[Command::REFB][rank.ID()];
+        lastCommandStart = lastScheduledByCommandAndRank[Command::REFPB][rank.ID()];
         if (lastCommandStart != sc_max_time())
         {
             if (bankwiseRefreshCounter[rank.ID()] == 0)
@@ -449,11 +465,11 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec->tRP);
 
-        lastCommandStart = lastScheduledByCommand[Command::PRE];
+        lastCommandStart = lastScheduledByCommand[Command::PREPB];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
 
-        lastCommandStart = lastScheduledByCommand[Command::PREA];
+        lastCommandStart = lastScheduledByCommand[Command::PREAB];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
 
@@ -461,11 +477,11 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXP);
 
-        lastCommandStart = lastScheduledByCommand[Command::REFA];
+        lastCommandStart = lastScheduledByCommand[Command::REFAB];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFC);
 
-        lastCommandStart = lastScheduledByCommand[Command::REFB];
+        lastCommandStart = lastScheduledByCommand[Command::REFPB];
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCSB);
 
@@ -486,7 +502,7 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
     else
         SC_REPORT_FATAL("CheckerHBM2", "Unknown command!");
 
-    if (isRasCommand(command))
+    if (command.isRasCommand())
     {
         if (lastCommandOnRasBus != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandOnRasBus + memSpec->tCK);
@@ -500,30 +516,34 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, Rank rank, BankGr
     return earliestTimeToStart;
 }
 
-void CheckerHBM2::insert(Command command, Rank rank, BankGroup bankgroup, Bank bank)
+void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
 {
+    Rank rank = DramExtension::getRank(payload);
+    BankGroup bankGroup = DramExtension::getBankGroup(payload);
+    Bank bank = DramExtension::getBank(payload);
+
     PRINTDEBUGMESSAGE("CheckerHBM2", "Changing state on bank " + std::to_string(bank.ID())
-                      + " command is " + commandToString(command));
+                      + " command is " + command.toString());
 
     lastScheduledByCommandAndBank[command][bank.ID()] = sc_time_stamp();
-    lastScheduledByCommandAndBankGroup[command][bankgroup.ID()] = sc_time_stamp();
+    lastScheduledByCommandAndBankGroup[command][bankGroup.ID()] = sc_time_stamp();
     lastScheduledByCommandAndRank[command][rank.ID()] = sc_time_stamp();
     lastScheduledByCommand[command] = sc_time_stamp();
 
-    if (isCasCommand(command))
+    if (command.isCasCommand())
         lastCommandOnCasBus = sc_time_stamp();
     else if (command == Command::ACT)
         lastCommandOnRasBus = sc_time_stamp() + memSpec->tCK;
     else
         lastCommandOnRasBus = sc_time_stamp();
 
-    if (command == Command::ACT || command == Command::REFB)
+    if (command == Command::ACT || command == Command::REFPB)
     {
         if (last4Activates[rank.ID()].size() == 4)
             last4Activates[rank.ID()].pop();
         last4Activates[rank.ID()].push(lastCommandOnRasBus);
     }
 
-    if (command == Command::REFB)
+    if (command == Command::REFPB)
         bankwiseRefreshCounter[rank.ID()] = (bankwiseRefreshCounter[rank.ID()] + 1) % memSpec->banksPerRank;
 }

@@ -31,62 +31,61 @@
  *
  * Authors:
  *    Lukas Steiner
+ *    Derek Christ
  */
 
 #ifndef MEMSPECLPDDR4_H
 #define MEMSPECLPDDR4_H
 
+#include <systemc>
 #include "MemSpec.h"
-#include "../../common/third_party/nlohmann/single_include/nlohmann/json.hpp"
 
 class MemSpecLPDDR4 final : public MemSpec
 {
 public:
-    MemSpecLPDDR4(nlohmann::json &memspec);
+    explicit MemSpecLPDDR4(const DRAMSysConfiguration::MemSpec &memSpec);
 
     // Memspec Variables:
-    const sc_time tREFI;
-    const sc_time tREFIpb;
-    const sc_time tRFCab;
-    const sc_time tRFCpb;
-    const sc_time tRAS;
-    const sc_time tRPab;
-    const sc_time tRPpb;
-    const sc_time tRCpb;
-    const sc_time tRCab;
-    const sc_time tPPD;
-    const sc_time tRCD;
-    const sc_time tFAW;
-    const sc_time tRRD;
-    const sc_time tCCD;
-    const sc_time tRL;
-    const sc_time tRPST;
-    const sc_time tDQSCK;
-    const sc_time tRTP;
-    const sc_time tWL;
-    const sc_time tDQSS;
-    const sc_time tDQS2DQ;
-    const sc_time tWR;
-    const sc_time tWPRE;
-    const sc_time tWTR;
-    const sc_time tXP;
-    const sc_time tSR;
-    const sc_time tXSR;
-    const sc_time tESCKE;
-    const sc_time tCKE;
-    const sc_time tCMDCKE;
-    const sc_time tRTRS;
+    const sc_core::sc_time tREFI;
+    const sc_core::sc_time tREFIpb;
+    const sc_core::sc_time tRFCab;
+    const sc_core::sc_time tRFCpb;
+    const sc_core::sc_time tRAS;
+    const sc_core::sc_time tRPab;
+    const sc_core::sc_time tRPpb;
+    const sc_core::sc_time tRCpb;
+    const sc_core::sc_time tRCab;
+    const sc_core::sc_time tPPD;
+    const sc_core::sc_time tRCD;
+    const sc_core::sc_time tFAW;
+    const sc_core::sc_time tRRD;
+    const sc_core::sc_time tCCD;
+    const sc_core::sc_time tRL;
+    const sc_core::sc_time tRPST;
+    const sc_core::sc_time tDQSCK;
+    const sc_core::sc_time tRTP;
+    const sc_core::sc_time tWL;
+    const sc_core::sc_time tDQSS;
+    const sc_core::sc_time tDQS2DQ;
+    const sc_core::sc_time tWR;
+    const sc_core::sc_time tWPRE;
+    const sc_core::sc_time tWTR;
+    const sc_core::sc_time tXP;
+    const sc_core::sc_time tSR;
+    const sc_core::sc_time tXSR;
+    const sc_core::sc_time tESCKE;
+    const sc_core::sc_time tCKE;
+    const sc_core::sc_time tCMDCKE;
+    const sc_core::sc_time tRTRS;
 
     // Currents and Voltages:
     // TODO: to be completed
 
-    virtual sc_time getRefreshIntervalAB() const override;
-    virtual sc_time getRefreshIntervalPB() const override;
+    sc_core::sc_time getRefreshIntervalAB() const override;
+    sc_core::sc_time getRefreshIntervalPB() const override;
 
-    virtual sc_time getExecutionTime(Command, const tlm::tlm_generic_payload &) const override;
-    virtual TimeInterval getIntervalOnDataStrobe(Command) const override;
-
-    virtual uint64_t getSimMemSizeInBytes() const override;
+    sc_core::sc_time getExecutionTime(Command command, const tlm::tlm_generic_payload &payload) const override;
+    TimeInterval getIntervalOnDataStrobe(Command command, const tlm::tlm_generic_payload &payload) const override;
 };
 
 #endif // MEMSPECLPDDR4_H

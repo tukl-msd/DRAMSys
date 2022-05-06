@@ -41,23 +41,23 @@
 class CmdMuxStrict : public CmdMuxIF
 {
 public:
-    CmdMuxStrict();
-    virtual CommandTuple::Type selectCommand(const ReadyCommands &) override;
+    explicit CmdMuxStrict(const Configuration& config);
+    CommandTuple::Type selectCommand(const ReadyCommands &) override;
 
 private:
     uint64_t nextPayloadID = 1;
-    const MemSpec *memSpec;
+    const MemSpec& memSpec;
 };
 
 class CmdMuxStrictRasCas : public CmdMuxIF
 {
 public:
-    CmdMuxStrictRasCas();
-    virtual CommandTuple::Type selectCommand(const ReadyCommands &) override;
+    explicit CmdMuxStrictRasCas(const Configuration& config);
+    CommandTuple::Type selectCommand(const ReadyCommands &) override;
 
 private:
     uint64_t nextPayloadID = 1;
-    const MemSpec *memSpec;
+    const MemSpec& memSpec;
     ReadyCommands readyRasCommands;
     ReadyCommands readyCasCommands;
     ReadyCommands readyRasCasCommands;

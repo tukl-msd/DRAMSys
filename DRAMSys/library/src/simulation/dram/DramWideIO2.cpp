@@ -34,17 +34,19 @@
  */
 
 #include "DramWideIO2.h"
-
-#include "Dram.h"
 #include "../../configuration/Configuration.h"
 #include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 #include "../../configuration/memspec/MemSpecWideIO2.h"
 
-DramWideIO2::DramWideIO2(sc_module_name name) : Dram(name)
+using namespace sc_core;
+
+DramWideIO2::DramWideIO2(const sc_module_name& name, const Configuration& config,
+                         TemperatureController& temperatureController)
+    : Dram(name, config)
 {
     if (storeMode == Configuration::StoreMode::ErrorModel)
         SC_REPORT_FATAL("DramWideIO2", "Error Model not supported for WideIO2");
 
-    if (Configuration::getInstance().powerAnalysis)
+    if (config.powerAnalysis)
         SC_REPORT_FATAL("DramWideIO2", "DRAMPower does not support WideIO2");
 }

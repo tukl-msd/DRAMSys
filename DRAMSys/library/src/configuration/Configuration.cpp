@@ -36,9 +36,8 @@
  *    Felipe S. Prado
  *    Lukas Steiner
  *    Luiza Correa
+ *    Derek Christ
  */
-
-#include <cassert>
 
 #include "Configuration.h"
 #include "memspec/MemSpecDDR3.h"
@@ -46,18 +45,17 @@
 #include "memspec/MemSpecDDR5.h"
 #include "memspec/MemSpecWideIO.h"
 #include "memspec/MemSpecLPDDR4.h"
+#include "memspec/MemSpecLPDDR5.h"
 #include "memspec/MemSpecWideIO2.h"
 #include "memspec/MemSpecHBM2.h"
 #include "memspec/MemSpecGDDR5.h"
 #include "memspec/MemSpecGDDR5X.h"
 #include "memspec/MemSpecGDDR6.h"
+#include "memspec/MemSpecSTTMRAM.h"
 
-using json = nlohmann::json;
+using namespace sc_core;
 
-std::string Configuration::memspecUri = "";
-std::string Configuration::mcconfigUri = "";
-
-enum sc_time_unit string2TimeUnit(std::string s)
+enum sc_time_unit string2TimeUnit(const std::string &s)
 {
     if (s == "s")
         return SC_SEC;
@@ -78,285 +76,275 @@ enum sc_time_unit string2TimeUnit(std::string s)
     }
 }
 
-void Configuration::setParameter(std::string name, nlohmann::json value)
+void Configuration::loadSimConfig(const DRAMSysConfiguration::SimConfig &simConfig)
 {
-    // MCConfig
-    if (name == "PagePolicy")
-    {
-        if (value == "Open")
-            pagePolicy = PagePolicy::Open;
-        else if (value == "Closed")
-            pagePolicy = PagePolicy::Closed;
-        else if (value == "OpenAdaptive")
-            pagePolicy = PagePolicy::OpenAdaptive;
-        else if (value == "ClosedAdaptive")
-            pagePolicy = PagePolicy::ClosedAdaptive;
-        else
-            SC_REPORT_FATAL("Configuration", "Unsupported page policy!");
-    }
-    else if (name == "Scheduler")
-    {
-        if (value == "Fifo")
-            scheduler = Scheduler::Fifo;
-        else if (value == "FrFcfs")
-            scheduler = Scheduler::FrFcfs;
-        else if (value == "FrFcfsGrp")
-            scheduler = Scheduler::FrFcfsGrp;
-        else
-            SC_REPORT_FATAL("Configuration", "Unsupported scheduler!");
-    }
-    else if (name == "SchedulerBuffer")
-    {
-        if (value == "Bankwise")
-            schedulerBuffer = SchedulerBuffer::Bankwise;
-        else if (value == "ReadWrite")
-            schedulerBuffer = SchedulerBuffer::ReadWrite;
-        else if (value == "Shared")
-            schedulerBuffer = SchedulerBuffer::Shared;
-        else
-            SC_REPORT_FATAL("Configuration", "Unsupported scheduler buffer!");
-    }
-    else if (name == "RequestBufferSize")
-    {
-        requestBufferSize = value;
-        if (requestBufferSize == 0)
-            SC_REPORT_FATAL("Configuration", "Minimum request buffer size is 1!");
-    }
-    else if (name == "CmdMux")
-    {
-        if (value == "Oldest")
-            cmdMux = CmdMux::Oldest;
-        else if (value == "Strict")
-            cmdMux = CmdMux::Strict;
-        else
-            SC_REPORT_FATAL("Configuration", "Unsupported cmd mux!");
-    }
-    else if (name == "RespQueue")
-    {
-        if (value == "Fifo")
-            respQueue = RespQueue::Fifo;
-        else if (value == "Reorder")
-            respQueue = RespQueue::Reorder;
-        else
-            SC_REPORT_FATAL("Configuration", "Unsupported response queue!");
-    }
-    else if (name == "Arbiter")
-    {
-        if (value == "Simple")
-            arbiter = Arbiter::Simple;
-        else if (value == "Fifo")
-            arbiter = Arbiter::Fifo;
-        else if (value == "Reorder")
-            arbiter = Arbiter::Reorder;
-        else
-            SC_REPORT_FATAL("Configuration", "Unsupported arbiter!");
-    }
-    else if (name == "RefreshPolicy")
-    {
-        if (value == "NoRefresh")
-            refreshPolicy = RefreshPolicy::NoRefresh;
-        else if (value == "AllBank" || value == "Rankwise")
-            refreshPolicy = RefreshPolicy::AllBank;
-        else if (value == "PerBank" || value == "Bankwise")
-            refreshPolicy = RefreshPolicy::PerBank;
-        else if (value == "SameBank" || value == "Groupwise")
-            refreshPolicy = RefreshPolicy::SameBank;
-        else
-            SC_REPORT_FATAL("Configuration", "Unsupported refresh policy!");
-    }
-    else if (name == "RefreshMaxPostponed")
-        refreshMaxPostponed = value;
-    else if (name == "RefreshMaxPulledin")
-        refreshMaxPulledin = value;
-    else if (name == "PowerDownPolicy")
-    {
-        if (value == "NoPowerDown")
-            powerDownPolicy = PowerDownPolicy::NoPowerDown;
-        else if (value == "Staggered")
-            powerDownPolicy = PowerDownPolicy::Staggered;
-        else
-            SC_REPORT_FATAL("Configuration", "Unsupported power down policy!");
-    }
-    else if (name == "PowerDownTimeout")
-        powerDownTimeout = value;
-    else if (name == "MaxActiveTransactions")
-        maxActiveTransactions = value;
-    else if (name == "ArbitrationDelayFw")
-        arbitrationDelayFw = std::round(sc_time(value, SC_NS) / memSpec->tCK) * memSpec->tCK;
-    else if (name == "ArbitrationDelayBw")
-        arbitrationDelayBw = std::round(sc_time(value, SC_NS) / memSpec->tCK) * memSpec->tCK;
-    else if (name == "ThinkDelayFw")
-        thinkDelayFw = std::round(sc_time(value, SC_NS) / memSpec->tCK) * memSpec->tCK;
-    else if (name == "ThinkDelayBw")
-        thinkDelayBw = std::round(sc_time(value, SC_NS) / memSpec->tCK) * memSpec->tCK;
-    else if (name == "PhyDelayFw")
-        phyDelayFw = std::round(sc_time(value, SC_NS) / memSpec->tCK) * memSpec->tCK;
-    else if (name == "PhyDelayBw")
-        phyDelayBw = std::round(sc_time(value, SC_NS) / memSpec->tCK) * memSpec->tCK;
-    //SimConfig------------------------------------------------
-    else if (name == "SimulationName")
-        simulationName = value;
-    else if (name == "DatabaseRecording")
-        databaseRecording = value;
-    else if (name == "PowerAnalysis")
-        powerAnalysis = value;
-    else if (name == "EnableWindowing")
-        enableWindowing = value;
-    else if (name == "WindowSize")
-    {
-        windowSize = value;
-        if (windowSize == 0)
+    if (const auto& _addressOffset = simConfig.addressOffset)
+        addressOffset = *_addressOffset;
+
+    if (const auto& _checkTLM2Protocol = simConfig.checkTLM2Protocol)
+        checkTLM2Protocol = *_checkTLM2Protocol;
+
+    if (const auto& _databaseRecording = simConfig.databaseRecording)
+        databaseRecording = *_databaseRecording;
+
+    if (const auto& _debug = simConfig.debug)
+        debug = *_debug;
+
+    if (const auto& _enableWindowing = simConfig.enableWindowing)
+        enableWindowing = *_enableWindowing;
+
+    if (const auto& _powerAnalysis = simConfig.powerAnalysis)
+        powerAnalysis = *_powerAnalysis;
+
+    if (const auto& _simulationName = simConfig.simulationName)
+        simulationName = *_simulationName;
+
+    if (const auto& _simulationProgressBar = simConfig.simulationProgressBar)
+        simulationProgressBar = *_simulationProgressBar;
+
+    if (const auto& _thermalSimulation = simConfig.thermalSimulation)
+        thermalSimulation = *_thermalSimulation;
+
+    if (const auto& _useMalloc = simConfig.useMalloc)
+        useMalloc = *_useMalloc;
+
+    if (const auto& _windowSize = simConfig.windowSize)
+        windowSize = *_windowSize;
+
+    if (windowSize == 0)
             SC_REPORT_FATAL("Configuration", "Minimum window size is 1");
-    }
-    else if (name == "Debug")
-        debug = value;
-    else if (name == "ThermalSimulation")
-        thermalSimulation = value;
-    else if (name == "SimulationProgressBar")
-        simulationProgressBar = value;
-    else if (name == "AddressOffset")
-        addressOffset = value;
-    else if (name == "UseMalloc")
-        useMalloc = value;
-    else if (name == "CheckTLM2Protocol")
-        checkTLM2Protocol = value;
-    else if (name == "ECCControllerMode")
-    {
-        if (value == "Disabled")
-            eccMode = ECCMode::Disabled;
-        else if (value == "Hamming")
-            eccMode = ECCMode::Hamming;
+
+    if (const auto& _errorCsvFile = simConfig.errorCsvFile)
+        errorCSVFile = *_errorCsvFile;
+
+    if (const auto& _errorChipSeed = simConfig.errorChipSeed)
+        errorChipSeed = *_errorChipSeed;
+
+    if (const auto& _storeMode = simConfig.storeMode)
+        storeMode = [=] {
+            if (_storeMode == DRAMSysConfiguration::StoreMode::NoStorage)
+                return StoreMode::NoStorage;
+            else if (_storeMode == DRAMSysConfiguration::StoreMode::Store)
+                return StoreMode::Store;
+            else
+                return StoreMode::ErrorModel;
+        }();
+}
+
+void Configuration::loadTemperatureSimConfig(const DRAMSysConfiguration::ThermalConfig &thermalConfig)
+{
+    temperatureSim.temperatureScale = [=] {
+        if (thermalConfig.temperatureScale == DRAMSysConfiguration::TemperatureScale::Celsius)
+            return TemperatureSimConfig::TemperatureScale::Celsius;
+        else if (thermalConfig.temperatureScale == DRAMSysConfiguration::TemperatureScale::Fahrenheit)
+            return TemperatureSimConfig::TemperatureScale::Fahrenheit;
         else
-            SC_REPORT_FATAL("Configuration", "Unsupported ECC mode!");
-    }
-    // Specification for ErrorChipSeed, ErrorCSVFile path and StoreMode
-    else if (name == "ErrorChipSeed")
-        errorChipSeed = value;
-    else if (name == "ErrorCSVFile")
-        errorCSVFile = value;
-    else if (name == "StoreMode")
-    {
-        if (value == "NoStorage")
-            storeMode = StoreMode::NoStorage;
-        else if (value == "Store")
-            storeMode = StoreMode::Store;
-        else if (value == "ErrorModel")
-            storeMode = StoreMode::ErrorModel;
+            return TemperatureSimConfig::TemperatureScale::Kelvin;
+    }();
+
+    temperatureSim.staticTemperatureDefaultValue = thermalConfig.staticTemperatureDefaultValue;
+    temperatureSim.thermalSimPeriod = thermalConfig.thermalSimPeriod;
+
+    temperatureSim.thermalSimUnit = [=] {
+        if (thermalConfig.thermalSimUnit == DRAMSysConfiguration::ThermalSimUnit::Seconds)
+            return sc_core::SC_SEC;
+        else if (thermalConfig.thermalSimUnit == DRAMSysConfiguration::ThermalSimUnit::Milliseconds)
+            return sc_core::SC_MS;
+        else if (thermalConfig.thermalSimUnit == DRAMSysConfiguration::ThermalSimUnit::Microseconds)
+            return sc_core::SC_US;
+        else if (thermalConfig.thermalSimUnit == DRAMSysConfiguration::ThermalSimUnit::Nanoseconds)
+            return sc_core::SC_NS;
+        else if (thermalConfig.thermalSimUnit == DRAMSysConfiguration::ThermalSimUnit::Picoseconds)
+            return sc_core::SC_PS;
         else
-            SC_REPORT_FATAL("Configuration", "Unsupported store mode!");
-    }
+            return sc_core::SC_FS;
+    }();
 
-    // Temperature Simulation related
-    else if (name == "TemperatureScale")
+    for (const auto &channel : thermalConfig.powerInfo.channels)
     {
-        if (value != "Celsius" && value != "Fahrenheit" && value != "Kelvin")
-            SC_REPORT_FATAL("Configuration",
-                            ("Invalid value for parameter " + name + ".").c_str());
-        temperatureSim.temperatureScale = value;
+        temperatureSim.powerInitialValues.push_back(channel.init_pow);
+        temperatureSim.powerThresholds.push_back(channel.threshold);
     }
-    else if (name == "StaticTemperatureDefaultValue")
-        temperatureSim.staticTemperatureDefaultValue = value;
-    else if (name == "ThermalSimPeriod")
-        temperatureSim.thermalSimPeriod = value;
-    else if (name == "ThermalSimUnit")
-        temperatureSim.thermalSimUnit = string2TimeUnit(value);
-    else if (name == "PowerInfoFile")
+
+    temperatureSim.iceServerIp = thermalConfig.iceServerIp;
+    temperatureSim.iceServerPort = thermalConfig.iceServerPort;
+    temperatureSim.simPeriodAdjustFactor = thermalConfig.simPeriodAdjustFactor;
+    temperatureSim.nPowStableCyclesToIncreasePeriod = thermalConfig.nPowStableCyclesToIncreasePeriod;
+    temperatureSim.generateTemperatureMap = thermalConfig.generateTemperatureMap;
+    temperatureSim.generatePowerMap = thermalConfig.generatePowerMap;
+
+    temperatureSim.showTemperatureSimConfig();
+}
+
+void Configuration::loadMCConfig(const DRAMSysConfiguration::McConfig &mcConfig)
+{
+    if (const auto& _pagePolicy = mcConfig.pagePolicy)
+        pagePolicy = [=] {
+            if (_pagePolicy == DRAMSysConfiguration::PagePolicy::Open)
+                return PagePolicy::Open;
+            else if (_pagePolicy == DRAMSysConfiguration::PagePolicy::OpenAdaptive)
+                return PagePolicy::OpenAdaptive;
+            else if (_pagePolicy == DRAMSysConfiguration::PagePolicy::Closed)
+                return PagePolicy::Closed;
+            else
+                return PagePolicy::ClosedAdaptive;
+        }();
+
+    if (const auto& _scheduler = mcConfig.scheduler)
+        scheduler = [=] {
+           if (_scheduler == DRAMSysConfiguration::Scheduler::Fifo)
+               return Scheduler::Fifo;
+           else if (_scheduler == DRAMSysConfiguration::Scheduler::FrFcfs)
+               return Scheduler::FrFcfs;
+           else if (_scheduler == DRAMSysConfiguration::Scheduler::FrFcfsGrp)
+               return Scheduler::FrFcfsGrp;
+           else if (_scheduler == DRAMSysConfiguration::Scheduler::GrpFrFcfs)
+               return Scheduler::GrpFrFcfs;
+           else
+               return Scheduler::GrpFrFcfsWm;
+        }();
+
+    if (const auto& _highWatermark = mcConfig.highWatermark)
+        highWatermark = *mcConfig.highWatermark;
+
+    if (const auto& _lowWatermark = mcConfig.lowWatermark)
+        lowWatermark = *mcConfig.lowWatermark;
+
+    if (const auto& _schedulerBuffer = mcConfig.schedulerBuffer)
+        schedulerBuffer = [=] {
+            if (_schedulerBuffer == DRAMSysConfiguration::SchedulerBuffer::Bankwise)
+                return SchedulerBuffer::Bankwise;
+            else if (_schedulerBuffer == DRAMSysConfiguration::SchedulerBuffer::ReadWrite)
+                return SchedulerBuffer::ReadWrite;
+            else
+                return SchedulerBuffer::Shared;
+        }();
+
+    if (const auto& _requestBufferSize = mcConfig.requestBufferSize)
+        requestBufferSize = *mcConfig.requestBufferSize;
+
+    if (requestBufferSize == 0)
+        SC_REPORT_FATAL("Configuration", "Minimum request buffer size is 1!");
+
+    if (const auto& _cmdMux = mcConfig.cmdMux)
+        cmdMux = [=] {
+            if (_cmdMux == DRAMSysConfiguration::CmdMux::Oldest)
+                return CmdMux::Oldest;
+            else
+                return CmdMux::Strict;
+        }();
+
+    if (const auto& _respQueue = mcConfig.respQueue)
+        respQueue = [=] {
+            if (_respQueue == DRAMSysConfiguration::RespQueue::Fifo)
+                return RespQueue::Fifo;
+            else
+                return RespQueue::Reorder;
+        }();
+
+    if (const auto& _refreshPolicy = mcConfig.refreshPolicy)
+        refreshPolicy = [=] {
+            if (_refreshPolicy == DRAMSysConfiguration::RefreshPolicy::NoRefresh)
+                return RefreshPolicy::NoRefresh;
+            else if (_refreshPolicy == DRAMSysConfiguration::RefreshPolicy::AllBank)
+                return RefreshPolicy::AllBank;
+            else if (_refreshPolicy == DRAMSysConfiguration::RefreshPolicy::PerBank)
+                return RefreshPolicy::PerBank;
+            else if (_refreshPolicy == DRAMSysConfiguration::RefreshPolicy::Per2Bank)
+                return RefreshPolicy::Per2Bank;
+            else // if (policy == DRAMSysConfiguration::RefreshPolicy::SameBank)
+                return RefreshPolicy::SameBank;
+        }();
+
+    if (const auto& _refreshMaxPostponed = mcConfig.refreshMaxPostponed)
+        refreshMaxPostponed = *_refreshMaxPostponed;
+
+    if (const auto& _refreshMaxPulledin = mcConfig.refreshMaxPulledin)
+        refreshMaxPulledin = *_refreshMaxPulledin;
+
+    if (const auto& _powerDownPolicy = mcConfig.powerDownPolicy)
+        powerDownPolicy = [=] {
+            if (_powerDownPolicy == DRAMSysConfiguration::PowerDownPolicy::NoPowerDown)
+                return PowerDownPolicy::NoPowerDown;
+            else
+                return PowerDownPolicy::Staggered;
+        }();
+
+    if (const auto& _arbiter = mcConfig.arbiter)
+        arbiter = [=] {
+            if (_arbiter == DRAMSysConfiguration::Arbiter::Simple)
+                return Arbiter::Simple;
+            else if (_arbiter == DRAMSysConfiguration::Arbiter::Fifo)
+                return Arbiter::Fifo;
+            else
+                return Arbiter::Reorder;
+        }();
+
+    if (const auto& _maxActiveTransactions = mcConfig.maxActiveTransactions)
+         maxActiveTransactions = *_maxActiveTransactions;
+
+    if (const auto& _refreshManagement = mcConfig.refreshManagement)
+         refreshManagement = *_refreshManagement;
+
+    if (const auto& _arbitrationDelayFw = mcConfig.arbitrationDelayFw)
     {
-        temperatureSim.powerInfoFile = value;
-        temperatureSim.parsePowerInfoFile();
+         arbitrationDelayFw = std::round(sc_time(*_arbitrationDelayFw, SC_NS) / memSpec->tCK) * memSpec->tCK;
     }
-    else if (name == "IceServerIp")
-        temperatureSim.iceServerIp = value;
-    else if (name == "IceServerPort")
-        temperatureSim.iceServerPort = value;
-    else if (name == "SimPeriodAdjustFactor")
-        temperatureSim.simPeriodAdjustFactor = value;
-    else if (name == "NPowStableCyclesToIncreasePeriod")
-        temperatureSim.nPowStableCyclesToIncreasePeriod = value;
-    else if (name == "GenerateTemperatureMap")
-        temperatureSim.generateTemperatureMap = value;
-    else if (name == "GeneratePowerMap")
-        temperatureSim.generatePowerMap = value;
-    else
-        SC_REPORT_FATAL("Configuration",
-                        ("Parameter " + name + " not defined in Configuration").c_str());
-}
 
-void Configuration::setPathToResources(std::string path)
-{
-    pathToResources = path;
-    temperatureSim.setPathToResources(path);
-}
-
-// Changes the number of bytes depeding on the ECC Controller. This function is needed for modules which get data directly or indirectly from the ECC Controller
-unsigned int Configuration::adjustNumBytesAfterECC(unsigned nBytes)
-{
-    // Manipulate the number of bytes only if there is an ECC Controller selected
-    if (eccMode == ECCMode::Disabled)
-        return nBytes;
-    else // if (eccMode == ECCMode::Hamming)
+    if (const auto& _arbitrationDelayBw = mcConfig.arbitrationDelayBw)
     {
-        assert(pECC != nullptr);
-        return pECC->AllocationSize(nBytes);
+         arbitrationDelayBw = std::round(sc_time(*_arbitrationDelayBw, SC_NS) / memSpec->tCK) * memSpec->tCK;
+    }
+
+    if (const auto& _thinkDelayFw = mcConfig.thinkDelayFw)
+    {
+         thinkDelayFw = std::round(sc_time(*_thinkDelayFw, SC_NS) / memSpec->tCK) * memSpec->tCK;
+    }
+
+    if (const auto& _thinkDelayBw = mcConfig.thinkDelayBw)
+    {
+         thinkDelayBw = std::round(sc_time(*_thinkDelayBw, SC_NS) / memSpec->tCK) * memSpec->tCK;
+    }
+
+    if (const auto& _phyDelayFw = mcConfig.phyDelayFw)
+    {
+         phyDelayFw = std::round(sc_time(*_phyDelayFw, SC_NS) / memSpec->tCK) * memSpec->tCK;
+    }
+
+    if (const auto& _phyDelayBw = mcConfig.phyDelayBw)
+    {
+         phyDelayBw = std::round(sc_time(*_phyDelayBw, SC_NS) / memSpec->tCK) * memSpec->tCK;
     }
 }
 
-void Configuration::loadSimConfig(Configuration &config, std::string simconfigUri)
+void Configuration::loadMemSpec(const DRAMSysConfiguration::MemSpec &memSpecConfig)
 {
-    json doc = parseJSON(simconfigUri);
-    if (doc["simconfig"].empty())
-        SC_REPORT_FATAL("Configuration", "simconfig is empty.");
-    for (auto& x : doc["simconfig"].items())
-        config.setParameter(x.key(), x.value());
-}
-
-void Configuration::loadTemperatureSimConfig(Configuration &config, std::string thermalsimconfigUri)
-{
-    json doc = parseJSON(thermalsimconfigUri);
-    if (doc["thermalsimconfig"].empty())
-        SC_REPORT_FATAL("Configuration", "thermalsimconfig is empty.");
-    for (auto& x : doc["thermalsimconfig"].items())
-        config.setParameter(x.key(), x.value());
-}
-
-void Configuration::loadMCConfig(Configuration &config, std::string mcconfigUri)
-{
-    config.mcconfigUri = mcconfigUri;
-    json doc = parseJSON(mcconfigUri);
-    if (doc["mcconfig"].empty())
-        SC_REPORT_FATAL("Configuration", "mcconfig is empty.");
-    for (auto& x : doc["mcconfig"].items())
-        config.setParameter(x.key(), x.value());
-}
-
-void Configuration::loadMemSpec(Configuration &config, std::string memspecUri)
-{
-    config.memspecUri = memspecUri;
-    json doc = parseJSON(memspecUri);
-    json jMemSpec = doc["memspec"];
-
-    std::string memoryType = jMemSpec["memoryType"];
+    std::string memoryType = memSpecConfig.memoryType;
 
     if (memoryType == "DDR3")
-        memSpec = new MemSpecDDR3(jMemSpec);
+        memSpec = std::make_unique<const MemSpecDDR3>(memSpecConfig);
     else if (memoryType == "DDR4")
-        memSpec = new MemSpecDDR4(jMemSpec);
+        memSpec = std::make_unique<const MemSpecDDR4>(memSpecConfig);
     else if (memoryType == "DDR5")
-        memSpec = new MemSpecDDR5(jMemSpec);
+        memSpec = std::make_unique<const MemSpecDDR5>(memSpecConfig);
     else if (memoryType == "LPDDR4")
-        memSpec = new MemSpecLPDDR4(jMemSpec);
+        memSpec = std::make_unique<const MemSpecLPDDR4>(memSpecConfig);
+    else if (memoryType == "LPDDR5")
+        memSpec = std::make_unique<const MemSpecLPDDR5>(memSpecConfig);
     else if (memoryType == "WIDEIO_SDR")
-        memSpec = new MemSpecWideIO(jMemSpec);
+        memSpec = std::make_unique<const MemSpecWideIO>(memSpecConfig);
     else if (memoryType == "WIDEIO2")
-        memSpec = new MemSpecWideIO2(jMemSpec);
+        memSpec = std::make_unique<const MemSpecWideIO2>(memSpecConfig);
     else if (memoryType == "HBM2")
-        memSpec = new MemSpecHBM2(jMemSpec);
+        memSpec = std::make_unique<const MemSpecHBM2>(memSpecConfig);
     else if (memoryType == "GDDR5")
-        memSpec = new MemSpecGDDR5(jMemSpec);
+        memSpec = std::make_unique<const MemSpecGDDR5>(memSpecConfig);
     else if (memoryType == "GDDR5X")
-        memSpec = new MemSpecGDDR5X(jMemSpec);
+        memSpec = std::make_unique<const MemSpecGDDR5X>(memSpecConfig);
     else if (memoryType == "GDDR6")
-        memSpec = new MemSpecGDDR6(jMemSpec);
+        memSpec = std::make_unique<const MemSpecGDDR6>(memSpecConfig);
+    else if (memoryType == "STT-MRAM")
+        memSpec = std::make_unique<const MemSpecSTTMRAM>(memSpecConfig);
     else
         SC_REPORT_FATAL("Configuration", "Unsupported DRAM type");
 }

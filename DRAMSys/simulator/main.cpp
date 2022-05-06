@@ -34,27 +34,32 @@
  *    Matthias Jung
  *    Luiza Correa
  *    Lukas Steiner
+ *    Derek Christ
  */
 
 #include <iostream>
+#include <memory>
 #include <string>
-#include <systemc.h>
 #include <utility>
 #include <vector>
+#include <list>
 #include <chrono>
+#include <Configuration.h>
+#include <memory>
+#include <systemc>
 
 #include "simulation/DRAMSys.h"
 #include "TraceSetup.h"
-#include "TracePlayer.h"
+#include "TrafficInitiator.h"
+#include "LengthConverter.h"
 
 #ifdef RECORDING
 #include "simulation/DRAMSysRecordable.h"
-#include "common/third_party/nlohmann/single_include/nlohmann/json.hpp"
-
-using json = nlohmann::json;
 #endif
 
-std::string pathOfFile(std::string file)
+using namespace sc_core;
+
+std::string pathOfFile(const std::string &file)
 {
     return file.substr(0, file.find_last_of('/'));
 }
@@ -93,39 +98,42 @@ int sc_main(int argc, char **argv)
         resources = argv[2];
     }
 
-    std::vector<TracePlayer *> players;
+    std::vector<std::unique_ptr<TrafficInitiator>> players;
+    std::vector<std::unique_ptr<LengthConverter>> lengthConverters;
+
+    DRAMSysConfiguration::Configuration configLib = DRAMSysConfiguration::from_path(simulationJson, resources);
 
     // Instantiate DRAMSys:
-    DRAMSys *dramSys;
-#ifdef RECORDING
-    json simulationdoc = parseJSON(simulationJson);
-    json simulatordoc = parseJSON(resources + "configs/simulator/"
-                                  + std::string(simulationdoc["simulation"]["simconfig"]));
+    std::unique_ptr<DRAMSys> dramSys;
 
-    if (simulatordoc["simconfig"]["DatabaseRecording"])
-        dramSys = new DRAMSysRecordable("DRAMSys", simulationJson, resources);
+#ifdef RECORDING
+    if (configLib.simConfig.databaseRecording.value_or(false))
+        dramSys = std::make_unique<DRAMSysRecordable>("DRAMSys", configLib);
     else
 #endif
-        dramSys = new DRAMSys("DRAMSys", simulationJson, resources);
+        dramSys = std::make_unique<DRAMSys>("DRAMSys", configLib);
+
+    if (!configLib.traceSetup.has_value())
+        SC_REPORT_FATAL("sc_main", "No tracesetup section provided.");
 
     // Instantiate STL Players:
-    TraceSetup *setup = new TraceSetup(simulationJson, resources, &players);
+    TraceSetup setup(dramSys->getConfig(), configLib.traceSetup.value(), resources, players);
 
     // Bind STL Players with DRAMSys:
-    for (size_t i = 0; i < players.size(); i++)
+    for (auto& player : players)
     {
-        if (Configuration::getInstance().checkTLM2Protocol)
+        if (player->addLengthConverter)
         {
-            std::string str = "TLMCheckerPlayer" + std::to_string(i);
-            tlm_utils::tlm2_base_protocol_checker<> *playerTlmChecker =
-                new tlm_utils::tlm2_base_protocol_checker<>(str.c_str());
-            dramSys->playersTlmCheckers.push_back(playerTlmChecker);
-            players[i]->iSocket.bind(dramSys->playersTlmCheckers[i]->target_socket);
-            dramSys->playersTlmCheckers[i]->initiator_socket.bind(dramSys->tSocket);
+            std::string converterName("Converter_");
+            lengthConverters.emplace_back(std::make_unique<LengthConverter>(converterName.append(player->name()).c_str(),
+                    dramSys->getConfig().memSpec->maxBytesPerBurst,
+                    dramSys->getConfig().storeMode != Configuration::StoreMode::NoStorage));
+            player->iSocket.bind(lengthConverters.back()->tSocket);
+            lengthConverters.back()->iSocket.bind(dramSys->tSocket);
         }
         else
         {
-             players[i]->iSocket.bind(dramSys->tSocket);
+            player->iSocket.bind(dramSys->tSocket);
         }
     }
 
@@ -145,11 +153,5 @@ int sc_main(int argc, char **argv)
     auto finish = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = finish - start;
     std::cout << "Simulation took " + std::to_string(elapsed.count()) + " seconds." << std::endl;
-
-    delete dramSys;
-    for (auto player : players)
-        delete player;
-    delete setup;
-
     return 0;
 }

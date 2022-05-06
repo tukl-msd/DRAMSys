@@ -35,19 +35,17 @@
 #ifndef CHECKERIF_H
 #define CHECKERIF_H
 
-#include <systemc.h>
-#include <vector>
+#include <systemc>
+
 #include "../Command.h"
-#include "../../common/dramExtensions.h"
-#include "../../common/DebugManager.h"
 
 class CheckerIF
 {
 public:
-    virtual ~CheckerIF() {}
+    virtual ~CheckerIF() = default;
 
-    virtual sc_time timeToSatisfyConstraints(Command, Rank, BankGroup, Bank) const = 0;
-    virtual void insert(Command, Rank, BankGroup, Bank) = 0;
+    virtual sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const = 0;
+    virtual void insert(Command command, const tlm::tlm_generic_payload& payload) = 0;
 };
 
 #endif // CHECKERIF_H

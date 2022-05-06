@@ -35,21 +35,22 @@
 #ifndef RESPQUEUEFIFO_H
 #define RESPQUEUEFIFO_H
 
-#include <systemc.h>
-#include <tlm.h>
-#include "RespQueueIF.h"
 #include <utility>
 #include <queue>
+
+#include <systemc>
+#include <tlm>
+#include "RespQueueIF.h"
 
 class RespQueueFifo final : public RespQueueIF
 {
 public:
-    virtual void insertPayload(tlm::tlm_generic_payload *, sc_time) override;
-    virtual tlm::tlm_generic_payload *nextPayload() override;
-    virtual sc_time getTriggerTime() const override;
+    void insertPayload(tlm::tlm_generic_payload *, sc_core::sc_time) override;
+    tlm::tlm_generic_payload *nextPayload() override;
+    sc_core::sc_time getTriggerTime() const override;
 
 private:
-    std::queue<std::pair<tlm::tlm_generic_payload *, sc_time>> buffer;
+    std::queue<std::pair<tlm::tlm_generic_payload *, sc_core::sc_time>> buffer;
 };
 
 #endif // RESPQUEUEFIFO_H
