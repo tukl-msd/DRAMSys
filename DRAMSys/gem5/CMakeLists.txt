@@ -37,7 +37,7 @@ set(GEM5_VARIANT opt) # opt, fast
 set(GEM5_ISA ARM) # ARM, X86
 
 # Configuration:
-set(CMAKE_CXX_STANDARD 11 CACHE STRING "C++ Version")
+set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ Version")
 set(DCMAKE_SH="CMAKE_SH-NOTFOUND")
 
 find_library(GEM5_LIBRARY gem5_${GEM5_VARIANT} PATHS $ENV{GEM5}/build/${GEM5_ISA}/)

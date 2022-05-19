@@ -33,12 +33,12 @@
 
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 set(JSON_ImplicitConversions OFF CACHE INTERNAL "")
-add_subdirectory(${CMAKE_SOURCE_DIR}/library/src/common/third_party/nlohmann ${CMAKE_CURRENT_BINARY_DIR}/nlohmann)
+add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../third_party/nlohmann ${CMAKE_CURRENT_BINARY_DIR}/nlohmann)
 
 option(DRAMSYS_CONFIGURATION_TESTS "Build the unit tests for configuration." OFF)
 
 if (DRAMSYS_CONFIGURATION_TESTS)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/tests)
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/tests)
 endif()
 
 add_library(DRAMSysConfiguration STATIC
@@ -55,8 +55,8 @@ add_library(DRAMSysConfiguration STATIC
     util.cpp
 )
 
-target_compile_definitions(DRAMSysConfiguration PUBLIC DRAMSysResourceDirectory="${CMAKE_SOURCE_DIR}/library/resources")
+target_compile_definitions(DRAMSysConfiguration PUBLIC DRAMSysResourceDirectory="${CMAKE_CURRENT_LIST_DIR}/../../../resources")
 
-target_include_directories(DRAMSysConfiguration PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(DRAMSysConfiguration PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 
 target_link_libraries(DRAMSysConfiguration PUBLIC nlohmann_json::nlohmann_json)
