@@ -25,6 +25,11 @@ If you decide to use DRAMSys in your research please cite the papers [2] [3]. To
 - coupling to **DRAMPower** [4] and **3D-ICE** [8] for power and thermal simulation
 - **Trace Analyzer** for visual and metric-based result analysis
 
+## Video
+The linked video shows the background of DRAMSys and some examples how simulations can be performed.
+
+[![DRAMSys Video](https://img.youtube.com/vi/xdfaGv7MPVo/0.jpg)](https://www.youtube.com/watch?v=xdfaGv7MPVo)
+
 ## Architecture and Functionality
 
 A UML diagram of the software architecture is presented below; different component implementations are left out for simplicity. More information about the architecture and functionality can be found in the papers [1] [2] [3] and in the introduction video on [Youtube](https://www.youtube.com/watch?v=8EkC3mYWpQY).
