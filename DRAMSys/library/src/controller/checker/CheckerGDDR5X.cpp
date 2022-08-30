@@ -70,16 +70,16 @@ CheckerGDDR5X::CheckerGDDR5X(const Configuration& config)
 
 sc_time CheckerGDDR5X::timeToSatisfyConstraints(Command command, const tlm_generic_payload& payload) const
 {
-    Rank rank = DramExtension::getRank(payload);
-    BankGroup bankGroup = DramExtension::getBankGroup(payload);
-    Bank bank = DramExtension::getBank(payload);
+    Rank rank = ControllerExtension::getRank(payload);
+    BankGroup bankGroup = ControllerExtension::getBankGroup(payload);
+    Bank bank = ControllerExtension::getBank(payload);
     
     sc_time lastCommandStart;
     sc_time earliestTimeToStart = sc_time_stamp();
 
     if (command == Command::RD || command == Command::RDA)
     {
-        unsigned burstLength = DramExtension::getBurstLength(payload);
+        unsigned burstLength = ControllerExtension::getBurstLength(payload);
         assert(!(memSpec->dataRate == 4) || (burstLength == 8)); // DDR mode (QDR wrt CK)
         assert(!(memSpec->dataRate == 8) || (burstLength == 16)); // QDR mode (ODR wrt CK)
 
@@ -152,7 +152,7 @@ sc_time CheckerGDDR5X::timeToSatisfyConstraints(Command command, const tlm_gener
     }
     else if (command == Command::WR || command == Command::WRA)
     {
-        unsigned burstLength = DramExtension::getBurstLength(payload);
+        unsigned burstLength = ControllerExtension::getBurstLength(payload);
         assert(!(memSpec->dataRate == 4) || (burstLength == 8)); // DDR mode (QDR wrt CK)
         assert(!(memSpec->dataRate == 8) || (burstLength == 16)); // QDR mode (ODR wrt CK)
 
@@ -543,9 +543,9 @@ sc_time CheckerGDDR5X::timeToSatisfyConstraints(Command command, const tlm_gener
 
 void CheckerGDDR5X::insert(Command command, const tlm_generic_payload& payload)
 {
-    Rank rank = DramExtension::getRank(payload);
-    BankGroup bankGroup = DramExtension::getBankGroup(payload);
-    Bank bank = DramExtension::getBank(payload);
+    Rank rank = ControllerExtension::getRank(payload);
+    BankGroup bankGroup = ControllerExtension::getBankGroup(payload);
+    Bank bank = ControllerExtension::getBank(payload);
 
     PRINTDEBUGMESSAGE("CheckerGDDR5X", "Changing state on bank " + std::to_string(bank.ID())
                       + " command is " + command.toString());

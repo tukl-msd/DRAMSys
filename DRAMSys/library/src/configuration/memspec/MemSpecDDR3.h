@@ -40,7 +40,7 @@
 #include "MemSpec.h"
 
 #include <systemc>
-#include <Configuration.h>
+#include <DRAMSysConfiguration.h>
 
 class MemSpecDDR3 final : public MemSpec
 {

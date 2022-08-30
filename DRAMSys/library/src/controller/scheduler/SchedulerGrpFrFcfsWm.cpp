@@ -67,9 +67,9 @@ bool SchedulerGrpFrFcfsWm::hasBufferSpace() const
 void SchedulerGrpFrFcfsWm::storeRequest(tlm_generic_payload& trans)
 {
     if (trans.is_read())
-        readBuffer[DramExtension::getBank(trans).ID()].push_back(&trans);
+        readBuffer[ControllerExtension::getBank(trans).ID()].push_back(&trans);
     else
-        writeBuffer[DramExtension::getBank(trans).ID()].push_back(&trans);
+        writeBuffer[ControllerExtension::getBank(trans).ID()].push_back(&trans);
     bufferCounter->storeRequest(trans);
     evaluateWriteMode();
 }
@@ -77,7 +77,7 @@ void SchedulerGrpFrFcfsWm::storeRequest(tlm_generic_payload& trans)
 void SchedulerGrpFrFcfsWm::removeRequest(tlm_generic_payload& trans)
 {
     bufferCounter->removeRequest(trans);
-    unsigned bankID = DramExtension::getBank(trans).ID();
+    unsigned bankID = ControllerExtension::getBank(trans).ID();
 
     if (trans.is_read())
         readBuffer[bankID].remove(&trans);
@@ -101,7 +101,7 @@ tlm_generic_payload *SchedulerGrpFrFcfsWm::getNextRequest(const BankMachine& ban
                 Row openRow = bankMachine.getOpenRow();
                 for (auto it : readBuffer[bankID])
                 {
-                    if (DramExtension::getRow(it) == openRow)
+                    if (ControllerExtension::getRow(*it) == openRow)
                         return it;
                 }
             }
@@ -121,7 +121,7 @@ tlm_generic_payload *SchedulerGrpFrFcfsWm::getNextRequest(const BankMachine& ban
                 Row openRow = bankMachine.getOpenRow();
                 for (auto it : writeBuffer[bankID])
                 {
-                    if (DramExtension::getRow(it) == openRow)
+                    if (ControllerExtension::getRow(*it) == openRow)
                         return it;
                 }
             }
@@ -140,7 +140,7 @@ bool SchedulerGrpFrFcfsWm::hasFurtherRowHit(Bank bank, Row row, tlm::tlm_command
     {
         for (const auto* it : readBuffer[bank.ID()])
         {
-            if (DramExtension::getRow(it) == row)
+            if (ControllerExtension::getRow(*it) == row)
             {
                 rowHitCounter++;
                 if (rowHitCounter == 2)
@@ -153,7 +153,7 @@ bool SchedulerGrpFrFcfsWm::hasFurtherRowHit(Bank bank, Row row, tlm::tlm_command
     {
         for (auto it : writeBuffer[bank.ID()])
         {
-            if (DramExtension::getRow(it) == row)
+            if (ControllerExtension::getRow(*it) == row)
             {
                 rowHitCounter++;
                 if (rowHitCounter == 2)

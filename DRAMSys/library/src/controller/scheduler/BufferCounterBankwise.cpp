@@ -50,7 +50,7 @@ bool BufferCounterBankwise::hasBufferSpace() const
 
 void BufferCounterBankwise::storeRequest(const tlm_generic_payload& trans)
 {
-    lastBankID = DramExtension::getBank(trans).ID();
+    lastBankID = ControllerExtension::getBank(trans).ID();
     numRequestsOnBank[lastBankID]++;
     if (trans.is_read())
         numReadRequests++;
@@ -60,7 +60,7 @@ void BufferCounterBankwise::storeRequest(const tlm_generic_payload& trans)
 
 void BufferCounterBankwise::removeRequest(const tlm_generic_payload& trans)
 {
-    numRequestsOnBank[DramExtension::getBank(trans).ID()]--;
+    numRequestsOnBank[ControllerExtension::getBank(trans).ID()]--;
     if (trans.is_read())
         numReadRequests--;
     else

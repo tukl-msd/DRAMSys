@@ -44,10 +44,8 @@ using namespace sc_core;
 using namespace tlm;
 
 TrafficInitiator::TrafficInitiator(const sc_module_name &name, const Configuration& config, TraceSetup& setup,
-        unsigned int maxPendingReadRequests, unsigned int maxPendingWriteRequests,
-        unsigned int defaultDataLength, bool addLengthConverter) :
+        unsigned int maxPendingReadRequests, unsigned int maxPendingWriteRequests, unsigned int defaultDataLength) :
     sc_module(name),
-    addLengthConverter(addLengthConverter),
     payloadEventQueue(this, &TrafficInitiator::peqCallback),
     setup(setup),
     maxPendingReadRequests(maxPendingReadRequests),

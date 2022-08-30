@@ -8,7 +8,7 @@
             "nbrOfRanks": 4,
             "nbrOfRows": 16384,
             "width": 8,
-            "nbrOfDevices": 8,
+            "nbrOfDevicesOnDIMM": 8,
             "nbrOfChannels": 1
         },
         "memoryId": "MICRON_1Gb_DDR3-1600_8bit_G",

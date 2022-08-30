@@ -41,7 +41,7 @@
 
 #include <vector>
 #include <string>
-#include <Configuration.h>
+#include <DRAMSysConfiguration.h>
 #include <systemc>
 #include <tlm>
 #include "../../common/utils.h"
@@ -66,6 +66,7 @@ public:
     const unsigned dataRate;
     const unsigned bitWidth;
     const unsigned dataBusWidth;
+    const unsigned bytesPerBeat;
     const unsigned defaultBytesPerBurst;
     const unsigned maxBytesPerBurst;
 
@@ -75,7 +76,7 @@ public:
 
     const std::string memoryId;
     const enum class MemoryType {DDR3, DDR4, DDR5, LPDDR4, LPDDR5, WideIO,
-            WideIO2, GDDR5, GDDR5X, GDDR6, HBM2, STTMRAM} memoryType;
+            WideIO2, GDDR5, GDDR5X, GDDR6, HBM2, HBM3, STTMRAM} memoryType;
 
     virtual ~MemSpec() = default;
 
@@ -96,6 +97,7 @@ public:
     virtual TimeInterval getIntervalOnDataStrobe(Command command, const tlm::tlm_generic_payload &payload) const = 0;
 
     sc_core::sc_time getCommandLength(Command) const;
+    double getCommandLengthInCycles(Command) const;
     uint64_t getSimMemSizeInBytes() const;
 
 protected:
@@ -108,7 +110,7 @@ protected:
             unsigned devicesPerRank);
 
     // Command lengths in cycles on bus, usually one clock cycle
-    std::vector<unsigned> commandLengthInCycles;
+    std::vector<double> commandLengthInCycles;
     sc_core::sc_time burstDuration;
     uint64_t memorySizeBytes;
 };

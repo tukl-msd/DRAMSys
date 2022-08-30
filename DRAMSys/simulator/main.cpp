@@ -44,14 +44,13 @@
 #include <vector>
 #include <list>
 #include <chrono>
-#include <Configuration.h>
+#include <DRAMSysConfiguration.h>
 #include <memory>
 #include <systemc>
 
 #include "simulation/DRAMSys.h"
 #include "TraceSetup.h"
 #include "TrafficInitiator.h"
-#include "LengthConverter.h"
 
 #ifdef RECORDING
 #include "simulation/DRAMSysRecordable.h"
@@ -81,7 +80,7 @@ int sc_main(int argc, char **argv)
         // Get path of resources:
         resources = pathOfFile(argv[0])
                     + std::string("/../../DRAMSys/library/resources/");
-        simulationJson = resources + "simulations/ddr3-example.json";
+        simulationJson = resources + "simulations/ddr5-example.json";
     }
     // Run with specific config but default resource folders:
     else if (argc == 2)
@@ -99,7 +98,6 @@ int sc_main(int argc, char **argv)
     }
 
     std::vector<std::unique_ptr<TrafficInitiator>> players;
-    std::vector<std::unique_ptr<LengthConverter>> lengthConverters;
 
     DRAMSysConfiguration::Configuration configLib = DRAMSysConfiguration::from_path(simulationJson, resources);
 
@@ -121,21 +119,7 @@ int sc_main(int argc, char **argv)
 
     // Bind STL Players with DRAMSys:
     for (auto& player : players)
-    {
-        if (player->addLengthConverter)
-        {
-            std::string converterName("Converter_");
-            lengthConverters.emplace_back(std::make_unique<LengthConverter>(converterName.append(player->name()).c_str(),
-                    dramSys->getConfig().memSpec->maxBytesPerBurst,
-                    dramSys->getConfig().storeMode != Configuration::StoreMode::NoStorage));
-            player->iSocket.bind(lengthConverters.back()->tSocket);
-            lengthConverters.back()->iSocket.bind(dramSys->tSocket);
-        }
-        else
-        {
             player->iSocket.bind(dramSys->tSocket);
-        }
-    }
 
     // Store the starting of the simulation in wallclock time:
     auto start = std::chrono::high_resolution_clock::now();

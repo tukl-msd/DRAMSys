@@ -79,14 +79,6 @@ TraceSetup::TraceSetup(const Configuration& config,
                         return 0;
                 }();
 
-                bool addLengthConverter = [=]() -> bool
-                {
-                    if (const auto &addLengthConverter = initiator.addLengthConverter)
-                        return *addLengthConverter;
-                    else
-                        return false;
-                }();
-
                 using T = std::decay_t<decltype(initiator)>;
                 if constexpr (std::is_same_v<T, DRAMSysConfiguration::TracePlayer>)
                 {
@@ -109,10 +101,10 @@ TraceSetup::TraceSetup(const Configuration& config,
                     StlPlayer *player;
                     if (ext == "stl")
                         player = new StlPlayer(moduleName.c_str(), config, stlFile, playerClk, maxPendingReadRequests,
-                                               maxPendingWriteRequests, addLengthConverter, *this, false);
+                                               maxPendingWriteRequests, *this, false);
                     else if (ext == "rstl")
                         player = new StlPlayer(moduleName.c_str(), config, stlFile, playerClk, maxPendingReadRequests,
-                                               maxPendingWriteRequests, addLengthConverter, *this, true);
+                                               maxPendingWriteRequests, *this, true);
                     else
                         throw std::runtime_error("Unsupported file extension in " + name);
 

@@ -43,7 +43,7 @@
 #define CONFIGURATION_H
 
 #include <string>
-#include <Configuration.h>
+#include <DRAMSysConfiguration.h>
 #include <systemc>
 #include "memspec/MemSpec.h"
 #include "TemperatureSimConfig.h"

@@ -48,8 +48,9 @@
 #include "../error/eccbaseclass.h"
 #include "../controller/ControllerIF.h"
 #include "TemperatureController.h"
+#include "AddressDecoder.h"
 
-#include <Configuration.h>
+#include <DRAMSysConfiguration.h>
 #include <string>
 #include <systemc>
 #include <list>
@@ -94,6 +95,8 @@ protected:
     // DRAM units
     std::vector<std::unique_ptr<Dram>> drams;
 
+    std::unique_ptr<AddressDecoder> addressDecoder;
+
     void report(const std::string &message);
     void bindSockets();
 
@@ -102,7 +105,7 @@ private:
 
     void instantiateModules(const DRAMSysConfiguration::AddressMapping &addressMapping);
 
-    void setupDebugManager(const std::string &traceName);
+    void setupDebugManager(const std::string &traceName) const;
 };
 
 #endif // DRAMSYS_H

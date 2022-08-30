@@ -40,16 +40,24 @@
 #include "../../common/utils.h"
 #include "DramDDR3.h"
 #include "DramDDR4.h"
-#include "DramDDR5.h"
 #include "DramWideIO.h"
 #include "DramLPDDR4.h"
-#include "DramLPDDR5.h"
 #include "DramWideIO2.h"
 #include "DramHBM2.h"
 #include "DramGDDR5.h"
 #include "DramGDDR5X.h"
 #include "DramGDDR6.h"
 #include "DramSTTMRAM.h"
+
+#ifdef DDR5_SIM
+#include "DramDDR5.h"
+#endif
+#ifdef LPDDR5_SIM
+#include "DramLPDDR5.h"
+#endif
+#ifdef HBM3_SIM
+#include "DramHBM3.h"
+#endif
 
 using namespace sc_core;
 using namespace tlm;
@@ -60,62 +68,34 @@ DramRecordable<BaseDram>::DramRecordable(const sc_module_name& name, const Confi
     : BaseDram(name, config, temperatureController), tlmRecorder(tlmRecorder),
     powerWindowSize(config.memSpec->tCK * config.windowSize)
 {
+#ifdef DRAMPOWER
     // Create a thread that is triggered every $powerWindowSize
     // to generate a Power over Time plot in the Trace analyzer:
     if (config.powerAnalysis && config.enableWindowing)
         SC_THREAD(powerWindow);
+#endif
 }
 
 template<class BaseDram>
 void DramRecordable<BaseDram>::reportPower()
 {
     BaseDram::reportPower();
+#ifdef DRAMPOWER
     tlmRecorder.recordPower(sc_time_stamp().to_seconds(),
                              this->DRAMPower->getPower().window_average_power
                              * this->memSpec.devicesPerRank);
+#endif                
 }
 
 template<class BaseDram>
 tlm_sync_enum DramRecordable<BaseDram>::nb_transport_fw(tlm_generic_payload &payload,
                                           tlm_phase &phase, sc_time &delay)
 {
-    recordPhase(payload, phase, delay);
+    tlmRecorder.recordPhase(payload, phase, delay);
     return BaseDram::nb_transport_fw(payload, phase, delay);
 }
 
-template<class BaseDram>
-void DramRecordable<BaseDram>::recordPhase(tlm_generic_payload &trans, const tlm_phase &phase, const sc_time &delay)
-{
-    sc_time recTime = sc_time_stamp() + delay;
-
-    // These are terminating phases recorded by the DRAM. The execution
-    // time of the related command must be taken into consideration.
-    if (phase == END_PDNA || phase == END_PDNP || phase == END_SREF)
-        recTime += this->memSpec.getCommandLength(Command(phase));
-
-    NDEBUG_UNUSED(unsigned thr) = DramExtension::getExtension(trans).getThread().ID();
-    NDEBUG_UNUSED(unsigned ch) = DramExtension::getExtension(trans).getChannel().ID();
-    NDEBUG_UNUSED(unsigned bg) = DramExtension::getExtension(trans).getBankGroup().ID();
-    NDEBUG_UNUSED(unsigned bank) = DramExtension::getExtension(trans).getBank().ID();
-    NDEBUG_UNUSED(unsigned row) = DramExtension::getExtension(trans).getRow().ID();
-    NDEBUG_UNUSED(unsigned col) = DramExtension::getExtension(trans).getColumn().ID();
-
-    PRINTDEBUGMESSAGE(this->name(), "Recording " + getPhaseName(phase) +  " thread " +
-                      std::to_string(thr) + " channel " + std::to_string(ch) + " bank group " + std::to_string(
-                          bg) + " bank " + std::to_string(bank) + " row " + std::to_string(row) + " column " +
-                      std::to_string(col) + " at " + recTime.to_string());
-
-    tlmRecorder.recordPhase(trans, phase, recTime);
-
-    if (phaseNeedsEnd(phase))
-    {
-        recTime += this->memSpec.getExecutionTime(Command(phase), trans);
-        tlmRecorder.recordPhase(trans, getEndPhase(phase), recTime);
-    }
-
-}
-
-
+#ifdef DRAMPOWER
 // This Thread is only triggered when Power Simulation is enabled.
 // It estimates the current average power which will be stored in the trace database for visualization purposes.
 template<class BaseDram>
@@ -150,12 +130,11 @@ void DramRecordable<BaseDram>::powerWindow()
 
     }
 }
+#endif
 
 template class DramRecordable<DramDDR3>;
 template class DramRecordable<DramDDR4>;
-template class DramRecordable<DramDDR5>;
 template class DramRecordable<DramLPDDR4>;
-template class DramRecordable<DramLPDDR5>;
 template class DramRecordable<DramWideIO>;
 template class DramRecordable<DramWideIO2>;
 template class DramRecordable<DramGDDR5>;
@@ -163,3 +142,12 @@ template class DramRecordable<DramGDDR5X>;
 template class DramRecordable<DramGDDR6>;
 template class DramRecordable<DramHBM2>;
 template class DramRecordable<DramSTTMRAM>;
+#ifdef DDR5_SIM
+template class DramRecordable<DramDDR5>;
+#endif
+#ifdef LPDDR5_SIM
+template class DramRecordable<DramLPDDR5>;
+#endif
+#ifdef HBM3_SIM
+template class DramRecordable<DramHBM3>;
+#endif

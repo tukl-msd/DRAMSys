@@ -57,7 +57,7 @@ void BankMachine::updateState(Command command)
     {
     case Command::ACT:
         state = State::Activated;
-        openRow = DramExtension::getRow(currentPayload);
+        openRow = ControllerExtension::getRow(*currentPayload);
         keepTrans = true;
         refreshManagementCounter++;
         break;
@@ -180,7 +180,7 @@ sc_time BankMachineOpen::start()
             assert(!keepTrans || currentPayload != nullptr);
             if (keepTrans)
             {
-                if (DramExtension::getRow(newPayload) == openRow)
+                if (ControllerExtension::getRow(*newPayload) == openRow)
                     currentPayload = newPayload;
             }
             else
@@ -192,7 +192,7 @@ sc_time BankMachineOpen::start()
                 nextCommand = Command::ACT;
             else if (state == State::Activated)
             {
-                if (DramExtension::getRow(currentPayload) == openRow) // row hit
+                if (ControllerExtension::getRow(*currentPayload) == openRow) // row hit
                 {
                     assert(currentPayload->is_read() || currentPayload->is_write());
                     if (currentPayload->is_read())
@@ -232,7 +232,7 @@ sc_time BankMachineClosed::start()
             assert(!keepTrans || currentPayload != nullptr);
             if (keepTrans)
             {
-                if (DramExtension::getRow(newPayload) == openRow)
+                if (ControllerExtension::getRow(*newPayload) == openRow)
                     currentPayload = newPayload;
             }
             else
@@ -279,7 +279,7 @@ sc_time BankMachineOpenAdaptive::start()
             assert(!keepTrans || currentPayload != nullptr);
             if (keepTrans)
             {
-                if (DramExtension::getRow(newPayload) == openRow)
+                if (ControllerExtension::getRow(*newPayload) == openRow)
                     currentPayload = newPayload;
             }
             else
@@ -291,7 +291,7 @@ sc_time BankMachineOpenAdaptive::start()
                 nextCommand = Command::ACT;
             else if (state == State::Activated)
             {
-                if (DramExtension::getRow(currentPayload) == openRow) // row hit
+                if (ControllerExtension::getRow(*currentPayload) == openRow) // row hit
                 {
                     if (scheduler.hasFurtherRequest(bank, currentPayload->get_command())
                         && !scheduler.hasFurtherRowHit(bank, openRow, currentPayload->get_command()))
@@ -343,7 +343,7 @@ sc_time BankMachineClosedAdaptive::start()
             assert(!keepTrans || currentPayload != nullptr);
             if (keepTrans)
             {
-                if (DramExtension::getRow(newPayload) == openRow)
+                if (ControllerExtension::getRow(*newPayload) == openRow)
                     currentPayload = newPayload;
             }
             else
@@ -355,7 +355,7 @@ sc_time BankMachineClosedAdaptive::start()
                 nextCommand = Command::ACT;
             else if (state == State::Activated)
             {
-                if (DramExtension::getRow(currentPayload) == openRow) // row hit
+                if (ControllerExtension::getRow(*currentPayload) == openRow) // row hit
                 {
                     if (scheduler.hasFurtherRowHit(bank, openRow, currentPayload->get_command()))
                     {

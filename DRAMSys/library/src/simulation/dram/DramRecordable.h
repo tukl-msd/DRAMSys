@@ -40,8 +40,11 @@
 #include <tlm>
 #include "../../common/TlmRecorder.h"
 #include "../../configuration/Configuration.h"
-#include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 #include "../TemperatureController.h"
+
+#ifdef DRAMPOWER
+#include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
+#endif
 
 template<class BaseDram>
 class DramRecordable final : public BaseDram
@@ -57,8 +60,6 @@ private:
     tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload &payload,
                                        tlm::tlm_phase &phase, sc_core::sc_time &delay) override;
 
-    void recordPhase(tlm::tlm_generic_payload &trans, const tlm::tlm_phase &phase, const sc_core::sc_time &delay);
-
     TlmRecorder& tlmRecorder;
 
     sc_core::sc_time powerWindowSize;
@@ -71,9 +72,11 @@ private:
         return std::fabs(a - b) < epsilon;
     }
 
+#ifdef DRAMPOWER
     // This Thread is only triggered when Power Simulation is enabled.
     // It estimates the current average power which will be stored in the trace database for visualization purposes.
     void powerWindow();
+#endif
 };
 
 #endif // DRAMRECORDABLE_H

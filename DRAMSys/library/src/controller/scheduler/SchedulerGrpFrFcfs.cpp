@@ -63,9 +63,9 @@ bool SchedulerGrpFrFcfs::hasBufferSpace() const
 void SchedulerGrpFrFcfs::storeRequest(tlm_generic_payload& trans)
 {
     if (trans.is_read())
-        readBuffer[DramExtension::getBank(trans).ID()].push_back(&trans);
+        readBuffer[ControllerExtension::getBank(trans).ID()].push_back(&trans);
     else
-        writeBuffer[DramExtension::getBank(trans).ID()].push_back(&trans);
+        writeBuffer[ControllerExtension::getBank(trans).ID()].push_back(&trans);
     bufferCounter->storeRequest(trans);
 }
 
@@ -73,7 +73,7 @@ void SchedulerGrpFrFcfs::removeRequest(tlm_generic_payload& trans)
 {
     bufferCounter->removeRequest(trans);
     lastCommand = trans.get_command();
-    unsigned bankID = DramExtension::getBank(trans).ID();
+    unsigned bankID = ControllerExtension::getBank(trans).ID();
 
     if (trans.is_read())
         readBuffer[bankID].remove(&trans);
@@ -97,7 +97,7 @@ tlm_generic_payload *SchedulerGrpFrFcfs::getNextRequest(const BankMachine& bankM
                 Row openRow = bankMachine.getOpenRow();
                 for (auto it : readBuffer[bankID])
                 {
-                    if (DramExtension::getRow(it) == openRow)
+                    if (ControllerExtension::getRow(*it) == openRow)
                         return it;
                 }
             }
@@ -112,7 +112,7 @@ tlm_generic_payload *SchedulerGrpFrFcfs::getNextRequest(const BankMachine& bankM
                 Row openRow = bankMachine.getOpenRow();
                 for (auto it : writeBuffer[bankID])
                 {
-                    if (DramExtension::getRow(it) == openRow)
+                    if (ControllerExtension::getRow(*it) == openRow)
                         return it;
                 }
             }
@@ -132,7 +132,7 @@ tlm_generic_payload *SchedulerGrpFrFcfs::getNextRequest(const BankMachine& bankM
                 Row openRow = bankMachine.getOpenRow();
                 for (auto it : writeBuffer[bankID])
                 {
-                    if (DramExtension::getRow(it) == openRow)
+                    if (ControllerExtension::getRow(*it) == openRow)
                         return it;
                 }
             }
@@ -147,7 +147,7 @@ tlm_generic_payload *SchedulerGrpFrFcfs::getNextRequest(const BankMachine& bankM
                 Row openRow = bankMachine.getOpenRow();
                 for (auto it : readBuffer[bankID])
                 {
-                    if (DramExtension::getRow(it) == openRow)
+                    if (ControllerExtension::getRow(*it) == openRow)
                         return it;
                 }
             }
@@ -167,7 +167,7 @@ bool SchedulerGrpFrFcfs::hasFurtherRowHit(Bank bank, Row row, tlm_command comman
     {
         for (auto it : readBuffer[bank.ID()])
         {
-            if (DramExtension::getRow(it) == row)
+            if (ControllerExtension::getRow(*it) == row)
             {
                 rowHitCounter++;
                 if (rowHitCounter == 2)
@@ -180,7 +180,7 @@ bool SchedulerGrpFrFcfs::hasFurtherRowHit(Bank bank, Row row, tlm_command comman
     {
         for (auto it : writeBuffer[bank.ID()])
         {
-            if (DramExtension::getRow(it) == row)
+            if (ControllerExtension::getRow(*it) == row)
             {
                 rowHitCounter++;
                 if (rowHitCounter == 2)

@@ -40,7 +40,7 @@ using namespace tlm;
 
 void RespQueueReorder::insertPayload(tlm_generic_payload *payload, sc_time strobeEnd)
 {
-    buffer[DramExtension::getChannelPayloadID(payload)] = {payload, strobeEnd};
+    buffer[ControllerExtension::getChannelPayloadID(*payload)] = {payload, strobeEnd};
 }
 
 tlm_generic_payload *RespQueueReorder::nextPayload()

@@ -59,13 +59,13 @@ bool SchedulerFifo::hasBufferSpace() const
 
 void SchedulerFifo::storeRequest(tlm_generic_payload& payload)
 {
-    buffer[DramExtension::getBank(payload).ID()].push_back(&payload);
+    buffer[ControllerExtension::getBank(payload).ID()].push_back(&payload);
     bufferCounter->storeRequest(payload);
 }
 
 void SchedulerFifo::removeRequest(tlm_generic_payload& payload)
 {
-    buffer[DramExtension::getBank(payload).ID()].pop_front();
+    buffer[ControllerExtension::getBank(payload).ID()].pop_front();
     bufferCounter->removeRequest(payload);
 }
 
@@ -82,8 +82,8 @@ bool SchedulerFifo::hasFurtherRowHit(Bank bank, Row row, tlm_command command) co
 {
     if (buffer[bank.ID()].size() >= 2)
     {
-        tlm_generic_payload *nextRequest = buffer[bank.ID()][1];
-        if (DramExtension::getRow(nextRequest) == row)
+        tlm_generic_payload& nextRequest = *buffer[bank.ID()][1];
+        if (ControllerExtension::getRow(nextRequest) == row)
             return true;
     }
     return false;

@@ -34,7 +34,7 @@
  */
 
 #include "McConfig.h"
-#include <iostream>
+
 namespace DRAMSysConfiguration
 {
 
@@ -54,7 +54,7 @@ void to_json(json &j, const McConfig &c)
              {"PowerDownPolicy", c.powerDownPolicy},
              {"Arbiter", c.arbiter},
              {"MaxActiveTransactions", c.maxActiveTransactions},
-             {"RefreshManagment", c.refreshManagement},
+             {"RefreshManagement", c.refreshManagement},
              {"ArbitrationDelayFw", c.arbitrationDelayFw},
              {"ArbitrationDelayBw", c.arbitrationDelayBw},
              {"ThinkDelayFw", c.thinkDelayFw},
@@ -111,8 +111,8 @@ void from_json(const json &j, McConfig &c)
     if (j_mcconfig.contains("MaxActiveTransactions"))
         j_mcconfig.at("MaxActiveTransactions").get_to(c.maxActiveTransactions);
 
-    if (j_mcconfig.contains("RefreshManagment"))
-        j_mcconfig.at("RefreshManagment").get_to(c.refreshManagement);
+    if (j_mcconfig.contains("RefreshManagement"))
+        j_mcconfig.at("RefreshManagement").get_to(c.refreshManagement);
 
     if (j_mcconfig.contains("ArbitrationDelayFw"))
         j_mcconfig.at("ArbitrationDelayFw").get_to(c.arbitrationDelayFw);

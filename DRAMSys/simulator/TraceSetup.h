@@ -37,7 +37,7 @@
 #ifndef TRACESETUP_H
 #define TRACESETUP_H
 
-#include <Configuration.h>
+#include <DRAMSysConfiguration.h>
 #include <vector>
 #include <string>
 #include <memory>

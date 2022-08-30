@@ -80,7 +80,6 @@ void setUpDummy(tlm_generic_payload &payload, uint64_t channelPayloadID, Rank ra
     payload.set_dmi_allowed(false);
     payload.set_byte_enable_length(0);
     payload.set_streaming_width(0);
-    payload.set_extension(new DramExtension(Thread(UINT_MAX), Channel(0), rank,
-                                            bankGroup, bank, Row(0), Column(0), 0, 0, channelPayloadID));
-    payload.set_extension(new GenerationExtension(SC_ZERO_TIME));
+    ControllerExtension::setExtension(payload, channelPayloadID, rank, bankGroup, bank, Row(0), Column(0), 0);
+    ArbiterExtension::setExtension(payload, Thread(UINT_MAX), Channel(0), 0, SC_ZERO_TIME);
 }

@@ -43,7 +43,10 @@
 
 #include <systemc>
 #include <tlm>
+
+#ifdef DRAMPOWER
 #include "../common/third_party/DRAMPower/src/MemCommand.h"
+#endif
 
 // DO NOT CHANGE THE ORDER!
 
@@ -69,6 +72,7 @@ DECLARE_EXTENDED_PHASE(BEGIN_RFMSB);  // 18
 DECLARE_EXTENDED_PHASE(BEGIN_PREAB);  // 19
 DECLARE_EXTENDED_PHASE(BEGIN_REFAB);  // 20
 DECLARE_EXTENDED_PHASE(BEGIN_RFMAB);  // 21
+
 DECLARE_EXTENDED_PHASE(BEGIN_PDNA);   // 22
 DECLARE_EXTENDED_PHASE(BEGIN_PDNP);   // 23
 DECLARE_EXTENDED_PHASE(BEGIN_SREF);   // 24
@@ -77,23 +81,14 @@ DECLARE_EXTENDED_PHASE(END_PDNA);     // 25
 DECLARE_EXTENDED_PHASE(END_PDNP);     // 26
 DECLARE_EXTENDED_PHASE(END_SREF);     // 27
 
-DECLARE_EXTENDED_PHASE(END_NOP);      // 28
-DECLARE_EXTENDED_PHASE(END_RD);       // 29
-DECLARE_EXTENDED_PHASE(END_WR);       // 30
-DECLARE_EXTENDED_PHASE(END_RDA);      // 31
-DECLARE_EXTENDED_PHASE(END_WRA);      // 32
-DECLARE_EXTENDED_PHASE(END_ACT);      // 33
-DECLARE_EXTENDED_PHASE(END_PREPB);    // 34
-DECLARE_EXTENDED_PHASE(END_REFPB);    // 35
-DECLARE_EXTENDED_PHASE(END_RFMPB);    // 36
-DECLARE_EXTENDED_PHASE(END_REFP2B);   // 37
-DECLARE_EXTENDED_PHASE(END_RFMP2B);   // 38
-DECLARE_EXTENDED_PHASE(END_PRESB);    // 39
-DECLARE_EXTENDED_PHASE(END_REFSB);    // 40
-DECLARE_EXTENDED_PHASE(END_RFMSB);    // 41
-DECLARE_EXTENDED_PHASE(END_PREAB);    // 42
-DECLARE_EXTENDED_PHASE(END_REFAB);    // 43
-DECLARE_EXTENDED_PHASE(END_RFMAB);    // 44
+#ifdef DRAMPOWER
+DRAMPower::MemCommand::cmds phaseToDRAMPowerCommand(tlm::tlm_phase);
+#endif
+bool phaseHasDataStrobe(tlm::tlm_phase phase);
+bool isPowerDownEntryPhase(tlm::tlm_phase phase);
+bool isPowerDownExitPhase(tlm::tlm_phase phase);
+bool isFixedCommandPhase(tlm::tlm_phase phase);
+bool isRefreshCommandPhase(tlm::tlm_phase phase);
 
 class Command
 {
@@ -149,10 +144,6 @@ public:
         return type;
     }
 };
-
-DRAMPower::MemCommand::cmds phaseToDRAMPowerCommand(tlm::tlm_phase);
-bool phaseNeedsEnd(tlm::tlm_phase);
-tlm::tlm_phase getEndPhase(tlm::tlm_phase);
 
 struct CommandTuple
 {

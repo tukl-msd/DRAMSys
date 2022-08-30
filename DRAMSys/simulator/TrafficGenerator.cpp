@@ -47,9 +47,8 @@ using namespace tlm;
 TrafficGeneratorIf::TrafficGeneratorIf(const sc_core::sc_module_name& name, const Configuration& config,
                                        TraceSetup& setup,
                                        unsigned int maxPendingReadRequests, unsigned int maxPendingWriteRequests,
-                                       unsigned int dataLength, bool addLengthConverter)
-    : TrafficInitiator(name, config, setup, maxPendingReadRequests, maxPendingWriteRequests, dataLength,
-                       addLengthConverter)
+                                       unsigned int dataLength)
+    : TrafficInitiator(name, config, setup, maxPendingReadRequests, maxPendingWriteRequests, dataLength)
 {
 }
 
@@ -99,8 +98,7 @@ TrafficGenerator::TrafficGenerator(const sc_module_name& name, const Configurati
                                    const DRAMSysConfiguration::TraceGenerator& conf, TraceSetup& setup)
     : TrafficGeneratorIf(name, config, setup, conf.maxPendingReadRequests.value_or(defaultMaxPendingReadRequests),
                          conf.maxPendingWriteRequests.value_or(defaultMaxPendingWriteRequests),
-                         conf.dataLength.value_or(config.memSpec->defaultBytesPerBurst),
-                         conf.addLengthConverter.value_or(false)),
+                         conf.dataLength.value_or(config.memSpec->defaultBytesPerBurst)),
       generatorClk(TrafficInitiator::evaluateGeneratorClk(conf)), conf(conf),
       maxTransactions(conf.maxTransactions.value_or(std::numeric_limits<uint64_t>::max())),
       simMemSizeInBytes(config.memSpec->getSimMemSizeInBytes()),
@@ -381,7 +379,7 @@ uint64_t TrafficGenerator::evaluateMaxAddress(const DRAMSysConfiguration::TraceG
 
 TrafficGeneratorHammer::TrafficGeneratorHammer(const sc_core::sc_module_name &name, const Configuration& config,
                                                const DRAMSysConfiguration::TraceHammer &conf, TraceSetup& setup)
-    : TrafficGeneratorIf(name, config, setup, 1, 1, config.memSpec->defaultBytesPerBurst, false),
+    : TrafficGeneratorIf(name, config, setup, 1, 1, config.memSpec->defaultBytesPerBurst),
       generatorClk(evaluateGeneratorClk(conf)), rowIncrement(conf.rowIncrement), numRequests(conf.numRequests)
 {
 }

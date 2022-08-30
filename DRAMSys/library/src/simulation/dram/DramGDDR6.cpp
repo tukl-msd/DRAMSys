@@ -35,7 +35,6 @@
 
 #include "DramGDDR6.h"
 #include "../../configuration/Configuration.h"
-#include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 #include "../../configuration/memspec/MemSpecGDDR6.h"
 
 using namespace sc_core;

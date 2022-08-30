@@ -64,12 +64,12 @@ public:
 
 protected:
     Arbiter(const sc_core::sc_module_name &name, const Configuration& config,
-            const DRAMSysConfiguration::AddressMapping &addressMapping);
+            const AddressDecoder& addressDecoder);
     SC_HAS_PROCESS(Arbiter);
 
     void end_of_elaboration() override;
 
-    AddressDecoder addressDecoder;
+    const AddressDecoder& addressDecoder;
 
     tlm_utils::peq_with_cb_and_phase<Arbiter> payloadEventQueue;
     virtual void peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase) = 0;
@@ -100,7 +100,7 @@ class ArbiterSimple final : public Arbiter
 {
 public:
     ArbiterSimple(const sc_core::sc_module_name &name, const Configuration& config,
-                  const DRAMSysConfiguration::AddressMapping &addressMapping);
+                  const AddressDecoder& addressDecoder);
     SC_HAS_PROCESS(ArbiterSimple);
 
 private:
@@ -114,7 +114,7 @@ class ArbiterFifo final : public Arbiter
 {
 public:
     ArbiterFifo(const sc_core::sc_module_name &name, const Configuration& config,
-                const DRAMSysConfiguration::AddressMapping &addressMapping);
+                const AddressDecoder& addressDecoder);
     SC_HAS_PROCESS(ArbiterFifo);
 
 private:
@@ -135,7 +135,7 @@ class ArbiterReorder final : public Arbiter
 {
 public:
     ArbiterReorder(const sc_core::sc_module_name &name, const Configuration& config,
-                   const DRAMSysConfiguration::AddressMapping &addressMapping);
+                   const AddressDecoder& addressDecoder);
     SC_HAS_PROCESS(ArbiterReorder);
 
 private:
@@ -149,7 +149,7 @@ private:
     {
         bool operator() (const tlm::tlm_generic_payload *lhs, const tlm::tlm_generic_payload *rhs) const
         {
-            return DramExtension::getThreadPayloadID(lhs) < DramExtension::getThreadPayloadID(rhs);
+            return ArbiterExtension::getThreadPayloadID(*lhs) < ArbiterExtension::getThreadPayloadID(*rhs);
         }
     };
 

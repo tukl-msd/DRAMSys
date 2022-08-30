@@ -37,11 +37,14 @@
 
 #include <memory>
 #include "../../configuration/Configuration.h"
-#include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 #include "../../configuration/memspec/MemSpecDDR3.h"
 
-using namespace sc_core;
+#ifdef DRAMPOWER
+#include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 using namespace DRAMPower;
+#endif
+
+using namespace sc_core;
 
 DramDDR3::DramDDR3(const sc_module_name& name, const Configuration& config,
                    TemperatureController& temperatureController)
@@ -56,6 +59,7 @@ DramDDR3::DramDDR3(const sc_module_name& name, const Configuration& config,
         if (memSpecDDR3 == nullptr)
             SC_REPORT_FATAL("DramDDR3", "Wrong MemSpec chosen");
 
+#ifdef DRAMPOWER
         MemArchitectureSpec memArchSpec;
         memArchSpec.burstLength       = memSpecDDR3->defaultBurstLength;
         memArchSpec.dataRate          = memSpecDDR3->dataRate;
@@ -143,5 +147,6 @@ DramDDR3::DramDDR3(const sc_module_name& name, const Configuration& config,
         powerSpec.memArchSpec   = memArchSpec;
 
         DRAMPower = std::make_unique<libDRAMPower>(powerSpec, false);
+#endif
     }
 }

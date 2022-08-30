@@ -39,10 +39,8 @@
 
 #include "checker/CheckerDDR3.h"
 #include "checker/CheckerDDR4.h"
-#include "checker/CheckerDDR5.h"
 #include "checker/CheckerWideIO.h"
 #include "checker/CheckerLPDDR4.h"
-#include "checker/CheckerLPDDR5.h"
 #include "checker/CheckerWideIO2.h"
 #include "checker/CheckerHBM2.h"
 #include "checker/CheckerGDDR5.h"
@@ -66,12 +64,25 @@
 #include "powerdown/PowerDownManagerStaggered.h"
 #include "powerdown/PowerDownManagerDummy.h"
 
+#ifdef DDR5_SIM
+#include "checker/CheckerDDR5.h"
+#endif
+#ifdef LPDDR5_SIM
+#include "checker/CheckerLPDDR5.h"
+#endif
+#ifdef HBM3_SIM
+#include "checker/CheckerHBM3.h"
+#endif
+
 using namespace sc_core;
 using namespace tlm;
 
-Controller::Controller(const sc_module_name& name, const Configuration& config) :
-    ControllerIF(name, config), thinkDelayFw(config.thinkDelayFw), thinkDelayBw(config.thinkDelayBw),
-    phyDelayFw(config.phyDelayFw), phyDelayBw(config.phyDelayBw)
+Controller::Controller(const sc_module_name& name, const Configuration& config, const AddressDecoder& addressDecoder) :
+    ControllerIF(name, config), addressDecoder(addressDecoder),
+    thinkDelayFw(config.thinkDelayFw), thinkDelayBw(config.thinkDelayBw),
+    phyDelayFw(config.phyDelayFw), phyDelayBw(config.phyDelayBw),
+    minBytesPerBurst(config.memSpec->defaultBytesPerBurst),
+    maxBytesPerBurst(config.memSpec->maxBytesPerBurst)
 {
     SC_METHOD(controllerMethod);
     sensitive << beginReqEvent << endRespEvent << controllerEvent << dataResponseEvent;
@@ -86,14 +97,10 @@ Controller::Controller(const sc_module_name& name, const Configuration& config) 
         checker = std::make_unique<CheckerDDR3>(config);
     else if (memSpec.memoryType == MemSpec::MemoryType::DDR4)
         checker = std::make_unique<CheckerDDR4>(config);
-    else if (memSpec.memoryType == MemSpec::MemoryType::DDR5)
-        checker = std::make_unique<CheckerDDR5>(config);
     else if (memSpec.memoryType == MemSpec::MemoryType::WideIO)
         checker = std::make_unique<CheckerWideIO>(config);
     else if (memSpec.memoryType == MemSpec::MemoryType::LPDDR4)
         checker = std::make_unique<CheckerLPDDR4>(config);
-    else if (memSpec.memoryType == MemSpec::MemoryType::LPDDR5)
-        checker = std::make_unique<CheckerLPDDR5>(config);
     else if (memSpec.memoryType == MemSpec::MemoryType::WideIO2)
         checker = std::make_unique<CheckerWideIO2>(config);
     else if (memSpec.memoryType == MemSpec::MemoryType::HBM2)
@@ -106,6 +113,19 @@ Controller::Controller(const sc_module_name& name, const Configuration& config) 
         checker = std::make_unique<CheckerGDDR6>(config);
     else if (memSpec.memoryType == MemSpec::MemoryType::STTMRAM)
         checker = std::make_unique<CheckerSTTMRAM>(config);
+#ifdef DDR5_SIM
+    else if (memSpec.memoryType == MemSpec::MemoryType::DDR5)
+        checker = std::make_unique<CheckerDDR5>(config);
+#endif
+#ifdef LPDDR5_SIM
+    else if (memSpec.memoryType == MemSpec::MemoryType::LPDDR5)
+        checker = std::make_unique<CheckerLPDDR5>(config);
+#endif
+#ifdef HBM3_SIM
+    else if (memSpec.memoryType == MemSpec::MemoryType::HBM3)
+        checker = std::make_unique<CheckerHBM3>(config);
+#endif
+
 
     // instantiate scheduler and command mux
     if (config.scheduler == Configuration::Scheduler::Fifo)
@@ -234,11 +254,14 @@ Controller::Controller(const sc_module_name& name, const Configuration& config) 
 
 void Controller::controllerMethod()
 {
-    // (1) Finish last response (END_RESP) and start new response (BEGIN_RESP)
-    manageResponses();
+    if (isFullCycle(sc_time_stamp()))
+    {
+        // (1) Finish last response (END_RESP) and start new response (BEGIN_RESP)
+        manageResponses();
 
-    // (2) Insert new request into scheduler and send END_REQ or use backpressure
-    manageRequests(SC_ZERO_TIME);
+        // (2) Insert new request into scheduler and send END_REQ or use backpressure
+        manageRequests(SC_ZERO_TIME);
+    }
 
     // (3) Start refresh and power-down managers to issue requests for the current time
     for (auto& it : refreshManagers)
@@ -283,8 +306,8 @@ void Controller::controllerMethod()
         tlm_generic_payload *payload = std::get<CommandTuple::Payload>(commandTuple);
         if (command != Command::NOP) // can happen with FIFO strict
         {
-            Rank rank = DramExtension::getRank(payload);
-            Bank bank = DramExtension::getBank(payload);
+            Rank rank = ControllerExtension::getRank(*payload);
+            Bank bank = ControllerExtension::getBank(*payload);
 
             if (command.isRankCommand())
             {
@@ -328,7 +351,8 @@ void Controller::controllerMethod()
                 powerDownManagers[rank.ID()]->triggerEntry();
 
             sc_time fwDelay = thinkDelayFw + phyDelayFw;
-            sendToDram(command, *payload, fwDelay);
+            tlm_phase phase = command.toPhase();
+            iSocket->nb_transport_fw(*payload, phase, fwDelay);
         }
         else
             readyCmdBlocked = true;
@@ -399,26 +423,58 @@ void Controller::manageRequests(const sc_time &delay)
 {
     if (transToAcquire.payload != nullptr && transToAcquire.time <= sc_time_stamp())
     {
+        // TODO: here we assume that the scheduler always has space not only for a single burst transaction
+        //  but for a maximum size transaction
         if (scheduler->hasBufferSpace())
         {
-            NDEBUG_UNUSED(uint64_t id) = DramExtension::getChannelPayloadID(transToAcquire.payload);
-            PRINTDEBUGMESSAGE(name(), "Payload " + std::to_string(id) + " entered system.");
-
             if (totalNumberOfPayloads == 0)
                 idleTimeCollector.end();
-            totalNumberOfPayloads++;
+            totalNumberOfPayloads++;  // seems to be ok
 
-            Rank rank = DramExtension::getRank(transToAcquire.payload);
-            if (ranksNumberOfPayloads[rank.ID()] == 0)
-                powerDownManagers[rank.ID()]->triggerExit();
-
-            ranksNumberOfPayloads[rank.ID()]++;
-
-            scheduler->storeRequest(*transToAcquire.payload);
             transToAcquire.payload->acquire();
 
-            Bank bank = DramExtension::getBank(transToAcquire.payload);
-            bankMachines[bank.ID()]->start();
+            // Align address to minimum burst length
+            uint64_t alignedAddress = transToAcquire.payload->get_address() & ~(minBytesPerBurst - UINT64_C(1));
+            transToAcquire.payload->set_address(alignedAddress);
+
+            // continuous block of data that can be fetched with a single burst
+            if ((alignedAddress / maxBytesPerBurst)
+                    == ((alignedAddress + transToAcquire.payload->get_data_length() - 1) / maxBytesPerBurst))
+            {
+                DecodedAddress decodedAddress = addressDecoder.decodeAddress(transToAcquire.payload->get_address());
+                ControllerExtension::setAutoExtension(*transToAcquire.payload, nextChannelPayloadIDToAppend++,
+                                                      Rank(decodedAddress.rank), BankGroup(decodedAddress.bankgroup),
+                                                      Bank(decodedAddress.bank), Row(decodedAddress.row),
+                                                      Column(decodedAddress.column),
+                                                      transToAcquire.payload->get_data_length() / memSpec.bytesPerBeat);
+
+                Rank rank = Rank(decodedAddress.rank);
+                if (ranksNumberOfPayloads[rank.ID()] == 0)
+                    powerDownManagers[rank.ID()]->triggerExit();
+                ranksNumberOfPayloads[rank.ID()]++;
+
+                scheduler->storeRequest(*transToAcquire.payload);
+                Bank bank = Bank(decodedAddress.bank);
+                bankMachines[bank.ID()]->start();
+            }
+            else
+            {
+                createChildTranses(*transToAcquire.payload);
+                const std::vector<tlm_generic_payload*>& childTranses =
+                        transToAcquire.payload->get_extension<ParentExtension>()->getChildTranses();
+                for (auto* childTrans : childTranses)
+                {
+                    Rank rank = ControllerExtension::getRank(*childTrans);
+                    if (ranksNumberOfPayloads[rank.ID()] == 0)
+                        powerDownManagers[rank.ID()]->triggerExit();
+                    ranksNumberOfPayloads[rank.ID()]++;
+
+                    scheduler->storeRequest(*childTrans);
+                    Bank bank = ControllerExtension::getBank(*childTrans);
+                    bankMachines[bank.ID()]->start();
+                }
+                nextChannelPayloadIDToAppend++;
+            }
 
             transToAcquire.payload->set_response_status(TLM_OK_RESPONSE);
             tlm_phase bwPhase = END_REQ;
@@ -438,12 +494,8 @@ void Controller::manageResponses()
     if (transToRelease.payload != nullptr)
     {
         assert(transToRelease.time >= sc_time_stamp());
-        if (transToRelease.time == sc_time_stamp())
+        if (transToRelease.time == sc_time_stamp()) // END_RESP completed
         {
-            NDEBUG_UNUSED(uint64_t id) = DramExtension::getChannelPayloadID(transToRelease.payload);
-            PRINTDEBUGMESSAGE(name(), "Payload " + std::to_string(id) + " left system.");
-
-            numberOfBeatsServed += DramExtension::getBurstLength(transToRelease.payload);
             transToRelease.payload->release();
             transToRelease.payload = nullptr;
             totalNumberOfPayloads--;
@@ -452,33 +504,41 @@ void Controller::manageResponses()
             {
                 idleTimeCollector.start();
             }
+        }
+        else
+            return; // END_RESP not completed
+    }
+
+    tlm_generic_payload* nextPayloadInRespQueue = respQueue->nextPayload();
+    if (nextPayloadInRespQueue != nullptr)
+    {
+        numberOfBeatsServed += ControllerExtension::getBurstLength(*nextPayloadInRespQueue);
+        if (ChildExtension::isChildTrans(*nextPayloadInRespQueue))
+        {
+            tlm_generic_payload& parentTrans = ChildExtension::getParentTrans(*nextPayloadInRespQueue);
+            if (ParentExtension::notifyChildTransCompletion(parentTrans))
+            {
+                transToRelease.payload = &parentTrans;
+                tlm_phase bwPhase = BEGIN_RESP;
+                sc_time bwDelay;
+                if (transToRelease.time == sc_time_stamp()) // last payload was released in this cycle
+                    bwDelay = memSpec.tCK;
+                else
+                    bwDelay = SC_ZERO_TIME;
+
+                sendToFrontend(*transToRelease.payload, bwPhase, bwDelay);
+                transToRelease.time = sc_max_time();
+            }
             else
             {
-                transToRelease.payload = respQueue->nextPayload();
-
-                if (transToRelease.payload != nullptr)
-                {
-                    // last payload was released in this cycle
-                    tlm_phase bwPhase = BEGIN_RESP;
-                    sc_time bwDelay = memSpec.tCK;
-                    sendToFrontend(*transToRelease.payload, bwPhase, bwDelay);
-                    transToRelease.time = sc_max_time();
-                }
-                else
-                {
-                    sc_time triggerTime = respQueue->getTriggerTime();
-                    if (triggerTime != sc_max_time())
-                        dataResponseEvent.notify(triggerTime - sc_time_stamp());
-                }
+                sc_time triggerTime = respQueue->getTriggerTime();
+                if (triggerTime != sc_max_time())
+                    dataResponseEvent.notify(triggerTime - sc_time_stamp());
             }
         }
-    }
-    else
-    {
-        transToRelease.payload = respQueue->nextPayload();
-
-        if (transToRelease.payload != nullptr)
+        else
         {
+            transToRelease.payload = nextPayloadInRespQueue;
             tlm_phase bwPhase = BEGIN_RESP;
             sc_time bwDelay;
             if (transToRelease.time == sc_time_stamp()) // last payload was released in this cycle
@@ -489,12 +549,12 @@ void Controller::manageResponses()
             sendToFrontend(*transToRelease.payload, bwPhase, bwDelay);
             transToRelease.time = sc_max_time();
         }
-        else
-        {
-            sc_time triggerTime = respQueue->getTriggerTime();
-            if (triggerTime != sc_max_time())
-                dataResponseEvent.notify(triggerTime - sc_time_stamp());
-        }
+    }
+    else
+    {
+        sc_time triggerTime = respQueue->getTriggerTime();
+        if (triggerTime != sc_max_time())
+            dataResponseEvent.notify(triggerTime - sc_time_stamp());
     }
 }
 
@@ -503,8 +563,88 @@ void Controller::sendToFrontend(tlm_generic_payload& payload, tlm_phase& phase, 
     tSocket->nb_transport_bw(payload, phase, delay);
 }
 
-void Controller::sendToDram(Command command, tlm_generic_payload& payload, sc_time& delay)
+Controller::MemoryManager::~MemoryManager()
 {
-    tlm_phase phase = command.toPhase();
-    iSocket->nb_transport_fw(payload, phase, delay);
+    while (!freePayloads.empty())
+    {
+        tlm_generic_payload* payload = freePayloads.top();
+        freePayloads.pop();
+        payload->reset();
+        delete payload;
+    }
+
+}
+
+tlm::tlm_generic_payload& Controller::MemoryManager::allocate()
+{
+    if (freePayloads.empty())
+    {
+        return *new tlm_generic_payload(this);
+    }
+    else
+    {
+        tlm_generic_payload* result = freePayloads.top();
+        freePayloads.pop();
+        return *result;
+    }
+}
+
+void Controller::MemoryManager::free(tlm::tlm_generic_payload* payload)
+{
+    freePayloads.push(payload);
+}
+
+void Controller::createChildTranses(tlm::tlm_generic_payload& parentTrans)
+{
+    std::vector<tlm_generic_payload*> childTranses;
+
+    uint64_t startAddress = parentTrans.get_address() & ~(maxBytesPerBurst - UINT64_C(1));
+    unsigned char* startDataPtr = parentTrans.get_data_ptr();
+    unsigned numChildTranses = parentTrans.get_data_length() / maxBytesPerBurst;
+
+    for (unsigned childId = 0; childId < numChildTranses; childId++)
+    {
+        tlm_generic_payload& childTrans = memoryManager.allocate();
+        childTrans.acquire();
+        childTrans.set_command(parentTrans.get_command());
+        childTrans.set_address(startAddress + childId * maxBytesPerBurst);
+        childTrans.set_data_length(maxBytesPerBurst);
+        childTrans.set_data_ptr(startDataPtr + childId * maxBytesPerBurst);
+        ChildExtension::setExtension(childTrans, parentTrans);
+        childTranses.push_back(&childTrans);
+    }
+
+    if (startAddress != parentTrans.get_address())
+    {
+        tlm_generic_payload& firstChildTrans = *childTranses.front();
+        firstChildTrans.set_address(firstChildTrans.get_address() + minBytesPerBurst);
+        firstChildTrans.set_data_ptr(firstChildTrans.get_data_ptr() + minBytesPerBurst);
+        firstChildTrans.set_data_length(minBytesPerBurst);
+        tlm_generic_payload& lastChildTrans = memoryManager.allocate();
+        lastChildTrans.acquire();
+        lastChildTrans.set_command(parentTrans.get_command());
+        lastChildTrans.set_address(startAddress + numChildTranses * maxBytesPerBurst);
+        lastChildTrans.set_data_length(minBytesPerBurst);
+        lastChildTrans.set_data_ptr(startDataPtr + numChildTranses * maxBytesPerBurst);
+        ChildExtension::setExtension(lastChildTrans, parentTrans);
+        childTranses.push_back(&lastChildTrans);
+    }
+
+    for (auto* childTrans : childTranses)
+    {
+        DecodedAddress decodedAddress = addressDecoder.decodeAddress(childTrans->get_address());
+        ControllerExtension::setAutoExtension(*childTrans, nextChannelPayloadIDToAppend,
+                                              Rank(decodedAddress.rank), BankGroup(decodedAddress.bankgroup),
+                                              Bank(decodedAddress.bank), Row(decodedAddress.row),
+                                              Column(decodedAddress.column),
+                                              childTrans->get_data_length() / memSpec.bytesPerBeat);
+    }
+    nextChannelPayloadIDToAppend++;
+    ParentExtension::setExtension(parentTrans, std::move(childTranses));
+}
+
+bool Controller::isFullCycle(const sc_core::sc_time& time) const
+{
+    sc_time alignedAtHalfCycle = std::floor((time * 2 / memSpec.tCK + 0.5)) / 2 * memSpec.tCK;
+    return sc_time::from_value(alignedAtHalfCycle.value() % memSpec.tCK.value()) == SC_ZERO_TIME;
 }

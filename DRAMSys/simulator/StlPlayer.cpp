@@ -45,9 +45,9 @@ using namespace tlm;
 
 StlPlayer::StlPlayer(const sc_module_name &name, const Configuration& config, const std::string &pathToTrace,
                      const sc_time &playerClk, unsigned int maxPendingReadRequests, unsigned int maxPendingWriteRequests,
-                     bool addLengthConverter, TraceSetup& setup, bool relative) :
+                     TraceSetup& setup, bool relative) :
     TrafficInitiator(name, config, setup, maxPendingReadRequests, maxPendingWriteRequests,
-                     config.memSpec->defaultBytesPerBurst, addLengthConverter),
+                     config.memSpec->defaultBytesPerBurst),
     file(pathToTrace), relative(relative), playerClk(playerClk)
 {
     currentBuffer = &lineContents[0];

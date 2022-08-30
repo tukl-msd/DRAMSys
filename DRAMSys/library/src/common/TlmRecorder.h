@@ -42,16 +42,19 @@
 #define TLMRECORDER_H
 
 #include <string>
-#include <unordered_map>
-#include <vector>
-#include <thread>
-
 #include <systemc>
+#include <thread>
 #include <tlm>
-#include "sqlite3.h"
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+#include "../configuration/Configuration.h"
 #include "dramExtensions.h"
 #include "utils.h"
-#include "../configuration/Configuration.h"
+
+class sqlite3;
+class sqlite3_stmt;
 
 class TlmRecorder
 {
@@ -75,37 +78,52 @@ public:
         traces = std::move(_traces);
     }
 
-    void recordPhase(tlm::tlm_generic_payload &trans, const tlm::tlm_phase &phase, const sc_core::sc_time &time);
+    void recordPhase(tlm::tlm_generic_payload& trans, const tlm::tlm_phase& phase, const sc_core::sc_time& delay);
     void recordPower(double timeInSeconds, double averagePower);
     void recordBufferDepth(double timeInSeconds, const std::vector<double> &averageBufferDepth);
     void recordBandwidth(double timeInSeconds, double averageBandwidth);
     void recordDebugMessage(const std::string &message, const sc_core::sc_time &time);
-    void updateDataStrobe(const sc_core::sc_time &begin, const sc_core::sc_time &end,
-                          tlm::tlm_generic_payload &trans);
     void finalize();
 
 private:
     const Configuration& config;
+    const MemSpec& memSpec;
 
     struct Transaction
     {
-        Transaction() = default;
-        explicit Transaction(uint64_t id) : id(id) {}
+        Transaction(const Transaction& other) = default;
+        Transaction(uint64_t id, uint64_t address, unsigned int dataLength, char cmd,
+                    const sc_core::sc_time& timeOfGeneration, Thread thread, Channel channel) :
+                id(id), address(address), dataLength(dataLength), cmd(cmd), timeOfGeneration(timeOfGeneration),
+                thread(thread), channel(channel) {}
 
         uint64_t id = 0;
         uint64_t address = 0;
-        unsigned int burstLength = 0;
+        unsigned int dataLength = 0;
         char cmd = 'X';
-        DramExtension dramExtension;
         sc_core::sc_time timeOfGeneration;
-        TimeInterval timeOnDataStrobe;
+        Thread thread;
+        Channel channel;
 
         struct Phase
         {
-            Phase(std::string name, const sc_core::sc_time& begin): name(std::move(name)),
+            // for BEGIN_REQ and BEGIN_RESP
+            Phase(std::string name, const sc_core::sc_time& begin) : name(std::move(name)),
                     interval(begin, sc_core::SC_ZERO_TIME) {}
+            Phase(std::string name, TimeInterval interval, TimeInterval intervalOnDataStrobe, Rank rank,
+                  BankGroup bankGroup, Bank bank, Row row, Column column, unsigned int burstLength) :
+                  name(std::move(name)), interval(std::move(interval)),
+                  intervalOnDataStrobe(std::move(intervalOnDataStrobe)), rank(rank), bankGroup(bankGroup), bank(bank),
+                  row(row), column(column), burstLength(burstLength) {}
             std::string name;
             TimeInterval interval;
+            TimeInterval intervalOnDataStrobe = {sc_core::SC_ZERO_TIME, sc_core::SC_ZERO_TIME};
+            Rank rank = Rank(0);
+            BankGroup bankGroup = BankGroup(0);
+            Bank bank = Bank(0);
+            Row row = Row(0);
+            Column column = Column(0);
+            unsigned int burstLength = 0;
         };
         std::vector<Phase> recordedPhases;
     };
@@ -121,17 +139,16 @@ private:
     void openDB(const std::string &dbName);
     void closeConnection();
 
-    void introduceTransactionSystem(tlm::tlm_generic_payload &trans);
+    void introduceTransactionToSystem(tlm::tlm_generic_payload &trans);
     void removeTransactionFromSystem(tlm::tlm_generic_payload &trans);
 
     void terminateRemainingTransactions();
     void commitRecordedDataToDB();
     void insertGeneralInfo();
     void insertCommandLengths();
-    void insertTransactionInDB(Transaction &recordingData);
+    void insertTransactionInDB(const Transaction& recordingData);
     void insertRangeInDB(uint64_t id, const sc_core::sc_time &begin, const sc_core::sc_time &end);
-    void insertPhaseInDB(const std::string &phaseName, const sc_core::sc_time &begin, const sc_core::sc_time &end,
-                         uint64_t transactionID);
+    void insertPhaseInDB(const Transaction::Phase& phase, uint64_t transactionID);
     void insertDebugMessageInDB(const std::string &message, const sc_core::sc_time &time);
 
     static constexpr unsigned transactionCommitRate = 8192;
@@ -140,7 +157,7 @@ private:
     std::vector<Transaction> *storageDataBuffer;
     std::thread storageThread;
 
-    std::unordered_map<tlm::tlm_generic_payload *, Transaction> currentTransactionsInSystem;
+    std::unordered_map<tlm::tlm_generic_payload*, Transaction> currentTransactionsInSystem;
 
     uint64_t totalNumTransactions;
     sc_core::sc_time simulationTimeCoveredByRecording;
@@ -149,11 +166,11 @@ private:
     sqlite3_stmt *insertTransactionStatement = nullptr, *insertRangeStatement = nullptr,
             *updateRangeStatement = nullptr, *insertPhaseStatement = nullptr, *updatePhaseStatement = nullptr,
             *insertGeneralInfoStatement = nullptr, *insertCommandLengthsStatement = nullptr,
-            *insertDebugMessageStatement = nullptr, *updateDataStrobeStatement = nullptr,
-            *insertPowerStatement = nullptr, *insertBufferDepthStatement = nullptr, *insertBandwidthStatement = nullptr;
+            *insertDebugMessageStatement = nullptr, *insertPowerStatement = nullptr,
+            *insertBufferDepthStatement = nullptr, *insertBandwidthStatement = nullptr;
     std::string insertTransactionString, insertRangeString, updateRangeString, insertPhaseString,
             updatePhaseString, insertGeneralInfoString, insertCommandLengthsString,
-            insertDebugMessageString, updateDataStrobeString, insertPowerString,
+            insertDebugMessageString, insertPowerString,
             insertBufferDepthString, insertBandwidthString;
 
     std::string initialCommand =
@@ -173,6 +190,14 @@ private:
         "        PhaseName TEXT,                                                                                   \n"
         "        PhaseBegin INTEGER,                                                                               \n"
         "        PhaseEnd INTEGER,                                                                                 \n"
+        "        DataStrobeBegin INTEGER,                                                                          \n"
+        "        DataStrobeEnd INTEGER,                                                                            \n"
+        "        Rank INTEGER,                                                                                     \n"
+        "        BankGroup INTEGER,                                                                                \n"
+        "        Bank INTEGER,                                                                                     \n"
+        "        Row INTEGER,                                                                                      \n"
+        "        Column INTEGER,                                                                                   \n"
+        "        BurstLength INTEGER,                                                                              \n"
         "        Transact INTEGER                                                                                  \n"
         ");                                                                                                        \n"
         "                                                                                                          \n"
@@ -199,7 +224,7 @@ private:
         "                                                                                                          \n"
         "CREATE TABLE CommandLengths(                                                                              \n"
         "        Command TEXT,                                                                                     \n"
-        "        Length INTEGER                                                                                    \n"
+        "        Length DOUBLE                                                                                     \n"
         ");                                                                                                        \n"
         "                                                                                                          \n"
         "CREATE TABLE Power(                                                                                       \n"
@@ -238,16 +263,9 @@ private:
         "        ID INTEGER,                                                                                       \n"
         "        Range INTEGER,                                                                                    \n"
         "        Address INTEGER,                                                                                  \n"
-        "        Burstlength INTEGER,                                                                              \n"
-        "        TThread INTEGER,                                                                                  \n"
-        "        TChannel INTEGER,                                                                                 \n"
-        "        TRank INTEGER,                                                                                    \n"
-        "        TBankgroup INTEGER,                                                                               \n"
-        "        TBank INTEGER,                                                                                    \n"
-        "        TRow INTEGER,                                                                                     \n"
-        "        TColumn INTEGER,                                                                                  \n"
-        "        DataStrobeBegin INTEGER,                                                                          \n"
-        "        DataStrobeEnd INTEGER,                                                                            \n"
+        "        DataLength INTEGER,                                                                               \n"
+        "        Thread INTEGER,                                                                                   \n"
+        "        Channel INTEGER,                                                                                  \n"
         "        TimeOfGeneration INTEGER,                                                                         \n"
         "        Command TEXT                                                                                      \n"
         ");                                                                                                        \n"

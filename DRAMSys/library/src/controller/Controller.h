@@ -37,6 +37,7 @@
 
 
 #include <vector>
+#include <stack>
 
 #include <systemc>
 #include <tlm>
@@ -48,11 +49,12 @@
 #include "refresh/RefreshManagerIF.h"
 #include "powerdown/PowerDownManagerIF.h"
 #include "respqueue/RespQueueIF.h"
+#include "../simulation/AddressDecoder.h"
 
 class Controller : public ControllerIF
 {
 public:
-    Controller(const sc_core::sc_module_name& name, const Configuration& config);
+    Controller(const sc_core::sc_module_name& name, const Configuration& config, const AddressDecoder& addressDecoder);
     SC_HAS_PROCESS(Controller);
 
 protected:
@@ -63,7 +65,6 @@ protected:
     unsigned int transport_dbg(tlm::tlm_generic_payload& trans) override;
 
     virtual void sendToFrontend(tlm::tlm_generic_payload& trans, tlm::tlm_phase& phase, sc_core::sc_time& delay);
-    virtual void sendToDram(Command, tlm::tlm_generic_payload& trans, sc_core::sc_time& delay);
 
     virtual void controllerMethod();
 
@@ -87,6 +88,9 @@ private:
     std::vector<std::unique_ptr<RefreshManagerIF>> refreshManagers;
     std::vector<std::unique_ptr<PowerDownManagerIF>> powerDownManagers;
 
+    const AddressDecoder& addressDecoder;
+    uint64_t nextChannelPayloadIDToAppend = 1;
+
     struct Transaction
     {
         tlm::tlm_generic_payload *payload = nullptr;
@@ -96,7 +100,25 @@ private:
     void manageResponses();
     void manageRequests(const sc_core::sc_time &delay);
 
+    bool isFullCycle(const sc_core::sc_time& time) const;
+
     sc_core::sc_event beginReqEvent, endRespEvent, controllerEvent, dataResponseEvent;
+
+    const unsigned minBytesPerBurst;
+    const unsigned maxBytesPerBurst;
+
+    void createChildTranses(tlm::tlm_generic_payload& parentTrans);
+
+    class MemoryManager : public tlm::tlm_mm_interface
+    {
+    public:
+        ~MemoryManager() override;
+        tlm::tlm_generic_payload& allocate();
+        void free(tlm::tlm_generic_payload* payload) override;
+
+    private:
+        std::stack<tlm::tlm_generic_payload*> freePayloads;
+    } memoryManager;
 };
 
 #endif // CONTROLLER_H

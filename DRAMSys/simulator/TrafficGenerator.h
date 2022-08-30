@@ -51,7 +51,7 @@ class TrafficGeneratorIf : public TrafficInitiator
 public:
     TrafficGeneratorIf(const sc_core::sc_module_name &name, const Configuration& config, TraceSetup& setup,
                        unsigned int maxPendingReadRequests, unsigned int maxPendingWriteRequests,
-                       unsigned int dataLength, bool addLengthConverter);
+                       unsigned int dataLength);
 
 private:
     void sendNextPayload() override;

@@ -124,8 +124,7 @@ The JSON code below shows an example configuration:
         "tracesetup": [
             {
                 "clkMhz": 300,
-                "name": "ddr3_example.stl",
-                "addLengthConverter": true
+                "name": "ddr3_example.stl"
             },
             {
                 "clkMhz": 2000,
@@ -162,7 +161,6 @@ Field Descriptions:
 
 Each **trace setup** device configuration can be a **trace player** ("type": "player"), a **traffic generator** ("type": "generator") or a **row hammer generator** ("type": "hammer"). By not specifing the **type** parameter, the device will act as a **trace player**.
 All device configurations must define a **clkMhz** (operation frequency of the **traffic initiator**) and a **name** (in case of a trace player this specifies the **trace file** to play; in case of a generator this field is only for identification purposes).
-The optional parameter **addLengthConverter** adds a transaction length converter between initiator and DRAMSys. This unit divides a large transaction up into several smaller transactions with the maximum length of one DRAM burst access.
 The **maxPendingReadRequests** and **maxPendingWriteRequests** parameters define the maximum number of outstanding read/write requests. The current implementation delays all memory accesses if one limit is reached. The default value (0) disables the limit.
 
 A **traffic generator** can be configured to generate **numRequests** requests in total, of which the **rwRatio** field defines the probability of one request being a read request. The length of a request (in bytes) can be specified with the **dataLength** parameter. The **seed** parameter can be used to produce identical results for all simulations. **minAddress** and **maxAddress** specify the address range, by default the whole address range is used. The parameter **addressDistribution** can either be set to **random** or **sequential**. In case of **sequential** the additional **addressIncrement** field must be specified, defining the address increment after each request.

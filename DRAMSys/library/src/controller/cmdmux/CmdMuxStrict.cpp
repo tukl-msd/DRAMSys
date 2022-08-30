@@ -52,7 +52,7 @@ CommandTuple::Type CmdMuxStrict::selectCommand(const ReadyCommands &readyCommand
     {
         newTimestamp = std::get<CommandTuple::Timestamp>(*it) +
                 memSpec.getCommandLength(std::get<CommandTuple::Command>(*it));
-        newPayloadID = DramExtension::getChannelPayloadID(std::get<CommandTuple::Payload>(*it));
+        newPayloadID = ControllerExtension::getChannelPayloadID(*std::get<CommandTuple::Payload>(*it));
 
         if (newTimestamp < lastTimestamp)
         {
@@ -118,7 +118,7 @@ CommandTuple::Type CmdMuxStrictRasCas::selectCommand(const ReadyCommands &readyC
     {
         newTimestamp = std::get<CommandTuple::Timestamp>(*it) +
                 memSpec.getCommandLength(std::get<CommandTuple::Command>(*it));
-        newPayloadID = DramExtension::getChannelPayloadID(std::get<CommandTuple::Payload>(*it));
+        newPayloadID = ControllerExtension::getChannelPayloadID(*std::get<CommandTuple::Payload>(*it));
 
         if (newTimestamp < lastTimestamp)
         {
@@ -135,7 +135,7 @@ CommandTuple::Type CmdMuxStrictRasCas::selectCommand(const ReadyCommands &readyC
 
     for (auto it = readyCasCommands.cbegin(); it != readyCasCommands.cend(); it++)
     {
-        newPayloadID = DramExtension::getChannelPayloadID(std::get<CommandTuple::Payload>(*it));
+        newPayloadID = ControllerExtension::getChannelPayloadID(*std::get<CommandTuple::Payload>(*it));
 
         if (newPayloadID == nextPayloadID)
         {
@@ -157,7 +157,7 @@ CommandTuple::Type CmdMuxStrictRasCas::selectCommand(const ReadyCommands &readyC
     for (auto it = readyRasCasCommands.cbegin(); it != readyRasCasCommands.cend(); it++)
     {
         newTimestamp = std::get<CommandTuple::Timestamp>(*it);
-        newPayloadID = DramExtension::getChannelPayloadID(std::get<CommandTuple::Payload>(*it));
+        newPayloadID = ControllerExtension::getChannelPayloadID(*std::get<CommandTuple::Payload>(*it));
 
         if (newTimestamp < lastTimestamp)
         {

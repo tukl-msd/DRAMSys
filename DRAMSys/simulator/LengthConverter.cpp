@@ -143,6 +143,7 @@ void LengthConverter::peqCallback(tlm_generic_payload &cbTrans, const tlm_phase 
                 tlm_generic_payload* parentTrans = cbTrans.get_extension<ChildExtension>()->getParentTrans();
                 tlm_phase bwPhase = BEGIN_RESP;
                 sc_time bwDelay = SC_ZERO_TIME;
+                parentTrans->set_response_status(tlm::TLM_OK_RESPONSE);
                 tlm_sync_enum returnStatus = tSocket->nb_transport_bw(*parentTrans, bwPhase, bwDelay);
             }
         }
@@ -150,6 +151,7 @@ void LengthConverter::peqCallback(tlm_generic_payload &cbTrans, const tlm_phase 
         {
             tlm_phase bwPhase = BEGIN_RESP;
             sc_time bwDelay = SC_ZERO_TIME;
+            cbTrans.set_response_status(tlm::TLM_OK_RESPONSE);
             tlm_sync_enum returnStatus = tSocket->nb_transport_bw(cbTrans, bwPhase, bwDelay);
         }
     }

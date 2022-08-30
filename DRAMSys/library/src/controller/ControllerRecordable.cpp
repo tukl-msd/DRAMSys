@@ -40,8 +40,8 @@ using namespace sc_core;
 using namespace tlm;
 
 ControllerRecordable::ControllerRecordable(const sc_module_name &name, const Configuration& config,
-                                           TlmRecorder& tlmRecorder)
-    : Controller(name, config), tlmRecorder(tlmRecorder),
+                                           const AddressDecoder& addressDecoder, TlmRecorder& tlmRecorder)
+    : Controller(name, config, addressDecoder), tlmRecorder(tlmRecorder),
     activeTimeMultiplier(config.memSpec->tCK / config.memSpec->dataRate), enableWindowing(config.enableWindowing),
     windowSizeTime(config.windowSize * memSpec.tCK)
 {
@@ -58,7 +58,7 @@ ControllerRecordable::ControllerRecordable(const sc_module_name &name, const Con
 tlm_sync_enum ControllerRecordable::nb_transport_fw(tlm_generic_payload &trans,
                               tlm_phase &phase, sc_time &delay)
 {
-    recordPhase(trans, phase, delay);
+    tlmRecorder.recordPhase(trans, phase, delay);
     return Controller::nb_transport_fw(trans, phase, delay);
 }
 
@@ -71,41 +71,8 @@ tlm_sync_enum ControllerRecordable::nb_transport_bw(tlm_generic_payload &,
 
 void ControllerRecordable::sendToFrontend(tlm_generic_payload& payload, tlm_phase& phase, sc_time& delay)
 {
-    recordPhase(payload, phase, delay);
+    tlmRecorder.recordPhase(payload, phase, delay);
     tSocket->nb_transport_bw(payload, phase, delay);
-}
-
-void ControllerRecordable::sendToDram(Command command, tlm_generic_payload& payload, sc_time& delay)
-{
-    if (command.isCasCommand())
-    {
-        TimeInterval dataStrobe = memSpec.getIntervalOnDataStrobe(command, payload);
-        tlmRecorder.updateDataStrobe(sc_time_stamp() + delay + dataStrobe.start,
-                                      sc_time_stamp() + delay + dataStrobe.end, payload);
-    }
-    tlm_phase phase = command.toPhase();
-
-    iSocket->nb_transport_fw(payload, phase, delay);
-}
-
-void ControllerRecordable::recordPhase(tlm_generic_payload &trans, const tlm_phase &phase, const sc_time &delay)
-{
-    sc_time recTime = delay + sc_time_stamp();
-
-    NDEBUG_UNUSED(unsigned thr) = DramExtension::getExtension(trans).getThread().ID();
-    NDEBUG_UNUSED(unsigned ch) = DramExtension::getExtension(trans).getChannel().ID();
-    NDEBUG_UNUSED(unsigned bg) = DramExtension::getExtension(trans).getBankGroup().ID();
-    NDEBUG_UNUSED(unsigned bank) = DramExtension::getExtension(trans).getBank().ID();
-    NDEBUG_UNUSED(unsigned row) = DramExtension::getExtension(trans).getRow().ID();
-    NDEBUG_UNUSED(unsigned col) = DramExtension::getExtension(trans).getColumn().ID();
-    NDEBUG_UNUSED(uint64_t id) = DramExtension::getExtension(trans).getChannelPayloadID();
-
-    PRINTDEBUGMESSAGE(name(), "Recording " + getPhaseName(phase) + " thread " +
-                      std::to_string(thr) + " channel " + std::to_string(ch) + " bank group " + std::to_string(
-                          bg) + " bank " + std::to_string(bank) + " row " + std::to_string(row) + " column " +
-                      std::to_string(col) + " id " + std::to_string(id) + " at " + recTime.to_string());
-
-    tlmRecorder.recordPhase(trans, phase, recTime);
 }
 
 void ControllerRecordable::controllerMethod()

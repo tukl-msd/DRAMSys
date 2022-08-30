@@ -36,7 +36,7 @@
 #include <nlohmann/json.hpp>
 #include <fstream>
 #include <iostream>
-#include <Configuration.h>
+#include <DRAMSysConfiguration.h>
 
 int main(int argc, char **argv)
 {

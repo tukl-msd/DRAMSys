@@ -41,7 +41,7 @@
 
 #include <vector>
 #include <utility>
-#include <Configuration.h>
+#include <DRAMSysConfiguration.h>
 #include "../configuration/Configuration.h"
 
 struct DecodedAddress
@@ -68,8 +68,9 @@ class AddressDecoder
 {
 public:
     AddressDecoder(const Configuration& config, const DRAMSysConfiguration::AddressMapping &addressMapping);
-    DecodedAddress decodeAddress(uint64_t addr);
-    void print();
+    DecodedAddress decodeAddress(uint64_t encAddr) const;
+    unsigned decodeChannel(uint64_t encAddr) const;
+    void print() const;
 
 private:
     unsigned banksPerGroup;

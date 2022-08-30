@@ -78,7 +78,6 @@ struct TrafficInitiator
     std::string name;
     std::optional<unsigned int> maxPendingReadRequests;
     std::optional<unsigned int> maxPendingWriteRequests;
-    std::optional<bool> addLengthConverter;
 };
 
 struct TracePlayer : public TrafficInitiator

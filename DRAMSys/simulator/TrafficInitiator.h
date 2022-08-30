@@ -57,11 +57,9 @@ class TrafficInitiator : public sc_core::sc_module
 public:
     tlm_utils::simple_initiator_socket<TrafficInitiator> iSocket;
     TrafficInitiator(const sc_core::sc_module_name &name, const Configuration& config, TraceSetup& setup,
-            unsigned int maxPendingReadRequests, unsigned int maxPendingWriteRequests,
-            unsigned int defaultDataLength, bool addLengthConverter);
+            unsigned int maxPendingReadRequests, unsigned int maxPendingWriteRequests, unsigned int defaultDataLength);
     SC_HAS_PROCESS(TrafficInitiator);
     virtual void sendNextPayload() = 0;
-    const bool addLengthConverter = false;
 
 protected:
     static sc_core::sc_time evaluateGeneratorClk(const DRAMSysConfiguration::TrafficInitiator &conf);

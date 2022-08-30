@@ -40,7 +40,37 @@
 #include "Command.h"
 
 using namespace tlm;
+
+#ifdef DRAMPOWER
 using namespace DRAMPower;
+#endif
+
+
+bool phaseHasDataStrobe(tlm::tlm_phase phase)
+{
+    return (phase >= BEGIN_RD && phase <= BEGIN_WRA);
+}
+
+bool isPowerDownEntryPhase(tlm::tlm_phase phase)
+{
+    return (phase >= BEGIN_PDNA && phase <= BEGIN_SREF);
+}
+
+bool isPowerDownExitPhase(tlm::tlm_phase phase)
+{
+    return (phase >= END_PDNA && phase <= END_SREF);
+}
+
+bool isFixedCommandPhase(tlm::tlm_phase phase)
+{
+    return (phase >= BEGIN_NOP && phase <= BEGIN_RFMAB);
+}
+
+bool isRefreshCommandPhase(tlm::tlm_phase phase)
+{
+    return (phase == BEGIN_REFPB || phase == BEGIN_REFP2B || phase == BEGIN_REFSB || phase == BEGIN_REFAB
+            || phase == BEGIN_RFMPB || phase == BEGIN_RFMP2B || phase == BEGIN_RFMSB || phase == BEGIN_RFMAB);
+}
 
 Command::Command(Command::Type type) : type(type) {}
 
@@ -118,33 +148,34 @@ tlm_phase Command::toPhase() const
     assert(type >= Command::NOP && type <= Command::SREFEX);
     static std::array<tlm_phase, Command::Type::END_ENUM> phaseOfCommand =
             {
-                    BEGIN_NOP,              // 0
-                    BEGIN_RD,               // 1
-                    BEGIN_WR,               // 2
-                    BEGIN_RDA,              // 3
-                    BEGIN_WRA,              // 4
-                    BEGIN_ACT,              // 5
-                    BEGIN_PREPB,            // 6
-                    BEGIN_REFPB,            // 7
-                    BEGIN_RFMPB,            // 8
-                    BEGIN_REFP2B,           // 9
-                    BEGIN_RFMP2B,           // 10
-                    BEGIN_PRESB,            // 11
-                    BEGIN_REFSB,            // 12
-                    BEGIN_RFMSB,            // 13
-                    BEGIN_PREAB,            // 14
-                    BEGIN_REFAB,            // 15
-                    BEGIN_RFMAB,            // 16
-                    BEGIN_PDNA,             // 17
-                    BEGIN_PDNP,             // 18
-                    BEGIN_SREF,             // 19
-                    END_PDNA,               // 20
-                    END_PDNP,               // 21
-                    END_SREF                // 22
+                    BEGIN_NOP,        // 0
+                    BEGIN_RD,         // 1
+                    BEGIN_WR,         // 2
+                    BEGIN_RDA,        // 3
+                    BEGIN_WRA,        // 4
+                    BEGIN_ACT,        // 5
+                    BEGIN_PREPB,      // 6
+                    BEGIN_REFPB,      // 7
+                    BEGIN_RFMPB,      // 8
+                    BEGIN_REFP2B,     // 9
+                    BEGIN_RFMP2B,     // 10
+                    BEGIN_PRESB,      // 11
+                    BEGIN_REFSB,      // 12
+                    BEGIN_RFMSB,      // 13
+                    BEGIN_PREAB,      // 14
+                    BEGIN_REFAB,      // 15
+                    BEGIN_RFMAB,      // 16
+                    BEGIN_PDNA,       // 17
+                    BEGIN_PDNP,       // 18
+                    BEGIN_SREF,       // 19
+                    END_PDNA,         // 20
+                    END_PDNP,         // 21
+                    END_SREF          // 22
             };
     return phaseOfCommand[type];
 }
 
+#ifdef DRAMPOWER
 MemCommand::cmds phaseToDRAMPowerCommand(tlm_phase phase)
 {
     // TODO: add correct phases when DRAMPower supports DDR5 same bank refresh
@@ -177,17 +208,7 @@ MemCommand::cmds phaseToDRAMPowerCommand(tlm_phase phase)
             };
     return phaseOfCommand[phase - BEGIN_NOP];
 }
-
-bool phaseNeedsEnd(tlm_phase phase)
-{
-    return (phase >= BEGIN_NOP && phase <= BEGIN_RFMAB);
-}
-
-tlm_phase getEndPhase(tlm_phase phase)
-{
-    assert(phase >= BEGIN_NOP && phase <= BEGIN_RFMAB);
-    return (phase + Command::Type::END_ENUM);
-}
+#endif
 
 bool Command::isBankCommand() const
 {

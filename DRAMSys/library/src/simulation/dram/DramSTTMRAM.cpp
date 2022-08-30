@@ -35,11 +35,9 @@
 
 #include "DramSTTMRAM.h"
 #include "../../configuration/Configuration.h"
-#include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 #include "../../configuration/memspec/MemSpecSTTMRAM.h"
 
 using namespace sc_core;
-using namespace DRAMPower;
 
 DramSTTMRAM::DramSTTMRAM(const sc_module_name& name, const Configuration& config,
                          TemperatureController& temperatureController)

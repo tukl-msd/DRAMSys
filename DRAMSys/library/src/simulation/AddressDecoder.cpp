@@ -101,13 +101,43 @@ AddressDecoder::AddressDecoder(const Configuration& config, const DRAMSysConfigu
     maximumAddress = static_cast<uint64_t>(bytes) * columns * rows * banks
             * bankGroups * ranks * channels - 1;
 
+    auto totalAddressBits = static_cast<unsigned>(std::log2(maximumAddress));
+    for (unsigned bitPosition = 0; bitPosition < totalAddressBits; bitPosition++)
+    {
+        if (std::count(vChannelBits.begin(), vChannelBits.end(), bitPosition)
+                + std::count(vRankBits.begin(), vRankBits.end(), bitPosition)
+                + std::count(vBankGroupBits.begin(), vBankGroupBits.end(), bitPosition)
+                + std::count(vBankBits.begin(), vBankBits.end(), bitPosition)
+                + std::count(vRowBits.begin(), vRowBits.end(), bitPosition)
+                + std::count(vColumnBits.begin(), vColumnBits.end(), bitPosition)
+                + std::count(vByteBits.begin(), vByteBits.end(), bitPosition)
+                != 1)
+            SC_REPORT_FATAL("AddressDecoder", "Not all address bits occur exactly once");
+    }
+
+    const MemSpec& memSpec = *config.memSpec;
+
+    unsigned highestByteBit = *std::max_element(vByteBits.begin(), vByteBits.end());
+
+    for (unsigned bitPosition = 0; bitPosition <= highestByteBit; bitPosition++)
+    {
+        if (std::find(vByteBits.begin(), vByteBits.end(), bitPosition) == vByteBits.end())
+            SC_REPORT_FATAL("AddressDecoder", "Byte bits are not continuous starting from 0");
+    }
+
+    auto maxBurstLengthBits = static_cast<unsigned>(std::log2(memSpec.maxBurstLength));
+
+    for (unsigned bitPosition = highestByteBit + 1; bitPosition < highestByteBit + 1 + maxBurstLengthBits; bitPosition++)
+    {
+        if (std::find(vColumnBits.begin(), vColumnBits.end(), bitPosition) == vColumnBits.end())
+            SC_REPORT_FATAL("AddressDecoder", "No continuous column bits for maximum burst length");
+    }
+
     bankgroupsPerRank = bankGroups;
     bankGroups = bankgroupsPerRank * ranks;
 
     banksPerGroup = banks;
     banks = banksPerGroup * bankGroups;
-
-    const MemSpec& memSpec = *config.memSpec;
 
     if (memSpec.numberOfChannels != channels || memSpec.ranksPerChannel != ranks
         || memSpec.bankGroupsPerChannel != bankGroups || memSpec.banksPerChannel != banks
@@ -116,7 +146,7 @@ AddressDecoder::AddressDecoder(const Configuration& config, const DRAMSysConfigu
         SC_REPORT_FATAL("AddressDecoder", "Memspec and address mapping do not match");
 }
 
-DecodedAddress AddressDecoder::decodeAddress(uint64_t encAddr)
+DecodedAddress AddressDecoder::decodeAddress(uint64_t encAddr) const
 {
     if (encAddr > maximumAddress)
         SC_REPORT_WARNING("AddressDecoder", ("Address " + std::to_string(encAddr) + " out of range (maximum address is " + std::to_string(maximumAddress) + ")").c_str());
@@ -161,7 +191,31 @@ DecodedAddress AddressDecoder::decodeAddress(uint64_t encAddr)
     return decAddr;
 }
 
-void AddressDecoder::print()
+unsigned AddressDecoder::decodeChannel(uint64_t encAddr) const
+{
+    if (encAddr > maximumAddress)
+        SC_REPORT_WARNING("AddressDecoder", ("Address " + std::to_string(encAddr) + " out of range (maximum address is " + std::to_string(maximumAddress) + ")").c_str());
+
+    // Apply XOR
+    // For each used xor:
+    //   Get the first bit and second bit. Apply a bitwise xor operator and save it back to the first bit.
+    for (auto &it : vXor)
+    {
+        uint64_t xoredBit;
+        xoredBit = (((encAddr >> it.first) & UINT64_C(1)) ^ ((encAddr >> it.second) & UINT64_C(1)));
+        encAddr &= ~(UINT64_C(1) << it.first);
+        encAddr |= xoredBit << it.first;
+    }
+
+    unsigned channel = 0;
+
+    for (unsigned it = 0; it < vChannelBits.size(); it++)
+        channel |= ((encAddr >> vChannelBits[it]) & UINT64_C(1)) << it;
+
+    return channel;
+}
+
+void AddressDecoder::print() const
 {
     std::cout << headline << std::endl;
     std::cout << "Used Address Mapping:" << std::endl;
