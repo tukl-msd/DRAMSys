@@ -154,104 +154,78 @@ private:
     unsigned int id;
 };
 
-
-class DramExtension : public tlm::tlm_extension<DramExtension>
+class ArbiterExtension : public tlm::tlm_extension<ArbiterExtension>
 {
 public:
-    DramExtension();
-    DramExtension(Thread thread, Channel channel, Rank rank,
-                  BankGroup bankGroup, Bank bank, Row row,
-                  Column column, unsigned int burstLength,
-                  uint64_t threadPayloadID, uint64_t channelPayloadID);
-    tlm::tlm_extension_base *clone() const override;
-    void copy_from(const tlm::tlm_extension_base &ext) override;
+    static void setAutoExtension(tlm::tlm_generic_payload& trans, Thread thread, Channel channel);
+    static void setExtension(tlm::tlm_generic_payload& trans, Thread thread, Channel channel,
+                             uint64_t threadPayloadID, const sc_core::sc_time& timeOfGeneration);
+    static void setIDAndTimeOfGeneration(tlm::tlm_generic_payload& trans, uint64_t threadPayloadID,
+                                         const sc_core::sc_time& timeOfGeneration);
 
-    static void setExtension(tlm::tlm_generic_payload *payload,
-                             Thread thread, Channel channel, Rank rank,
-                             BankGroup bankGroup, Bank bank, Row row,
-                             Column column, unsigned int burstLength,
-                             uint64_t threadPayloadID, uint64_t channelPayloadID);
-    static void setExtension(tlm::tlm_generic_payload &payload,
-                             Thread thread, Channel channel, Rank rank,
-                             BankGroup bankGroup, Bank bank, Row row,
-                             Column column, unsigned int burstLength,
-                             uint64_t threadPayloadID, uint64_t channelPayloadID);
-
-    static DramExtension &getExtension(const tlm::tlm_generic_payload *payload);
-    static DramExtension &getExtension(const tlm::tlm_generic_payload &payload);
-
-    static void setPayloadIDs(tlm::tlm_generic_payload *payload,
-                                 uint64_t threadPayloadID, uint64_t channelPayloadID);
-    static void setPayloadIDs(tlm::tlm_generic_payload &payload,
-                                 uint64_t threadPayloadID, uint64_t channelPayloadID);
-
-    // Used for convience, caller could also use getExtension(..) to access these field
-    static Thread getThread(const tlm::tlm_generic_payload *payload);
-    static Thread getThread(const tlm::tlm_generic_payload &payload);
-    static Channel getChannel(const tlm::tlm_generic_payload *payload);
-    static Channel getChannel(const tlm::tlm_generic_payload &payload);
-    static Rank getRank(const tlm::tlm_generic_payload *payload);
-    static Rank getRank(const tlm::tlm_generic_payload &payload);
-    static BankGroup getBankGroup(const tlm::tlm_generic_payload *payload);
-    static BankGroup getBankGroup(const tlm::tlm_generic_payload &payload);
-    static Bank getBank(const tlm::tlm_generic_payload *payload);
-    static Bank getBank(const tlm::tlm_generic_payload &payload);
-    static Row getRow(const tlm::tlm_generic_payload *payload);
-    static Row getRow(const tlm::tlm_generic_payload &payload);
-    static Column getColumn(const tlm::tlm_generic_payload *payload);
-    static Column getColumn(const tlm::tlm_generic_payload &payload);
-    static unsigned getBurstLength(const tlm::tlm_generic_payload *payload);
-    static unsigned getBurstLength(const tlm::tlm_generic_payload &payload);
-    static uint64_t getThreadPayloadID(const tlm::tlm_generic_payload *payload);
-    static uint64_t getThreadPayloadID(const tlm::tlm_generic_payload &payload);
-    static uint64_t getChannelPayloadID(const tlm::tlm_generic_payload *payload);
-    static uint64_t getChannelPayloadID(const tlm::tlm_generic_payload &payload);
+    tlm::tlm_extension_base* clone() const override;
+    void copy_from(const tlm::tlm_extension_base& ext) override;
 
     Thread getThread() const;
     Channel getChannel() const;
+    uint64_t getThreadPayloadID() const;
+    sc_core::sc_time getTimeOfGeneration() const;
+
+    static const ArbiterExtension& getExtension(const tlm::tlm_generic_payload& trans);
+    static Thread getThread(const tlm::tlm_generic_payload& trans);
+    static Channel getChannel(const tlm::tlm_generic_payload& trans);
+    static uint64_t getThreadPayloadID(const tlm::tlm_generic_payload& trans);
+    static sc_core::sc_time getTimeOfGeneration(const tlm::tlm_generic_payload& trans);
+
+private:
+    ArbiterExtension(Thread thread, Channel channel, uint64_t threadPayloadID, const sc_core::sc_time& timeOfGeneration);
+    Thread thread;
+    Channel channel;
+    uint64_t threadPayloadID;
+    sc_core::sc_time timeOfGeneration;
+};
+
+class ControllerExtension : public tlm::tlm_extension<ControllerExtension>
+{
+public:
+    static void setAutoExtension(tlm::tlm_generic_payload& trans, uint64_t channelPayloadID, Rank rank, BankGroup bankGroup,
+                             Bank bank, Row row, Column column, unsigned burstLength);
+
+    static void setExtension(tlm::tlm_generic_payload& trans, uint64_t channelPayloadID, Rank rank, BankGroup bankGroup,
+                                 Bank bank, Row row, Column column, unsigned burstLength);
+
+    //static ControllerExtension& getExtension(const tlm::tlm_generic_payload& trans);
+
+    tlm::tlm_extension_base* clone() const override;
+    void copy_from(const tlm::tlm_extension_base& ext) override;
+
+    uint64_t getChannelPayloadID() const;
     Rank getRank() const;
     BankGroup getBankGroup() const;
     Bank getBank() const;
     Row getRow() const;
     Column getColumn() const;
+    unsigned getBurstLength() const;
 
-    unsigned int getBurstLength() const;
-    uint64_t getThreadPayloadID() const;
-    uint64_t getChannelPayloadID() const;
+    static const ControllerExtension& getExtension(const tlm::tlm_generic_payload& trans);
+    static uint64_t getChannelPayloadID(const tlm::tlm_generic_payload& trans);
+    static Rank getRank(const tlm::tlm_generic_payload& trans);
+    static BankGroup getBankGroup(const tlm::tlm_generic_payload& trans);
+    static Bank getBank(const tlm::tlm_generic_payload& trans);
+    static Row getRow(const tlm::tlm_generic_payload& trans);
+    static Column getColumn(const tlm::tlm_generic_payload& trans);
+    static unsigned getBurstLength(const tlm::tlm_generic_payload& trans);
 
 private:
-    Thread thread;
-    Channel channel;
+    ControllerExtension(uint64_t channelPayloadID, Rank rank, BankGroup bankGroup, Bank bank, Row row, Column column,
+                        unsigned burstLength);
+    uint64_t channelPayloadID;
     Rank rank;
     BankGroup bankGroup;
     Bank bank;
     Row row;
     Column column;
-    unsigned int burstLength;
-    uint64_t threadPayloadID;
-    uint64_t channelPayloadID;
-};
-
-
-// Used to indicate the time when a payload is created (in a traceplayer or in a core)
-// Note that this time can be different from the time the payload enters the DRAM system
-//(at that time the phase BEGIN_REQ is recorded), so timeOfGeneration =< time(BEGIN_REQ)
-class GenerationExtension : public tlm::tlm_extension<GenerationExtension>
-{
-public:
-    explicit GenerationExtension(const sc_core::sc_time &timeOfGeneration)
-        : timeOfGeneration(timeOfGeneration) {}
-    tlm::tlm_extension_base *clone() const override;
-    void copy_from(const tlm::tlm_extension_base &ext) override;
-    static void setExtension(tlm::tlm_generic_payload *payload, const sc_core::sc_time &timeOfGeneration);
-    static void setExtension(tlm::tlm_generic_payload &payload, const sc_core::sc_time &timeOfGeneration);
-    static GenerationExtension &getExtension(const tlm::tlm_generic_payload *payload);
-    static GenerationExtension &getExtension(const tlm::tlm_generic_payload &payload);
-    static sc_core::sc_time getTimeOfGeneration(const tlm::tlm_generic_payload *payload);
-    static sc_core::sc_time getTimeOfGeneration(const tlm::tlm_generic_payload &payload);
-
-private:
-    sc_core::sc_time timeOfGeneration;
+    unsigned burstLength;
 };
 
 
@@ -277,5 +251,41 @@ bool operator!=(const Row &lhs, const Row &rhs);
 
 bool operator==(const Column &lhs, const Column &rhs);
 bool operator!=(const Column &lhs, const Column &rhs);
+
+class ChildExtension : public tlm::tlm_extension<ChildExtension>
+{
+private:
+    tlm::tlm_generic_payload* parentTrans;
+    explicit ChildExtension(tlm::tlm_generic_payload& parentTrans) : parentTrans(&parentTrans) {}
+
+public:
+    //ChildExtension() = delete;
+
+    tlm::tlm_extension_base* clone() const override;
+    void copy_from(const tlm::tlm_extension_base& ext) override;
+    tlm::tlm_generic_payload& getParentTrans();
+    static tlm::tlm_generic_payload& getParentTrans(tlm::tlm_generic_payload& childTrans);
+    static void setExtension(tlm::tlm_generic_payload& childTrans, tlm::tlm_generic_payload& parentTrans);
+    static bool isChildTrans(const tlm::tlm_generic_payload& trans);
+};
+
+class ParentExtension : public tlm::tlm_extension<ParentExtension>
+{
+private:
+    std::vector<tlm::tlm_generic_payload*> childTranses;
+    unsigned completedChildTranses = 0;
+    explicit ParentExtension(std::vector<tlm::tlm_generic_payload*> _childTranses)
+            : childTranses(std::move(_childTranses)) {}
+
+public:
+    ParentExtension() = delete;
+
+    tlm_extension_base* clone() const override;
+    void copy_from(const tlm_extension_base& ext) override;
+    static void setExtension(tlm::tlm_generic_payload& parentTrans, std::vector<tlm::tlm_generic_payload*> childTranses);
+    const std::vector<tlm::tlm_generic_payload*>& getChildTranses();
+    bool notifyChildTransCompletion();
+    static bool notifyChildTransCompletion(tlm::tlm_generic_payload& trans);
+};
 
 #endif // DRAMEXTENSIONS_H

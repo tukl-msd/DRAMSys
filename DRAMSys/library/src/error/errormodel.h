@@ -41,8 +41,9 @@
 #include <systemc>
 #include "../configuration/Configuration.h"
 #include "../simulation/AddressDecoder.h"
-#include "../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 #include "../simulation/TemperatureController.h"
+
+class libDRAMPower;
 
 class errorModel : public sc_core::sc_module
 {

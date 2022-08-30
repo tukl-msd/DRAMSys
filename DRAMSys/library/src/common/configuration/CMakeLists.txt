@@ -42,7 +42,7 @@ if (DRAMSYS_CONFIGURATION_TESTS)
 endif()
 
 add_library(DRAMSysConfiguration STATIC
-    Configuration.cpp
+    DRAMSysConfiguration.cpp
     AddressMapping.cpp
     McConfig.cpp
     SimConfig.cpp

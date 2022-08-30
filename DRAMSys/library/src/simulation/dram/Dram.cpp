@@ -55,12 +55,19 @@
 #include "../../common/DebugManager.h"
 #include "../../common/dramExtensions.h"
 #include "../../common/utils.h"
-#include "../../common/third_party/DRAMPower/src/MemCommand.h"
 #include "../../controller/Command.h"
+
+#ifdef DRAMPOWER
+#include "../../common/third_party/DRAMPower/src/MemCommand.h"
+#include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
+#endif
 
 using namespace sc_core;
 using namespace tlm;
+
+#ifdef DRAMPOWER
 using namespace DRAMPower;
+#endif
 
 Dram::Dram(const sc_module_name& name, const Configuration& config)
     : sc_module(name), memSpec(*config.memSpec), tSocket("socket"), storeMode(config.storeMode),
@@ -99,6 +106,7 @@ Dram::~Dram()
 
 void Dram::reportPower()
 {
+#ifdef DRAMPOWER
     DRAMPower->calcEnergy();
 
     // Print the final total energy and the average power for
@@ -115,6 +123,7 @@ void Dram::reportPower()
          << DRAMPower->getPower().average_power
          * memSpec.devicesPerRank
          << std::string(" mW") << std::endl;
+#endif
 }
 
 tlm_sync_enum Dram::nb_transport_fw(tlm_generic_payload &payload,
@@ -124,9 +133,12 @@ tlm_sync_enum Dram::nb_transport_fw(tlm_generic_payload &payload,
 
     if (powerAnalysis)
     {
-        int bank = static_cast<int>(DramExtension::getExtension(payload).getBank().ID());
+        int bank = static_cast<int>(ControllerExtension::getBank(payload).ID());
         int64_t cycle = std::lround((sc_time_stamp() + delay) / memSpec.tCK);
+
+#ifdef DRAMPOWER
         DRAMPower->doCommand(phaseToDRAMPowerCommand(phase), bank, cycle);
+#endif
     }
 
     if (storeMode == Configuration::StoreMode::Store)

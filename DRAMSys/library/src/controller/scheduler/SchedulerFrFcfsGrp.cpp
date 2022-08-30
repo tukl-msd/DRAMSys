@@ -59,7 +59,7 @@ bool SchedulerFrFcfsGrp::hasBufferSpace() const
 
 void SchedulerFrFcfsGrp::storeRequest(tlm_generic_payload& trans)
 {
-    buffer[DramExtension::getBank(trans).ID()].push_back(&trans);
+    buffer[ControllerExtension::getBank(trans).ID()].push_back(&trans);
     bufferCounter->storeRequest(trans);
 }
 
@@ -67,7 +67,7 @@ void SchedulerFrFcfsGrp::removeRequest(tlm_generic_payload& trans)
 {
     bufferCounter->removeRequest(trans);
     lastCommand = trans.get_command();
-    unsigned bankID = DramExtension::getBank(trans).ID();
+    unsigned bankID = ControllerExtension::getBank(trans).ID();
     for (auto it = buffer[bankID].begin(); it != buffer[bankID].end(); it++)
     {
         if (*it == &trans)
@@ -90,7 +90,7 @@ tlm_generic_payload *SchedulerFrFcfsGrp::getNextRequest(const BankMachine& bankM
             std::list<tlm_generic_payload *> rowHits;
             for (auto it : buffer[bankID])
             {
-                if (DramExtension::getRow(it) == openRow)
+                if (ControllerExtension::getRow(*it) == openRow)
                     rowHits.push_back(it);
             }
 
@@ -128,7 +128,7 @@ bool SchedulerFrFcfsGrp::hasFurtherRowHit(Bank bank, Row row, tlm_command comman
     unsigned rowHitCounter = 0;
     for (auto it : buffer[bank.ID()])
     {
-        if (DramExtension::getRow(it) == row)
+        if (ControllerExtension::getRow(*it) == row)
         {
             rowHitCounter++;
             if (rowHitCounter == 2)

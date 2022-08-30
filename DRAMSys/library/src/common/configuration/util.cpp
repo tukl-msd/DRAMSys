@@ -34,7 +34,7 @@
  */
 
 #include "util.h"
-#include "Configuration.h"
+#include "DRAMSysConfiguration.h"
 
 #include <fstream>
 #include <iostream>

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Technische Universität Kaiserslautern
+ * Copyright (c) 2021, Technische Universität Kaiserslautern
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,23 +30,59 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Lukas Steiner
+ *    Derek Christ
  */
 
-#ifndef DRAMDDR5_H
-#define DRAMDDR5_H
+#ifndef DRAMSYSCONFIGURATION_DRAMSYSCONFIGURATION_H
+#define DRAMSYSCONFIGURATION_DRAMSYSCONFIGURATION_H
 
-#include <systemc>
+#include "AddressMapping.h"
+#include "McConfig.h"
+#include "SimConfig.h"
+#include "ThermalConfig.h"
+#include "TraceSetup.h"
+#include "memspec/MemSpec.h"
+#include "util.h"
 
-#include "Dram.h"
-#include "../TemperatureController.h"
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <string>
 
-class DramDDR5 : public Dram
+/**
+ * To support polymorphic configurations, a Json "type" tag is used
+ * to determine the correct type before further parsing.
+ *
+ * To support optional values, std::optional is used. The default
+ * values will be provided by DRAMSys itself.
+ *
+ * To achieve static polymorphism, std::variant is used.
+ */
+
+namespace DRAMSysConfiguration
 {
-public:
-    DramDDR5(const sc_core::sc_module_name& name, const Configuration& config,
-             TemperatureController& temperatureController);
-    SC_HAS_PROCESS(DramDDR5);
+using json = nlohmann::json;
+
+struct Configuration
+{
+    AddressMapping addressMapping;
+    McConfig mcConfig;
+    MemSpec memSpec;
+    SimConfig simConfig;
+    std::string simulationId;
+    std::optional<ThermalConfig> thermalConfig;
+    std::optional<TraceSetup> traceSetup;
+
+    static std::string resourceDirectory;
 };
 
-#endif // DRAMDDR5_H
+void to_json(json &j, const Configuration &p);
+void from_json(const json &j, Configuration &p);
+
+void from_dump(const std::string &dump, Configuration &c);
+std::string dump(const Configuration &c, unsigned int indentation = -1);
+
+Configuration from_path(const std::string &path, const std::string &resourceDirectory = DRAMSysResourceDirectory);
+
+} // namespace DRAMSysConfiguration
+
+#endif // DRAMSYSCONFIGURATION_DRAMSYSCONFIGURATION_H

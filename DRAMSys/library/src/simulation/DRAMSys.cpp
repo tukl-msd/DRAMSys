@@ -51,10 +51,8 @@
 #include "../error/ecchamming.h"
 #include "dram/DramDDR3.h"
 #include "dram/DramDDR4.h"
-#include "dram/DramDDR5.h"
 #include "dram/DramWideIO.h"
 #include "dram/DramLPDDR4.h"
-#include "dram/DramLPDDR5.h"
 #include "dram/DramWideIO2.h"
 #include "dram/DramHBM2.h"
 #include "dram/DramGDDR5.h"
@@ -62,6 +60,16 @@
 #include "dram/DramGDDR6.h"
 #include "dram/DramSTTMRAM.h"
 #include "../controller/Controller.h"
+
+#ifdef DDR5_SIM
+#include "dram/DramDDR5.h"
+#endif
+#ifdef LPDDR5_SIM
+#include "dram/DramLPDDR5.h"
+#endif
+#ifdef HBM3_SIM
+#include "dram/DramHBM3.h"
+#endif
 
 DRAMSys::DRAMSys(const sc_core::sc_module_name &name,
                  const DRAMSysConfiguration::Configuration &configLib)
@@ -136,7 +144,7 @@ void DRAMSys::logo()
 #undef BOLDTXT
 }
 
-void DRAMSys::setupDebugManager(NDEBUG_UNUSED(const std::string &traceName))
+void DRAMSys::setupDebugManager(NDEBUG_UNUSED(const std::string &traceName)) const
 {
 #ifndef NDEBUG
     auto& dbg = DebugManager::getInstance();
@@ -149,23 +157,27 @@ void DRAMSys::setupDebugManager(NDEBUG_UNUSED(const std::string &traceName))
 #endif
 }
 
-void DRAMSys::instantiateModules(const DRAMSysConfiguration::AddressMapping &addressMapping)
+void DRAMSys::instantiateModules(const DRAMSysConfiguration::AddressMapping& addressMapping)
 {
     temperatureController = std::make_unique<TemperatureController>("TemperatureController", config);
 
+    addressDecoder = std::make_unique<AddressDecoder>(config, addressMapping);
+    addressDecoder->print();
+
     // Create arbiter
     if (config.arbiter == Configuration::Arbiter::Simple)
-        arbiter = std::make_unique<ArbiterSimple>("arbiter", config, addressMapping);
+        arbiter = std::make_unique<ArbiterSimple>("arbiter", config, *addressDecoder);
     else if (config.arbiter == Configuration::Arbiter::Fifo)
-        arbiter = std::make_unique<ArbiterFifo>("arbiter", config, addressMapping);
+        arbiter = std::make_unique<ArbiterFifo>("arbiter", config, *addressDecoder);
     else if (config.arbiter == Configuration::Arbiter::Reorder)
-        arbiter = std::make_unique<ArbiterReorder>("arbiter", config, addressMapping);
+        arbiter = std::make_unique<ArbiterReorder>("arbiter", config, *addressDecoder);
 
     // Create controllers and DRAMs
     MemSpec::MemoryType memoryType = config.memSpec->memoryType;
     for (std::size_t i = 0; i < config.memSpec->numberOfChannels; i++)
     {
-        controllers.emplace_back(std::make_unique<Controller>(("controller" + std::to_string(i)).c_str(), config));
+        controllers.emplace_back(std::make_unique<Controller>(("controller" + std::to_string(i)).c_str(), config,
+                                                              *addressDecoder));
 
         if (memoryType == MemSpec::MemoryType::DDR3)
             drams.emplace_back(std::make_unique<DramDDR3>(("dram" + std::to_string(i)).c_str(), config,
@@ -173,17 +185,11 @@ void DRAMSys::instantiateModules(const DRAMSysConfiguration::AddressMapping &add
         else if (memoryType == MemSpec::MemoryType::DDR4)
             drams.emplace_back(std::make_unique<DramDDR4>(("dram" + std::to_string(i)).c_str(), config,
                                                           *temperatureController));
-        else if (memoryType == MemSpec::MemoryType::DDR5)
-            drams.emplace_back(std::make_unique<DramDDR5>(("dram" + std::to_string(i)).c_str(), config,
-                                                          *temperatureController));
         else if (memoryType == MemSpec::MemoryType::WideIO)
             drams.emplace_back(std::make_unique<DramWideIO>(("dram" + std::to_string(i)).c_str(), config,
                                                             *temperatureController));
         else if (memoryType == MemSpec::MemoryType::LPDDR4)
             drams.emplace_back(std::make_unique<DramLPDDR4>(("dram" + std::to_string(i)).c_str(), config,
-                                                            *temperatureController));
-        else if (memoryType == MemSpec::MemoryType::LPDDR5)
-            drams.emplace_back(std::make_unique<DramLPDDR5>(("dram" + std::to_string(i)).c_str(), config,
                                                             *temperatureController));
         else if (memoryType == MemSpec::MemoryType::WideIO2)
             drams.emplace_back(std::make_unique<DramWideIO2>(("dram" + std::to_string(i)).c_str(), config,
@@ -203,6 +209,21 @@ void DRAMSys::instantiateModules(const DRAMSysConfiguration::AddressMapping &add
         else if (memoryType == MemSpec::MemoryType::STTMRAM)
             drams.emplace_back(std::make_unique<DramSTTMRAM>(("dram" + std::to_string(i)).c_str(), config,
                                                              *temperatureController));
+#ifdef DDR5_SIM
+        else if (memoryType == MemSpec::MemoryType::DDR5)
+            drams.emplace_back(std::make_unique<DramDDR5>(("dram" + std::to_string(i)).c_str(), config,
+                                                          *temperatureController));
+#endif
+#ifdef LPDDR5_SIM
+        else if (memoryType == MemSpec::MemoryType::LPDDR5)
+            drams.emplace_back(std::make_unique<DramLPDDR5>(("dram" + std::to_string(i)).c_str(), config,
+                                                            *temperatureController));
+#endif
+#ifdef HBM3_SIM
+        else if (memoryType == MemSpec::MemoryType::HBM3)
+            drams.emplace_back(std::make_unique<DramHBM3>(("dram" + std::to_string(i)).c_str(), config,
+                                                          *temperatureController));
+#endif
 
         if (config.checkTLM2Protocol)
             controllersTlmCheckers.push_back(std::make_unique<tlm_utils::tlm2_base_protocol_checker<>>

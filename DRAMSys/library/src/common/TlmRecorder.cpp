@@ -39,18 +39,20 @@
  *    Derek Christ
  */
 
-#include <fstream>
-
 #include "TlmRecorder.h"
-#include "DebugManager.h"
-#include "../controller/Command.h"
 #include "../configuration/Configuration.h"
+#include "../controller/Command.h"
+#include "DebugManager.h"
+
+#include <fstream>
+#include <sqlite3.h>
 
 using namespace sc_core;
 using namespace tlm;
 
 TlmRecorder::TlmRecorder(const std::string& name, const Configuration& config, const std::string& dbName) :
-        name(name), config(config), totalNumTransactions(0), simulationTimeCoveredByRecording(SC_ZERO_TIME)
+        name(name), config(config), memSpec(*config.memSpec), totalNumTransactions(0),
+        simulationTimeCoveredByRecording(SC_ZERO_TIME)
 {
     currentDataBuffer = &recordingDataBuffer[0];
     storageDataBuffer = &recordingDataBuffer[1];
@@ -84,7 +86,6 @@ void TlmRecorder::finalize()
     sqlite3_finalize(insertGeneralInfoStatement);
     sqlite3_finalize(insertCommandLengthsStatement);
     sqlite3_finalize(insertDebugMessageStatement);
-    sqlite3_finalize(updateDataStrobeStatement);
     sqlite3_finalize(insertPowerStatement);
     sqlite3_finalize(insertBufferDepthStatement);
     sqlite3_finalize(insertBandwidthStatement);
@@ -115,56 +116,85 @@ void TlmRecorder::recordBandwidth(double timeInSeconds, double averageBandwidth)
     executeSqlStatement(insertBandwidthStatement);
 }
 
-void TlmRecorder::recordPhase(tlm_generic_payload &trans,
-                              const tlm_phase &phase, const sc_time &time)
+void TlmRecorder::recordPhase(tlm_generic_payload& trans, const tlm_phase& phase, const sc_time& delay)
 {
-    if (currentTransactionsInSystem.find(&trans) == currentTransactionsInSystem.end())
-        introduceTransactionSystem(trans);
+    const sc_time& currentTime = sc_time_stamp();
 
-    if (phase == END_REQ || phase == END_RESP || phase >= END_PDNA)
+    if (phase == BEGIN_REQ)
     {
-        assert(getPhaseName(phase).substr(4) == currentTransactionsInSystem[&trans].recordedPhases.back().name);
-        currentTransactionsInSystem[&trans].recordedPhases.back().interval.end = time;
+        introduceTransactionToSystem(trans);
+        std::string phaseName = getPhaseName(phase).substr(6);
+        currentTransactionsInSystem.at(&trans).recordedPhases.emplace_back(phaseName, currentTime + delay);
     }
-    else
+    if (phase == BEGIN_RESP)
     {
+        std::string phaseName = getPhaseName(phase).substr(6);
+        currentTransactionsInSystem.at(&trans).recordedPhases.emplace_back(phaseName, currentTime + delay);
+    }
+    else if (phase == END_REQ)
+    {
+        // BEGIN_REQ is always the first phase of a normal transaction
+        currentTransactionsInSystem.at(&trans).recordedPhases.front().interval.end = currentTime + delay;
+    }
+    else if (phase == END_RESP)
+    {
+        // BEGIN_RESP is always the last phase of a normal transaction at this point
+        currentTransactionsInSystem.at(&trans).recordedPhases.back().interval.end = currentTime + delay;
+        removeTransactionFromSystem(trans);
+    }
+    else if (isFixedCommandPhase(phase))
+    {
+        tlm_generic_payload* keyTrans;
+        if (ChildExtension::isChildTrans(trans))
+        {
+            keyTrans = &ChildExtension::getParentTrans(trans);
+        }
+        else
+        {
+            if (currentTransactionsInSystem.find(&trans) == currentTransactionsInSystem.end())
+                introduceTransactionToSystem(trans);
+            keyTrans = &trans;
+        }
+
         std::string phaseName = getPhaseName(phase).substr(6); // remove "BEGIN_"
-        currentTransactionsInSystem[&trans].recordedPhases.emplace_back(phaseName, time);
-    }
+        const ControllerExtension& extension = ControllerExtension::getExtension(trans);
+        TimeInterval intervalOnDataStrobe;
+        if (phaseHasDataStrobe(phase))
+        {
+            intervalOnDataStrobe = memSpec.getIntervalOnDataStrobe(Command(phase), trans);
+            intervalOnDataStrobe.start = currentTime + intervalOnDataStrobe.start;
+            intervalOnDataStrobe.end = currentTime + intervalOnDataStrobe.end;
+        }
 
-    if (currentTransactionsInSystem[&trans].cmd == 'X')
-    {
-        if (phase == END_REFAB
-                || phase == END_RFMAB
-                || phase == END_REFPB
-                || phase == END_RFMPB
-                || phase == END_REFP2B
-                || phase == END_RFMP2B
-                || phase == END_REFSB
-                || phase == END_RFMSB
-                || phase == END_PDNA
-                || phase == END_PDNP
-                || phase == END_SREF)
+        currentTransactionsInSystem.at(keyTrans).recordedPhases.emplace_back(std::move(phaseName),
+                std::move(TimeInterval(currentTime + delay,
+                currentTime + delay + memSpec.getExecutionTime(Command(phase), trans))),
+                std::move(intervalOnDataStrobe), extension.getRank(), extension.getBankGroup(), extension.getBank(),
+                extension.getRow(), extension.getColumn(), extension.getBurstLength());
+
+        if (isRefreshCommandPhase(phase))
             removeTransactionFromSystem(trans);
     }
-    else
+    else if (isPowerDownEntryPhase(phase))
     {
-        if (phase == END_RESP)
-            removeTransactionFromSystem(trans);
+        introduceTransactionToSystem(trans);
+        std::string phaseName = getPhaseName(phase).substr(6); // remove "BEGIN_"
+        const ControllerExtension& extension = ControllerExtension::getExtension(trans);
+        currentTransactionsInSystem.at(&trans).recordedPhases.emplace_back(std::move(phaseName),
+                std::move(TimeInterval(currentTime + delay, SC_ZERO_TIME)),
+                std::move(TimeInterval(SC_ZERO_TIME, SC_ZERO_TIME)),
+                extension.getRank(), extension.getBankGroup(), extension.getBank(),
+                extension.getRow(), extension.getColumn(), extension.getBurstLength());
+    }
+    else if (isPowerDownExitPhase(phase))
+    {
+        currentTransactionsInSystem.at(&trans).recordedPhases.back().interval.end = currentTime + delay
+                + memSpec.getCommandLength(Command(phase));
+        removeTransactionFromSystem(trans);
     }
 
-    simulationTimeCoveredByRecording = time;
+    simulationTimeCoveredByRecording = currentTime + delay;
 }
-
-
-void TlmRecorder::updateDataStrobe(const sc_time &begin, const sc_time &end,
-                                   tlm_generic_payload &trans)
-{
-    assert(currentTransactionsInSystem.count(&trans) != 0);
-    currentTransactionsInSystem[&trans].timeOnDataStrobe.start = begin;
-    currentTransactionsInSystem[&trans].timeOnDataStrobe.end = end;
-}
-
 
 void TlmRecorder::recordDebugMessage(const std::string &message, const sc_time &time)
 {
@@ -174,24 +204,27 @@ void TlmRecorder::recordDebugMessage(const std::string &message, const sc_time &
 
 // ------------- internal -----------------------
 
-void TlmRecorder::introduceTransactionSystem(tlm_generic_payload &trans)
+void TlmRecorder::introduceTransactionToSystem(tlm_generic_payload& trans)
 {
     totalNumTransactions++;
-    currentTransactionsInSystem[&trans].id = totalNumTransactions;
+
+    char commandChar;
     tlm_command command = trans.get_command();
     if (command == TLM_READ_COMMAND)
-        currentTransactionsInSystem[&trans].cmd = 'R';
+        commandChar = 'R';
     else if (command == TLM_WRITE_COMMAND)
-        currentTransactionsInSystem[&trans].cmd = 'W';
+        commandChar = 'W';
     else
-        currentTransactionsInSystem[&trans].cmd = 'X';
-    currentTransactionsInSystem[&trans].address = trans.get_address();
-    currentTransactionsInSystem[&trans].burstLength = DramExtension::getBurstLength(trans);
-    currentTransactionsInSystem[&trans].dramExtension = DramExtension::getExtension(trans);
-    currentTransactionsInSystem[&trans].timeOfGeneration = GenerationExtension::getTimeOfGeneration(trans);
+        commandChar = 'X';
+
+    const ArbiterExtension& extension = ArbiterExtension::getExtension(trans);
+
+    currentTransactionsInSystem.insert({&trans, Transaction(totalNumTransactions, trans.get_address(),
+            trans.get_data_length(), commandChar, extension.getTimeOfGeneration(), extension.getThread(),
+            extension.getChannel())});
 
     PRINTDEBUGMESSAGE(name, "New transaction #" + std::to_string(totalNumTransactions) + " generation time " +
-                      currentTransactionsInSystem[&trans].timeOfGeneration.to_string());
+                      currentTransactionsInSystem.at(&trans).timeOfGeneration.to_string());
 }
 
 void TlmRecorder::removeTransactionFromSystem(tlm_generic_payload &trans)
@@ -199,9 +232,9 @@ void TlmRecorder::removeTransactionFromSystem(tlm_generic_payload &trans)
     assert(currentTransactionsInSystem.count(&trans) != 0);
 
     PRINTDEBUGMESSAGE(name, "Removing transaction #" +
-                      std::to_string(currentTransactionsInSystem[&trans].id));
+                      std::to_string(currentTransactionsInSystem.at(&trans).id));
 
-    Transaction &recordingData = currentTransactionsInSystem[&trans];
+    Transaction& recordingData = currentTransactionsInSystem.at(&trans);
     currentDataBuffer->push_back(recordingData);
     currentTransactionsInSystem.erase(&trans);
 
@@ -229,39 +262,51 @@ void TlmRecorder::terminateRemainingTransactions()
         {
             std::string beginPhase = transaction->second.recordedPhases.front().name;
             if (beginPhase == "PDNA")
-                recordPhase(*(transaction->first), END_PDNA, sc_time_stamp());
+                recordPhase(*(transaction->first), END_PDNA, SC_ZERO_TIME);
             else if (beginPhase == "PDNP")
-                recordPhase(*(transaction->first), END_PDNP, sc_time_stamp());
+                recordPhase(*(transaction->first), END_PDNP, SC_ZERO_TIME);
             else if (beginPhase == "SREF")
-                recordPhase(*(transaction->first), END_SREF, sc_time_stamp());
+                recordPhase(*(transaction->first), END_SREF, SC_ZERO_TIME);
             else
                 removeTransactionFromSystem(*transaction->first);
         }
         else
-            recordPhase(*(transaction->first), END_RESP, sc_time_stamp());
+        {
+            std::string beginPhase = transaction->second.recordedPhases.back().name;
+
+            if (beginPhase == "RESP")
+                recordPhase(*(transaction->first), END_RESP, SC_ZERO_TIME);
+            else
+            {
+                // Do not terminate transaction as it is not ready to be completed.
+                currentTransactionsInSystem.erase(transaction);
+
+                // Decrement totalNumTransactions as this transaction will not be recorded in the database.
+                totalNumTransactions--;
+            }
+        }
     }
 }
 
 void TlmRecorder::commitRecordedDataToDB()
 {
     sqlite3_exec(db, "BEGIN;", nullptr, nullptr, nullptr);
-    for (Transaction &recordingData : *storageDataBuffer)
+    for (const Transaction& transaction : *storageDataBuffer)
     {
-        assert(!recordingData.recordedPhases.empty());
-        insertTransactionInDB(recordingData);
-        for (Transaction::Phase &phaseData : recordingData.recordedPhases)
+        assert(!transaction.recordedPhases.empty());
+        insertTransactionInDB(transaction);
+        for (const Transaction::Phase& phase : transaction.recordedPhases)
         {
-            insertPhaseInDB(phaseData.name, phaseData.interval.start,
-                            phaseData.interval.end, recordingData.id);
+            insertPhaseInDB(phase, transaction.id);
         }
 
-        sc_time rangeBegin = recordingData.recordedPhases.front().interval.start;
+        sc_time rangeBegin = transaction.recordedPhases.front().interval.start;
         sc_time rangeEnd = rangeBegin;
-        for (auto &it : recordingData.recordedPhases)
+        for (const Transaction::Phase& phase : transaction.recordedPhases)
         {
-            rangeEnd = std::max(rangeEnd, it.interval.end);
+            rangeEnd = std::max(rangeEnd, phase.interval.end);
         }
-        insertRangeInDB(recordingData.id, rangeBegin, rangeEnd);
+        insertRangeInDB(transaction.id, rangeBegin, rangeEnd);
     }
 
     sqlite3_exec(db, "COMMIT;", nullptr, nullptr, nullptr);
@@ -288,18 +333,17 @@ void TlmRecorder::openDB(const std::string &dbName)
 void TlmRecorder::prepareSqlStatements()
 {
     insertTransactionString =
-            "INSERT INTO Transactions VALUES (:id,:rangeID,:address,:burstlength,:thread,:channel,:rank,"
-            ":bankgroup,:bank,:row,:column,:dataStrobeBegin,:dataStrobeEnd, :timeOfGeneration,:command)";
+            "INSERT INTO Transactions VALUES (:id,:rangeID,:address,:dataLength,:thread,:channel,"
+            ":timeOfGeneration,:command)";
 
     insertRangeString = "INSERT INTO Ranges VALUES (:id,:begin,:end)";
 
     updateRangeString = "UPDATE Ranges SET  End = :end WHERE ID = :id";
 
-    updateDataStrobeString =
-            "UPDATE Transactions SET DataStrobeBegin = :begin, DataStrobeEnd = :end WHERE ID = :id";
-
     insertPhaseString =
-            "INSERT INTO Phases (PhaseName,PhaseBegin,PhaseEnd,Transact) VALUES (:name,:begin,:end,:transaction)";
+            "INSERT INTO Phases (PhaseName,PhaseBegin,PhaseEnd,DataStrobeBegin,DataStrobeEnd,Rank,BankGroup,Bank,"
+            "Row,Column,BurstLength,Transact) VALUES (:name,:begin,:end,:strobeBegin,:strobeEnd,:rank,:bankGroup,:bank,"
+            ":row,:column,:burstLength,:transaction)";
 
     updatePhaseString =
             "UPDATE Phases SET PhaseEnd = :end WHERE Transact = :trans AND PhaseName = :name";
@@ -325,7 +369,6 @@ void TlmRecorder::prepareSqlStatements()
     sqlite3_prepare_v2(db, updateRangeString.c_str(), -1, &updateRangeStatement, nullptr);
     sqlite3_prepare_v2(db, insertPhaseString.c_str(), -1, &insertPhaseStatement, nullptr);
     sqlite3_prepare_v2(db, updatePhaseString.c_str(), -1, &updatePhaseStatement, nullptr);
-    sqlite3_prepare_v2(db, updateDataStrobeString.c_str(), -1, &updateDataStrobeStatement, nullptr);
     sqlite3_prepare_v2(db, insertGeneralInfoString.c_str(), -1, &insertGeneralInfoStatement, nullptr);
     sqlite3_prepare_v2(db, insertCommandLengthsString.c_str(), -1, &insertCommandLengthsStatement, nullptr);
     sqlite3_prepare_v2(db, insertDebugMessageString.c_str(), -1, &insertDebugMessageStatement, nullptr);
@@ -361,27 +404,20 @@ void TlmRecorder::insertGeneralInfo()
         sqlite3_bind_int64(insertGeneralInfoStatement, 11, 0);
     sqlite3_bind_int(insertGeneralInfoStatement, 12, static_cast<int>(config.refreshMaxPostponed));
     sqlite3_bind_int(insertGeneralInfoStatement, 13, static_cast<int>(config.refreshMaxPulledin));
-    sqlite3_bind_int64(insertGeneralInfoStatement, 14, static_cast<int64_t>(UINT64_MAX));
+    sqlite3_bind_int(insertGeneralInfoStatement, 14, static_cast<int>(UINT_MAX));
     sqlite3_bind_int(insertGeneralInfoStatement, 15, static_cast<int>(config.requestBufferSize));
     sqlite3_bind_int(insertGeneralInfoStatement, 16, static_cast<int>(config.memSpec->getPer2BankOffset()));
 
     const MemSpec& memSpec = *config.memSpec;
     const auto memoryType = memSpec.memoryType;
-    bool rowColumnCommandBus = [memoryType]() -> bool {
-        if (memoryType == MemSpec::MemoryType::HBM2)
-            return true;
-        else
-            return false;
-    }();
+
+    bool rowColumnCommandBus = (memoryType == MemSpec::MemoryType::HBM2) || (memoryType == MemSpec::MemoryType::HBM3);
 
     bool pseudoChannelMode = [&memSpec, memoryType]() -> bool {
-        if (memoryType != MemSpec::MemoryType::HBM2)
+        if (memoryType != MemSpec::MemoryType::HBM2 && memoryType != MemSpec::MemoryType::HBM3)
             return false;
 
-        if (memSpec.pseudoChannelsPerChannel != 1)
-            return true;
-        else
-            return false;
+        return memSpec.pseudoChannelsPerChannel != 1;
     }();
 
     sqlite3_bind_int(insertGeneralInfoStatement, 17, static_cast<int>(rowColumnCommandBus));
@@ -397,8 +433,7 @@ void TlmRecorder::insertCommandLengths()
         auto commandName = command.toString();
 
         sqlite3_bind_text(insertCommandLengthsStatement, 1, commandName.c_str(), commandName.length(), nullptr);
-        sqlite3_bind_int(insertCommandLengthsStatement, 2,
-                         static_cast<int>(lround(memSpec.getCommandLength(command) / memSpec.tCK)));
+        sqlite3_bind_double(insertCommandLengthsStatement, 2, memSpec.getCommandLengthInCycles(command));
         executeSqlStatement(insertCommandLengthsStatement);
     };
 
@@ -406,33 +441,19 @@ void TlmRecorder::insertCommandLengths()
         insertCommandLength(static_cast<Command::Type>(command));
 }
 
-void TlmRecorder::insertTransactionInDB(Transaction &recordingData)
+void TlmRecorder::insertTransactionInDB(const Transaction &recordingData)
 {
     sqlite3_bind_int(insertTransactionStatement, 1, static_cast<int>(recordingData.id));
     sqlite3_bind_int(insertTransactionStatement, 2, static_cast<int>(recordingData.id));
     sqlite3_bind_int64(insertTransactionStatement, 3, static_cast<int64_t>(recordingData.address));
-    sqlite3_bind_int(insertTransactionStatement, 4, static_cast<int>(recordingData.burstLength));
+    sqlite3_bind_int(insertTransactionStatement, 4, static_cast<int>(recordingData.dataLength));
     sqlite3_bind_int(insertTransactionStatement, 5,
-                     static_cast<int>(recordingData.dramExtension.getThread().ID()));
+                     static_cast<int>(recordingData.thread.ID()));
     sqlite3_bind_int(insertTransactionStatement, 6,
-                     static_cast<int>(recordingData.dramExtension.getChannel().ID()));
-    sqlite3_bind_int(insertTransactionStatement, 7,
-                     static_cast<int>(recordingData.dramExtension.getRank().ID()));
-    sqlite3_bind_int(insertTransactionStatement, 8,
-                     static_cast<int>(recordingData.dramExtension.getBankGroup().ID()));
-    sqlite3_bind_int(insertTransactionStatement, 9,
-                     static_cast<int>(recordingData.dramExtension.getBank().ID()));
-    sqlite3_bind_int(insertTransactionStatement, 10,
-                     static_cast<int>(recordingData.dramExtension.getRow().ID()));
-    sqlite3_bind_int(insertTransactionStatement, 11,
-                     static_cast<int>(recordingData.dramExtension.getColumn().ID()));
-    sqlite3_bind_int64(insertTransactionStatement, 12,
-                       static_cast<int64_t>(recordingData.timeOnDataStrobe.start.value()));
-    sqlite3_bind_int64(insertTransactionStatement, 13,
-                       static_cast<int64_t>(recordingData.timeOnDataStrobe.end.value()));
-    sqlite3_bind_int64(insertTransactionStatement, 14,
+                     static_cast<int>(recordingData.channel.ID()));
+    sqlite3_bind_int64(insertTransactionStatement, 7,
                        static_cast<int64_t>(recordingData.timeOfGeneration.value()));
-    sqlite3_bind_text(insertTransactionStatement, 15,
+    sqlite3_bind_text(insertTransactionStatement, 8,
                       &recordingData.cmd, 1, nullptr);
 
     executeSqlStatement(insertTransactionStatement);
@@ -447,15 +468,20 @@ void TlmRecorder::insertRangeInDB(uint64_t id, const sc_time &begin,
     executeSqlStatement(insertRangeStatement);
 }
 
-void TlmRecorder::insertPhaseInDB(const std::string &phaseName, const sc_time &begin,
-                                  const sc_time &end,
-                                  uint64_t transactionID)
+void TlmRecorder::insertPhaseInDB(const Transaction::Phase& phase, uint64_t transactionID)
 {
-    sqlite3_bind_text(insertPhaseStatement, 1, phaseName.c_str(),
-                      static_cast<int>(phaseName.length()), nullptr);
-    sqlite3_bind_int64(insertPhaseStatement, 2, static_cast<int64_t>(begin.value()));
-    sqlite3_bind_int64(insertPhaseStatement, 3, static_cast<int64_t>(end.value()));
-    sqlite3_bind_int64(insertPhaseStatement, 4, static_cast<int64_t>(transactionID));
+    sqlite3_bind_text(insertPhaseStatement, 1, phase.name.c_str(), static_cast<int>(phase.name.length()), nullptr);
+    sqlite3_bind_int64(insertPhaseStatement, 2, static_cast<int64_t>(phase.interval.start.value()));
+    sqlite3_bind_int64(insertPhaseStatement, 3, static_cast<int64_t>(phase.interval.end.value()));
+    sqlite3_bind_int64(insertPhaseStatement, 4, static_cast<int64_t>(phase.intervalOnDataStrobe.start.value()));
+    sqlite3_bind_int64(insertPhaseStatement, 5, static_cast<int64_t>(phase.intervalOnDataStrobe.end.value()));
+    sqlite3_bind_int(insertPhaseStatement, 6, static_cast<int>(phase.rank.ID()));
+    sqlite3_bind_int(insertPhaseStatement, 7, static_cast<int>(phase.bankGroup.ID()));
+    sqlite3_bind_int(insertPhaseStatement, 8, static_cast<int>(phase.bank.ID()));
+    sqlite3_bind_int(insertPhaseStatement, 9, static_cast<int>(phase.row.ID()));
+    sqlite3_bind_int(insertPhaseStatement, 10, static_cast<int>(phase.column.ID()));
+    sqlite3_bind_int(insertPhaseStatement, 11, static_cast<int>(phase.burstLength));
+    sqlite3_bind_int64(insertPhaseStatement, 12, static_cast<int64_t>(transactionID));
     executeSqlStatement(insertPhaseStatement);
 }
 

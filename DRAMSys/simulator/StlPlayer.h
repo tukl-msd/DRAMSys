@@ -70,7 +70,6 @@ public:
               const sc_core::sc_time &playerClk,
               unsigned int maxPendingReadRequests,
               unsigned int maxPendingWriteRequests,
-              bool addLengthConverter,
               TraceSetup& setup,
               bool relative);
 

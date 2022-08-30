@@ -66,15 +66,15 @@ CheckerWideIO::CheckerWideIO(const Configuration& config)
 
 sc_time CheckerWideIO::timeToSatisfyConstraints(Command command, const tlm_generic_payload& payload) const
 {
-    Rank rank = DramExtension::getRank(payload);
-    Bank bank = DramExtension::getBank(payload);
+    Rank rank = ControllerExtension::getRank(payload);
+    Bank bank = ControllerExtension::getBank(payload);
 
     sc_time lastCommandStart;
     sc_time earliestTimeToStart = sc_time_stamp();
 
     if (command == Command::RD || command == Command::RDA)
     {
-        unsigned burstLength = DramExtension::getBurstLength(payload);
+        unsigned burstLength = ControllerExtension::getBurstLength(payload);
         assert((burstLength == 2) || (burstLength == 4));
         assert(burstLength <= memSpec->maxBurstLength);
 
@@ -127,7 +127,7 @@ sc_time CheckerWideIO::timeToSatisfyConstraints(Command command, const tlm_gener
     }
     else if (command == Command::WR || command == Command::WRA)
     {
-        unsigned burstLength = DramExtension::getBurstLength(payload);
+        unsigned burstLength = ControllerExtension::getBurstLength(payload);
         assert((burstLength == 2) || (burstLength == 4));
         assert(burstLength <= memSpec->maxBurstLength);
 
@@ -402,8 +402,8 @@ sc_time CheckerWideIO::timeToSatisfyConstraints(Command command, const tlm_gener
 
 void CheckerWideIO::insert(Command command, const tlm_generic_payload& payload)
 {
-    Rank rank = DramExtension::getRank(payload);
-    Bank bank = DramExtension::getBank(payload);
+    Rank rank = ControllerExtension::getRank(payload);
+    Bank bank = ControllerExtension::getBank(payload);
 
     PRINTDEBUGMESSAGE("CheckerWideIO", "Changing state on bank " + std::to_string(bank.ID())
                       + " command is " + command.toString());

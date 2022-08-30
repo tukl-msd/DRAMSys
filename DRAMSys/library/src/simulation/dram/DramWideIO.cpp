@@ -39,12 +39,16 @@
 #include "DramWideIO.h"
 #include "../../configuration/Configuration.h"
 #include "../../error/errormodel.h"
-#include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 #include "../../configuration/memspec/MemSpecWideIO.h"
+
+#ifdef DRAMPOWER
+#include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
+using namespace DRAMPower;
+#endif
 
 using namespace sc_core;
 using namespace tlm;
-using namespace DRAMPower;
+
 
 DramWideIO::DramWideIO(const sc_module_name& name, const Configuration& config,
                        TemperatureController& temperatureController)
@@ -52,6 +56,7 @@ DramWideIO::DramWideIO(const sc_module_name& name, const Configuration& config,
 {
     if (powerAnalysis)
     {
+#ifdef DRAMPOWER
         const auto* memSpecWideIO = dynamic_cast<const MemSpecWideIO *>(config.memSpec.get());
         if (memSpecWideIO == nullptr)
             SC_REPORT_FATAL("DramWideIO", "Wrong MemSpec chosen");
@@ -144,6 +149,7 @@ DramWideIO::DramWideIO(const sc_module_name& name, const Configuration& config,
 
         DRAMPower = std::make_unique<libDRAMPower>(powerSpec, false);
 
+
         // For each bank in a channel a error Model is created:
         if (storeMode == Configuration::StoreMode::ErrorModel)
         {
@@ -154,6 +160,7 @@ DramWideIO::DramWideIO(const sc_module_name& name, const Configuration& config,
                                                                   temperatureController, DRAMPower.get()));
             }
         }
+#endif
     }
     else
     {
@@ -174,12 +181,14 @@ tlm_sync_enum DramWideIO::nb_transport_fw(tlm_generic_payload &payload,
 {
     assert(phase >= 5 && phase <= 19);
 
+#ifdef DRAMPOWER
     if (powerAnalysis)
     {
-        int bank = static_cast<int>(DramExtension::getExtension(payload).getBank().ID());
+        int bank = static_cast<int>(ControllerExtension::getBank(payload).ID());
         int64_t cycle = std::lround((sc_time_stamp() + delay) / memSpec.tCK);
         DRAMPower->doCommand(phaseToDRAMPowerCommand(phase), bank, cycle);
     }
+#endif
 
     if (storeMode == Configuration::StoreMode::Store)
     {
@@ -197,16 +206,16 @@ tlm_sync_enum DramWideIO::nb_transport_fw(tlm_generic_payload &payload,
     else if (storeMode == Configuration::StoreMode::ErrorModel)
     {
         // TODO: delay should be considered here!
-        unsigned bank = DramExtension::getExtension(payload).getBank().ID();
+        unsigned bank = ControllerExtension::getBank(payload).ID();
 
         if (phase == BEGIN_ACT)
-            ememory[bank]->activate(DramExtension::getExtension(payload).getRow().ID());
+            ememory[bank]->activate(ControllerExtension::getRow(payload).ID());
         else if (phase == BEGIN_RD || phase == BEGIN_RDA)
             ememory[bank]->load(payload);
         else if (phase == BEGIN_WR || phase == BEGIN_WRA)
             ememory[bank]->store(payload);
         else if (phase == BEGIN_REFAB)
-            ememory[bank]->refresh(DramExtension::getExtension(payload).getRow().ID());
+            ememory[bank]->refresh(ControllerExtension::getRow(payload).ID());
     }
 
     return TLM_ACCEPTED;

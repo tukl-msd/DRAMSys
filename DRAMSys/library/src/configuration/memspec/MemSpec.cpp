@@ -65,6 +65,7 @@ MemSpec::MemSpec(const DRAMSysConfiguration::MemSpec &memSpec,
       dataRate(memSpec.memArchitectureSpec.entries.at("dataRate")),
       bitWidth(memSpec.memArchitectureSpec.entries.at("width")),
       dataBusWidth(bitWidth * devicesPerRank),
+      bytesPerBeat(dataBusWidth / 8),
       defaultBytesPerBurst((defaultBurstLength * dataBusWidth) / 8),
       maxBytesPerBurst((maxBurstLength * dataBusWidth) / 8),
       fCKMHz(memSpec.memTimingSpec.entries.at("clkMhz")),
@@ -74,12 +75,17 @@ MemSpec::MemSpec(const DRAMSysConfiguration::MemSpec &memSpec,
       burstDuration(tCK * (static_cast<double>(defaultBurstLength) / dataRate)),
       memorySizeBytes(0)
 {
-    commandLengthInCycles = std::vector<unsigned>(Command::numberOfCommands(), 1);
+    commandLengthInCycles = std::vector<double>(Command::numberOfCommands(), 1);
 }
 
 sc_time MemSpec::getCommandLength(Command command) const
 {
     return tCK * commandLengthInCycles[command];
+}
+
+double MemSpec::getCommandLengthInCycles(Command command) const
+{
+    return commandLengthInCycles[command];
 }
 
 uint64_t MemSpec::getSimMemSizeInBytes() const

@@ -42,16 +42,24 @@
 #include "Configuration.h"
 #include "memspec/MemSpecDDR3.h"
 #include "memspec/MemSpecDDR4.h"
-#include "memspec/MemSpecDDR5.h"
 #include "memspec/MemSpecWideIO.h"
 #include "memspec/MemSpecLPDDR4.h"
-#include "memspec/MemSpecLPDDR5.h"
 #include "memspec/MemSpecWideIO2.h"
 #include "memspec/MemSpecHBM2.h"
 #include "memspec/MemSpecGDDR5.h"
 #include "memspec/MemSpecGDDR5X.h"
 #include "memspec/MemSpecGDDR6.h"
 #include "memspec/MemSpecSTTMRAM.h"
+
+#ifdef DDR5_SIM
+#include "memspec/MemSpecDDR5.h"
+#endif
+#ifdef LPDDR5_SIM
+#include "memspec/MemSpecLPDDR5.h"
+#endif
+#ifdef HBM3_SIM
+#include "memspec/MemSpecHBM3.h"
+#endif
 
 using namespace sc_core;
 
@@ -325,12 +333,8 @@ void Configuration::loadMemSpec(const DRAMSysConfiguration::MemSpec &memSpecConf
         memSpec = std::make_unique<const MemSpecDDR3>(memSpecConfig);
     else if (memoryType == "DDR4")
         memSpec = std::make_unique<const MemSpecDDR4>(memSpecConfig);
-    else if (memoryType == "DDR5")
-        memSpec = std::make_unique<const MemSpecDDR5>(memSpecConfig);
     else if (memoryType == "LPDDR4")
         memSpec = std::make_unique<const MemSpecLPDDR4>(memSpecConfig);
-    else if (memoryType == "LPDDR5")
-        memSpec = std::make_unique<const MemSpecLPDDR5>(memSpecConfig);
     else if (memoryType == "WIDEIO_SDR")
         memSpec = std::make_unique<const MemSpecWideIO>(memSpecConfig);
     else if (memoryType == "WIDEIO2")
@@ -345,6 +349,18 @@ void Configuration::loadMemSpec(const DRAMSysConfiguration::MemSpec &memSpecConf
         memSpec = std::make_unique<const MemSpecGDDR6>(memSpecConfig);
     else if (memoryType == "STT-MRAM")
         memSpec = std::make_unique<const MemSpecSTTMRAM>(memSpecConfig);
+#ifdef DDR5_SIM
+    else if (memoryType == "DDR5")
+        memSpec = std::make_unique<const MemSpecDDR5>(memSpecConfig);
+#endif
+#ifdef LPDDR5_SIM
+    else if (memoryType == "LPDDR5")
+        memSpec = std::make_unique<const MemSpecLPDDR5>(memSpecConfig);
+#endif
+#ifdef HBM3_SIM
+    else if (memoryType == "HBM3")
+        memSpec = std::make_unique<const MemSpecHBM3>(memSpecConfig);
+#endif
     else
         SC_REPORT_FATAL("Configuration", "Unsupported DRAM type");
 }

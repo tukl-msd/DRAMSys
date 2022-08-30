@@ -35,7 +35,6 @@
 
 #include "DramHBM2.h"
 #include "../../configuration/Configuration.h"
-#include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
 #include "../../configuration/memspec/MemSpecHBM2.h"
 
 using namespace sc_core;

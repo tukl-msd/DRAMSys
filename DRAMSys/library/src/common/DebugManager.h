@@ -65,8 +65,10 @@ public:
 
 private:
     DebugManager();
-    DebugManager(const DebugManager &);
-    DebugManager & operator = (const DebugManager &);
+
+public:
+    DebugManager(const DebugManager&) = delete;
+    DebugManager& operator=(const DebugManager&) = delete;
 
 public:
     void setup(bool _debugEnabled, bool _writeToConsole, bool _writeToFile);

@@ -39,6 +39,10 @@
 #include "../simulation/AddressDecoder.h"
 #include "../common/dramExtensions.h"
 
+#ifdef DRAMPOWER
+#include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
+#endif
+
 #include <random>
 #include <chrono>
 #include <bitset>
@@ -158,11 +162,13 @@ void errorModel::store(tlm::tlm_generic_payload &trans)
     markBitFlips();
 
     // Get the key for the dataMap from the transaction's dram extension:
-    DramExtension &ext = DramExtension::getExtension(trans);
-    DecodedAddress key = DecodedAddress(ext.getChannel().ID(), ext.getRank().ID(),
-                                        ext.getBankGroup().ID(), ext.getBank().ID(),
-                                        ext.getRow().ID(), ext.getColumn().ID(), 0);
-    // Set context:
+    // FIXME
+//    ControllerExtension &ext = ControllerExtension::getExtension(trans);
+//    DecodedAddress key = DecodedAddress(ext.getChannel().ID(), ext.getRank().ID(),
+//                                        ext.getBankGroup().ID(), ext.getBank().ID(),
+//                                        ext.getRow().ID(), ext.getColumn().ID(), 0);
+    DecodedAddress key;
+// Set context:
     setContext(key);
 
     std::stringstream msg;
@@ -226,11 +232,12 @@ void errorModel::load(tlm::tlm_generic_payload &trans)
     markBitFlips();
 
     // Get the key for the dataMap from the transaction's dram extension:
-    DramExtension &ext = DramExtension::getExtension(trans);
-    DecodedAddress key = DecodedAddress(ext.getChannel().ID(), ext.getRank().ID(),
-                                        ext.getBankGroup().ID(), ext.getBank().ID(),
-                                        ext.getRow().ID(), ext.getColumn().ID(), 0);
-
+    // FIXME
+//    DramExtension &ext = DramExtension::getExtension(trans);
+//    DecodedAddress key = DecodedAddress(ext.getChannel().ID(), ext.getRank().ID(),
+//                                        ext.getBankGroup().ID(), ext.getBank().ID(),
+//                                        ext.getRow().ID(), ext.getColumn().ID(), 0);
+    DecodedAddress key;
     // Set context:
     setContext(key);
 
@@ -501,6 +508,7 @@ double errorModel::getTemperature()
 
     if (this->myChannel != -1)
     {
+#ifdef DRAMPOWER
         if (thermalSim && powerAnalysis)
         {
             // TODO
@@ -512,6 +520,9 @@ double errorModel::getTemperature()
         } else {
             temperature = temperatureController.getTemperature(this->myChannel, 0);
         }
+#else
+        temperature = temperatureController.getTemperature(this->myChannel, 0);
+#endif
     }
 
     return temperature;

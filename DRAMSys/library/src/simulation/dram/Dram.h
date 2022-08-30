@@ -47,7 +47,8 @@
 #include <tlm_utils/simple_target_socket.h>
 #include "../../configuration/Configuration.h"
 #include "../../configuration/memspec/MemSpec.h"
-#include "../../common/third_party/DRAMPower/src/libdrampower/LibDRAMPower.h"
+
+class libDRAMPower;
 
 class Dram : public sc_core::sc_module
 {
@@ -63,7 +64,9 @@ protected:
     unsigned char *memory;
     const bool useMalloc;
 
+#ifdef DRAMPOWER
     std::unique_ptr<libDRAMPower> DRAMPower;
+#endif
 
     virtual tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload &payload,
                                                tlm::tlm_phase &phase, sc_core::sc_time &delay);

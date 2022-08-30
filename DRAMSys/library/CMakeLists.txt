@@ -42,8 +42,12 @@ project(DRAMSysLibrary)
 set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ Version")
 set(DCMAKE_SH="CMAKE_SH-NOTFOUND")
 
+option(DRAMSYS_WITH_DRAMPOWER "Build with DRAMPower support enabled." ON)
+
 # Add DRAMPower:
+if (DRAMSYS_WITH_DRAMPOWER)
 add_subdirectory(src/common/third_party/DRAMPower)
+endif()
 
 # Add Configuration
 add_subdirectory(src/common/configuration)
@@ -77,6 +81,33 @@ if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/src/common/third_party/sqlite-amalgamation)
     )
 endif()
 
+if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/src/controller/checker/CheckerDDR5.cpp)
+    message("== DDR5 included")
+    set(DDR5_SOURCES
+        src/configuration/memspec/MemSpecDDR5.cpp
+        src/controller/checker/CheckerDDR5.cpp
+        src/simulation/dram/DramDDR5.cpp
+    )
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/src/controller/checker/CheckerLPDDR5.cpp)
+    message("== LPDDR5 included")
+    set(LPDDR5_SOURCES
+        src/configuration/memspec/MemSpecLPDDR5.cpp
+        src/controller/checker/CheckerLPDDR5.cpp
+        src/simulation/dram/DramLPDDR5.cpp
+    )
+endif()
+
+if(EXISTS ${CMAKE_CURRENT_LIST_DIR}/src/controller/checker/CheckerHBM3.cpp)
+    message("== HBM3 included")
+    set(HBM3_SOURCES
+        src/configuration/memspec/MemSpecHBM3.cpp
+        src/controller/checker/CheckerHBM3.cpp
+        src/simulation/dram/DramHBM3.cpp
+    )
+endif()
+
 add_library(DRAMSysLibrary
     src/common/DebugManager.cpp
     src/common/dramExtensions.cpp
@@ -89,9 +120,7 @@ add_library(DRAMSysLibrary
     src/configuration/memspec/MemSpec.cpp
     src/configuration/memspec/MemSpecDDR3.cpp
     src/configuration/memspec/MemSpecDDR4.cpp
-    src/configuration/memspec/MemSpecDDR5.cpp
     src/configuration/memspec/MemSpecLPDDR4.cpp
-    src/configuration/memspec/MemSpecLPDDR5.cpp
     src/configuration/memspec/MemSpecWideIO.cpp
     src/configuration/memspec/MemSpecWideIO2.cpp
     src/configuration/memspec/MemSpecGDDR5.cpp
@@ -108,9 +137,7 @@ add_library(DRAMSysLibrary
     src/controller/checker/CheckerIF.h
     src/controller/checker/CheckerDDR3.cpp
     src/controller/checker/CheckerDDR4.cpp
-    src/controller/checker/CheckerDDR5.cpp
     src/controller/checker/CheckerLPDDR4.cpp
-    src/controller/checker/CheckerLPDDR5.cpp
     src/controller/checker/CheckerWideIO.cpp
     src/controller/checker/CheckerWideIO2.cpp
     src/controller/checker/CheckerGDDR5.cpp
@@ -166,10 +193,8 @@ add_library(DRAMSysLibrary
     
     src/simulation/dram/Dram.cpp
     src/simulation/dram/DramDDR3.cpp 
-    src/simulation/dram/DramDDR4.cpp 
-    src/simulation/dram/DramDDR5.cpp
+    src/simulation/dram/DramDDR4.cpp
     src/simulation/dram/DramLPDDR4.cpp
-    src/simulation/dram/DramLPDDR5.cpp
     src/simulation/dram/DramWideIO.cpp
     src/simulation/dram/DramWideIO2.cpp
     src/simulation/dram/DramGDDR5.cpp
@@ -179,115 +204,22 @@ add_library(DRAMSysLibrary
     src/simulation/dram/DramSTTMRAM.cpp
 
     ${RECORDING_SOURCES}
-	
-	
-    # Simulation Config Files
-    resources/simulations/ddr3-example.json
-    resources/simulations/ddr3-example2.json
-    resources/simulations/ddr3-gem5-se.json
-    resources/simulations/ddr4-example.json
-    resources/simulations/hbm2-example.json
-    resources/simulations/lpddr4-example.json
-    resources/simulations/ranktest.json
-    resources/simulations/wideio-example.json
-    resources/simulations/wideio-thermal.json
-
-    # Address Mapping Config Files
-    resources/configs/amconfigs/am_ddr3_4x4Gbx16_dimm_p2KB_brc.json
-    resources/configs/amconfigs/am_ddr3_4x4Gbx16_dimm_p2KB_rbc.json
-    resources/configs/amconfigs/am_ddr3_8x1Gbx8_dimm_p1KB_brc.json
-    resources/configs/amconfigs/am_ddr3_8x1Gbx8_dimm_p1KB_rbc.json
-    resources/configs/amconfigs/am_ddr3_8x2Gbx8_dimm_p1KB_brc.json
-    resources/configs/amconfigs/am_ddr3_8x2Gbx8_dimm_p1KB_rbc.json
-    resources/configs/amconfigs/am_ddr3_x16_brc.json
-    resources/configs/amconfigs/am_ddr3_x16_rbc.json
-    resources/configs/amconfigs/am_ddr4_8x4Gbx8_dimm_p1KB_brc.json
-    resources/configs/amconfigs/am_hbm2_8Gb_pc_brc.json
-    resources/configs/amconfigs/am_lpddr4_8Gbx16_brc.json
-    resources/configs/amconfigs/am_ranktest.json
-    resources/configs/amconfigs/am_wideio2_4x64_4x2Gb_brc.json
-    resources/configs/amconfigs/am_wideio2_4x64_4x2Gb_rbc.json
-    resources/configs/amconfigs/am_wideio_4x1Gb_brc.json
-    resources/configs/amconfigs/am_wideio_4x1Gb_rbc.json
-    resources/configs/amconfigs/am_wideio_4x256Mb_brc.json
-    resources/configs/amconfigs/am_wideio_4x256Mb_rbc.json
-    resources/configs/amconfigs/am_wideio_4x2Gb_brc.json
-    resources/configs/amconfigs/am_wideio_4x2Gb_rbc.json
-    resources/configs/amconfigs/am_wideio_4x4Gb_brc.json
-    resources/configs/amconfigs/am_wideio_4x4Gb_rbc.json
-    resources/configs/amconfigs/am_wideio_4x512Mb_brc.json
-    resources/configs/amconfigs/am_wideio_4x512Mb_rbc.json
-
-    # Memory Controller Config Files
-    resources/configs/mcconfigs/fifo.json
-    resources/configs/mcconfigs/fifoStrict.json
-    resources/configs/mcconfigs/fr_fcfs_grp.json
-    resources/configs/mcconfigs/fr_fcfs.json
-
-    # Memspec Config Files
-    resources/configs/memspecs/HBM2.json
-    resources/configs/memspecs/JEDEC_256Mb_WIDEIO-200_128bit.json
-    resources/configs/memspecs/JEDEC_256Mb_WIDEIO-266_128bit.json
-    resources/configs/memspecs/JEDEC_4Gb_DDR4-1866_8bit_A.json
-    resources/configs/memspecs/JEDEC_4Gb_DDR4-2400_8bit_A.json
-    resources/configs/memspecs/JEDEC_4x64_2Gb_WIDEIO2-400_64bit.json
-    resources/configs/memspecs/JEDEC_4x64_2Gb_WIDEIO2-533_64bit.json
-    resources/configs/memspecs/JEDEC_8Gb_LPDDR4-3200_16bit.json
-    resources/configs/memspecs/memspec_ranktest.json
-    resources/configs/memspecs/MICRON_1Gb_DDR2-1066_16bit_H.json
-    resources/configs/memspecs/MICRON_1Gb_DDR2-800_16bit_H.json
-    resources/configs/memspecs/MICRON_1Gb_DDR3-1066_16bit_G_2s.json
-    resources/configs/memspecs/MICRON_1Gb_DDR3-1066_16bit_G_3s.json
-    resources/configs/memspecs/MICRON_1Gb_DDR3-1066_16bit_G.json
-    resources/configs/memspecs/MICRON_1Gb_DDR3-1066_16bit_G_mu.json
-    resources/configs/memspecs/MICRON_1Gb_DDR3-1066_8bit_G_2s.json
-    resources/configs/memspecs/MICRON_1Gb_DDR3-1066_8bit_G_3s.json
-    resources/configs/memspecs/MICRON_1Gb_DDR3-1066_8bit_G.json
-    resources/configs/memspecs/MICRON_1Gb_DDR3-1066_8bit_G_mu.json
-    resources/configs/memspecs/MICRON_1Gb_DDR3-1600_8bit_G_2s.json
-    resources/configs/memspecs/MICRON_1Gb_DDR3-1600_8bit_G_3s.json
-    resources/configs/memspecs/MICRON_1Gb_DDR3-1600_8bit_G.json
-    resources/configs/memspecs/MICRON_1Gb_DDR3-1600_8bit_G_less_refresh.json
-    resources/configs/memspecs/MICRON_1Gb_DDR3-1600_8bit_G_mu.json
-    resources/configs/memspecs/MICRON_1Gb_DDR3-800_8bit_G.json
-    resources/configs/memspecs/MICRON_2GB_DDR3-1066_64bit_D_SODIMM.json
-    resources/configs/memspecs/MICRON_2GB_DDR3-1066_64bit_G_UDIMM.json
-    resources/configs/memspecs/MICRON_2Gb_DDR3-1066_8bit_D_2s.json
-    resources/configs/memspecs/MICRON_2Gb_DDR3-1066_8bit_D_3s.json
-    resources/configs/memspecs/MICRON_2Gb_DDR3-1066_8bit_D.json
-    resources/configs/memspecs/MICRON_2Gb_DDR3-1066_8bit_D_mu.json
-    resources/configs/memspecs/MICRON_2GB_DDR3-1333_64bit_D_SODIMM.json
-    resources/configs/memspecs/MICRON_2Gb_DDR3-1600_16bit_D_2s.json
-    resources/configs/memspecs/MICRON_2Gb_DDR3-1600_16bit_D_3s.json
-    resources/configs/memspecs/MICRON_2Gb_DDR3-1600_16bit_D.json
-    resources/configs/memspecs/MICRON_2Gb_DDR3-1600_16bit_D_mu.json
-    resources/configs/memspecs/MICRON_2GB_DDR3-1600_64bit_G_UDIMM.json
-    resources/configs/memspecs/MICRON_2Gb_LPDDR2-1066-S4_16bit_A.json
-    resources/configs/memspecs/MICRON_2Gb_LPDDR-266_16bit_A.json
-    resources/configs/memspecs/MICRON_2Gb_LPDDR2-800-S4_16bit_A.json
-    resources/configs/memspecs/MICRON_2Gb_LPDDR-333_16bit_A.json
-    resources/configs/memspecs/MICRON_4Gb_DDR4-1866_8bit_A.json
-    resources/configs/memspecs/MICRON_4Gb_DDR4-2400_8bit_A.json
-    resources/configs/memspecs/MICRON_4Gb_LPDDR3-1333_32bit_A.json
-    resources/configs/memspecs/MICRON_4Gb_LPDDR3-1600_32bit_A.json
-    resources/configs/memspecs/MICRON_6Gb_LPDDR4-3200_32bit_A.json
-    resources/configs/memspecs/SAMSUNG_K4B1G1646E_1Gb_DDR3-1600_16bit.json
-    resources/configs/memspecs/SAMSUNG_K4B4G1646Q_4Gb_DDR3-1066_16bit.json
-
-    # Simulator Config Files
-    resources/configs/simulator/ddr3_ecc.json
-    resources/configs/simulator/ddr3.json
-    resources/configs/simulator/ddr3_gem5_se.json
-    resources/configs/simulator/ddr4.json
-    resources/configs/simulator/hbm2.json
-    resources/configs/simulator/lpddr4.json
-    resources/configs/simulator/wideio.json
-    resources/configs/simulator/wideio_thermal.json
-
-    # Thermal Simulation Config Files
-    resources/configs/thermalsim/config.json
-    resources/configs/thermalsim/powerInfo.json
+    ${DDR5_SOURCES}
+    ${LPDDR5_SOURCES}
+    ${HBM3_SOURCES}
 )
+
+if(DEFINED DDR5_SOURCES)
+    target_compile_definitions(DRAMSysLibrary PRIVATE DDR5_SIM)
+endif()
+
+if(DEFINED LPDDR5_SOURCES)
+    target_compile_definitions(DRAMSysLibrary PRIVATE LPDDR5_SIM)
+endif()
+
+if(DEFINED HBM3_SOURCES)
+    target_compile_definitions(DRAMSysLibrary PRIVATE HBM3_SIM)
+endif()
 
 if(DEFINED ENV{LIBTHREED_ICE_HOME})
     message("== Thermal simulation available")
@@ -312,7 +244,7 @@ endif()
 
 # Build:
 target_include_directories(DRAMSysLibrary
-    PUBLIC src/common/third_party/DRAMPower/src/
+    PRIVATE src/common/third_party/DRAMPower/src/
     PUBLIC $ENV{SYSTEMC_HOME}/include/
 )
 
@@ -324,6 +256,13 @@ endif()
 
 target_link_libraries(DRAMSysLibrary
     PUBLIC ${SYSTEMC_LIBRARY}
-    PRIVATE DRAMPower
     PUBLIC DRAMSysConfiguration
 )
+
+if (DRAMSYS_WITH_DRAMPOWER)
+target_compile_definitions(DRAMSysLibrary PRIVATE DRAMPOWER)
+
+target_link_libraries(DRAMSysLibrary
+    PRIVATE DRAMPower
+)
+endif()

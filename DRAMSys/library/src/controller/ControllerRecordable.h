@@ -43,7 +43,8 @@
 class ControllerRecordable final : public Controller
 {
 public:
-    ControllerRecordable(const sc_core::sc_module_name &name, const Configuration& config, TlmRecorder& tlmRecorder);
+    ControllerRecordable(const sc_core::sc_module_name &name, const Configuration& config,
+                         const AddressDecoder& addressDecoder, TlmRecorder& tlmRecorder);
     ~ControllerRecordable() override = default;
 
 protected:
@@ -53,12 +54,10 @@ protected:
                                        sc_core::sc_time &delay) override;
 
     void sendToFrontend(tlm::tlm_generic_payload& trans, tlm::tlm_phase& phase, sc_core::sc_time& delay) override;
-    void sendToDram(Command command, tlm::tlm_generic_payload& trans, sc_core::sc_time& delay) override;
 
     void controllerMethod() override;
 
 private:
-    void recordPhase(tlm::tlm_generic_payload &trans, const tlm::tlm_phase &phase, const sc_core::sc_time &delay);
     TlmRecorder& tlmRecorder;
 
     sc_core::sc_event windowEvent;

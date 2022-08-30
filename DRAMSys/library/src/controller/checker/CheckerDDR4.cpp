@@ -69,16 +69,16 @@ CheckerDDR4::CheckerDDR4(const Configuration& config)
 
 sc_time CheckerDDR4::timeToSatisfyConstraints(Command command, const tlm_generic_payload& payload) const
 {
-    Rank rank = DramExtension::getRank(payload);
-    BankGroup bankGroup = DramExtension::getBankGroup(payload);
-    Bank bank = DramExtension::getBank(payload);
+    Rank rank = ControllerExtension::getRank(payload);
+    BankGroup bankGroup = ControllerExtension::getBankGroup(payload);
+    Bank bank = ControllerExtension::getBank(payload);
     
     sc_time lastCommandStart;
     sc_time earliestTimeToStart = sc_time_stamp();
 
     if (command == Command::RD || command == Command::RDA)
     {
-        assert(DramExtension::getBurstLength(payload) == 8);
+        assert(ControllerExtension::getBurstLength(payload) == 8);
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank.ID()];
         if (lastCommandStart != sc_max_time())
@@ -149,7 +149,7 @@ sc_time CheckerDDR4::timeToSatisfyConstraints(Command command, const tlm_generic
     }
     else if (command == Command::WR || command == Command::WRA)
     {
-        assert(DramExtension::getBurstLength(payload) == 8);
+        assert(ControllerExtension::getBurstLength(payload) == 8);
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank.ID()];
         if (lastCommandStart != sc_max_time())
@@ -457,9 +457,9 @@ sc_time CheckerDDR4::timeToSatisfyConstraints(Command command, const tlm_generic
 
 void CheckerDDR4::insert(Command command, const tlm_generic_payload& payload)
 {
-    Rank rank = DramExtension::getRank(payload);
-    BankGroup bankGroup = DramExtension::getBankGroup(payload);
-    Bank bank = DramExtension::getBank(payload);
+    Rank rank = ControllerExtension::getRank(payload);
+    BankGroup bankGroup = ControllerExtension::getBankGroup(payload);
+    Bank bank = ControllerExtension::getBank(payload);
 
     PRINTDEBUGMESSAGE("CheckerDDR4", "Changing state on bank " + std::to_string(bank.ID())
                       + " command is " + command.toString());

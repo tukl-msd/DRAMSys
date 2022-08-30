@@ -64,7 +64,6 @@ void to_json(json &j, const TraceSetup &c)
                 initiator_j["clkMhz"] = initiator.clkMhz;
                 initiator_j["maxPendingReadRequests"] = initiator.maxPendingReadRequests;
                 initiator_j["maxPendingWriteRequests"] = initiator.maxPendingWriteRequests;
-                initiator_j["addLengthConverter"] = initiator.addLengthConverter;
 
                 using T = std::decay_t<decltype(initiator)>;
                 if constexpr (std::is_same_v<T, TraceGenerator>)
@@ -292,9 +291,6 @@ void from_json(const json &j, TraceSetup &c)
 
                 if (initiator_j.contains("maxPendingWriteRequests"))
                     initiator_j.at("maxPendingWriteRequests").get_to(initiator.maxPendingWriteRequests);
-
-                if (initiator_j.contains("addLengthConverter"))
-                    initiator_j.at("addLengthConverter").get_to(initiator.addLengthConverter);
             },
             initiator);
 

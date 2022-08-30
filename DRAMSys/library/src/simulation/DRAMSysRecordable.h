@@ -40,7 +40,7 @@
 #include "DRAMSys.h"
 #include "../common/TlmRecorder.h"
 
-#include <Configuration.h>
+#include <DRAMSysConfiguration.h>
 
 class DRAMSysRecordable : public DRAMSys
 {
@@ -57,7 +57,6 @@ private:
 
     void setupTlmRecorders(const std::string &traceName, const DRAMSysConfiguration::Configuration &configLib);
     void instantiateModules(const std::string &traceName, const DRAMSysConfiguration::Configuration &configLib);
-
 };
 
 #endif // DRAMSYSRECORDABLE_H

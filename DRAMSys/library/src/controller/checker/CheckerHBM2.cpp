@@ -70,16 +70,16 @@ CheckerHBM2::CheckerHBM2(const Configuration& config)
 
 sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, const tlm_generic_payload& payload) const
 {
-    Rank rank = DramExtension::getRank(payload);
-    BankGroup bankGroup = DramExtension::getBankGroup(payload);
-    Bank bank = DramExtension::getBank(payload);
+    Rank rank = ControllerExtension::getRank(payload);
+    BankGroup bankGroup = ControllerExtension::getBankGroup(payload);
+    Bank bank = ControllerExtension::getBank(payload);
     
     sc_time lastCommandStart;
     sc_time earliestTimeToStart = sc_time_stamp();
 
     if (command == Command::RD || command == Command::RDA)
     {
-        unsigned burstLength = DramExtension::getBurstLength(payload);
+        unsigned burstLength = ControllerExtension::getBurstLength(payload);
         assert(!(memSpec->ranksPerChannel == 1) || (burstLength == 2 || burstLength == 4)); // Legacy mode
         assert(!(memSpec->ranksPerChannel == 2) || (burstLength == 4)); // Pseudo-channel mode
 
@@ -134,8 +134,8 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, const tlm_generic
     }
     else if (command == Command::WR || command == Command::WRA)
     {
-        unsigned burstLength = DramExtension::getBurstLength(payload);
-        assert(!(memSpec->ranksPerChannel == 1) || (burstLength == 2)); // Legacy mode
+        unsigned burstLength = ControllerExtension::getBurstLength(payload);
+        assert(!(memSpec->ranksPerChannel == 1) || (burstLength == 2 || burstLength == 4)); // Legacy mode
         assert(!(memSpec->ranksPerChannel == 2) || (burstLength == 4)); // Pseudo-channel mode
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank.ID()];
@@ -518,9 +518,9 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, const tlm_generic
 
 void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
 {
-    Rank rank = DramExtension::getRank(payload);
-    BankGroup bankGroup = DramExtension::getBankGroup(payload);
-    Bank bank = DramExtension::getBank(payload);
+    Rank rank = ControllerExtension::getRank(payload);
+    BankGroup bankGroup = ControllerExtension::getBankGroup(payload);
+    Bank bank = ControllerExtension::getBank(payload);
 
     PRINTDEBUGMESSAGE("CheckerHBM2", "Changing state on bank " + std::to_string(bank.ID())
                       + " command is " + command.toString());
