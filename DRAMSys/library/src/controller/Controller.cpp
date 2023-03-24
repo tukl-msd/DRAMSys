@@ -473,7 +473,6 @@ void Controller::manageRequests(const sc_time &delay)
                     Bank bank = ControllerExtension::getBank(*childTrans);
                     bankMachines[bank.ID()]->start();
                 }
-                nextChannelPayloadIDToAppend++;
             }
 
             transToAcquire.payload->set_response_status(TLM_OK_RESPONSE);
