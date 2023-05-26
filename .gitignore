@@ -5,7 +5,7 @@
 /dram/build
 *.user
 *.tdb
-!/DRAMSys/tests/*/expected/*.tdb
+!tests/tests_regression/*/expected/*.tdb
 *.tdb-journal
 *.out
 /build-simulation
@@ -26,3 +26,4 @@ DRAMSys/docs/doxygen
 .vscode
 cmake-build*
 .idea
+.cache

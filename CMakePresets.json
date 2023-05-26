@@ -1,0 +1,76 @@
+{
+    "version": 2,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 14,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "cmake-pedantic",
+            "hidden": true,
+            "warnings": {
+                "dev": true,
+                "deprecated": true,
+                "unusedCli": true,
+                "systemVars": false
+            }
+        },
+        {
+            "name": "dev-mode",
+            "hidden": true,
+            "inherits": "cmake-pedantic",
+            "cacheVariables": {
+                "DRAMSYS_BUILD_TESTS": "ON",
+                "DRAMSYS_ENABLE_EXTENSIONS": "ON",
+                "DRAMSYS_WITH_DRAMPOWER": "ON"
+            }
+        },
+        {
+            "name": "std",
+            "description": "This preset makes sure the project actually builds with at least the specified standard",
+            "hidden": true,
+            "cacheVariables": {
+                "CMAKE_CXX_EXTENSIONS": "OFF",
+                "CMAKE_CXX_STANDARD": "17",
+                "CMAKE_CXX_STANDARD_REQUIRED": "ON"
+            }
+        },
+        {
+            "name": "ci-common",
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/build",
+            "inherits": [
+                "std",
+                "dev-mode"
+            ],
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "ci-coverage",
+            "binaryDir": "${sourceDir}/build/coverage",
+            "inherits": "ci-common",
+            "cacheVariables": {
+                "ENABLE_COVERAGE": "ON",
+                "CMAKE_BUILD_TYPE": "Coverage",
+                "CMAKE_CXX_FLAGS_COVERAGE": "-Og -g --coverage -fkeep-static-functions",
+                "CMAKE_EXE_LINKER_FLAGS_COVERAGE": "--coverage",
+                "CMAKE_SHARED_LINKER_FLAGS_COVERAGE": "--coverage"
+            }
+        },
+        {
+            "name": "dev",
+            "generator": "Unix Makefiles",
+            "binaryDir": "${sourceDir}/build",
+            "inherits": [
+                "dev-mode",
+                "std"
+            ],
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        }
+    ]
+}

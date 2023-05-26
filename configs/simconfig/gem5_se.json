@@ -1,0 +1,15 @@
+{
+    "simconfig": {
+        "AddressOffset": 0,
+        "CheckTLM2Protocol": false,
+        "DatabaseRecording": true,
+        "Debug": false,
+        "EnableWindowing": true,
+        "PowerAnalysis": true,
+        "SimulationName": "gem5_se",
+        "SimulationProgressBar": true,
+        "StoreMode": "Store",
+        "UseMalloc": false,
+        "WindowSize": 1000
+    }
+}

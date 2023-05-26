@@ -1,0 +1,5 @@
+*.stl filter=lfs diff=lfs merge=lfs -text
+*.data.gz filter=lfs diff=lfs merge=lfs -text
+*.inst.gz filter=lfs diff=lfs merge=lfs -text
+*.tdb filter=lfs diff=lfs merge=lfs -text
+*.png filter=lfs diff=lfs merge=lfs -text

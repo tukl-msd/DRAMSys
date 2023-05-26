@@ -1,0 +1,15 @@
+{
+    "simulation": {
+        "addressmapping": "am_wideio_thermal.json",
+        "mcconfig": "fr_fcfs.json",
+        "memspec": "JEDEC_256Mb_WIDEIO-200_128bit.json",
+        "simconfig": "wideio_thermal.json",
+        "simulationid": "wideio-example",
+        "tracesetup": [
+            {
+                "clkMhz": 1000,
+                "name": "test_error.stl"
+            }
+        ]
+    }
+}
