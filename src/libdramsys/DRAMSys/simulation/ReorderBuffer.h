@@ -42,9 +42,9 @@
 #include <set>
 #include <systemc>
 #include <tlm>
+#include <tlm_utils/peq_with_cb_and_phase.h>
 #include <tlm_utils/simple_initiator_socket.h>
 #include <tlm_utils/simple_target_socket.h>
-#include <tlm_utils/peq_with_cb_and_phase.h>
 
 namespace DRAMSys
 {
@@ -55,9 +55,7 @@ public:
     tlm_utils::simple_initiator_socket<ReorderBuffer> iSocket;
     tlm_utils::simple_target_socket<ReorderBuffer> tSocket;
 
-    SC_CTOR(ReorderBuffer) :
-        payloadEventQueue(this, &ReorderBuffer::peqCallback),
-        responseIsPendingInInitator(false)
+    SC_CTOR(ReorderBuffer) : payloadEventQueue(this, &ReorderBuffer::peqCallback)
     {
         iSocket.register_nb_transport_bw(this, &ReorderBuffer::nb_transport_bw);
         tSocket.register_nb_transport_fw(this, &ReorderBuffer::nb_transport_fw);
@@ -66,13 +64,13 @@ public:
 private:
     tlm_utils::peq_with_cb_and_phase<ReorderBuffer> payloadEventQueue;
     std::deque<tlm::tlm_generic_payload*> pendingRequestsInOrder;
-    std::set<tlm::tlm_generic_payload*>   receivedResponses;
+    std::set<tlm::tlm_generic_payload*> receivedResponses;
 
-    bool responseIsPendingInInitator;
-
+    bool responseIsPendingInInitator = false;
 
     // Initiated by dram side
-    tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload& trans, tlm::tlm_phase& phase,
+    tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload& trans,
+                                       tlm::tlm_phase& phase,
                                        sc_core::sc_time& bwDelay)
     {
         payloadEventQueue.notify(trans, phase, bwDelay);
@@ -80,12 +78,16 @@ private:
     }
 
     // Initiated by initator side (players)
-    tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans, tlm::tlm_phase& phase,
+    tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans,
+                                       tlm::tlm_phase& phase,
                                        sc_core::sc_time& fwDelay)
     {
-        if (phase == tlm::BEGIN_REQ) {
+        if (phase == tlm::BEGIN_REQ)
+        {
             trans.acquire();
-        } else if (phase == tlm::END_RESP) {
+        }
+        else if (phase == tlm::END_RESP)
+        {
             trans.release();
         }
 
@@ -95,49 +97,56 @@ private:
 
     void peqCallback(tlm::tlm_generic_payload& trans, const tlm::tlm_phase& phase)
     {
-        //Phases initiated by initiator side
-        if (phase == tlm::BEGIN_REQ) {
+        // Phases initiated by initiator side
+        if (phase == tlm::BEGIN_REQ)
+        {
             pendingRequestsInOrder.push_back(&trans);
             sendToTarget(trans, phase, sc_core::SC_ZERO_TIME);
         }
 
-        else if (phase == tlm::END_RESP) {
+        else if (phase == tlm::END_RESP)
+        {
             responseIsPendingInInitator = false;
             pendingRequestsInOrder.pop_front();
             receivedResponses.erase(&trans);
             sendNextResponse();
         }
 
-        //Phases initiated by dram side
-        else if (phase == tlm::END_REQ) {
+        // Phases initiated by dram side
+        else if (phase == tlm::END_REQ)
+        {
             sendToInitiator(trans, phase, sc_core::SC_ZERO_TIME);
-        } else if (phase == tlm::BEGIN_RESP) {
+        }
+        else if (phase == tlm::BEGIN_RESP)
+        {
             sendToTarget(trans, tlm::END_RESP, sc_core::SC_ZERO_TIME);
             receivedResponses.emplace(&trans);
             sendNextResponse();
         }
 
-
-        else {
-            SC_REPORT_FATAL(0,
-                            "Payload event queue in arbiter was triggered with unknown phase");
+        else
+        {
+            SC_REPORT_FATAL(0, "Payload event queue in arbiter was triggered with unknown phase");
         }
     }
 
-    void sendToTarget(tlm::tlm_generic_payload& trans, const tlm::tlm_phase& phase, const sc_core::sc_time& delay)
+    void sendToTarget(tlm::tlm_generic_payload& trans,
+                      const tlm::tlm_phase& phase,
+                      const sc_core::sc_time& delay)
     {
         tlm::tlm_phase TPhase = phase;
         sc_core::sc_time TDelay = delay;
         iSocket->nb_transport_fw(trans, TPhase, TDelay);
     }
 
-    void sendToInitiator(tlm::tlm_generic_payload& trans, const tlm::tlm_phase& phase, const sc_core::sc_time& delay)
+    void sendToInitiator(tlm::tlm_generic_payload& trans,
+                         const tlm::tlm_phase& phase,
+                         const sc_core::sc_time& delay)
     {
 
-
         sc_assert(phase == tlm::END_REQ ||
-                  (phase == tlm::BEGIN_RESP && pendingRequestsInOrder.front() == &trans
-                   && receivedResponses.count(&trans)));
+                  (phase == tlm::BEGIN_RESP && pendingRequestsInOrder.front() == &trans &&
+                   receivedResponses.count(&trans)));
 
         tlm::tlm_phase TPhase = phase;
         sc_core::sc_time TDelay = delay;
@@ -146,20 +155,23 @@ private:
 
     void sendNextResponse()
     {
-        //only send the next response when there response for the oldest pending request (requestsInOrder.front())
-        //has been received
-        if (!responseIsPendingInInitator
-                && receivedResponses.count(pendingRequestsInOrder.front())) {
-            tlm::tlm_generic_payload *payloadToSend = pendingRequestsInOrder.front();
+        // only send the next response when there response for the oldest pending request
+        // (requestsInOrder.front()) has been received
+        if (!responseIsPendingInInitator &&
+            (receivedResponses.count(pendingRequestsInOrder.front()) != 0))
+        {
+            tlm::tlm_generic_payload* payloadToSend = pendingRequestsInOrder.front();
             responseIsPendingInInitator = true;
             sendToInitiator(*payloadToSend, tlm::BEGIN_RESP, sc_core::SC_ZERO_TIME);
         }
-//        else if(!responseIsPendingInInitator && receivedResponses.size()>0 && !receivedResponses.count(pendingRequestsInOrder.front())>0)
-//        {
-//            cout << "cant send this response, because we are still waiting for response of oldest pending request. Elemts in buffer: " <<  receivedResponses.size() << endl;
-//        }
+        //        else if(!responseIsPendingInInitator && receivedResponses.size()>0 &&
+        //        !receivedResponses.count(pendingRequestsInOrder.front())>0)
+        //        {
+        //            cout << "cant send this response, because we are still waiting for response of
+        //            oldest pending request. Elemts in buffer: " <<  receivedResponses.size() <<
+        //            endl;
+        //        }
     }
-
 };
 
 } // namespace DRAMSys

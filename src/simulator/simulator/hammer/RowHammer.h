@@ -42,17 +42,12 @@
 class RowHammer : public RequestProducer
 {
 public:
-    RowHammer(uint64_t numRequests,
-              unsigned int clkMhz,
-              uint64_t rowIncrement,
-              unsigned int dataLength);
+    RowHammer(uint64_t numRequests, uint64_t rowIncrement, unsigned int dataLength);
 
     Request nextRequest() override;
-    sc_core::sc_time clkPeriod() override { return generatorPeriod; }
     uint64_t totalRequests() override { return numberOfRequests; }
 
     const uint64_t numberOfRequests;
-    const sc_core::sc_time generatorPeriod;
     const unsigned int dataLength;
     const uint64_t rowIncrement;
 

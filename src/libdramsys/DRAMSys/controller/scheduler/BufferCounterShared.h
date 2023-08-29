@@ -37,8 +37,8 @@
 
 #include "DRAMSys/controller/scheduler/BufferCounterIF.h"
 
-#include <vector>
 #include <tlm>
+#include <vector>
 
 namespace DRAMSys
 {

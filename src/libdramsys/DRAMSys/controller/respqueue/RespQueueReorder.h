@@ -47,7 +47,7 @@ namespace DRAMSys
 class RespQueueReorder final : public RespQueueIF
 {
 public:
-    void insertPayload(tlm::tlm_generic_payload*, sc_core::sc_time) override;
+    void insertPayload(tlm::tlm_generic_payload* payload, sc_core::sc_time strobeEnd) override;
     tlm::tlm_generic_payload* nextPayload() override;
     [[nodiscard]] sc_core::sc_time getTriggerTime() const override;
 

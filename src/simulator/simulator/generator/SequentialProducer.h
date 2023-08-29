@@ -46,7 +46,6 @@ public:
     SequentialProducer(uint64_t numRequests,
                        std::optional<uint64_t> seed,
                        double rwRatio,
-                       unsigned int clkMhz,
                        std::optional<uint64_t> addressIncrement,
                        std::optional<uint64_t> minAddress,
                        std::optional<uint64_t> maxAddress,
@@ -56,7 +55,6 @@ public:
     Request nextRequest() override;
 
     uint64_t totalRequests() override { return numberOfRequests; }
-    sc_core::sc_time clkPeriod() override { return generatorPeriod; }
     void reset() override { generatedRequests = 0; }
 
     const uint64_t numberOfRequests;
@@ -65,7 +63,6 @@ public:
     const uint64_t maxAddress;
     const uint64_t seed;
     const double rwRatio;
-    const sc_core::sc_time generatorPeriod;
     const unsigned int dataLength;
 
     std::default_random_engine randomGenerator;

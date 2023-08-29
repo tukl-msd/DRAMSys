@@ -45,8 +45,8 @@ add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(${PROJECT_NAME} 
-    PUBLIC 
+target_link_libraries(${PROJECT_NAME}
+    PUBLIC
         SystemC::systemc
         DRAMSys::util
         DRAMSys::config
@@ -61,4 +61,3 @@ endif ()
 add_library(DRAMSys::libdramsys ALIAS ${PROJECT_NAME})
 
 build_source_group()
-diagnostics_print(${PROJECT_NAME})

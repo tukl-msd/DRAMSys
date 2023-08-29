@@ -50,8 +50,9 @@ class RequestIssuer : sc_core::sc_module
 public:
     tlm_utils::simple_initiator_socket<RequestIssuer> iSocket;
 
-    RequestIssuer(sc_core::sc_module_name const &name,
-                  MemoryManager &memoryManager,
+    RequestIssuer(sc_core::sc_module_name const& name,
+                  MemoryManager& memoryManager,
+                  unsigned int clkMhz,
                   std::optional<unsigned int> maxPendingReadRequests,
                   std::optional<unsigned int> maxPendingWriteRequests,
                   std::function<Request()> nextRequest,
@@ -61,21 +62,21 @@ public:
 
 private:
     tlm_utils::peq_with_cb_and_phase<RequestIssuer> payloadEventQueue;
-    MemoryManager &memoryManager;
+    MemoryManager& memoryManager;
 
-    bool transactionInProgress = false;
+    const sc_core::sc_time clkPeriod;
+
     bool transactionPostponed = false;
     bool finished = false;
 
     uint64_t transactionsSent = 0;
     uint64_t transactionsReceived = 0;
+    sc_core::sc_time lastEndRequest = sc_core::sc_max_time();
 
     unsigned int pendingReadRequests = 0;
     unsigned int pendingWriteRequests = 0;
     const std::optional<unsigned int> maxPendingReadRequests;
     const std::optional<unsigned int> maxPendingWriteRequests;
-
-    unsigned int activeProducers = 0;
 
     std::function<void()> transactionFinished;
     std::function<void()> terminate;
@@ -84,13 +85,13 @@ private:
     void sendNextRequest();
     bool nextRequestSendable() const;
 
-    tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload &payload,
-                                       tlm::tlm_phase &phase,
-                                       sc_core::sc_time &bwDelay)
+    tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload& payload,
+                                       tlm::tlm_phase& phase,
+                                       sc_core::sc_time& bwDelay)
     {
         payloadEventQueue.notify(payload, phase, bwDelay);
         return tlm::TLM_ACCEPTED;
     }
 
-    void peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase);
+    void peqCallback(tlm::tlm_generic_payload& payload, const tlm::tlm_phase& phase);
 };

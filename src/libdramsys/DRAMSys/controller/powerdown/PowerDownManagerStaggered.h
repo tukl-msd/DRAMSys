@@ -35,9 +35,9 @@
 #ifndef POWERDOWNMANAGERSTAGGERED_H
 #define POWERDOWNMANAGERSTAGGERED_H
 
-#include "DRAMSys/controller/powerdown/PowerDownManagerIF.h"
 #include "DRAMSys/common/dramExtensions.h"
 #include "DRAMSys/controller/checker/CheckerIF.h"
+#include "DRAMSys/controller/powerdown/PowerDownManagerIF.h"
 
 #include <systemc>
 
@@ -49,21 +49,27 @@ class BankMachine;
 class PowerDownManagerStaggered final : public PowerDownManagerIF
 {
 public:
-    PowerDownManagerStaggered(std::vector<BankMachine*>& bankMachinesOnRank,
-                              Rank rank, CheckerIF& checker);
+    PowerDownManagerStaggered(ControllerVector<Bank, BankMachine*>& bankMachinesOnRank, Rank rank);
 
     void triggerEntry() override;
     void triggerExit() override;
     void triggerInterruption() override;
 
     CommandTuple::Type getNextCommand() override;
-    void update(Command) override;
+    void update(Command command) override;
     void evaluate() override;
 
 private:
-    enum class State {Idle, ActivePdn, PrechargePdn, SelfRefresh, ExtraRefresh} state = State::Idle;
+    enum class State
+    {
+        Idle,
+        ActivePdn,
+        PrechargePdn,
+        SelfRefresh,
+        ExtraRefresh
+    } state = State::Idle;
     tlm::tlm_generic_payload powerDownPayload;
-    std::vector<BankMachine*>& bankMachinesOnRank;
+    ControllerVector<Bank, BankMachine*>& bankMachinesOnRank;
     Command nextCommand = Command::NOP;
 
     bool controllerIdle = true;

@@ -15,6 +15,7 @@
         "memoryType": "LPDDR4",
         "memtimingspec": {
             "CCD": 8,
+            "CCDMW": 32,
             "CKE": 4,
             "CMDCKE": 3,
             "DQS2DQ": 0,

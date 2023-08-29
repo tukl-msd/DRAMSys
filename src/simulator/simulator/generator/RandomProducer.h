@@ -46,7 +46,6 @@ public:
     RandomProducer(uint64_t numRequests,
                    std::optional<uint64_t> seed,
                    double rwRatio,
-                   unsigned int clkMhz,
                    std::optional<uint64_t> minAddress,
                    std::optional<uint64_t> maxAddress,
                    uint64_t memorySize,
@@ -56,12 +55,10 @@ public:
     Request nextRequest() override;
 
     uint64_t totalRequests() override { return numberOfRequests; }
-    sc_core::sc_time clkPeriod() override { return generatorPeriod; }
 
     const uint64_t numberOfRequests;
     const uint64_t seed;
     const double rwRatio;
-    const sc_core::sc_time generatorPeriod;
     const unsigned int dataLength;
     const unsigned int dataAlignment;
 

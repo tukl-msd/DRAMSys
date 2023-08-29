@@ -39,21 +39,19 @@
 RandomProducer::RandomProducer(uint64_t numRequests,
                                std::optional<uint64_t> seed,
                                double rwRatio,
-                               unsigned int clkMhz,
                                std::optional<uint64_t> minAddress,
                                std::optional<uint64_t> maxAddress,
                                uint64_t memorySize,
                                unsigned int dataLength,
-                               unsigned int dataAlignment)
-    : numberOfRequests(numRequests),
-      seed(seed.value_or(DEFAULT_SEED)),
-      rwRatio(rwRatio),
-      randomGenerator(this->seed),
-      generatorPeriod(sc_core::sc_time(1.0 / static_cast<double>(clkMhz), sc_core::SC_US)),
-      dataLength(dataLength),
-      dataAlignment(dataAlignment),
-      randomAddressDistribution(minAddress.value_or(DEFAULT_MIN_ADDRESS),
-                                maxAddress.value_or((memorySize) - dataLength))
+                               unsigned int dataAlignment) :
+    numberOfRequests(numRequests),
+    seed(seed.value_or(DEFAULT_SEED)),
+    rwRatio(rwRatio),
+    dataLength(dataLength),
+    dataAlignment(dataAlignment),
+    randomGenerator(this->seed),
+    randomAddressDistribution(minAddress.value_or(DEFAULT_MIN_ADDRESS),
+                              maxAddress.value_or((memorySize)-dataLength))
 {
     if (minAddress > memorySize - 1)
         SC_REPORT_FATAL("TrafficGenerator", "minAddress is out of range.");
@@ -79,7 +77,7 @@ Request RandomProducer::nextRequest()
     request.command = readWriteDistribution(randomGenerator) < rwRatio ? Request::Command::Read
                                                                        : Request::Command::Write;
     request.length = dataLength;
-    request.delay = generatorPeriod;
+    request.delay = sc_core::SC_ZERO_TIME;
 
     return request;
 }

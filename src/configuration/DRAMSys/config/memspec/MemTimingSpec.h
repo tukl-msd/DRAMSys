@@ -49,9 +49,9 @@ struct MemTimingSpecType
     std::unordered_map<std::string, unsigned int> entries;
 };
 
-void to_json(json &j, const MemTimingSpecType &c);
-void from_json(const json &j, MemTimingSpecType &c);
+void to_json(json& j, const MemTimingSpecType& c);
+void from_json(const json& j, MemTimingSpecType& c);
 
-} // namespace Configuration
+} // namespace DRAMSys::Config
 
 #endif // DRAMSYSCONFIGURATION_MEMTIMINGSPEC_H

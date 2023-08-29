@@ -44,12 +44,20 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-ArbiterExtension::ArbiterExtension(Thread thread, Channel channel, uint64_t threadPayloadID,
+ArbiterExtension::ArbiterExtension(Thread thread,
+                                   Channel channel,
+                                   uint64_t threadPayloadID,
                                    const sc_core::sc_time& timeOfGeneration) :
-        thread(thread), channel(channel), threadPayloadID(threadPayloadID), timeOfGeneration(timeOfGeneration)
-{}
+    thread(thread),
+    channel(channel),
+    threadPayloadID(threadPayloadID),
+    timeOfGeneration(timeOfGeneration)
+{
+}
 
-void ArbiterExtension::setAutoExtension(tlm::tlm_generic_payload& trans, Thread thread, Channel channel)
+void ArbiterExtension::setAutoExtension(tlm::tlm_generic_payload& trans,
+                                        Thread thread,
+                                        Channel channel)
 {
     auto* extension = trans.get_extension<ArbiterExtension>();
 
@@ -67,15 +75,19 @@ void ArbiterExtension::setAutoExtension(tlm::tlm_generic_payload& trans, Thread 
     }
 }
 
-void ArbiterExtension::setExtension(tlm::tlm_generic_payload& trans, Thread thread, Channel channel,
-                         uint64_t threadPayloadID, const sc_core::sc_time& timeOfGeneration)
+void ArbiterExtension::setExtension(tlm::tlm_generic_payload& trans,
+                                    Thread thread,
+                                    Channel channel,
+                                    uint64_t threadPayloadID,
+                                    const sc_core::sc_time& timeOfGeneration)
 {
     assert(trans.get_extension<ArbiterExtension>() == nullptr);
     auto* extension = new ArbiterExtension(thread, channel, threadPayloadID, timeOfGeneration);
     trans.set_extension(extension);
 }
 
-void ArbiterExtension::setIDAndTimeOfGeneration(tlm::tlm_generic_payload& trans, uint64_t threadPayloadID,
+void ArbiterExtension::setIDAndTimeOfGeneration(tlm::tlm_generic_payload& trans,
+                                                uint64_t threadPayloadID,
                                                 const sc_core::sc_time& timeOfGeneration)
 {
     assert(trans.get_extension<ArbiterExtension>() != nullptr);
@@ -144,14 +156,31 @@ sc_time ArbiterExtension::getTimeOfGeneration(const tlm::tlm_generic_payload& tr
     return trans.get_extension<ArbiterExtension>()->timeOfGeneration;
 }
 
-ControllerExtension::ControllerExtension(uint64_t channelPayloadID, Rank rank, BankGroup bankGroup, Bank bank, Row row,
-                                         Column column, unsigned int burstLength) :
-        channelPayloadID(channelPayloadID), rank(rank), bankGroup(bankGroup), bank(bank), row(row), column(column),
-        burstLength(burstLength)
-{}
+ControllerExtension::ControllerExtension(uint64_t channelPayloadID,
+                                         Rank rank,
+                                         BankGroup bankGroup,
+                                         Bank bank,
+                                         Row row,
+                                         Column column,
+                                         unsigned int burstLength) :
+    channelPayloadID(channelPayloadID),
+    rank(rank),
+    bankGroup(bankGroup),
+    bank(bank),
+    row(row),
+    column(column),
+    burstLength(burstLength)
+{
+}
 
-void ControllerExtension::setAutoExtension(tlm::tlm_generic_payload& trans, uint64_t channelPayloadID, Rank rank,
-                                       BankGroup bankGroup, Bank bank, Row row, Column column, unsigned int burstLength)
+void ControllerExtension::setAutoExtension(tlm::tlm_generic_payload& trans,
+                                           uint64_t channelPayloadID,
+                                           Rank rank,
+                                           BankGroup bankGroup,
+                                           Bank bank,
+                                           Row row,
+                                           Column column,
+                                           unsigned int burstLength)
 {
     auto* extension = trans.get_extension<ControllerExtension>();
 
@@ -167,22 +196,31 @@ void ControllerExtension::setAutoExtension(tlm::tlm_generic_payload& trans, uint
     }
     else
     {
-        extension = new ControllerExtension(channelPayloadID, rank, bankGroup, bank, row, column, burstLength);
+        extension = new ControllerExtension(
+            channelPayloadID, rank, bankGroup, bank, row, column, burstLength);
         trans.set_auto_extension(extension);
     }
 }
 
-void ControllerExtension::setExtension(tlm::tlm_generic_payload& trans, uint64_t channelPayloadID, Rank rank,
-                                           BankGroup bankGroup, Bank bank, Row row, Column column, unsigned int burstLength)
+void ControllerExtension::setExtension(tlm::tlm_generic_payload& trans,
+                                       uint64_t channelPayloadID,
+                                       Rank rank,
+                                       BankGroup bankGroup,
+                                       Bank bank,
+                                       Row row,
+                                       Column column,
+                                       unsigned int burstLength)
 {
     assert(trans.get_extension<ControllerExtension>() == nullptr);
-    auto* extension = new ControllerExtension(channelPayloadID, rank, bankGroup, bank, row, column, burstLength);
+    auto* extension =
+        new ControllerExtension(channelPayloadID, rank, bankGroup, bank, row, column, burstLength);
     trans.set_extension(extension);
 }
 
 tlm_extension_base* ControllerExtension::clone() const
 {
-    return new ControllerExtension(channelPayloadID, rank, bankGroup, bank, row, column, burstLength);
+    return new ControllerExtension(
+        channelPayloadID, rank, bankGroup, bank, row, column, burstLength);
 }
 
 void ControllerExtension::copy_from(const tlm_extension_base& ext)
@@ -272,99 +310,6 @@ unsigned ControllerExtension::getBurstLength(const tlm::tlm_generic_payload& tra
     return trans.get_extension<ControllerExtension>()->burstLength;
 }
 
-//THREAD
-bool operator ==(const Thread &lhs, const Thread &rhs)
-{
-    return lhs.ID() == rhs.ID();
-}
-
-bool operator !=(const Thread &lhs, const Thread &rhs)
-{
-    return !(lhs == rhs);
-}
-
-bool operator <(const Thread &lhs, const Thread &rhs)
-{
-    return lhs.ID() < rhs.ID();
-}
-
-//CHANNEL
-bool operator ==(const Channel &lhs, const Channel &rhs)
-{
-    return lhs.ID() == rhs.ID();
-}
-
-bool operator !=(const Channel &lhs, const Channel &rhs)
-{
-    return !(lhs == rhs);
-}
-
-//RANK
-bool operator ==(const Rank &lhs, const Rank &rhs)
-{
-    return lhs.ID() == rhs.ID();
-}
-
-bool operator !=(const Rank &lhs, const Rank &rhs)
-{
-    return !(lhs == rhs);
-}
-
-//BANKGROUP
-bool operator ==(const BankGroup &lhs, const BankGroup &rhs)
-{
-    return lhs.ID() == rhs.ID();
-}
-
-bool operator !=(const BankGroup &lhs, const BankGroup &rhs)
-{
-    return !(lhs == rhs);
-}
-
-//BANK
-bool operator ==(const Bank &lhs, const Bank &rhs)
-{
-    return lhs.ID() == rhs.ID();
-}
-
-bool operator !=(const Bank &lhs, const Bank &rhs)
-{
-    return !(lhs == rhs);
-}
-
-bool operator <(const Bank &lhs, const Bank &rhs)
-{
-    return lhs.ID() < rhs.ID();
-}
-
-//ROW
-const Row Row::NO_ROW;
-
-bool operator ==(const Row &lhs, const Row &rhs)
-{
-    if (lhs.isNoRow != rhs.isNoRow)
-        return false;
-    return lhs.ID() == rhs.ID();
-}
-
-bool operator !=(const Row &lhs, const Row &rhs)
-{
-    return !(lhs == rhs);
-}
-
-
-//COLUMN
-bool operator ==(const Column &lhs, const Column &rhs)
-{
-    return lhs.ID() == rhs.ID();
-}
-
-bool operator !=(const Column &lhs, const Column &rhs)
-{
-    return !(lhs == rhs);
-}
-
-
 tlm::tlm_extension_base* ChildExtension::clone() const
 {
     return new ChildExtension(*parentTrans);
@@ -386,7 +331,8 @@ tlm::tlm_generic_payload& ChildExtension::getParentTrans(tlm::tlm_generic_payloa
     return childTrans.get_extension<ChildExtension>()->getParentTrans();
 }
 
-void ChildExtension::setExtension(tlm::tlm_generic_payload& childTrans, tlm::tlm_generic_payload& parentTrans)
+void ChildExtension::setExtension(tlm::tlm_generic_payload& childTrans,
+                                  tlm::tlm_generic_payload& parentTrans)
 {
     auto* extension = childTrans.get_extension<ChildExtension>();
 
@@ -403,10 +349,7 @@ void ChildExtension::setExtension(tlm::tlm_generic_payload& childTrans, tlm::tlm
 
 bool ChildExtension::isChildTrans(const tlm::tlm_generic_payload& trans)
 {
-    if (trans.get_extension<ChildExtension>() != nullptr)
-        return true;
-    else
-        return false;
+    return trans.get_extension<ChildExtension>() != nullptr;
 }
 
 tlm_extension_base* ParentExtension::clone() const
@@ -420,7 +363,8 @@ void ParentExtension::copy_from(const tlm_extension_base& ext)
     childTranses = cpyFrom.childTranses;
 }
 
-void ParentExtension::setExtension(tlm::tlm_generic_payload& parentTrans, std::vector<tlm::tlm_generic_payload*> childTranses)
+void ParentExtension::setExtension(tlm::tlm_generic_payload& parentTrans,
+                                   std::vector<tlm::tlm_generic_payload*> childTranses)
 {
     auto* extension = parentTrans.get_extension<ParentExtension>();
 
@@ -446,15 +390,14 @@ bool ParentExtension::notifyChildTransCompletion()
     completedChildTranses++;
     if (completedChildTranses == childTranses.size())
     {
-        std::for_each(childTranses.begin(), childTranses.end(),
-                      [](tlm::tlm_generic_payload* childTrans){childTrans->release();});
+        std::for_each(childTranses.begin(),
+                      childTranses.end(),
+                      [](tlm::tlm_generic_payload* childTrans) { childTrans->release(); });
         childTranses.clear();
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 bool ParentExtension::notifyChildTransCompletion(tlm::tlm_generic_payload& trans)

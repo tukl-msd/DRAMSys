@@ -41,18 +41,18 @@
 #ifndef DRAMSYS_H
 #define DRAMSYS_H
 
-#include "DRAMSys/simulation/dram/Dram.h"
-#include "DRAMSys/simulation/Arbiter.h"
-#include "DRAMSys/simulation/ReorderBuffer.h"
 #include "DRAMSys/common/tlm2_base_protocol_checker.h"
 #include "DRAMSys/controller/ControllerIF.h"
 #include "DRAMSys/simulation/AddressDecoder.h"
+#include "DRAMSys/simulation/Arbiter.h"
+#include "DRAMSys/simulation/ReorderBuffer.h"
+#include "DRAMSys/simulation/dram/Dram.h"
 
 #include "DRAMSys/config/DRAMSysConfiguration.h"
 
-#include <string>
 #include <list>
 #include <memory>
+#include <string>
 #include <systemc>
 #include <tlm>
 #include <tlm_utils/multi_passthrough_initiator_socket.h>
@@ -67,11 +67,10 @@ public:
     tlm_utils::multi_passthrough_target_socket<DRAMSys> tSocket;
 
     SC_HAS_PROCESS(DRAMSys);
-    DRAMSys(const sc_core::sc_module_name& name,
-            const ::DRAMSys::Config::Configuration& configLib);
+    DRAMSys(const sc_core::sc_module_name& name, const ::DRAMSys::Config::Configuration& configLib);
 
     const Configuration& getConfig() const;
-    const AddressDecoder &getAddressDecoder() const { return *addressDecoder; }
+    const AddressDecoder& getAddressDecoder() const { return *addressDecoder; }
 
 protected:
     DRAMSys(const sc_core::sc_module_name& name,
@@ -82,7 +81,7 @@ protected:
 
     Configuration config;
 
-    //TLM 2.0 Protocol Checkers
+    // TLM 2.0 Protocol Checkers
     std::vector<std::unique_ptr<tlm_utils::tlm2_base_protocol_checker<>>> controllersTlmCheckers;
 
     // TODO: Each DRAM has a reorder buffer (check this!)
@@ -99,7 +98,7 @@ protected:
 
     std::unique_ptr<AddressDecoder> addressDecoder;
 
-    void report(const std::string& message);
+    void report(std::string_view message);
     void bindSockets();
 
 private:

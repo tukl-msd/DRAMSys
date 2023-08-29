@@ -39,30 +39,32 @@
 #include "AddressDecoder.h"
 #include "DRAMSys/configuration/Configuration.h"
 
-#include <cmath>
-#include <iostream>
-#include <iomanip>
 #include <bitset>
+#include <cmath>
+#include <iomanip>
+#include <iostream>
 
 namespace DRAMSys
 {
 
-AddressDecoder::AddressDecoder(const DRAMSys::Config::AddressMapping &addressMapping, const MemSpec &memSpec)
+AddressDecoder::AddressDecoder(const DRAMSys::Config::AddressMapping& addressMapping,
+                               const MemSpec& memSpec)
 {
-    if (const auto &channelBits = addressMapping.CHANNEL_BIT)
+    if (const auto& channelBits = addressMapping.CHANNEL_BIT)
     {
         std::copy(channelBits->begin(), channelBits->end(), std::back_inserter(vChannelBits));
     }
 
-    if (const auto &rankBits = addressMapping.RANK_BIT)
+    if (const auto& rankBits = addressMapping.RANK_BIT)
     {
         std::copy(rankBits->begin(), rankBits->end(), std::back_inserter(vRankBits));
     }
 
     // HBM pseudo channels are internally modelled as ranks
-    if (const auto &pseudoChannelBits = addressMapping.PSEUDOCHANNEL_BIT)
+    if (const auto& pseudoChannelBits = addressMapping.PSEUDOCHANNEL_BIT)
     {
-        std::copy(pseudoChannelBits->begin(), pseudoChannelBits->end(), std::back_inserter(vRankBits));
+        std::copy(
+            pseudoChannelBits->begin(), pseudoChannelBits->end(), std::back_inserter(vRankBits));
     }
 
     if (const auto& bankGroupBits = addressMapping.BANKGROUP_BIT)
@@ -70,12 +72,12 @@ AddressDecoder::AddressDecoder(const DRAMSys::Config::AddressMapping &addressMap
         std::copy(bankGroupBits->begin(), bankGroupBits->end(), std::back_inserter(vBankGroupBits));
     }
 
-    if (const auto &byteBits = addressMapping.BYTE_BIT)
+    if (const auto& byteBits = addressMapping.BYTE_BIT)
     {
         std::copy(byteBits->begin(), byteBits->end(), std::back_inserter(vByteBits));
     }
 
-    if (const auto &xorBits = addressMapping.XOR)
+    if (const auto& xorBits = addressMapping.XOR)
     {
         for (const auto& xorBit : *xorBits)
         {
@@ -83,17 +85,17 @@ AddressDecoder::AddressDecoder(const DRAMSys::Config::AddressMapping &addressMap
         }
     }
 
-    if (const auto &bankBits = addressMapping.BANK_BIT)
+    if (const auto& bankBits = addressMapping.BANK_BIT)
     {
         std::copy(bankBits->begin(), bankBits->end(), std::back_inserter(vBankBits));
     }
 
-    if (const auto &rowBits = addressMapping.ROW_BIT)
+    if (const auto& rowBits = addressMapping.ROW_BIT)
     {
         std::copy(rowBits->begin(), rowBits->end(), std::back_inserter(vRowBits));
     }
 
-    if (const auto &columnBits = addressMapping.COLUMN_BIT)
+    if (const auto& columnBits = addressMapping.COLUMN_BIT)
     {
         std::copy(columnBits->begin(), columnBits->end(), std::back_inserter(vColumnBits));
     }
@@ -106,20 +108,20 @@ AddressDecoder::AddressDecoder(const DRAMSys::Config::AddressMapping &addressMap
     unsigned columns = std::lround(std::pow(2.0, vColumnBits.size()));
     unsigned bytes = std::lround(std::pow(2.0, vByteBits.size()));
 
-    maximumAddress = static_cast<uint64_t>(bytes) * columns * rows * banks
-            * bankGroups * ranks * channels - 1;
+    maximumAddress =
+        static_cast<uint64_t>(bytes) * columns * rows * banks * bankGroups * ranks * channels - 1;
 
     auto totalAddressBits = static_cast<unsigned>(std::log2(maximumAddress));
     for (unsigned bitPosition = 0; bitPosition < totalAddressBits; bitPosition++)
     {
-        if (std::count(vChannelBits.begin(), vChannelBits.end(), bitPosition)
-                + std::count(vRankBits.begin(), vRankBits.end(), bitPosition)
-                + std::count(vBankGroupBits.begin(), vBankGroupBits.end(), bitPosition)
-                + std::count(vBankBits.begin(), vBankBits.end(), bitPosition)
-                + std::count(vRowBits.begin(), vRowBits.end(), bitPosition)
-                + std::count(vColumnBits.begin(), vColumnBits.end(), bitPosition)
-                + std::count(vByteBits.begin(), vByteBits.end(), bitPosition)
-                != 1)
+        if (std::count(vChannelBits.begin(), vChannelBits.end(), bitPosition) +
+                std::count(vRankBits.begin(), vRankBits.end(), bitPosition) +
+                std::count(vBankGroupBits.begin(), vBankGroupBits.end(), bitPosition) +
+                std::count(vBankBits.begin(), vBankBits.end(), bitPosition) +
+                std::count(vRowBits.begin(), vRowBits.end(), bitPosition) +
+                std::count(vColumnBits.begin(), vColumnBits.end(), bitPosition) +
+                std::count(vByteBits.begin(), vByteBits.end(), bitPosition) !=
+            1)
             SC_REPORT_FATAL("AddressDecoder", "Not all address bits occur exactly once");
     }
 
@@ -133,7 +135,9 @@ AddressDecoder::AddressDecoder(const DRAMSys::Config::AddressMapping &addressMap
 
     auto maxBurstLengthBits = static_cast<unsigned>(std::log2(memSpec.maxBurstLength));
 
-    for (unsigned bitPosition = highestByteBit + 1; bitPosition < highestByteBit + 1 + maxBurstLengthBits; bitPosition++)
+    for (unsigned bitPosition = highestByteBit + 1;
+         bitPosition < highestByteBit + 1 + maxBurstLengthBits;
+         bitPosition++)
     {
         if (std::find(vColumnBits.begin(), vColumnBits.end(), bitPosition) == vColumnBits.end())
             SC_REPORT_FATAL("AddressDecoder", "No continuous column bits for maximum burst length");
@@ -145,25 +149,30 @@ AddressDecoder::AddressDecoder(const DRAMSys::Config::AddressMapping &addressMap
     banksPerGroup = banks;
     banks = banksPerGroup * bankGroups;
 
-    if (memSpec.numberOfChannels != channels || memSpec.ranksPerChannel != ranks
-        || memSpec.bankGroupsPerChannel != bankGroups || memSpec.banksPerChannel != banks
-        || memSpec.rowsPerBank != rows || memSpec.columnsPerRow != columns
-        || memSpec.devicesPerRank * memSpec.bitWidth != bytes * 8)
+    if (memSpec.numberOfChannels != channels || memSpec.ranksPerChannel != ranks ||
+        memSpec.bankGroupsPerChannel != bankGroups || memSpec.banksPerChannel != banks ||
+        memSpec.rowsPerBank != rows || memSpec.columnsPerRow != columns ||
+        memSpec.devicesPerRank * memSpec.bitWidth != bytes * 8)
         SC_REPORT_FATAL("AddressDecoder", "Memspec and address mapping do not match");
 }
 
 DecodedAddress AddressDecoder::decodeAddress(uint64_t encAddr) const
 {
     if (encAddr > maximumAddress)
-        SC_REPORT_WARNING("AddressDecoder", ("Address " + std::to_string(encAddr) + " out of range (maximum address is " + std::to_string(maximumAddress) + ")").c_str());
+        SC_REPORT_WARNING("AddressDecoder",
+                          ("Address " + std::to_string(encAddr) +
+                           " out of range (maximum address is " + std::to_string(maximumAddress) +
+                           ")")
+                              .c_str());
 
     // Apply XOR
     // For each used xor:
-    //   Get the first bit and second bit. Apply a bitwise xor operator and save it back to the first bit.
-    for (auto& it : vXor)
+    //   Get the first bit and second bit. Apply a bitwise xor operator and save it back to the
+    //   first bit.
+    for (const auto& it : vXor)
     {
-        uint64_t xoredBit;
-        xoredBit = (((encAddr >> it.first) & UINT64_C(1)) ^ ((encAddr >> it.second) & UINT64_C(1)));
+        uint64_t xoredBit =
+            (((encAddr >> it.first) & UINT64_C(1)) ^ ((encAddr >> it.second) & UINT64_C(1)));
         encAddr &= ~(UINT64_C(1) << it.first);
         encAddr |= xoredBit << it.first;
     }
@@ -200,15 +209,20 @@ DecodedAddress AddressDecoder::decodeAddress(uint64_t encAddr) const
 unsigned AddressDecoder::decodeChannel(uint64_t encAddr) const
 {
     if (encAddr > maximumAddress)
-        SC_REPORT_WARNING("AddressDecoder", ("Address " + std::to_string(encAddr) + " out of range (maximum address is " + std::to_string(maximumAddress) + ")").c_str());
+        SC_REPORT_WARNING("AddressDecoder",
+                          ("Address " + std::to_string(encAddr) +
+                           " out of range (maximum address is " + std::to_string(maximumAddress) +
+                           ")")
+                              .c_str());
 
     // Apply XOR
     // For each used xor:
-    //   Get the first bit and second bit. Apply a bitwise xor operator and save it back to the first bit.
-    for (auto& it : vXor)
+    //   Get the first bit and second bit. Apply a bitwise xor operator and save it back to the
+    //   first bit.
+    for (const auto& it : vXor)
     {
-        uint64_t xoredBit;
-        xoredBit = (((encAddr >> it.first) & UINT64_C(1)) ^ ((encAddr >> it.second) & UINT64_C(1)));
+        uint64_t xoredBit =
+            (((encAddr >> it.first) & UINT64_C(1)) ^ ((encAddr >> it.second) & UINT64_C(1)));
         encAddr &= ~(UINT64_C(1) << it.first);
         encAddr |= xoredBit << it.first;
     }
@@ -255,7 +269,6 @@ uint64_t AddressDecoder::encodeAddress(DecodedAddress decodedAddress) const
     return address;
 }
 
-
 void AddressDecoder::print() const
 {
     std::cout << headline << std::endl;
@@ -264,79 +277,93 @@ void AddressDecoder::print() const
 
     for (int it = static_cast<int>(vChannelBits.size() - 1); it >= 0; it--)
     {
-        uint64_t addressBits = (UINT64_C(1) << vChannelBits[static_cast<std::vector<unsigned>::size_type>(it)]);
+        uint64_t addressBits =
+            (UINT64_C(1) << vChannelBits[static_cast<std::vector<unsigned>::size_type>(it)]);
         for (auto it2 : vXor)
         {
             if (it2.first == vChannelBits[static_cast<std::vector<unsigned>::size_type>(it)])
                 addressBits |= (UINT64_C(1) << it2.second);
         }
-        std::cout << " Ch " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
+        std::cout << " Ch " << std::setw(2) << it << ": " << std::bitset<64>(addressBits)
+                  << std::endl;
     }
 
     for (int it = static_cast<int>(vRankBits.size() - 1); it >= 0; it--)
     {
-        uint64_t addressBits = (UINT64_C(1) << vRankBits[static_cast<std::vector<unsigned>::size_type>(it)]);
+        uint64_t addressBits =
+            (UINT64_C(1) << vRankBits[static_cast<std::vector<unsigned>::size_type>(it)]);
         for (auto it2 : vXor)
         {
             if (it2.first == vRankBits[static_cast<std::vector<unsigned>::size_type>(it)])
                 addressBits |= (UINT64_C(1) << it2.second);
         }
-        std::cout << " Ra " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
+        std::cout << " Ra " << std::setw(2) << it << ": " << std::bitset<64>(addressBits)
+                  << std::endl;
     }
 
     for (int it = static_cast<int>(vBankGroupBits.size() - 1); it >= 0; it--)
     {
-        uint64_t addressBits = (UINT64_C(1) << vBankGroupBits[static_cast<std::vector<unsigned>::size_type>(it)]);
+        uint64_t addressBits =
+            (UINT64_C(1) << vBankGroupBits[static_cast<std::vector<unsigned>::size_type>(it)]);
         for (auto it2 : vXor)
         {
             if (it2.first == vBankGroupBits[static_cast<std::vector<unsigned>::size_type>(it)])
                 addressBits |= (UINT64_C(1) << it2.second);
         }
-        std::cout << " Bg " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
+        std::cout << " Bg " << std::setw(2) << it << ": " << std::bitset<64>(addressBits)
+                  << std::endl;
     }
 
     for (int it = static_cast<int>(vBankBits.size() - 1); it >= 0; it--)
     {
-        uint64_t addressBits = (UINT64_C(1) << vBankBits[static_cast<std::vector<unsigned>::size_type>(it)]);
+        uint64_t addressBits =
+            (UINT64_C(1) << vBankBits[static_cast<std::vector<unsigned>::size_type>(it)]);
         for (auto it2 : vXor)
         {
             if (it2.first == vBankBits[static_cast<std::vector<unsigned>::size_type>(it)])
                 addressBits |= (UINT64_C(1) << it2.second);
         }
-        std::cout << " Ba " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
+        std::cout << " Ba " << std::setw(2) << it << ": " << std::bitset<64>(addressBits)
+                  << std::endl;
     }
 
     for (int it = static_cast<int>(vRowBits.size() - 1); it >= 0; it--)
     {
-        uint64_t addressBits = (UINT64_C(1) << vRowBits[static_cast<std::vector<unsigned>::size_type>(it)]);
+        uint64_t addressBits =
+            (UINT64_C(1) << vRowBits[static_cast<std::vector<unsigned>::size_type>(it)]);
         for (auto it2 : vXor)
         {
             if (it2.first == vRowBits[static_cast<std::vector<unsigned>::size_type>(it)])
                 addressBits |= (UINT64_C(1) << it2.second);
         }
-        std::cout << " Ro " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
+        std::cout << " Ro " << std::setw(2) << it << ": " << std::bitset<64>(addressBits)
+                  << std::endl;
     }
 
     for (int it = static_cast<int>(vColumnBits.size() - 1); it >= 0; it--)
     {
-        uint64_t addressBits = (UINT64_C(1) << vColumnBits[static_cast<std::vector<unsigned>::size_type>(it)]);
+        uint64_t addressBits =
+            (UINT64_C(1) << vColumnBits[static_cast<std::vector<unsigned>::size_type>(it)]);
         for (auto it2 : vXor)
         {
             if (it2.first == vColumnBits[static_cast<std::vector<unsigned>::size_type>(it)])
                 addressBits |= (UINT64_C(1) << it2.second);
         }
-        std::cout << " Co " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
+        std::cout << " Co " << std::setw(2) << it << ": " << std::bitset<64>(addressBits)
+                  << std::endl;
     }
 
     for (int it = static_cast<int>(vByteBits.size() - 1); it >= 0; it--)
     {
-        uint64_t addressBits = (UINT64_C(1) << vByteBits[static_cast<std::vector<unsigned>::size_type>(it)]);
+        uint64_t addressBits =
+            (UINT64_C(1) << vByteBits[static_cast<std::vector<unsigned>::size_type>(it)]);
         for (auto it2 : vXor)
         {
             if (it2.first == vByteBits[static_cast<std::vector<unsigned>::size_type>(it)])
                 addressBits |= (UINT64_C(1) << it2.second);
         }
-        std::cout << " By " << std::setw(2) << it << ": " << std::bitset<64>(addressBits) << std::endl;
+        std::cout << " By " << std::setw(2) << it << ": " << std::bitset<64>(addressBits)
+                  << std::endl;
     }
 
     std::cout << std::endl;

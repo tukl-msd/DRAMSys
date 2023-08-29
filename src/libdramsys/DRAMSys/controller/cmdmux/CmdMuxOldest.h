@@ -35,8 +35,8 @@
 #ifndef CMDMUXOLDEST_H
 #define CMDMUXOLDEST_H
 
-#include "DRAMSys/controller/cmdmux/CmdMuxIF.h"
 #include "DRAMSys/configuration/Configuration.h"
+#include "DRAMSys/controller/cmdmux/CmdMuxIF.h"
 
 namespace DRAMSys
 {
@@ -45,19 +45,18 @@ class CmdMuxOldest : public CmdMuxIF
 {
 public:
     explicit CmdMuxOldest(const Configuration& config);
-    CommandTuple::Type selectCommand(const ReadyCommands &) override;
+    CommandTuple::Type selectCommand(const ReadyCommands& readyCommands) override;
 
 private:
     const MemSpec& memSpec;
     const sc_core::sc_time scMaxTime = sc_core::sc_max_time();
 };
 
-
 class CmdMuxOldestRasCas : public CmdMuxIF
 {
 public:
     explicit CmdMuxOldestRasCas(const Configuration& config);
-    CommandTuple::Type selectCommand(const ReadyCommands &) override;
+    CommandTuple::Type selectCommand(const ReadyCommands& readyCommands) override;
 
 private:
     const MemSpec& memSpec;

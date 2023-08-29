@@ -34,34 +34,34 @@
 
 #include "Controller.h"
 
+#include "DRAMSys/common/dramExtensions.h"
+#include "DRAMSys/configuration/Configuration.h"
 #include "DRAMSys/controller/checker/CheckerDDR3.h"
 #include "DRAMSys/controller/checker/CheckerDDR4.h"
-#include "DRAMSys/controller/checker/CheckerWideIO.h"
-#include "DRAMSys/controller/checker/CheckerLPDDR4.h"
-#include "DRAMSys/controller/checker/CheckerWideIO2.h"
-#include "DRAMSys/controller/checker/CheckerHBM2.h"
 #include "DRAMSys/controller/checker/CheckerGDDR5.h"
 #include "DRAMSys/controller/checker/CheckerGDDR5X.h"
 #include "DRAMSys/controller/checker/CheckerGDDR6.h"
+#include "DRAMSys/controller/checker/CheckerHBM2.h"
+#include "DRAMSys/controller/checker/CheckerLPDDR4.h"
 #include "DRAMSys/controller/checker/CheckerSTTMRAM.h"
+#include "DRAMSys/controller/checker/CheckerWideIO.h"
+#include "DRAMSys/controller/checker/CheckerWideIO2.h"
+#include "DRAMSys/controller/cmdmux/CmdMuxOldest.h"
+#include "DRAMSys/controller/cmdmux/CmdMuxStrict.h"
+#include "DRAMSys/controller/powerdown/PowerDownManagerDummy.h"
+#include "DRAMSys/controller/powerdown/PowerDownManagerStaggered.h"
+#include "DRAMSys/controller/refresh/RefreshManagerAllBank.h"
+#include "DRAMSys/controller/refresh/RefreshManagerDummy.h"
+#include "DRAMSys/controller/refresh/RefreshManagerPer2Bank.h"
+#include "DRAMSys/controller/refresh/RefreshManagerPerBank.h"
+#include "DRAMSys/controller/refresh/RefreshManagerSameBank.h"
+#include "DRAMSys/controller/respqueue/RespQueueFifo.h"
+#include "DRAMSys/controller/respqueue/RespQueueReorder.h"
 #include "DRAMSys/controller/scheduler/SchedulerFifo.h"
 #include "DRAMSys/controller/scheduler/SchedulerFrFcfs.h"
 #include "DRAMSys/controller/scheduler/SchedulerFrFcfsGrp.h"
 #include "DRAMSys/controller/scheduler/SchedulerGrpFrFcfs.h"
 #include "DRAMSys/controller/scheduler/SchedulerGrpFrFcfsWm.h"
-#include "DRAMSys/controller/cmdmux/CmdMuxStrict.h"
-#include "DRAMSys/controller/cmdmux/CmdMuxOldest.h"
-#include "DRAMSys/controller/respqueue/RespQueueFifo.h"
-#include "DRAMSys/controller/respqueue/RespQueueReorder.h"
-#include "DRAMSys/controller/refresh/RefreshManagerDummy.h"
-#include "DRAMSys/controller/refresh/RefreshManagerAllBank.h"
-#include "DRAMSys/controller/refresh/RefreshManagerPerBank.h"
-#include "DRAMSys/controller/refresh/RefreshManagerPer2Bank.h"
-#include "DRAMSys/controller/refresh/RefreshManagerSameBank.h"
-#include "DRAMSys/controller/powerdown/PowerDownManagerStaggered.h"
-#include "DRAMSys/controller/powerdown/PowerDownManagerDummy.h"
-#include "DRAMSys/configuration/Configuration.h"
-#include "DRAMSys/common/dramExtensions.h"
 
 #ifdef DDR5_SIM
 #include "DRAMSys/controller/checker/CheckerDDR5.h"
@@ -79,18 +79,24 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-Controller::Controller(const sc_module_name& name, const Configuration& config, const AddressDecoder& addressDecoder) :
-    ControllerIF(name, config), addressDecoder(addressDecoder),
-    thinkDelayFw(config.thinkDelayFw), thinkDelayBw(config.thinkDelayBw),
-    phyDelayFw(config.phyDelayFw), phyDelayBw(config.phyDelayBw),
-    blockingReadDelay(config.blockingReadDelay), blockingWriteDelay(config.blockingWriteDelay),
+Controller::Controller(const sc_module_name& name,
+                       const Configuration& config,
+                       const AddressDecoder& addressDecoder) :
+    ControllerIF(name, config),
+    thinkDelayFw(config.thinkDelayFw),
+    thinkDelayBw(config.thinkDelayBw),
+    phyDelayFw(config.phyDelayFw),
+    phyDelayBw(config.phyDelayBw),
+    blockingReadDelay(config.blockingReadDelay),
+    blockingWriteDelay(config.blockingWriteDelay),
+    addressDecoder(addressDecoder),
     minBytesPerBurst(config.memSpec->defaultBytesPerBurst),
     maxBytesPerBurst(config.memSpec->maxBytesPerBurst)
 {
     SC_METHOD(controllerMethod);
     sensitive << beginReqEvent << endRespEvent << controllerEvent << dataResponseEvent;
-    
-    ranksNumberOfPayloads = std::vector<unsigned>(memSpec.ranksPerChannel);
+
+    ranksNumberOfPayloads = ControllerVector<Rank, unsigned>(memSpec.ranksPerChannel);
 
     // reserve buffer for command tuples
     readyCommands.reserve(memSpec.banksPerChannel);
@@ -129,7 +135,6 @@ Controller::Controller(const sc_module_name& name, const Configuration& config, 
         checker = std::make_unique<CheckerHBM3>(config);
 #endif
 
-
     // instantiate scheduler and command mux
     if (config.scheduler == Configuration::Scheduler::Fifo)
         scheduler = std::make_unique<SchedulerFifo>(config);
@@ -166,48 +171,49 @@ Controller::Controller(const sc_module_name& name, const Configuration& config, 
     if (config.pagePolicy == Configuration::PagePolicy::Open)
     {
         for (unsigned bankID = 0; bankID < memSpec.banksPerChannel; bankID++)
-            bankMachines.emplace_back(std::make_unique<BankMachineOpen>
-                    (config, *scheduler, Bank(bankID)));
+            bankMachines.push_back(
+                std::make_unique<BankMachineOpen>(config, *scheduler, Bank(bankID)));
     }
     else if (config.pagePolicy == Configuration::PagePolicy::OpenAdaptive)
     {
         for (unsigned bankID = 0; bankID < memSpec.banksPerChannel; bankID++)
-            bankMachines.emplace_back(std::make_unique<BankMachineOpenAdaptive>
-                    (config, *scheduler, Bank(bankID)));
+            bankMachines.push_back(
+                std::make_unique<BankMachineOpenAdaptive>(config, *scheduler, Bank(bankID)));
     }
     else if (config.pagePolicy == Configuration::PagePolicy::Closed)
     {
         for (unsigned bankID = 0; bankID < memSpec.banksPerChannel; bankID++)
-            bankMachines.emplace_back(std::make_unique<BankMachineClosed>
-                    (config, *scheduler, Bank(bankID)));
+            bankMachines.push_back(
+                std::make_unique<BankMachineClosed>(config, *scheduler, Bank(bankID)));
     }
     else if (config.pagePolicy == Configuration::PagePolicy::ClosedAdaptive)
     {
         for (unsigned bankID = 0; bankID < memSpec.banksPerChannel; bankID++)
-            bankMachines.emplace_back(std::make_unique<BankMachineClosedAdaptive>
-                    (config, *scheduler, Bank(bankID)));
+            bankMachines.push_back(
+                std::make_unique<BankMachineClosedAdaptive>(config, *scheduler, Bank(bankID)));
     }
 
-    bankMachinesOnRank = std::vector<std::vector<BankMachine*>>(memSpec.ranksPerChannel,
-            std::vector<BankMachine*>(memSpec.banksPerRank));
+    bankMachinesOnRank = ControllerVector<Rank, ControllerVector<Bank, BankMachine*>>(
+        memSpec.ranksPerChannel, ControllerVector<Bank, BankMachine*>(memSpec.banksPerRank));
     for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
     {
         for (unsigned bankID = 0; bankID < memSpec.banksPerRank; bankID++)
-            bankMachinesOnRank[rankID][bankID] = bankMachines[rankID * memSpec.banksPerRank + bankID].get();
+            bankMachinesOnRank[Rank(rankID)][Bank(bankID)] =
+                bankMachines[Bank(rankID * memSpec.banksPerRank + bankID)].get();
     }
 
     // instantiate power-down managers (one per rank)
     if (config.powerDownPolicy == Configuration::PowerDownPolicy::NoPowerDown)
     {
         for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
-            powerDownManagers.emplace_back(std::make_unique<PowerDownManagerDummy>());
+            powerDownManagers.push_back(std::make_unique<PowerDownManagerDummy>());
     }
     else if (config.powerDownPolicy == Configuration::PowerDownPolicy::Staggered)
     {
         for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
         {
-            powerDownManagers.emplace_back(std::make_unique<PowerDownManagerStaggered>(bankMachinesOnRank[rankID],
-                    Rank(rankID), *checker));
+            powerDownManagers.push_back(std::make_unique<PowerDownManagerStaggered>(
+                bankMachinesOnRank[Rank(rankID)], Rank(rankID)));
         }
     }
 
@@ -215,22 +221,28 @@ Controller::Controller(const sc_module_name& name, const Configuration& config, 
     if (config.refreshPolicy == Configuration::RefreshPolicy::NoRefresh)
     {
         for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
-            refreshManagers.emplace_back(std::make_unique<RefreshManagerDummy>());
+            refreshManagers.push_back(std::make_unique<RefreshManagerDummy>());
     }
     else if (config.refreshPolicy == Configuration::RefreshPolicy::AllBank)
     {
         for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
         {
-            refreshManagers.emplace_back(std::make_unique<RefreshManagerAllBank>
-                    (config, bankMachinesOnRank[rankID], *powerDownManagers[rankID].get(), Rank(rankID)));
+            refreshManagers.push_back(
+                std::make_unique<RefreshManagerAllBank>(config,
+                                                        bankMachinesOnRank[Rank(rankID)],
+                                                        *powerDownManagers[Rank(rankID)],
+                                                        Rank(rankID)));
         }
     }
     else if (config.refreshPolicy == Configuration::RefreshPolicy::SameBank)
     {
         for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
         {
-            refreshManagers.emplace_back(std::make_unique<RefreshManagerSameBank>
-                    (config, bankMachinesOnRank[rankID], *powerDownManagers[rankID].get(), Rank(rankID)));
+            refreshManagers.push_back(
+                std::make_unique<RefreshManagerSameBank>(config,
+                                                         bankMachinesOnRank[Rank(rankID)],
+                                                         *powerDownManagers[Rank(rankID)],
+                                                         Rank(rankID)));
         }
     }
     else if (config.refreshPolicy == Configuration::RefreshPolicy::PerBank)
@@ -238,8 +250,11 @@ Controller::Controller(const sc_module_name& name, const Configuration& config, 
         for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
         {
             // TODO: remove bankMachines in constructor
-            refreshManagers.emplace_back(std::make_unique<RefreshManagerPerBank>
-                    (config, bankMachinesOnRank[rankID], *powerDownManagers[rankID], Rank(rankID)));
+            refreshManagers.push_back(
+                std::make_unique<RefreshManagerPerBank>(config,
+                                                        bankMachinesOnRank[Rank(rankID)],
+                                                        *powerDownManagers[Rank(rankID)],
+                                                        Rank(rankID)));
         }
     }
     else if (config.refreshPolicy == Configuration::RefreshPolicy::Per2Bank)
@@ -247,8 +262,11 @@ Controller::Controller(const sc_module_name& name, const Configuration& config, 
         for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
         {
             // TODO: remove bankMachines in constructor
-            refreshManagers.emplace_back(std::make_unique<RefreshManagerPer2Bank>
-                    (config, bankMachinesOnRank[rankID], *powerDownManagers[rankID], Rank(rankID)));
+            refreshManagers.push_back(
+                std::make_unique<RefreshManagerPer2Bank>(config,
+                                                         bankMachinesOnRank[Rank(rankID)],
+                                                         *powerDownManagers[Rank(rankID)],
+                                                         Rank(rankID)));
         }
     }
     else
@@ -257,7 +275,7 @@ Controller::Controller(const sc_module_name& name, const Configuration& config, 
 
 void Controller::controllerMethod()
 {
-    if (isFullCycle(sc_time_stamp()))
+    if (isFullCycle(sc_time_stamp(), memSpec.tCK))
     {
         // (1) Finish last response (END_RESP) and start new response (BEGIN_RESP)
         manageResponses();
@@ -280,18 +298,19 @@ void Controller::controllerMethod()
     for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
     {
         // (4.1) Check for power-down commands (PDEA/PDEP/SREFEN or PDXA/PDXP/SREFEX)
-        commandTuple = powerDownManagers[rankID]->getNextCommand();
+        Rank rank = Rank(rankID);
+        commandTuple = powerDownManagers[rank]->getNextCommand();
         if (std::get<CommandTuple::Command>(commandTuple) != Command::NOP)
             readyCommands.emplace_back(commandTuple);
         else
         {
             // (4.2) Check for refresh commands (PREXX or REFXX)
-            commandTuple = refreshManagers[rankID]->getNextCommand();
+            commandTuple = refreshManagers[rank]->getNextCommand();
             if (std::get<CommandTuple::Command>(commandTuple) != Command::NOP)
                 readyCommands.emplace_back(commandTuple);
 
             // (4.3) Check for bank commands (PREPB, ACT, RD/RDA or WR/WRA)
-            for (auto it : bankMachinesOnRank[rankID])
+            for (auto* it : bankMachinesOnRank[rank])
             {
                 commandTuple = it->getNextCommand();
                 if (std::get<CommandTuple::Command>(commandTuple) != Command::NOP)
@@ -308,7 +327,8 @@ void Controller::controllerMethod()
         {
             Command command = std::get<CommandTuple::Command>(it);
             tlm_generic_payload* trans = std::get<CommandTuple::Payload>(it);
-            std::get<CommandTuple::Timestamp>(it) = checker->timeToSatisfyConstraints(command, *trans);
+            std::get<CommandTuple::Timestamp>(it) =
+                checker->timeToSatisfyConstraints(command, *trans);
         }
         commandTuple = cmdMux->selectCommand(readyCommands);
         Command command = std::get<CommandTuple::Command>(commandTuple);
@@ -320,44 +340,46 @@ void Controller::controllerMethod()
 
             if (command.isRankCommand())
             {
-                for (auto it : bankMachinesOnRank[rank.ID()])
+                for (auto* it : bankMachinesOnRank[rank])
                     it->update(command);
             }
             else if (command.isGroupCommand())
             {
-                for (unsigned bankID = (bank.ID() % memSpec.banksPerGroup);
-                        bankID < memSpec.banksPerRank; bankID += memSpec.banksPerGroup)
-                    bankMachinesOnRank[rank.ID()][bankID]->update(command);
+                for (std::size_t bankID = (static_cast<std::size_t>(bank) % memSpec.banksPerGroup);
+                     bankID < memSpec.banksPerRank;
+                     bankID += memSpec.banksPerGroup)
+                    bankMachinesOnRank[rank][Bank(bankID)]->update(command);
             }
             else if (command.is2BankCommand())
             {
-                bankMachines[bank.ID()]->update(command);
-                bankMachines[bank.ID() + memSpec.getPer2BankOffset()]->update(command);
+                bankMachines[bank]->update(command);
+                bankMachines[Bank(static_cast<std::size_t>(bank) + memSpec.getPer2BankOffset())]
+                    ->update(command);
             }
             else // if (isBankCommand(command))
-                bankMachines[bank.ID()]->update(command);
+                bankMachines[bank]->update(command);
 
-            refreshManagers[rank.ID()]->update(command);
-            powerDownManagers[rank.ID()]->update(command);
+            refreshManagers[rank]->update(command);
+            powerDownManagers[rank]->update(command);
             checker->insert(command, *trans);
 
             if (command.isCasCommand())
             {
                 scheduler->removeRequest(*trans);
                 manageRequests(thinkDelayFw);
-                respQueue->insertPayload(trans, sc_time_stamp()
-                                                + thinkDelayFw + phyDelayFw
-                                                + memSpec.getIntervalOnDataStrobe(command, *trans).end
-                                                + phyDelayBw + thinkDelayBw);
+                respQueue->insertPayload(trans,
+                                         sc_time_stamp() + thinkDelayFw + phyDelayFw +
+                                             memSpec.getIntervalOnDataStrobe(command, *trans).end +
+                                             phyDelayBw + thinkDelayBw);
 
                 sc_time triggerTime = respQueue->getTriggerTime();
                 if (triggerTime != scMaxTime)
                     dataResponseEvent.notify(triggerTime - sc_time_stamp());
 
-                ranksNumberOfPayloads[rank.ID()]--; // TODO: move to a different place?
+                ranksNumberOfPayloads[rank]--; // TODO: move to a different place?
             }
-            if (ranksNumberOfPayloads[rank.ID()] == 0)
-                powerDownManagers[rank.ID()]->triggerEntry();
+            if (ranksNumberOfPayloads[rank] == 0)
+                powerDownManagers[rank]->triggerEntry();
 
             sc_time fwDelay = thinkDelayFw + phyDelayFw;
             tlm_phase phase = command.toPhase();
@@ -367,7 +389,8 @@ void Controller::controllerMethod()
             readyCmdBlocked = true;
     }
 
-    // (6) Restart bank machines, refresh managers and power-down managers to issue new requests for the future
+    // (6) Restart bank machines, refresh managers and power-down managers to issue new requests for
+    // the future
     sc_time timeForNextTrigger = scMaxTime;
     sc_time localTime;
     for (auto& it : bankMachines)
@@ -418,7 +441,8 @@ void Controller::controllerMethod()
         controllerEvent.notify(timeForNextTrigger - sc_time_stamp());
 }
 
-tlm_sync_enum Controller::nb_transport_fw(tlm_generic_payload& trans, tlm_phase& phase, sc_time& delay)
+tlm_sync_enum
+Controller::nb_transport_fw(tlm_generic_payload& trans, tlm_phase& phase, sc_time& delay)
 {
     if (phase == BEGIN_REQ)
     {
@@ -432,15 +456,18 @@ tlm_sync_enum Controller::nb_transport_fw(tlm_generic_payload& trans, tlm_phase&
         endRespEvent.notify(delay);
     }
     else
-        SC_REPORT_FATAL("Controller", "nb_transport_fw in controller was triggered with unknown phase");
+        SC_REPORT_FATAL("Controller",
+                        "nb_transport_fw in controller was triggered with unknown phase");
 
-    PRINTDEBUGMESSAGE(name(), "[fw] " + getPhaseName(phase) + " notification in " +
-                      delay.to_string());
+    PRINTDEBUGMESSAGE(name(),
+                      "[fw] " + getPhaseName(phase) + " notification in " + delay.to_string());
 
     return TLM_ACCEPTED;
 }
 
-tlm_sync_enum Controller::nb_transport_bw(tlm_generic_payload& ,tlm_phase& , sc_time&)
+tlm_sync_enum Controller::nb_transport_bw([[maybe_unused]] tlm_generic_payload& trans,
+                                          [[maybe_unused]] tlm_phase& phase,
+                                          [[maybe_unused]] sc_time& delay)
 {
     SC_REPORT_FATAL("Controller", "nb_transport_bw of controller must not be called!");
     return TLM_ACCEPTED;
@@ -461,55 +488,63 @@ void Controller::manageRequests(const sc_time& delay)
 {
     if (transToAcquire.payload != nullptr && transToAcquire.arrival <= sc_time_stamp())
     {
-        // TODO: here we assume that the scheduler always has space not only for a single burst transaction
+        // TODO: here we assume that the scheduler always has space not only for a single burst
+        // transaction
         //  but for a maximum size transaction
         if (scheduler->hasBufferSpace())
         {
             if (totalNumberOfPayloads == 0)
                 idleTimeCollector.end();
-            totalNumberOfPayloads++;  // seems to be ok
+            totalNumberOfPayloads++; // seems to be ok
 
             transToAcquire.payload->acquire();
 
             // Align address to minimum burst length
-            uint64_t alignedAddress = transToAcquire.payload->get_address() & ~(minBytesPerBurst - UINT64_C(1));
+            uint64_t alignedAddress =
+                transToAcquire.payload->get_address() & ~(minBytesPerBurst - UINT64_C(1));
             transToAcquire.payload->set_address(alignedAddress);
 
             // continuous block of data that can be fetched with a single burst
-            if ((alignedAddress / maxBytesPerBurst)
-                    == ((alignedAddress + transToAcquire.payload->get_data_length() - 1) / maxBytesPerBurst))
+            if ((alignedAddress / maxBytesPerBurst) ==
+                ((alignedAddress + transToAcquire.payload->get_data_length() - 1) /
+                 maxBytesPerBurst))
             {
-                DecodedAddress decodedAddress = addressDecoder.decodeAddress(transToAcquire.payload->get_address());
-                ControllerExtension::setAutoExtension(*transToAcquire.payload, nextChannelPayloadIDToAppend++,
-                                                      Rank(decodedAddress.rank), BankGroup(decodedAddress.bankgroup),
-                                                      Bank(decodedAddress.bank), Row(decodedAddress.row),
+                DecodedAddress decodedAddress =
+                    addressDecoder.decodeAddress(transToAcquire.payload->get_address());
+                ControllerExtension::setAutoExtension(*transToAcquire.payload,
+                                                      nextChannelPayloadIDToAppend++,
+                                                      Rank(decodedAddress.rank),
+                                                      BankGroup(decodedAddress.bankgroup),
+                                                      Bank(decodedAddress.bank),
+                                                      Row(decodedAddress.row),
                                                       Column(decodedAddress.column),
-                                                      transToAcquire.payload->get_data_length() / memSpec.bytesPerBeat);
+                                                      transToAcquire.payload->get_data_length() /
+                                                          memSpec.bytesPerBeat);
 
                 Rank rank = Rank(decodedAddress.rank);
-                if (ranksNumberOfPayloads[rank.ID()] == 0)
-                    powerDownManagers[rank.ID()]->triggerExit();
-                ranksNumberOfPayloads[rank.ID()]++;
+                if (ranksNumberOfPayloads[rank] == 0)
+                    powerDownManagers[rank]->triggerExit();
+                ranksNumberOfPayloads[rank]++;
 
                 scheduler->storeRequest(*transToAcquire.payload);
                 Bank bank = Bank(decodedAddress.bank);
-                bankMachines[bank.ID()]->evaluate();
+                bankMachines[bank]->evaluate();
             }
             else
             {
                 createChildTranses(*transToAcquire.payload);
                 const std::vector<tlm_generic_payload*>& childTranses =
-                        transToAcquire.payload->get_extension<ParentExtension>()->getChildTranses();
+                    transToAcquire.payload->get_extension<ParentExtension>()->getChildTranses();
                 for (auto* childTrans : childTranses)
                 {
                     Rank rank = ControllerExtension::getRank(*childTrans);
-                    if (ranksNumberOfPayloads[rank.ID()] == 0)
-                        powerDownManagers[rank.ID()]->triggerExit();
-                    ranksNumberOfPayloads[rank.ID()]++;
+                    if (ranksNumberOfPayloads[rank] == 0)
+                        powerDownManagers[rank]->triggerExit();
+                    ranksNumberOfPayloads[rank]++;
 
                     scheduler->storeRequest(*childTrans);
                     Bank bank = ControllerExtension::getBank(*childTrans);
-                    bankMachines[bank.ID()]->evaluate();
+                    bankMachines[bank]->evaluate();
                 }
             }
 
@@ -555,13 +590,15 @@ void Controller::manageResponses()
 
         if (ChildExtension::isChildTrans(*nextTransInRespQueue))
         {
-            tlm_generic_payload& parentTrans = ChildExtension::getParentTrans(*nextTransInRespQueue);
+            tlm_generic_payload& parentTrans =
+                ChildExtension::getParentTrans(*nextTransInRespQueue);
             if (ParentExtension::notifyChildTransCompletion(parentTrans))
             {
                 transToRelease.payload = &parentTrans;
                 tlm_phase bwPhase = BEGIN_RESP;
                 sc_time bwDelay;
-                if (transToRelease.arrival == sc_time_stamp()) // last payload was released in this cycle
+                if (transToRelease.arrival ==
+                    sc_time_stamp()) // last payload was released in this cycle
                     bwDelay = memSpec.tCK;
                 else
                     bwDelay = SC_ZERO_TIME;
@@ -581,7 +618,8 @@ void Controller::manageResponses()
             transToRelease.payload = nextTransInRespQueue;
             tlm_phase bwPhase = BEGIN_RESP;
             sc_time bwDelay;
-            if (transToRelease.arrival == sc_time_stamp()) // last payload was released in this cycle
+            if (transToRelease.arrival ==
+                sc_time_stamp()) // last payload was released in this cycle
                 bwDelay = memSpec.tCK;
             else
                 bwDelay = SC_ZERO_TIME;
@@ -612,7 +650,6 @@ Controller::MemoryManager::~MemoryManager()
         trans->reset();
         delete trans;
     }
-
 }
 
 tlm::tlm_generic_payload& Controller::MemoryManager::allocate()
@@ -621,12 +658,10 @@ tlm::tlm_generic_payload& Controller::MemoryManager::allocate()
     {
         return *new tlm_generic_payload(this);
     }
-    else
-    {
-        tlm_generic_payload* result = freePayloads.top();
-        freePayloads.pop();
-        return *result;
-    }
+
+    tlm_generic_payload* result = freePayloads.top();
+    freePayloads.pop();
+    return *result;
 }
 
 void Controller::MemoryManager::free(tlm::tlm_generic_payload* trans)
@@ -673,20 +708,17 @@ void Controller::createChildTranses(tlm::tlm_generic_payload& parentTrans)
     for (auto* childTrans : childTranses)
     {
         DecodedAddress decodedAddress = addressDecoder.decodeAddress(childTrans->get_address());
-        ControllerExtension::setAutoExtension(*childTrans, nextChannelPayloadIDToAppend,
-                                              Rank(decodedAddress.rank), BankGroup(decodedAddress.bankgroup),
-                                              Bank(decodedAddress.bank), Row(decodedAddress.row),
+        ControllerExtension::setAutoExtension(*childTrans,
+                                              nextChannelPayloadIDToAppend,
+                                              Rank(decodedAddress.rank),
+                                              BankGroup(decodedAddress.bankgroup),
+                                              Bank(decodedAddress.bank),
+                                              Row(decodedAddress.row),
                                               Column(decodedAddress.column),
                                               childTrans->get_data_length() / memSpec.bytesPerBeat);
     }
     nextChannelPayloadIDToAppend++;
     ParentExtension::setExtension(parentTrans, std::move(childTranses));
-}
-
-bool Controller::isFullCycle(const sc_core::sc_time& time) const
-{
-    sc_time alignedAtHalfCycle = std::floor((time * 2 / memSpec.tCK + 0.5)) / 2 * memSpec.tCK;
-    return sc_time::from_value(alignedAtHalfCycle.value() % memSpec.tCK.value()) == SC_ZERO_TIME;
 }
 
 } // namespace DRAMSys

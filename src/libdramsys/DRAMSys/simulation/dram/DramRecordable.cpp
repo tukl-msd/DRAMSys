@@ -35,19 +35,19 @@
 
 #include "DramRecordable.h"
 
+#include "DRAMSys/common/DebugManager.h"
 #include "DRAMSys/common/TlmRecorder.h"
 #include "DRAMSys/common/utils.h"
-#include "DRAMSys/common/DebugManager.h"
 #include "DRAMSys/simulation/dram/DramDDR3.h"
 #include "DRAMSys/simulation/dram/DramDDR4.h"
-#include "DRAMSys/simulation/dram/DramWideIO.h"
-#include "DRAMSys/simulation/dram/DramLPDDR4.h"
-#include "DRAMSys/simulation/dram/DramWideIO2.h"
-#include "DRAMSys/simulation/dram/DramHBM2.h"
 #include "DRAMSys/simulation/dram/DramGDDR5.h"
 #include "DRAMSys/simulation/dram/DramGDDR5X.h"
 #include "DRAMSys/simulation/dram/DramGDDR6.h"
+#include "DRAMSys/simulation/dram/DramHBM2.h"
+#include "DRAMSys/simulation/dram/DramLPDDR4.h"
 #include "DRAMSys/simulation/dram/DramSTTMRAM.h"
+#include "DRAMSys/simulation/dram/DramWideIO.h"
+#include "DRAMSys/simulation/dram/DramWideIO2.h"
 
 #ifdef DDR5_SIM
 #include "DRAMSys/simulation/dram/DramDDR5.h"
@@ -65,10 +65,12 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-template<typename BaseDram>
-DramRecordable<BaseDram>::DramRecordable(const sc_module_name& name, const Configuration& config,
-                                         TlmRecorder& tlmRecorder)
-    : BaseDram(name, config), tlmRecorder(tlmRecorder),
+template <typename BaseDram>
+DramRecordable<BaseDram>::DramRecordable(const sc_module_name& name,
+                                         const Configuration& config,
+                                         TlmRecorder& tlmRecorder) :
+    BaseDram(name, config),
+    tlmRecorder(tlmRecorder),
     powerWindowSize(config.memSpec->tCK * config.windowSize)
 {
 #ifdef DRAMPOWER
@@ -79,20 +81,20 @@ DramRecordable<BaseDram>::DramRecordable(const sc_module_name& name, const Confi
 #endif
 }
 
-template<typename BaseDram>
-void DramRecordable<BaseDram>::reportPower()
+template <typename BaseDram> void DramRecordable<BaseDram>::reportPower()
 {
     BaseDram::reportPower();
 #ifdef DRAMPOWER
     tlmRecorder.recordPower(sc_time_stamp().to_seconds(),
-                             this->DRAMPower->getPower().window_average_power
-                             * this->memSpec.devicesPerRank);
-#endif                
+                            this->DRAMPower->getPower().window_average_power *
+                                this->memSpec.devicesPerRank);
+#endif
 }
 
-template<typename BaseDram>
+template <typename BaseDram>
 tlm_sync_enum DramRecordable<BaseDram>::nb_transport_fw(tlm_generic_payload& trans,
-                                          tlm_phase &phase, sc_time &delay)
+                                                        tlm_phase& phase,
+                                                        sc_time& delay)
 {
     tlmRecorder.recordPhase(trans, phase, delay);
     return BaseDram::nb_transport_fw(trans, phase, delay);
@@ -100,9 +102,9 @@ tlm_sync_enum DramRecordable<BaseDram>::nb_transport_fw(tlm_generic_payload& tra
 
 #ifdef DRAMPOWER
 // This Thread is only triggered when Power Simulation is enabled.
-// It estimates the current average power which will be stored in the trace database for visualization purposes.
-template<typename BaseDram>
-void DramRecordable<BaseDram>::powerWindow()
+// It estimates the current average power which will be stored in the trace database for
+// visualization purposes.
+template <typename BaseDram> void DramRecordable<BaseDram>::powerWindow()
 {
     int64_t clkCycles = 0;
 
@@ -120,17 +122,20 @@ void DramRecordable<BaseDram>::powerWindow()
 
         // Store the time (in seconds) and the current average power (in mW) into the database
         tlmRecorder.recordPower(sc_time_stamp().to_seconds(),
-                                 this->DRAMPower->getPower().window_average_power
-                                 * this->memSpec.devicesPerRank);
+                                this->DRAMPower->getPower().window_average_power *
+                                    this->memSpec.devicesPerRank);
 
         // Here considering that DRAMPower provides the energy in pJ and the power in mW
-        PRINTDEBUGMESSAGE(this->name(), std::string("\tWindow Energy: \t") + std::to_string(
-                              this->DRAMPower->getEnergy().window_energy *
-                              this->memSpec.devicesPerRank) + std::string("\t[pJ]"));
-        PRINTDEBUGMESSAGE(this->name(), std::string("\tWindow Average Power: \t") + std::to_string(
-                              this->DRAMPower->getPower().window_average_power *
-                              this->memSpec.devicesPerRank) + std::string("\t[mW]"));
-
+        PRINTDEBUGMESSAGE(this->name(),
+                          std::string("\tWindow Energy: \t") +
+                              std::to_string(this->DRAMPower->getEnergy().window_energy *
+                                             this->memSpec.devicesPerRank) +
+                              std::string("\t[pJ]"));
+        PRINTDEBUGMESSAGE(this->name(),
+                          std::string("\tWindow Average Power: \t") +
+                              std::to_string(this->DRAMPower->getPower().window_average_power *
+                                             this->memSpec.devicesPerRank) +
+                              std::string("\t[mW]"));
     }
 }
 #endif

@@ -35,13 +35,13 @@
 #ifndef BANKMACHINE_H
 #define BANKMACHINE_H
 
-#include "DRAMSys/controller/ManagerIF.h"
-#include "DRAMSys/controller/scheduler/SchedulerIF.h"
-#include "DRAMSys/controller/checker/CheckerIF.h"
-#include "DRAMSys/controller/Command.h"
 #include "DRAMSys/common/dramExtensions.h"
-#include "DRAMSys/configuration/memspec/MemSpec.h"
 #include "DRAMSys/configuration/Configuration.h"
+#include "DRAMSys/configuration/memspec/MemSpec.h"
+#include "DRAMSys/controller/Command.h"
+#include "DRAMSys/controller/ManagerIF.h"
+#include "DRAMSys/controller/checker/CheckerIF.h"
+#include "DRAMSys/controller/scheduler/SchedulerIF.h"
 
 #include <systemc>
 #include <tlm>
@@ -53,7 +53,7 @@ class BankMachine : public ManagerIF
 {
 public:
     CommandTuple::Type getNextCommand() override;
-    void update(Command) override;
+    void update(Command command) override;
     void block();
 
     [[nodiscard]] Rank getRank() const;
@@ -66,13 +66,17 @@ public:
     [[nodiscard]] uint64_t getRefreshManagementCounter() const;
 
 protected:
-    enum class State {Precharged, Activated} state = State::Precharged;
+    enum class State
+    {
+        Precharged,
+        Activated
+    } state = State::Precharged;
     BankMachine(const Configuration& config, const SchedulerIF& scheduler, Bank bank);
     const MemSpec& memSpec;
     tlm::tlm_generic_payload* currentPayload = nullptr;
     const SchedulerIF& scheduler;
     Command nextCommand = Command::NOP;
-    Row openRow;
+    Row openRow = Row(0);
     const Bank bank;
     const BankGroup bankgroup;
     const Rank rank;

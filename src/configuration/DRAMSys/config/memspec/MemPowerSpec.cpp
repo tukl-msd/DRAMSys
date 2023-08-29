@@ -38,22 +38,22 @@
 namespace DRAMSys::Config
 {
 
-void to_json(json_t &j, const MemPowerSpec &c)
+void to_json(json_t& j, const MemPowerSpec& c)
 {
     j = json_t{};
 
-    for (const auto &entry : c.entries)
+    for (const auto& entry : c.entries)
     {
         j[entry.first] = entry.second;
     }
 }
 
-void from_json(const json_t &j, MemPowerSpec &c)
+void from_json(const json_t& j, MemPowerSpec& c)
 {
-    for (const auto &entry : j.items())
+    for (const auto& entry : j.items())
     {
         c.entries[entry.key()] = entry.value();
     }
 }
 
-} // namespace Configuration
+} // namespace DRAMSys::Config

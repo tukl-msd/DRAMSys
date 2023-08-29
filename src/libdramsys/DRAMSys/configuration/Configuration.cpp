@@ -43,14 +43,14 @@
 
 #include "DRAMSys/configuration/memspec/MemSpecDDR3.h"
 #include "DRAMSys/configuration/memspec/MemSpecDDR4.h"
-#include "DRAMSys/configuration/memspec/MemSpecWideIO.h"
-#include "DRAMSys/configuration/memspec/MemSpecLPDDR4.h"
-#include "DRAMSys/configuration/memspec/MemSpecWideIO2.h"
-#include "DRAMSys/configuration/memspec/MemSpecHBM2.h"
 #include "DRAMSys/configuration/memspec/MemSpecGDDR5.h"
 #include "DRAMSys/configuration/memspec/MemSpecGDDR5X.h"
 #include "DRAMSys/configuration/memspec/MemSpecGDDR6.h"
+#include "DRAMSys/configuration/memspec/MemSpecHBM2.h"
+#include "DRAMSys/configuration/memspec/MemSpecLPDDR4.h"
 #include "DRAMSys/configuration/memspec/MemSpecSTTMRAM.h"
+#include "DRAMSys/configuration/memspec/MemSpecWideIO.h"
+#include "DRAMSys/configuration/memspec/MemSpecWideIO2.h"
 
 #ifdef DDR5_SIM
 #include "DRAMSys/configuration/memspec/MemSpecDDR5.h"
@@ -67,29 +67,32 @@ using namespace sc_core;
 namespace DRAMSys
 {
 
-enum sc_time_unit string2TimeUnit(const std::string &s)
+enum sc_time_unit string2TimeUnit(const std::string& s)
 {
     if (s == "s")
         return SC_SEC;
-    else if (s == "ms")
+
+    if (s == "ms")
         return SC_MS;
-    else if (s == "us")
+
+    if (s == "us")
         return SC_US;
-    else if (s == "ns")
+
+    if (s == "ns")
         return SC_NS;
-    else if (s == "ps")
+
+    if (s == "ps")
         return SC_PS;
-    else if (s == "fs")
+
+    if (s == "fs")
         return SC_FS;
-    else {
-        SC_REPORT_FATAL("Configuration",
-                        ("Could not convert to enum sc_time_unit: " + s).c_str());
-        throw;
-    }
+
+    SC_REPORT_FATAL("Configuration", ("Could not convert to enum sc_time_unit: " + s).c_str());
+    throw;
 }
 
-void Configuration::loadSimConfig(const DRAMSys::Config::SimConfig &simConfig)
-{   
+void Configuration::loadSimConfig(const DRAMSys::Config::SimConfig& simConfig)
+{
     addressOffset = simConfig.AddressOffset.value_or(addressOffset);
     checkTLM2Protocol = simConfig.CheckTLM2Protocol.value_or(checkTLM2Protocol);
     databaseRecording = simConfig.DatabaseRecording.value_or(databaseRecording);
@@ -99,7 +102,7 @@ void Configuration::loadSimConfig(const DRAMSys::Config::SimConfig &simConfig)
     simulationProgressBar = simConfig.SimulationProgressBar.value_or(simulationProgressBar);
     useMalloc = simConfig.UseMalloc.value_or(useMalloc);
 
-    if (const auto &_storeMode = simConfig.StoreMode)
+    if (const auto& _storeMode = simConfig.StoreMode)
         storeMode = [=]
         {
             switch (*_storeMode)
@@ -116,18 +119,19 @@ void Configuration::loadSimConfig(const DRAMSys::Config::SimConfig &simConfig)
 
     windowSize = simConfig.WindowSize.value_or(windowSize);
     if (windowSize == 0)
-            SC_REPORT_FATAL("Configuration", "Minimum window size is 1");
+        SC_REPORT_FATAL("Configuration", "Minimum window size is 1");
 
     powerAnalysis = simConfig.PowerAnalysis.value_or(powerAnalysis);
 #ifndef DRAMPOWER
     if (powerAnalysis)
-        SC_REPORT_FATAL("Configuration", "Power analysis is only supported with included DRAMPower library!");
+        SC_REPORT_FATAL("Configuration",
+                        "Power analysis is only supported with included DRAMPower library!");
 #endif
 }
 
-void Configuration::loadMCConfig(const DRAMSys::Config::McConfig &mcConfig)
+void Configuration::loadMCConfig(const DRAMSys::Config::McConfig& mcConfig)
 {
-    if (const auto &_pagePolicy = mcConfig.PagePolicy)
+    if (const auto& _pagePolicy = mcConfig.PagePolicy)
         pagePolicy = [=]
         {
             switch (*_pagePolicy)
@@ -146,7 +150,7 @@ void Configuration::loadMCConfig(const DRAMSys::Config::McConfig &mcConfig)
             }
         }();
 
-    if (const auto &_scheduler = mcConfig.Scheduler)
+    if (const auto& _scheduler = mcConfig.Scheduler)
         scheduler = [=]
         {
             switch (*_scheduler)
@@ -167,7 +171,7 @@ void Configuration::loadMCConfig(const DRAMSys::Config::McConfig &mcConfig)
             }
         }();
 
-    if (const auto &_schedulerBuffer = mcConfig.SchedulerBuffer)
+    if (const auto& _schedulerBuffer = mcConfig.SchedulerBuffer)
         schedulerBuffer = [=]
         {
             switch (*_schedulerBuffer)
@@ -184,7 +188,7 @@ void Configuration::loadMCConfig(const DRAMSys::Config::McConfig &mcConfig)
             }
         }();
 
-    if (const auto &_cmdMux = mcConfig.CmdMux)
+    if (const auto& _cmdMux = mcConfig.CmdMux)
         cmdMux = [=]
         {
             switch (*_cmdMux)
@@ -199,7 +203,7 @@ void Configuration::loadMCConfig(const DRAMSys::Config::McConfig &mcConfig)
             }
         }();
 
-    if (const auto &_respQueue = mcConfig.RespQueue)
+    if (const auto& _respQueue = mcConfig.RespQueue)
         respQueue = [=]
         {
             switch (*_respQueue)
@@ -214,7 +218,7 @@ void Configuration::loadMCConfig(const DRAMSys::Config::McConfig &mcConfig)
             }
         }();
 
-    if (const auto &_refreshPolicy = mcConfig.RefreshPolicy)
+    if (const auto& _refreshPolicy = mcConfig.RefreshPolicy)
         refreshPolicy = [=]
         {
             switch (*_refreshPolicy)
@@ -235,7 +239,7 @@ void Configuration::loadMCConfig(const DRAMSys::Config::McConfig &mcConfig)
             }
         }();
 
-    if (const auto &_powerDownPolicy = mcConfig.PowerDownPolicy)
+    if (const auto& _powerDownPolicy = mcConfig.PowerDownPolicy)
         powerDownPolicy = [=]
         {
             switch (*_powerDownPolicy)
@@ -250,7 +254,7 @@ void Configuration::loadMCConfig(const DRAMSys::Config::McConfig &mcConfig)
             }
         }();
 
-    if (const auto &_arbiter = mcConfig.Arbiter)
+    if (const auto& _arbiter = mcConfig.Arbiter)
         arbiter = [=]
         {
             switch (*_arbiter)
@@ -280,46 +284,50 @@ void Configuration::loadMCConfig(const DRAMSys::Config::McConfig &mcConfig)
 
     if (const auto& _arbitrationDelayFw = mcConfig.ArbitrationDelayFw)
     {
-         arbitrationDelayFw = std::round(sc_time(*_arbitrationDelayFw, SC_NS) / memSpec->tCK) * memSpec->tCK;
+        arbitrationDelayFw =
+            std::round(sc_time(*_arbitrationDelayFw, SC_NS) / memSpec->tCK) * memSpec->tCK;
     }
 
     if (const auto& _arbitrationDelayBw = mcConfig.ArbitrationDelayBw)
     {
-         arbitrationDelayBw = std::round(sc_time(*_arbitrationDelayBw, SC_NS) / memSpec->tCK) * memSpec->tCK;
+        arbitrationDelayBw =
+            std::round(sc_time(*_arbitrationDelayBw, SC_NS) / memSpec->tCK) * memSpec->tCK;
     }
 
     if (const auto& _thinkDelayFw = mcConfig.ThinkDelayFw)
     {
-         thinkDelayFw = std::round(sc_time(*_thinkDelayFw, SC_NS) / memSpec->tCK) * memSpec->tCK;
+        thinkDelayFw = std::round(sc_time(*_thinkDelayFw, SC_NS) / memSpec->tCK) * memSpec->tCK;
     }
 
     if (const auto& _thinkDelayBw = mcConfig.ThinkDelayBw)
     {
-         thinkDelayBw = std::round(sc_time(*_thinkDelayBw, SC_NS) / memSpec->tCK) * memSpec->tCK;
+        thinkDelayBw = std::round(sc_time(*_thinkDelayBw, SC_NS) / memSpec->tCK) * memSpec->tCK;
     }
 
     if (const auto& _phyDelayFw = mcConfig.PhyDelayFw)
     {
-         phyDelayFw = std::round(sc_time(*_phyDelayFw, SC_NS) / memSpec->tCK) * memSpec->tCK;
+        phyDelayFw = std::round(sc_time(*_phyDelayFw, SC_NS) / memSpec->tCK) * memSpec->tCK;
     }
 
     if (const auto& _phyDelayBw = mcConfig.PhyDelayBw)
     {
-         phyDelayBw = std::round(sc_time(*_phyDelayBw, SC_NS) / memSpec->tCK) * memSpec->tCK;
+        phyDelayBw = std::round(sc_time(*_phyDelayBw, SC_NS) / memSpec->tCK) * memSpec->tCK;
     }
 
     {
         auto _blockingReadDelay = mcConfig.BlockingReadDelay.value_or(60);
-        blockingReadDelay = std::round(sc_time(_blockingReadDelay, SC_NS) / memSpec->tCK) * memSpec->tCK;
+        blockingReadDelay =
+            std::round(sc_time(_blockingReadDelay, SC_NS) / memSpec->tCK) * memSpec->tCK;
     }
 
     {
         auto _blockingWriteDelay = mcConfig.BlockingWriteDelay.value_or(60);
-        blockingWriteDelay = std::round(sc_time(_blockingWriteDelay, SC_NS) / memSpec->tCK) * memSpec->tCK;
+        blockingWriteDelay =
+            std::round(sc_time(_blockingWriteDelay, SC_NS) / memSpec->tCK) * memSpec->tCK;
     }
 }
 
-void Configuration::loadMemSpec(const DRAMSys::Config::MemSpec &memSpecConfig)
+void Configuration::loadMemSpec(const DRAMSys::Config::MemSpec& memSpecConfig)
 {
     std::string memoryType = memSpecConfig.memoryType;
 

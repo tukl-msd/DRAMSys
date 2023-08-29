@@ -35,16 +35,16 @@
 #ifndef REFRESHMANAGERPER2BANK_H
 #define REFRESHMANAGERPER2BANK_H
 
-#include "DRAMSys/controller/refresh/RefreshManagerIF.h"
-#include "DRAMSys/controller/checker/CheckerIF.h"
-#include "DRAMSys/configuration/memspec/MemSpec.h"
 #include "DRAMSys/configuration/Configuration.h"
+#include "DRAMSys/configuration/memspec/MemSpec.h"
+#include "DRAMSys/controller/checker/CheckerIF.h"
+#include "DRAMSys/controller/refresh/RefreshManagerIF.h"
 
-#include <vector>
 #include <list>
-#include <unordered_map>
 #include <systemc>
 #include <tlm>
+#include <unordered_map>
+#include <vector>
 
 namespace DRAMSys
 {
@@ -55,16 +55,22 @@ class PowerDownManagerIF;
 class RefreshManagerPer2Bank final : public RefreshManagerIF
 {
 public:
-    RefreshManagerPer2Bank(const Configuration& config, std::vector<BankMachine*>& bankMachinesOnRank,
-                           PowerDownManagerIF& powerDownManager, Rank rank);
+    RefreshManagerPer2Bank(const Configuration& config,
+                           ControllerVector<Bank, BankMachine*>& bankMachinesOnRank,
+                           PowerDownManagerIF& powerDownManager,
+                           Rank rank);
 
     CommandTuple::Type getNextCommand() override;
     void evaluate() override;
-    void update(Command) override;
+    void update(Command command) override;
     sc_core::sc_time getTimeForNextTrigger() override;
 
 private:
-    enum class State {Regular, Pulledin} state = State::Regular;
+    enum class State
+    {
+        Regular,
+        Pulledin
+    } state = State::Regular;
     const MemSpec& memSpec;
     PowerDownManagerIF& powerDownManager;
     std::unordered_map<BankMachine*, tlm::tlm_generic_payload> refreshPayloads;

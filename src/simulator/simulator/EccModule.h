@@ -41,13 +41,13 @@
 
 #include <DRAMSys/simulation/AddressDecoder.h>
 
+#include <deque>
+#include <map>
 #include <systemc>
 #include <tlm_utils/peq_with_cb_and_phase.h>
 #include <tlm_utils/simple_initiator_socket.h>
 #include <tlm_utils/simple_target_socket.h>
 #include <unordered_map>
-#include <map>
-#include <deque>
 
 class EccModule : public sc_core::sc_module
 {
@@ -55,7 +55,7 @@ public:
     tlm_utils::simple_initiator_socket<EccModule> iSocket;
     tlm_utils::simple_target_socket<EccModule> tSocket;
 
-    EccModule(sc_core::sc_module_name name, DRAMSys::AddressDecoder const &addressDecoder);
+    EccModule(sc_core::sc_module_name name, DRAMSys::AddressDecoder const& addressDecoder);
     SC_HAS_PROCESS(EccModule);
 
 private:
@@ -71,32 +71,32 @@ private:
 
     void end_of_simulation() override;
 
-    void peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase);
+    void peqCallback(tlm::tlm_generic_payload& payload, const tlm::tlm_phase& phase);
 
-    tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload &payload,
-                                       tlm::tlm_phase &phase,
-                                       sc_core::sc_time &fwDelay);
-    tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload &payload,
-                                       tlm::tlm_phase &phase,
-                                       sc_core::sc_time &bwDelay);
+    tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& payload,
+                                       tlm::tlm_phase& phase,
+                                       sc_core::sc_time& fwDelay);
+    tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload& payload,
+                                       tlm::tlm_phase& phase,
+                                       sc_core::sc_time& bwDelay);
 
-    tlm::tlm_generic_payload *generateEccPayload(DRAMSys::DecodedAddress decodedAddress);
+    tlm::tlm_generic_payload* generateEccPayload(DRAMSys::DecodedAddress decodedAddress);
 
     static unsigned int alignToBlock(unsigned int column);
-    
+
     tlm_utils::peq_with_cb_and_phase<EccModule> payloadEventQueue;
 
-    tlm::tlm_generic_payload *pendingRequest = nullptr;
-    tlm::tlm_generic_payload *blockedRequest = nullptr;
+    tlm::tlm_generic_payload* pendingRequest = nullptr;
+    tlm::tlm_generic_payload* blockedRequest = nullptr;
     bool targetBusy = false;
 
     const sc_core::sc_time tCK;
     MemoryManager memoryManager;
-    DRAMSys::AddressDecoder const &addressDecoder;
+    DRAMSys::AddressDecoder const& addressDecoder;
 
     std::unordered_map<Bank, EccQueue> activeEccBlocks;
 
-    using EccPayload = tlm::tlm_generic_payload *;
+    using EccPayload = tlm::tlm_generic_payload*;
     using StartTime = sc_core::sc_time;
     std::unordered_map<tlm::tlm_generic_payload*, StartTime> payloadMap;
 

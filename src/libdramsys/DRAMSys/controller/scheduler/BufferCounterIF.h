@@ -35,16 +35,24 @@
 #ifndef BUFFERCOUNTERIF_H
 #define BUFFERCOUNTERIF_H
 
-#include <vector>
 #include <tlm>
+#include <vector>
 
 namespace DRAMSys
 {
 
 class BufferCounterIF
 {
+protected:
+    BufferCounterIF(const BufferCounterIF&) = default;
+    BufferCounterIF(BufferCounterIF&&) = default;
+    BufferCounterIF& operator=(const BufferCounterIF&) = default;
+    BufferCounterIF& operator=(BufferCounterIF&&) = default;
+
 public:
+    BufferCounterIF() = default;
     virtual ~BufferCounterIF() = default;
+
     [[nodiscard]] virtual bool hasBufferSpace() const = 0;
     virtual void storeRequest(const tlm::tlm_generic_payload& trans) = 0;
     virtual void removeRequest(const tlm::tlm_generic_payload& trans) = 0;

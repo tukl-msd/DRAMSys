@@ -45,14 +45,14 @@
 #include "DRAMSys/controller/Controller.h"
 #include "DRAMSys/simulation/dram/DramDDR3.h"
 #include "DRAMSys/simulation/dram/DramDDR4.h"
-#include "DRAMSys/simulation/dram/DramWideIO.h"
-#include "DRAMSys/simulation/dram/DramLPDDR4.h"
-#include "DRAMSys/simulation/dram/DramWideIO2.h"
-#include "DRAMSys/simulation/dram/DramHBM2.h"
 #include "DRAMSys/simulation/dram/DramGDDR5.h"
 #include "DRAMSys/simulation/dram/DramGDDR5X.h"
 #include "DRAMSys/simulation/dram/DramGDDR6.h"
+#include "DRAMSys/simulation/dram/DramHBM2.h"
+#include "DRAMSys/simulation/dram/DramLPDDR4.h"
 #include "DRAMSys/simulation/dram/DramSTTMRAM.h"
+#include "DRAMSys/simulation/dram/DramWideIO.h"
+#include "DRAMSys/simulation/dram/DramWideIO2.h"
 
 #ifdef DDR5_SIM
 #include "DRAMSys/simulation/dram/DramDDR5.h"
@@ -67,21 +67,23 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
-#include <vector>
 #include <stdexcept>
+#include <vector>
 
 namespace DRAMSys
 {
 
 DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
-                 const ::DRAMSys::Config::Configuration& configLib)
-    : DRAMSys(name, configLib, true)
-{}
+                 const ::DRAMSys::Config::Configuration& configLib) :
+    DRAMSys(name, configLib, true)
+{
+}
 
 DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
                  const ::DRAMSys::Config::Configuration& configLib,
-                 bool initAndBind)
-    : sc_module(name), tSocket("DRAMSys_tSocket")
+                 bool initAndBind) :
+    sc_module(name),
+    tSocket("DRAMSys_tSocket")
 {
     logo();
 
@@ -120,21 +122,17 @@ void DRAMSys::end_of_simulation()
 
 void DRAMSys::logo()
 {
-#define GREENTXT(s)  std::string(("\u001b[38;5;28m"+std::string((s))+"\033[0m"))
-#define DGREENTXT(s) std::string(("\u001b[38;5;22m"+std::string((s))+"\033[0m"))
-#define LGREENTXT(s) std::string(("\u001b[38;5;82m"+std::string((s))+"\033[0m"))
-#define BLACKTXT(s)  std::string(("\u001b[38;5;232m"+std::string((s))+"\033[0m"))
-#define BOLDTXT(s)   std::string(("\033[1;37m"+std::string((s))+"\033[0m"))
+#define GREENTXT(s) std::string(("\u001b[38;5;28m" + std::string((s)) + "\033[0m"))
+#define DGREENTXT(s) std::string(("\u001b[38;5;22m" + std::string((s)) + "\033[0m"))
+#define LGREENTXT(s) std::string(("\u001b[38;5;82m" + std::string((s)) + "\033[0m"))
+#define BLACKTXT(s) std::string(("\u001b[38;5;232m" + std::string((s)) + "\033[0m"))
+#define BOLDTXT(s) std::string(("\033[1;37m" + std::string((s)) + "\033[0m"))
     cout << std::endl
-         << BLACKTXT("■ ■ ")<< DGREENTXT("■  ")
-         << BOLDTXT("DRAMSys5.0, Copyright (c) 2023")
+         << BLACKTXT("■ ■ ") << DGREENTXT("■  ") << BOLDTXT("DRAMSys5.0, Copyright (c) 2023")
          << std::endl
-         << BLACKTXT("■ ") << DGREENTXT("■ ") << GREENTXT("■  ")
-         << "RPTU Kaiserslautern-Landau,"
+         << BLACKTXT("■ ") << DGREENTXT("■ ") << GREENTXT("■  ") << "RPTU Kaiserslautern-Landau,"
          << std::endl
-         << DGREENTXT("■ ") << GREENTXT("■ ") << LGREENTXT("■  " )
-         << "Fraunhofer IESE"
-         << std::endl
+         << DGREENTXT("■ ") << GREENTXT("■ ") << LGREENTXT("■  ") << "Fraunhofer IESE" << std::endl
          << std::endl;
 #undef GREENTXT
 #undef DGREENTXT
@@ -151,7 +149,7 @@ void DRAMSys::setupDebugManager([[maybe_unused]] const std::string& traceName) c
     bool writeToConsole = false;
     bool writeToFile = true;
     dbg.setup(debugEnabled, writeToConsole, writeToFile);
-    if (writeToFile)
+    if (debugEnabled && writeToFile)
         dbg.openDebugFile(traceName + ".txt");
 #endif
 }
@@ -173,45 +171,59 @@ void DRAMSys::instantiateModules(const ::DRAMSys::Config::AddressMapping& addres
     MemSpec::MemoryType memoryType = config.memSpec->memoryType;
     for (std::size_t i = 0; i < config.memSpec->numberOfChannels; i++)
     {
-        controllers.emplace_back(std::make_unique<Controller>(("controller" + std::to_string(i)).c_str(), config,
-                                                              *addressDecoder));
+        controllers.emplace_back(std::make_unique<Controller>(
+            ("controller" + std::to_string(i)).c_str(), config, *addressDecoder));
 
         if (memoryType == MemSpec::MemoryType::DDR3)
-            drams.emplace_back(std::make_unique<DramDDR3>(("dram" + std::to_string(i)).c_str(), config));
+            drams.emplace_back(
+                std::make_unique<DramDDR3>(("dram" + std::to_string(i)).c_str(), config));
         else if (memoryType == MemSpec::MemoryType::DDR4)
-            drams.emplace_back(std::make_unique<DramDDR4>(("dram" + std::to_string(i)).c_str(), config));
+            drams.emplace_back(
+                std::make_unique<DramDDR4>(("dram" + std::to_string(i)).c_str(), config));
         else if (memoryType == MemSpec::MemoryType::WideIO)
-            drams.emplace_back(std::make_unique<DramWideIO>(("dram" + std::to_string(i)).c_str(), config));
+            drams.emplace_back(
+                std::make_unique<DramWideIO>(("dram" + std::to_string(i)).c_str(), config));
         else if (memoryType == MemSpec::MemoryType::LPDDR4)
-            drams.emplace_back(std::make_unique<DramLPDDR4>(("dram" + std::to_string(i)).c_str(), config));
+            drams.emplace_back(
+                std::make_unique<DramLPDDR4>(("dram" + std::to_string(i)).c_str(), config));
         else if (memoryType == MemSpec::MemoryType::WideIO2)
-            drams.emplace_back(std::make_unique<DramWideIO2>(("dram" + std::to_string(i)).c_str(), config));
+            drams.emplace_back(
+                std::make_unique<DramWideIO2>(("dram" + std::to_string(i)).c_str(), config));
         else if (memoryType == MemSpec::MemoryType::HBM2)
-            drams.emplace_back(std::make_unique<DramHBM2>(("dram" + std::to_string(i)).c_str(), config));
+            drams.emplace_back(
+                std::make_unique<DramHBM2>(("dram" + std::to_string(i)).c_str(), config));
         else if (memoryType == MemSpec::MemoryType::GDDR5)
-            drams.emplace_back(std::make_unique<DramGDDR5>(("dram" + std::to_string(i)).c_str(), config));
+            drams.emplace_back(
+                std::make_unique<DramGDDR5>(("dram" + std::to_string(i)).c_str(), config));
         else if (memoryType == MemSpec::MemoryType::GDDR5X)
-            drams.emplace_back(std::make_unique<DramGDDR5X>(("dram" + std::to_string(i)).c_str(), config));
+            drams.emplace_back(
+                std::make_unique<DramGDDR5X>(("dram" + std::to_string(i)).c_str(), config));
         else if (memoryType == MemSpec::MemoryType::GDDR6)
-            drams.emplace_back(std::make_unique<DramGDDR6>(("dram" + std::to_string(i)).c_str(), config));
+            drams.emplace_back(
+                std::make_unique<DramGDDR6>(("dram" + std::to_string(i)).c_str(), config));
         else if (memoryType == MemSpec::MemoryType::STTMRAM)
-            drams.emplace_back(std::make_unique<DramSTTMRAM>(("dram" + std::to_string(i)).c_str(), config));
+            drams.emplace_back(
+                std::make_unique<DramSTTMRAM>(("dram" + std::to_string(i)).c_str(), config));
 #ifdef DDR5_SIM
         else if (memoryType == MemSpec::MemoryType::DDR5)
-            drams.emplace_back(std::make_unique<DramDDR5>(("dram" + std::to_string(i)).c_str(), config));
+            drams.emplace_back(
+                std::make_unique<DramDDR5>(("dram" + std::to_string(i)).c_str(), config));
 #endif
 #ifdef LPDDR5_SIM
         else if (memoryType == MemSpec::MemoryType::LPDDR5)
-            drams.emplace_back(std::make_unique<DramLPDDR5>(("dram" + std::to_string(i)).c_str(), config));
+            drams.emplace_back(
+                std::make_unique<DramLPDDR5>(("dram" + std::to_string(i)).c_str(), config));
 #endif
 #ifdef HBM3_SIM
         else if (memoryType == MemSpec::MemoryType::HBM3)
-            drams.emplace_back(std::make_unique<DramHBM3>(("dram" + std::to_string(i)).c_str(), config));
+            drams.emplace_back(
+                std::make_unique<DramHBM3>(("dram" + std::to_string(i)).c_str(), config));
 #endif
 
         if (config.checkTLM2Protocol)
-            controllersTlmCheckers.push_back(std::make_unique<tlm_utils::tlm2_base_protocol_checker<>>
-                    (("TlmCheckerController" + std::to_string(i)).c_str()));
+            controllersTlmCheckers.push_back(
+                std::make_unique<tlm_utils::tlm2_base_protocol_checker<>>(
+                    ("TlmCheckerController" + std::to_string(i)).c_str()));
     }
 }
 
@@ -234,9 +246,9 @@ void DRAMSys::bindSockets()
     }
 }
 
-void DRAMSys::report(const std::string& message)
+void DRAMSys::report(std::string_view message)
 {
-    PRINTDEBUGMESSAGE(name(), message);
+    PRINTDEBUGMESSAGE(name(), message.data());
     std::cout << message << std::endl;
 }
 

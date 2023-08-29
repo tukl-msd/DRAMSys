@@ -39,8 +39,8 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-BufferCounterShared::BufferCounterShared(unsigned requestBufferSize)
-    : requestBufferSize(requestBufferSize)
+BufferCounterShared::BufferCounterShared(unsigned requestBufferSize) :
+    requestBufferSize(requestBufferSize)
 {
     numRequests = std::vector<unsigned>(1);
 }

@@ -52,10 +52,11 @@ enum class TrafficInitiatorType
     Invalid = -1
 };
 
-NLOHMANN_JSON_SERIALIZE_ENUM(TrafficInitiatorType, {{TrafficInitiatorType::Invalid, nullptr},
-                                                    {TrafficInitiatorType::Player, "player"},
-                                                    {TrafficInitiatorType::Hammer, "hammer"},
-                                                    {TrafficInitiatorType::Generator, "generator"}})
+NLOHMANN_JSON_SERIALIZE_ENUM(TrafficInitiatorType,
+                             {{TrafficInitiatorType::Invalid, nullptr},
+                              {TrafficInitiatorType::Player, "player"},
+                              {TrafficInitiatorType::Hammer, "hammer"},
+                              {TrafficInitiatorType::Generator, "generator"}})
 
 enum class AddressDistribution
 {
@@ -64,13 +65,14 @@ enum class AddressDistribution
     Invalid = -1
 };
 
-NLOHMANN_JSON_SERIALIZE_ENUM(AddressDistribution, {{AddressDistribution::Invalid, nullptr},
-                                                   {AddressDistribution::Random, "random"},
-                                                   {AddressDistribution::Sequential, "sequential"}})
+NLOHMANN_JSON_SERIALIZE_ENUM(AddressDistribution,
+                             {{AddressDistribution::Invalid, nullptr},
+                              {AddressDistribution::Random, "random"},
+                              {AddressDistribution::Sequential, "sequential"}})
 
 struct TracePlayer
 {
-    uint64_t clkMhz;
+    uint64_t clkMhz{};
     std::string name;
     std::optional<unsigned int> maxPendingReadRequests;
     std::optional<unsigned int> maxPendingWriteRequests;
@@ -81,10 +83,10 @@ NLOHMANN_JSONIFY_ALL_THINGS(
 
 struct TrafficGeneratorActiveState
 {
-    unsigned int id;
+    unsigned int id{};
 
-    uint64_t numRequests;
-    double rwRatio;
+    uint64_t numRequests{};
+    double rwRatio{};
     AddressDistribution addressDistribution;
     std::optional<uint64_t> addressIncrement;
     std::optional<uint64_t> minAddress;
@@ -120,7 +122,7 @@ NLOHMANN_JSONIFY_ALL_THINGS(TrafficGeneratorStateTransition, from, to, probabili
 
 struct TrafficGenerator
 {
-    uint64_t clkMhz;
+    uint64_t clkMhz{};
     std::string name;
     std::optional<unsigned int> maxPendingReadRequests;
     std::optional<unsigned int> maxPendingWriteRequests;
@@ -129,9 +131,9 @@ struct TrafficGenerator
     std::optional<uint64_t> maxTransactions;
     std::optional<unsigned> dataLength;
     std::optional<unsigned> dataAlignment;
-    
-    uint64_t numRequests;
-    double rwRatio;
+
+    uint64_t numRequests{};
+    double rwRatio{};
     AddressDistribution addressDistribution;
     std::optional<uint64_t> addressIncrement;
     std::optional<uint64_t> minAddress;
@@ -156,7 +158,7 @@ NLOHMANN_JSONIFY_ALL_THINGS(TrafficGenerator,
 
 struct TrafficGeneratorStateMachine
 {
-    uint64_t clkMhz;
+    uint64_t clkMhz{};
     std::string name;
     std::optional<unsigned int> maxPendingReadRequests;
     std::optional<unsigned int> maxPendingWriteRequests;
@@ -183,17 +185,22 @@ NLOHMANN_JSONIFY_ALL_THINGS(TrafficGeneratorStateMachine,
 
 struct RowHammer
 {
-    uint64_t clkMhz;
+    uint64_t clkMhz{};
     std::string name;
     std::optional<unsigned int> maxPendingReadRequests;
     std::optional<unsigned int> maxPendingWriteRequests;
 
-    uint64_t numRequests;
-    uint64_t rowIncrement;
+    uint64_t numRequests{};
+    uint64_t rowIncrement{};
 };
 
-NLOHMANN_JSONIFY_ALL_THINGS(
-    RowHammer, clkMhz, name, maxPendingReadRequests, maxPendingWriteRequests, numRequests, rowIncrement)
+NLOHMANN_JSONIFY_ALL_THINGS(RowHammer,
+                            clkMhz,
+                            name,
+                            maxPendingReadRequests,
+                            maxPendingWriteRequests,
+                            numRequests,
+                            rowIncrement)
 
 struct TraceSetupConstants
 {
@@ -201,9 +208,9 @@ struct TraceSetupConstants
     static constexpr std::string_view SUB_DIR = "tracesetup";
 };
 
-using TraceSetup = std::vector<
-    std::variant<TracePlayer, TrafficGenerator, TrafficGeneratorStateMachine, RowHammer>>;
+using Initiator =
+    std::variant<TracePlayer, TrafficGenerator, TrafficGeneratorStateMachine, RowHammer>;
 
-} // namespace Configuration
+} // namespace DRAMSys::Config
 
 #endif // DRAMSYSCONFIGURATION_TRACESETUP_H

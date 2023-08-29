@@ -38,12 +38,15 @@
 #define DEBUGMANAGER_H
 
 #ifdef NDEBUG
-#define PRINTDEBUGMESSAGE(sender, message) {}
+#define PRINTDEBUGMESSAGE(sender, message)                                                         \
+    {                                                                                              \
+    }
 #else
-#define PRINTDEBUGMESSAGE(sender, message) DebugManager::getInstance().printDebugMessage(sender, message)
+#define PRINTDEBUGMESSAGE(sender, message)                                                         \
+    DebugManager::getInstance().printDebugMessage(sender, message)
 
-#include <string>
 #include <fstream>
+#include <string>
 
 namespace DRAMSys
 {
@@ -51,7 +54,7 @@ namespace DRAMSys
 class DebugManager
 {
 public:
-    static DebugManager &getInstance()
+    static DebugManager& getInstance()
     {
         static DebugManager _instance;
         return _instance;
@@ -64,18 +67,19 @@ private:
 public:
     DebugManager(const DebugManager&) = delete;
     DebugManager& operator=(const DebugManager&) = delete;
+    DebugManager(DebugManager&&) = delete;
+    DebugManager& operator=(DebugManager&&) = delete;
 
-public:
     void setup(bool _debugEnabled, bool _writeToConsole, bool _writeToFile);
 
-    void printDebugMessage(const std::string &sender, const std::string &message);
-    static void printMessage(const std::string &sender, const std::string &message);
-    void openDebugFile(const std::string &filename);
+    void printDebugMessage(const std::string& sender, const std::string& message);
+    static void printMessage(const std::string& sender, const std::string& message);
+    void openDebugFile(const std::string& filename);
 
 private:
-    bool debugEnabled;
-    bool writeToConsole;
-    bool writeToFile;
+    bool debugEnabled = false;
+    bool writeToConsole = false;
+    bool writeToFile = false;
 
     std::ofstream debugFile;
 };

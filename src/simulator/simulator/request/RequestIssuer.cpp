@@ -35,21 +35,23 @@
 
 #include "RequestIssuer.h"
 
-RequestIssuer::RequestIssuer(sc_core::sc_module_name const &name,
-                             MemoryManager &memoryManager,
+RequestIssuer::RequestIssuer(sc_core::sc_module_name const& name,
+                             MemoryManager& memoryManager,
+                             unsigned int clkMhz,
                              std::optional<unsigned int> maxPendingReadRequests,
                              std::optional<unsigned int> maxPendingWriteRequests,
                              std::function<Request()> nextRequest,
                              std::function<void()> transactionFinished,
-                             std::function<void()> terminate)
-    : sc_module(name),
-      memoryManager(memoryManager),
-      maxPendingReadRequests(maxPendingReadRequests),
-      maxPendingWriteRequests(maxPendingWriteRequests),
-      nextRequest(std::move(nextRequest)),
-      transactionFinished(std::move(transactionFinished)),
-      terminate(std::move(terminate)),
-      payloadEventQueue(this, &RequestIssuer::peqCallback)
+                             std::function<void()> terminate) :
+    sc_module(name),
+    payloadEventQueue(this, &RequestIssuer::peqCallback),
+    memoryManager(memoryManager),
+    clkPeriod(sc_core::sc_time(1.0 / static_cast<double>(clkMhz), sc_core::SC_US)),
+    maxPendingReadRequests(maxPendingReadRequests),
+    maxPendingWriteRequests(maxPendingWriteRequests),
+    transactionFinished(std::move(transactionFinished)),
+    terminate(std::move(terminate)),
+    nextRequest(std::move(nextRequest))
 {
     SC_THREAD(sendNextRequest);
     iSocket.register_nb_transport_bw(this, &RequestIssuer::nb_transport_bw);
@@ -65,7 +67,7 @@ void RequestIssuer::sendNextRequest()
         return;
     }
 
-    tlm::tlm_generic_payload &payload = memoryManager.allocate(request.length);
+    tlm::tlm_generic_payload& payload = memoryManager.allocate(request.length);
     payload.acquire();
     payload.set_address(request.address);
     payload.set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
@@ -79,14 +81,22 @@ void RequestIssuer::sendNextRequest()
     tlm::tlm_phase phase = tlm::BEGIN_REQ;
     sc_core::sc_time delay = request.delay;
 
-    if (request.address == 0x4000f000)
-        int x = 0;
+    sc_core::sc_time sendingTime = sc_core::sc_time_stamp() + delay;
 
-    if (transactionsSent == 0)
-        delay = sc_core::SC_ZERO_TIME;
+    bool needsOffset = (sendingTime % clkPeriod) != sc_core::SC_ZERO_TIME;
+    if (needsOffset)
+    {
+        sendingTime += clkPeriod;
+        sendingTime -= sendingTime % clkPeriod;
+    }
 
+    if (sendingTime == lastEndRequest)
+    {
+        sendingTime += clkPeriod;
+    }
+
+    delay = sendingTime - sc_core::sc_time_stamp();
     iSocket->nb_transport_fw(payload, phase, delay);
-    transactionInProgress = true;
 
     if (request.command == Request::Command::Read)
         pendingReadRequests++;
@@ -110,10 +120,12 @@ bool RequestIssuer::nextRequestSendable() const
     return true;
 }
 
-void RequestIssuer::peqCallback(tlm::tlm_generic_payload &payload, const tlm::tlm_phase &phase)
+void RequestIssuer::peqCallback(tlm::tlm_generic_payload& payload, const tlm::tlm_phase& phase)
 {
     if (phase == tlm::END_REQ)
     {
+        lastEndRequest = sc_core::sc_time_stamp();
+
         if (nextRequestSendable())
             sendNextRequest();
         else
@@ -121,12 +133,11 @@ void RequestIssuer::peqCallback(tlm::tlm_generic_payload &payload, const tlm::tl
     }
     else if (phase == tlm::BEGIN_RESP)
     {
-        tlm::tlm_phase phase = tlm::END_RESP;
+        tlm::tlm_phase nextPhase = tlm::END_RESP;
         sc_core::sc_time delay = sc_core::SC_ZERO_TIME;
-        iSocket->nb_transport_fw(payload, phase, delay);
+        iSocket->nb_transport_fw(payload, nextPhase, delay);
 
         payload.release();
-        transactionInProgress = false;
 
         transactionFinished();
 

@@ -35,8 +35,8 @@
 #ifndef CONTROLLERRECORDABLE_H
 #define CONTROLLERRECORDABLE_H
 
-#include "DRAMSys/controller/Controller.h"
 #include "DRAMSys/common/TlmRecorder.h"
+#include "DRAMSys/controller/Controller.h"
 
 #include <systemc>
 #include <tlm>
@@ -47,17 +47,22 @@ namespace DRAMSys
 class ControllerRecordable final : public Controller
 {
 public:
-    ControllerRecordable(const sc_core::sc_module_name& name, const Configuration& config,
-                         const AddressDecoder& addressDecoder, TlmRecorder& tlmRecorder);
-    ~ControllerRecordable() override = default;
+    ControllerRecordable(const sc_core::sc_module_name& name,
+                         const Configuration& config,
+                         const AddressDecoder& addressDecoder,
+                         TlmRecorder& tlmRecorder);
 
 protected:
-    tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans, tlm::tlm_phase& phase,
+    tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans,
+                                       tlm::tlm_phase& phase,
                                        sc_core::sc_time& delay) override;
-    tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload& trans, tlm::tlm_phase& phase,
+    tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload& trans,
+                                       tlm::tlm_phase& phase,
                                        sc_core::sc_time& delay) override;
 
-    void sendToFrontend(tlm::tlm_generic_payload& trans, tlm::tlm_phase& phase, sc_core::sc_time& delay) override;
+    void sendToFrontend(tlm::tlm_generic_payload& payload,
+                        tlm::tlm_phase& phase,
+                        sc_core::sc_time& delay) override;
 
     void controllerMethod() override;
 

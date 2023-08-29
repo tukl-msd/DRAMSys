@@ -35,20 +35,20 @@
 #ifndef CONTROLLER_H
 #define CONTROLLER_H
 
-#include "DRAMSys/controller/ControllerIF.h"
-#include "DRAMSys/controller/Command.h"
 #include "DRAMSys/controller/BankMachine.h"
-#include "DRAMSys/controller/cmdmux/CmdMuxIF.h"
+#include "DRAMSys/controller/Command.h"
+#include "DRAMSys/controller/ControllerIF.h"
 #include "DRAMSys/controller/checker/CheckerIF.h"
-#include "DRAMSys/controller/refresh/RefreshManagerIF.h"
+#include "DRAMSys/controller/cmdmux/CmdMuxIF.h"
 #include "DRAMSys/controller/powerdown/PowerDownManagerIF.h"
+#include "DRAMSys/controller/refresh/RefreshManagerIF.h"
 #include "DRAMSys/controller/respqueue/RespQueueIF.h"
 #include "DRAMSys/simulation/AddressDecoder.h"
 
-#include <vector>
 #include <stack>
 #include <systemc>
 #include <tlm>
+#include <vector>
 
 namespace DRAMSys
 {
@@ -56,18 +56,23 @@ namespace DRAMSys
 class Controller : public ControllerIF
 {
 public:
-    Controller(const sc_core::sc_module_name& name, const Configuration& config, const AddressDecoder& addressDecoder);
+    Controller(const sc_core::sc_module_name& name,
+               const Configuration& config,
+               const AddressDecoder& addressDecoder);
     SC_HAS_PROCESS(Controller);
 
 protected:
-    tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans, tlm::tlm_phase& phase,
+    tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans,
+                                       tlm::tlm_phase& phase,
                                        sc_core::sc_time& delay) override;
-    tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload& trans, tlm::tlm_phase& phase,
+    tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload& trans,
+                                       tlm::tlm_phase& phase,
                                        sc_core::sc_time& delay) override;
-    void b_transport(tlm::tlm_generic_payload& trans, sc_core::sc_time& delay) override;                                       
+    void b_transport(tlm::tlm_generic_payload& trans, sc_core::sc_time& delay) override;
     unsigned int transport_dbg(tlm::tlm_generic_payload& trans) override;
 
-    virtual void sendToFrontend(tlm::tlm_generic_payload& trans, tlm::tlm_phase& phase, sc_core::sc_time& delay);
+    virtual void
+    sendToFrontend(tlm::tlm_generic_payload& trans, tlm::tlm_phase& phase, sc_core::sc_time& delay);
 
     virtual void controllerMethod();
 
@@ -79,20 +84,20 @@ protected:
     const sc_core::sc_time phyDelayFw;
     const sc_core::sc_time phyDelayBw;
     const sc_core::sc_time blockingReadDelay;
-    const sc_core::sc_time blockingWriteDelay;    
+    const sc_core::sc_time blockingWriteDelay;
 
 private:
     unsigned totalNumberOfPayloads = 0;
-    std::vector<unsigned> ranksNumberOfPayloads;
+    ControllerVector<Rank, unsigned> ranksNumberOfPayloads;
     ReadyCommands readyCommands;
 
-    std::vector<std::unique_ptr<BankMachine>> bankMachines;
-    std::vector<std::vector<BankMachine*>> bankMachinesOnRank;
+    ControllerVector<Bank, std::unique_ptr<BankMachine>> bankMachines;
+    ControllerVector<Rank, ControllerVector<Bank, BankMachine*>> bankMachinesOnRank;
     std::unique_ptr<CmdMuxIF> cmdMux;
     std::unique_ptr<CheckerIF> checker;
     std::unique_ptr<RespQueueIF> respQueue;
-    std::vector<std::unique_ptr<RefreshManagerIF>> refreshManagers;
-    std::vector<std::unique_ptr<PowerDownManagerIF>> powerDownManagers;
+    ControllerVector<Rank, std::unique_ptr<RefreshManagerIF>> refreshManagers;
+    ControllerVector<Rank, std::unique_ptr<PowerDownManagerIF>> powerDownManagers;
 
     const AddressDecoder& addressDecoder;
     uint64_t nextChannelPayloadIDToAppend = 1;
@@ -106,8 +111,6 @@ private:
     void manageResponses();
     void manageRequests(const sc_core::sc_time& delay);
 
-    bool isFullCycle(const sc_core::sc_time& time) const;
-
     sc_core::sc_event beginReqEvent, endRespEvent, controllerEvent, dataResponseEvent;
 
     const unsigned minBytesPerBurst;
@@ -118,7 +121,13 @@ private:
     class MemoryManager : public tlm::tlm_mm_interface
     {
     public:
+        MemoryManager() = default;
+        MemoryManager(const MemoryManager&) = delete;
+        MemoryManager(MemoryManager&&) = delete;
+        MemoryManager& operator=(const MemoryManager&) = delete;
+        MemoryManager& operator=(MemoryManager&&) = delete;
         ~MemoryManager() override;
+
         tlm::tlm_generic_payload& allocate();
         void free(tlm::tlm_generic_payload* trans) override;
 

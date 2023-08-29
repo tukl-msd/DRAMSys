@@ -35,8 +35,8 @@
 #ifndef POWERDOWNMANAGERIF_H
 #define POWERDOWNMANAGERIF_H
 
-#include "DRAMSys/controller/ManagerIF.h"
 #include "DRAMSys/controller/Command.h"
+#include "DRAMSys/controller/ManagerIF.h"
 
 #include <systemc>
 

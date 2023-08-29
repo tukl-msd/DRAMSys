@@ -39,11 +39,17 @@
 
 class RequestProducer
 {
+protected:
+    RequestProducer(const RequestProducer&) = default;
+    RequestProducer(RequestProducer&&) = default;
+    RequestProducer& operator=(const RequestProducer&) = default;
+    RequestProducer& operator=(RequestProducer&&) = default;
+
 public:
+    RequestProducer() = default;
     virtual ~RequestProducer() = default;
 
     virtual Request nextRequest() = 0;
     virtual uint64_t totalRequests() = 0;
-    virtual sc_core::sc_time clkPeriod() = 0;
     virtual void reset(){};
 };

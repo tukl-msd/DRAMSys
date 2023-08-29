@@ -44,14 +44,20 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-RefreshManagerAllBank::RefreshManagerAllBank(const Configuration& config, std::vector<BankMachine*>& bankMachinesOnRank,
-                                             PowerDownManagerIF& powerDownManager, Rank rank)
-    : bankMachinesOnRank(bankMachinesOnRank), powerDownManager(powerDownManager),
-    memSpec(*config.memSpec), maxPostponed(static_cast<int>(config.refreshMaxPostponed)),
-    maxPulledin(-static_cast<int>(config.refreshMaxPulledin)), refreshManagement(config.refreshManagement)
+RefreshManagerAllBank::RefreshManagerAllBank(
+    const Configuration& config,
+    ControllerVector<Bank, BankMachine*>& bankMachinesOnRank,
+    PowerDownManagerIF& powerDownManager,
+    Rank rank) :
+    memSpec(*config.memSpec),
+    bankMachinesOnRank(bankMachinesOnRank),
+    powerDownManager(powerDownManager),
+    maxPostponed(static_cast<int>(config.refreshMaxPostponed)),
+    maxPulledin(-static_cast<int>(config.refreshMaxPulledin)),
+    refreshManagement(config.refreshManagement)
 {
-    timeForNextTrigger = getTimeForFirstTrigger(memSpec.tCK, memSpec.getRefreshIntervalAB(),
-                                                rank, memSpec.ranksPerChannel);
+    timeForNextTrigger = getTimeForFirstTrigger(
+        memSpec.tCK, memSpec.getRefreshIntervalAB(), rank, memSpec.ranksPerChannel);
     setUpDummy(refreshPayload, 0, rank);
 }
 
@@ -177,49 +183,54 @@ void RefreshManagerAllBank::update(Command command)
 {
     switch (command)
     {
-        case Command::ACT:
-            activatedBanks++;
-            break;
-        case Command::PREPB: case Command::RDA: case Command::WRA:
-            activatedBanks--;
-            break;
-        case Command::PREAB:
-            activatedBanks = 0;
-            break;
-        case Command::REFAB:
-            if (sleeping)
-            {
-                // Refresh command after SREFEX
-                state = State::Regular; // TODO: check if this assignment is necessary
-                timeForNextTrigger = sc_time_stamp() + memSpec.getRefreshIntervalAB();
-                sleeping = false;
-            }
-            else
-            {
-                if (state == State::Pulledin)
-                    flexibilityCounter--;
-                else
-                    state = State::Pulledin;
-
-                if (flexibilityCounter == maxPulledin)
-                {
-                    state = State::Regular;
-                    timeForNextTrigger += memSpec.getRefreshIntervalAB();
-                }
-            }
-            break;
-        case Command::PDEA: case Command::PDEP:
-            sleeping = true;
-            break;
-        case Command::SREFEN:
-            sleeping = true;
-            timeForNextTrigger = scMaxTime;
-            break;
-        case Command::PDXA: case Command::PDXP:
+    case Command::ACT:
+        activatedBanks++;
+        break;
+    case Command::PREPB:
+    case Command::RDA:
+    case Command::WRA:
+    case Command::MWRA:
+        activatedBanks--;
+        break;
+    case Command::PREAB:
+        activatedBanks = 0;
+        break;
+    case Command::REFAB:
+        if (sleeping)
+        {
+            // Refresh command after SREFEX
+            state = State::Regular; // TODO: check if this assignment is necessary
+            timeForNextTrigger = sc_time_stamp() + memSpec.getRefreshIntervalAB();
             sleeping = false;
-            break;
-        default:
-            break;
+        }
+        else
+        {
+            if (state == State::Pulledin)
+                flexibilityCounter--;
+            else
+                state = State::Pulledin;
+
+            if (flexibilityCounter == maxPulledin)
+            {
+                state = State::Regular;
+                timeForNextTrigger += memSpec.getRefreshIntervalAB();
+            }
+        }
+        break;
+    case Command::PDEA:
+    case Command::PDEP:
+        sleeping = true;
+        break;
+    case Command::SREFEN:
+        sleeping = true;
+        timeForNextTrigger = scMaxTime;
+        break;
+    case Command::PDXA:
+    case Command::PDXP:
+        sleeping = false;
+        break;
+    default:
+        break;
     }
 }
 

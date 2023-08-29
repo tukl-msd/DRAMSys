@@ -42,11 +42,19 @@ namespace DRAMSys
 
 class ManagerIF
 {
+protected:
+    ManagerIF(const ManagerIF&) = default;
+    ManagerIF(ManagerIF&&) = default;
+    ManagerIF& operator=(const ManagerIF&) = default;
+    ManagerIF& operator=(ManagerIF&&) = default;
+
 public:
+    ManagerIF() = default;
+    virtual ~ManagerIF() = default;
+
     virtual void evaluate() = 0;
     virtual CommandTuple::Type getNextCommand() = 0;
-    virtual void update(Command) = 0;
-    virtual ~ManagerIF() = default;
+    virtual void update(Command command) = 0;
 };
 
 } // namespace DRAMSys

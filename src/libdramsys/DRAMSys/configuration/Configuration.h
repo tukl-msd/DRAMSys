@@ -43,11 +43,11 @@
 #ifndef CONFIGURATION_H
 #define CONFIGURATION_H
 
-#include "DRAMSys/configuration/memspec/MemSpec.h"
 #include "DRAMSys/config/DRAMSysConfiguration.h"
+#include "DRAMSys/configuration/memspec/MemSpec.h"
 
-#include <systemc>
 #include <string>
+#include <systemc>
 
 namespace DRAMSys
 {
@@ -55,25 +55,62 @@ namespace DRAMSys
 class Configuration
 {
 public:
-    Configuration() = default;
-    Configuration(const Configuration&) = delete;
-    Configuration& operator=(const Configuration &) = delete;
-
-public:
     // MCConfig:
-    enum class PagePolicy {Open, Closed, OpenAdaptive, ClosedAdaptive} pagePolicy = PagePolicy::Open;
-    enum class Scheduler {Fifo, FrFcfs, FrFcfsGrp, GrpFrFcfs, GrpFrFcfsWm} scheduler = Scheduler::FrFcfs;
-    enum class SchedulerBuffer {Bankwise, ReadWrite, Shared} schedulerBuffer = SchedulerBuffer::Bankwise;
+    enum class PagePolicy
+    {
+        Open,
+        Closed,
+        OpenAdaptive,
+        ClosedAdaptive
+    } pagePolicy = PagePolicy::Open;
+    enum class Scheduler
+    {
+        Fifo,
+        FrFcfs,
+        FrFcfsGrp,
+        GrpFrFcfs,
+        GrpFrFcfsWm
+    } scheduler = Scheduler::FrFcfs;
+    enum class SchedulerBuffer
+    {
+        Bankwise,
+        ReadWrite,
+        Shared
+    } schedulerBuffer = SchedulerBuffer::Bankwise;
     unsigned int lowWatermark = 0;
     unsigned int highWatermark = 0;
-    enum class CmdMux {Oldest, Strict} cmdMux = CmdMux::Oldest;
-    enum class RespQueue {Fifo, Reorder} respQueue = RespQueue::Fifo;
-    enum class Arbiter {Simple, Fifo, Reorder} arbiter = Arbiter::Simple;
+    enum class CmdMux
+    {
+        Oldest,
+        Strict
+    } cmdMux = CmdMux::Oldest;
+    enum class RespQueue
+    {
+        Fifo,
+        Reorder
+    } respQueue = RespQueue::Fifo;
+    enum class Arbiter
+    {
+        Simple,
+        Fifo,
+        Reorder
+    } arbiter = Arbiter::Simple;
     unsigned int requestBufferSize = 8;
-    enum class RefreshPolicy {NoRefresh, PerBank, Per2Bank, SameBank, AllBank} refreshPolicy = RefreshPolicy::AllBank;
+    enum class RefreshPolicy
+    {
+        NoRefresh,
+        PerBank,
+        Per2Bank,
+        SameBank,
+        AllBank
+    } refreshPolicy = RefreshPolicy::AllBank;
     unsigned int refreshMaxPostponed = 0;
     unsigned int refreshMaxPulledin = 0;
-    enum class PowerDownPolicy {NoPowerDown, Staggered} powerDownPolicy = PowerDownPolicy::NoPowerDown;
+    enum class PowerDownPolicy
+    {
+        NoPowerDown,
+        Staggered
+    } powerDownPolicy = PowerDownPolicy::NoPowerDown;
     unsigned int maxActiveTransactions = 64;
     bool refreshManagement = false;
     sc_core::sc_time arbitrationDelayFw = sc_core::SC_ZERO_TIME;
@@ -97,7 +134,11 @@ public:
     bool useMalloc = false;
     unsigned long long int addressOffset = 0;
 
-    enum class StoreMode {NoStorage, Store} storeMode = StoreMode::NoStorage;
+    enum class StoreMode
+    {
+        NoStorage,
+        Store
+    } storeMode = StoreMode::NoStorage;
 
     // MemSpec (from DRAM-Power)
     std::unique_ptr<const MemSpec> memSpec;

@@ -51,9 +51,9 @@
 #include <cstdlib>
 
 #ifdef _WIN32
-    #include <windows.h>
+#include <windows.h>
 #else
-    #include <sys/mman.h>
+#include <sys/mman.h>
 #endif
 
 using namespace sc_core;
@@ -66,30 +66,37 @@ using namespace DRAMPower;
 namespace DRAMSys
 {
 
-
-Dram::Dram(const sc_module_name& name, const Configuration& config)
-    : sc_module(name), memSpec(*config.memSpec), tSocket("socket"), storeMode(config.storeMode),
-    powerAnalysis(config.powerAnalysis), useMalloc(config.useMalloc)
+Dram::Dram(const sc_module_name& name, const Configuration& config) :
+    sc_module(name),
+    memSpec(*config.memSpec),
+    storeMode(config.storeMode),
+    powerAnalysis(config.powerAnalysis),
+    useMalloc(config.useMalloc),
+    tSocket("socket")
 {
     uint64_t channelSize = memSpec.getSimMemSizeInBytes() / memSpec.numberOfChannels;
     if (storeMode == Configuration::StoreMode::Store)
     {
         if (useMalloc)
         {
-            memory = (unsigned char *)malloc(channelSize);
-            if (!memory)
+            memory = (unsigned char*)malloc(channelSize);
+            if (memory == nullptr)
                 SC_REPORT_FATAL(this->name(), "Memory allocation failed");
         }
         else
         {
-            // allocate and model storage of one DRAM channel using memory map
-            #ifdef _WIN32
-                SC_REPORT_FATAL("Dram", "On Windows Storage is not yet supported");
-                memory = 0; // FIXME
-            #else
-                memory = (unsigned char *)mmap(nullptr, channelSize,
-                        PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_NORESERVE, -1, 0);
-            #endif
+// allocate and model storage of one DRAM channel using memory map
+#ifdef _WIN32
+            SC_REPORT_FATAL("Dram", "On Windows Storage is not yet supported");
+            memory = 0; // FIXME
+#else
+            memory = (unsigned char*)mmap(nullptr,
+                                          channelSize,
+                                          PROT_READ | PROT_WRITE,
+                                          MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
+                                          -1,
+                                          0);
+#endif
         }
     }
 
@@ -111,18 +118,13 @@ void Dram::reportPower()
 
     // Print the final total energy and the average power for
     // the simulation:
-    std::cout << name() << std::string("  Total Energy:   ")
-         << std::fixed << std::setprecision( 2 )
-         << DRAMPower->getEnergy().total_energy
-         * memSpec.devicesPerRank
-         << std::string(" pJ")
-         << std::endl;
+    std::cout << name() << std::string("  Total Energy:   ") << std::fixed << std::setprecision(2)
+              << DRAMPower->getEnergy().total_energy * memSpec.devicesPerRank << std::string(" pJ")
+              << std::endl;
 
-    std::cout << name() << std::string("  Average Power:  ")
-         << std::fixed << std::setprecision( 2 )
-         << DRAMPower->getPower().average_power
-         * memSpec.devicesPerRank
-         << std::string(" mW") << std::endl;
+    std::cout << name() << std::string("  Average Power:  ") << std::fixed << std::setprecision(2)
+              << DRAMPower->getPower().average_power * memSpec.devicesPerRank << std::string(" mW")
+              << std::endl;
 #endif
 }
 
@@ -133,7 +135,7 @@ tlm_sync_enum Dram::nb_transport_fw(tlm_generic_payload& trans, tlm_phase& phase
 #ifdef DRAMPOWER
     if (powerAnalysis)
     {
-        int bank = static_cast<int>(ControllerExtension::getBank(trans).ID());
+        int bank = static_cast<int>(ControllerExtension::getBank(trans));
         int64_t cycle = std::lround((sc_time_stamp() + delay) / memSpec.tCK);
         DRAMPower->doCommand(phaseToDRAMPowerCommand(phase), bank, cycle);
     }
@@ -144,12 +146,43 @@ tlm_sync_enum Dram::nb_transport_fw(tlm_generic_payload& trans, tlm_phase& phase
         if (phase == BEGIN_RD || phase == BEGIN_RDA)
         {
             unsigned char* phyAddr = memory + trans.get_address();
-            memcpy(trans.get_data_ptr(), phyAddr, trans.get_data_length());
+
+            if (trans.get_byte_enable_ptr() == nullptr)
+            {
+                memcpy(trans.get_data_ptr(), phyAddr, trans.get_data_length());
+            }
+            else
+            {
+                for (std::size_t i = 0; i < trans.get_data_length(); i++)
+                {
+                    std::size_t byteEnableIndex = i % trans.get_byte_enable_length();
+                    if (trans.get_byte_enable_ptr()[byteEnableIndex] == TLM_BYTE_ENABLED)
+                    {
+                        trans.get_data_ptr()[i] = phyAddr[i];
+                    }
+                }
+            }
         }
-        else if (phase == BEGIN_WR || phase == BEGIN_WRA)
+        else if (phase == BEGIN_WR || phase == BEGIN_WRA || phase == BEGIN_MWR ||
+                 phase == BEGIN_MWRA)
         {
             unsigned char* phyAddr = memory + trans.get_address();
-            memcpy(phyAddr, trans.get_data_ptr(), trans.get_data_length());
+
+            if (trans.get_byte_enable_ptr() == nullptr)
+            {
+                memcpy(phyAddr, trans.get_data_ptr(), trans.get_data_length());
+            }
+            else
+            {
+                for (std::size_t i = 0; i < trans.get_data_length(); i++)
+                {
+                    std::size_t byteEnableIndex = i % trans.get_byte_enable_length();
+                    if (trans.get_byte_enable_ptr()[byteEnableIndex] == TLM_BYTE_ENABLED)
+                    {
+                        phyAddr[i] = trans.get_data_ptr()[i];
+                    }
+                }
+            }
         }
     }
 
@@ -168,7 +201,6 @@ unsigned int Dram::transport_dbg(tlm_generic_payload& trans)
     else
     {
         tlm_command cmd = trans.get_command();
-        unsigned char* ptr = trans.get_data_ptr();
         unsigned int len = trans.get_data_length();
 
         if (cmd == TLM_READ_COMMAND)
@@ -176,11 +208,26 @@ unsigned int Dram::transport_dbg(tlm_generic_payload& trans)
             if (storeMode == Configuration::StoreMode::Store)
             {
                 unsigned char* phyAddr = memory + trans.get_address();
-                memcpy(ptr, phyAddr, trans.get_data_length());
+
+                if (trans.get_byte_enable_ptr() == nullptr)
+                {
+                    memcpy(trans.get_data_ptr(), phyAddr, trans.get_data_length());
+                }
+                else
+                {
+                    for (std::size_t i = 0; i < trans.get_data_length(); i++)
+                    {
+                        std::size_t byteEnableIndex = i % trans.get_byte_enable_length();
+                        if (trans.get_byte_enable_ptr()[byteEnableIndex] == TLM_BYTE_ENABLED)
+                        {
+                            trans.get_data_ptr()[i] = phyAddr[i];
+                        }
+                    }
+                }
             }
             else
             {
-                //ememory[bank]->load(trans);
+                // ememory[bank]->load(trans);
                 SC_REPORT_FATAL("DRAM", "Debug transport not supported with error model yet.");
             }
         }
@@ -189,11 +236,26 @@ unsigned int Dram::transport_dbg(tlm_generic_payload& trans)
             if (storeMode == Configuration::StoreMode::Store)
             {
                 unsigned char* phyAddr = memory + trans.get_address();
-                memcpy(phyAddr, ptr, trans.get_data_length());
+
+                if (trans.get_byte_enable_ptr() == nullptr)
+                {
+                    memcpy(phyAddr, trans.get_data_ptr(), trans.get_data_length());
+                }
+                else
+                {
+                    for (std::size_t i = 0; i < trans.get_data_length(); i++)
+                    {
+                        std::size_t byteEnableIndex = i % trans.get_byte_enable_length();
+                        if (trans.get_byte_enable_ptr()[byteEnableIndex] == TLM_BYTE_ENABLED)
+                        {
+                            phyAddr[i] = trans.get_data_ptr()[i];
+                        }
+                    }
+                }
             }
             else
             {
-                //ememory[bank]->store(trans);
+                // ememory[bank]->store(trans);
                 SC_REPORT_FATAL("DRAM", "Debug transport not supported with error model yet.");
             }
         }
@@ -202,7 +264,7 @@ unsigned int Dram::transport_dbg(tlm_generic_payload& trans)
     return 0;
 }
 
-void Dram::b_transport(tlm_generic_payload& trans, sc_time& delay)
+void Dram::b_transport(tlm_generic_payload& trans, [[maybe_unused]] sc_time& delay)
 {
     static bool printedWarning = false;
 
@@ -214,15 +276,43 @@ void Dram::b_transport(tlm_generic_payload& trans, sc_time& delay)
 
     if (storeMode == Configuration::StoreMode::Store)
     {
+        unsigned char* phyAddr = memory + trans.get_address();
+
         if (trans.is_read())
         {
-            unsigned char* phyAddr = memory + trans.get_address();
-            memcpy(trans.get_data_ptr(), phyAddr, trans.get_data_length());
+            if (trans.get_byte_enable_ptr() == nullptr)
+            {
+                memcpy(trans.get_data_ptr(), phyAddr, trans.get_data_length());
+            }
+            else
+            {
+                for (std::size_t i = 0; i < trans.get_data_length(); i++)
+                {
+                    std::size_t byteEnableIndex = i % trans.get_byte_enable_length();
+                    if (trans.get_byte_enable_ptr()[byteEnableIndex] == TLM_BYTE_ENABLED)
+                    {
+                        trans.get_data_ptr()[i] = phyAddr[i];
+                    }
+                }
+            }
         }
         else
         {
-            unsigned char* phyAddr = memory + trans.get_address();
-            memcpy(phyAddr, trans.get_data_ptr(), trans.get_data_length());
+            if (trans.get_byte_enable_ptr() == nullptr)
+            {
+                memcpy(phyAddr, trans.get_data_ptr(), trans.get_data_length());
+            }
+            else
+            {
+                for (std::size_t i = 0; i < trans.get_data_length(); i++)
+                {
+                    std::size_t byteEnableIndex = i % trans.get_byte_enable_length();
+                    if (trans.get_byte_enable_ptr()[byteEnableIndex] == TLM_BYTE_ENABLED)
+                    {
+                        phyAddr[i] = trans.get_data_ptr()[i];
+                    }
+                }
+            }
         }
     }
     else if (storeMode != Configuration::StoreMode::NoStorage)

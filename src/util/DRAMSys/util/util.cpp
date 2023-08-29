@@ -35,6 +35,7 @@
 
 #include "util.h"
 
-namespace DRAMSys::util {
+namespace DRAMSys::util
+{
 
 }

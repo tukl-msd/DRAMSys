@@ -43,15 +43,17 @@
 namespace DRAMSys
 {
 
-void DebugManager::printDebugMessage(const std::string &sender, const std::string &message)
+void DebugManager::printDebugMessage(const std::string& sender, const std::string& message)
 {
     if (debugEnabled)
     {
         if (writeToConsole)
-            std::cout << " at " << sc_core::sc_time_stamp() << "\t in " << sender << "\t: " << message << std::endl;
+            std::cout << " at " << sc_core::sc_time_stamp() << "\t in " << sender
+                      << "\t: " << message << std::endl;
 
         if (writeToFile && debugFile)
-            debugFile << " at " << sc_core::sc_time_stamp() << "\t in " << sender << "\t: " << message << std::endl;
+            debugFile << " at " << sc_core::sc_time_stamp() << "\t in " << sender
+                      << "\t: " << message << std::endl;
     }
 }
 
@@ -62,22 +64,20 @@ void DebugManager::setup(bool _debugEnabled, bool _writeToConsole, bool _writeTo
     writeToFile = _writeToFile;
 }
 
-void DebugManager::printMessage(const std::string &sender, const std::string &message)
+void DebugManager::printMessage(const std::string& sender, const std::string& message)
 {
-    std::cout << " at " << sc_core::sc_time_stamp() << "\t in " << sender << "\t: " << message << std::endl;
+    std::cout << " at " << sc_core::sc_time_stamp() << "\t in " << sender << "\t: " << message
+              << std::endl;
 }
 
-void DebugManager::openDebugFile(const std::string &filename)
+void DebugManager::openDebugFile(const std::string& filename)
 {
     if (debugFile)
         debugFile.close();
     debugFile.open(filename);
 }
 
-DebugManager::DebugManager()
-    : debugEnabled(false), writeToConsole(false), writeToFile(false)
-{
-}
+DebugManager::DebugManager() = default;
 
 DebugManager::~DebugManager()
 {

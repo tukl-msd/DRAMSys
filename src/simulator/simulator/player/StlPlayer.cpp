@@ -46,16 +46,16 @@ StlPlayer::StlPlayer(std::string_view tracePath,
                      unsigned int clkMhz,
                      unsigned int defaultDataLength,
                      TraceType traceType,
-                     bool storageEnabled)
-    : traceFile(tracePath.data()),
-      playerPeriod(sc_core::sc_time(1.0 / static_cast<double>(clkMhz), sc_core::SC_US)),
-      defaultDataLength(defaultDataLength),
-      traceType(traceType),
-      storageEnabled(storageEnabled),
-      lineBuffers(
-          {std::make_shared<std::vector<Request>>(), std::make_shared<std::vector<Request>>()}),
-      readoutBuffer(lineBuffers.at(0)),
-      parseBuffer(lineBuffers.at(1))
+                     bool storageEnabled) :
+    traceType(traceType),
+    storageEnabled(storageEnabled),
+    playerPeriod(sc_core::sc_time(1.0 / static_cast<double>(clkMhz), sc_core::SC_US)),
+    defaultDataLength(defaultDataLength),
+    traceFile(tracePath.data()),
+    lineBuffers(
+        {std::make_shared<std::vector<Request>>(), std::make_shared<std::vector<Request>>()}),
+    parseBuffer(lineBuffers.at(1)),
+    readoutBuffer(lineBuffers.at(0))
 {
     readoutBuffer->reserve(LINE_BUFFER_SIZE);
     parseBuffer->reserve(LINE_BUFFER_SIZE);
@@ -71,6 +71,8 @@ StlPlayer::StlPlayer(std::string_view tracePath,
             if (line.size() > 1 && line[0] != '#')
                 numberOfLines++;
         }
+        if (numberOfLines == 0)
+            SC_REPORT_FATAL("StlPlayer", (std::string("Empty trace ") + tracePath.data()).c_str());
         traceFile.clear();
         traceFile.seekg(0);
     }
@@ -90,21 +92,20 @@ Request StlPlayer::nextRequest()
                 parserThread.join();
 
             // The file is read in completely. Nothing more to do.
-            return Request{.command = Request::Command::Stop};
+            return Request{Request::Command::Stop};
         }
     }
 
-    sc_core::sc_time delay = readoutIt->delay;
-    sc_core::sc_time offset = playerPeriod - (sc_core::sc_time_stamp() % playerPeriod);
-
+    sc_core::sc_time delay;
     if (traceType == TraceType::Absolute)
     {
-        delay = std::max(sc_core::sc_time_stamp() + offset, delay);
-        delay -= sc_core::sc_time_stamp();
+        bool behindSchedule = sc_core::sc_time_stamp() > readoutIt->delay;
+        delay =
+            behindSchedule ? sc_core::SC_ZERO_TIME : readoutIt->delay - sc_core::sc_time_stamp();
     }
     else // if (traceType == TraceType::Relative)
     {
-        delay = offset + delay;
+        delay = readoutIt->delay;
     }
 
     Request request(*readoutIt);
@@ -133,7 +134,7 @@ void StlPlayer::parseTraceFile()
 
         parsedLines++;
         parseBuffer->emplace_back();
-        Request &content = parseBuffer->back();
+        Request& content = parseBuffer->back();
 
         // Trace files MUST provide timestamp, command and address for every
         // transaction. The data information depends on the storage mode
@@ -143,69 +144,78 @@ void StlPlayer::parseTraceFile()
 
         iss.str(line);
 
-        // Get the timestamp for the transaction.
-        iss >> element;
-        if (element.empty())
-            SC_REPORT_FATAL(
-                "StlPlayer",
-                ("Malformed trace file line " + std::to_string(currentLine) + ".").c_str());
-
-        content.delay = playerPeriod * static_cast<double>(std::stoull(element));
-
-        // Get the optional burst length and command
-        iss >> element;
-        if (element.empty())
-            SC_REPORT_FATAL(
-                "StlPlayer",
-                ("Malformed trace file line " + std::to_string(currentLine) + ".").c_str());
-
-        if (element.at(0) == '(')
+        try
         {
-            element.erase(0, 1);
-            content.length = std::stoul(element);
+            // Get the timestamp for the transaction.
             iss >> element;
             if (element.empty())
                 SC_REPORT_FATAL(
                     "StlPlayer",
                     ("Malformed trace file line " + std::to_string(currentLine) + ".").c_str());
-        }
-        else
-            content.length = defaultDataLength;
 
-        if (element == "read")
-            content.command = Request::Command::Read;
-        else if (element == "write")
-            content.command = Request::Command::Write;
-        else
-            SC_REPORT_FATAL(
-                "StlPlayer",
-                ("Malformed trace file line " + std::to_string(currentLine) + ".").c_str());
+            content.delay = playerPeriod * static_cast<double>(std::stoull(element));
 
-        // Get the address.
-        iss >> element;
-        if (element.empty())
-            SC_REPORT_FATAL(
-                "StlPlayer",
-                ("Malformed trace file line " + std::to_string(currentLine) + ".").c_str());
-        content.address = std::stoull(element, nullptr, 16);
-
-        // Get the data if necessary.
-        if (storageEnabled && content.command == Request::Command::Write)
-        {
-            // The input trace file must provide the data to be stored into the memory.
+            // Get the optional burst length and command
             iss >> element;
-
-            // Check if data length in the trace file is correct.
-            // We need two characters to represent 1 byte in hexadecimal. Offset for 0x prefix.
-            if (element.length() != (content.length * 2 + 2))
+            if (element.empty())
                 SC_REPORT_FATAL(
                     "StlPlayer",
                     ("Malformed trace file line " + std::to_string(currentLine) + ".").c_str());
 
-            // Set data
-            for (unsigned i = 0; i < content.length; i++)
-                content.data.emplace_back(static_cast<unsigned char>(
-                    std::stoi(element.substr(i * 2 + 2, 2), nullptr, 16)));
+            if (element.at(0) == '(')
+            {
+                element.erase(0, 1);
+                content.length = std::stoul(element);
+                iss >> element;
+                if (element.empty())
+                    SC_REPORT_FATAL(
+                        "StlPlayer",
+                        ("Malformed trace file line " + std::to_string(currentLine) + ".").c_str());
+            }
+            else
+                content.length = defaultDataLength;
+
+            if (element == "read")
+                content.command = Request::Command::Read;
+            else if (element == "write")
+                content.command = Request::Command::Write;
+            else
+                SC_REPORT_FATAL(
+                    "StlPlayer",
+                    ("Malformed trace file line " + std::to_string(currentLine) + ".").c_str());
+
+            // Get the address.
+            iss >> element;
+            if (element.empty())
+                SC_REPORT_FATAL(
+                    "StlPlayer",
+                    ("Malformed trace file line " + std::to_string(currentLine) + ".").c_str());
+            content.address = std::stoull(element, nullptr, 16);
+
+            // Get the data if necessary.
+            if (storageEnabled && content.command == Request::Command::Write)
+            {
+                // The input trace file must provide the data to be stored into the memory.
+                iss >> element;
+
+                // Check if data length in the trace file is correct.
+                // We need two characters to represent 1 byte in hexadecimal. Offset for 0x prefix.
+                if (element.length() != (content.length * 2 + 2))
+                    SC_REPORT_FATAL(
+                        "StlPlayer",
+                        ("Malformed trace file line " + std::to_string(currentLine) + ".").c_str());
+
+                // Set data
+                for (unsigned i = 0; i < content.length; i++)
+                    content.data.emplace_back(static_cast<unsigned char>(
+                        std::stoi(element.substr(i * 2 + 2, 2), nullptr, 16)));
+            }
+        }
+        catch (...)
+        {
+            SC_REPORT_FATAL(
+                "StlPlayer",
+                ("Malformed trace file line " + std::to_string(currentLine) + ".").c_str());
         }
     }
 }

@@ -37,10 +37,10 @@
 
 #include "DRAMSys/controller/respqueue/RespQueueIF.h"
 
-#include <utility>
 #include <queue>
 #include <systemc>
 #include <tlm>
+#include <utility>
 
 namespace DRAMSys
 {
@@ -48,7 +48,7 @@ namespace DRAMSys
 class RespQueueFifo final : public RespQueueIF
 {
 public:
-    void insertPayload(tlm::tlm_generic_payload*, sc_core::sc_time) override;
+    void insertPayload(tlm::tlm_generic_payload* payload, sc_core::sc_time strobeEnd) override;
     tlm::tlm_generic_payload* nextPayload() override;
     [[nodiscard]] sc_core::sc_time getTriggerTime() const override;
 

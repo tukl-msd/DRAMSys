@@ -45,17 +45,16 @@ add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-target_link_libraries(${PROJECT_NAME} 
-    PUBLIC 
+target_link_libraries(${PROJECT_NAME}
+    PUBLIC
         DRAMSys::util
 )
 
-target_compile_definitions(${PROJECT_NAME} 
-    PUBLIC 
+target_compile_definitions(${PROJECT_NAME}
+    PUBLIC
         DRAMSYS_RESOURCE_DIR="${DRAMSYS_RESOURCE_DIR}"
 )
 
 add_library(DRAMSys::config ALIAS ${PROJECT_NAME})
 
 build_source_group()
-diagnostics_print(${PROJECT_NAME})

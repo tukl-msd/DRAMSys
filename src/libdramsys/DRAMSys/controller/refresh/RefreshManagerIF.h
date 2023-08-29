@@ -35,9 +35,9 @@
 #ifndef REFRESHMANAGERIF_H
 #define REFRESHMANAGERIF_H
 
-#include "DRAMSys/controller/ManagerIF.h"
-#include "DRAMSys/controller/Command.h"
 #include "DRAMSys/configuration/Configuration.h"
+#include "DRAMSys/controller/Command.h"
+#include "DRAMSys/controller/ManagerIF.h"
 
 #include <cmath>
 #include <systemc>
@@ -51,11 +51,13 @@ public:
     virtual sc_core::sc_time getTimeForNextTrigger() = 0;
 
 protected:
-    static sc_core::sc_time getTimeForFirstTrigger(const sc_core::sc_time& tCK, const sc_core::sc_time &refreshInterval,
-                                                   Rank rank, unsigned numberOfRanks)
+    static sc_core::sc_time getTimeForFirstTrigger(const sc_core::sc_time& tCK,
+                                                   const sc_core::sc_time& refreshInterval,
+                                                   Rank rank,
+                                                   unsigned numberOfRanks)
     {
         // Calculate bit-reversal rank ID
-        unsigned rankID = rank.ID();
+        auto rankID = static_cast<unsigned>(rank);
         unsigned reverseRankID = 0;
         unsigned rankBits = 0;
         unsigned rankShift = numberOfRanks;
@@ -73,7 +75,8 @@ protected:
         }
 
         // Use bit-reversal order for refreshes on ranks
-        sc_core::sc_time timeForFirstTrigger = refreshInterval - reverseRankID * (refreshInterval / numberOfRanks);
+        sc_core::sc_time timeForFirstTrigger =
+            refreshInterval - reverseRankID * (refreshInterval / numberOfRanks);
         timeForFirstTrigger = std::ceil(timeForFirstTrigger / tCK) * tCK;
 
         return timeForFirstTrigger;

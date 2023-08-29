@@ -49,24 +49,24 @@ class CheckerGDDR5 final : public CheckerIF
 {
 public:
     explicit CheckerGDDR5(const Configuration& config);
-    sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const override;
+    [[nodiscard]] sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const override;
     void insert(Command command, const tlm::tlm_generic_payload& payload) override;
 
 private:
     const MemSpecGDDR5 *memSpec;
 
-    std::vector<std::vector<sc_core::sc_time>> lastScheduledByCommandAndBank;
-    std::vector<std::vector<sc_core::sc_time>> lastScheduledByCommandAndBankGroup;
-    std::vector<std::vector<sc_core::sc_time>> lastScheduledByCommandAndRank;
+    std::vector<ControllerVector<Bank, sc_core::sc_time>> lastScheduledByCommandAndBank;
+    std::vector<ControllerVector<BankGroup, sc_core::sc_time>> lastScheduledByCommandAndBankGroup;
+    std::vector<ControllerVector<Rank, sc_core::sc_time>> lastScheduledByCommandAndRank;
     std::vector<sc_core::sc_time> lastScheduledByCommand;
 
     sc_core::sc_time lastCommandOnBus;
 
     // 4 and 32 activate window
-    std::vector<std::queue<sc_core::sc_time>> last4Activates;
-    std::vector<std::queue<sc_core::sc_time>> last32Activates;
+    ControllerVector<Rank, std::queue<sc_core::sc_time>> last4Activates;
+    ControllerVector<Rank, std::queue<sc_core::sc_time>> last32Activates;
 
-    std::vector<unsigned> bankwiseRefreshCounter;
+    ControllerVector<Rank, unsigned> bankwiseRefreshCounter;
 
     const sc_core::sc_time scMaxTime = sc_core::sc_max_time();
     sc_core::sc_time tBURST;

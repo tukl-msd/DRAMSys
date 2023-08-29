@@ -43,11 +43,19 @@ namespace DRAMSys
 
 class RespQueueIF
 {
+protected:
+    RespQueueIF(const RespQueueIF&) = default;
+    RespQueueIF(RespQueueIF&&) = default;
+    RespQueueIF& operator=(const RespQueueIF&) = default;
+    RespQueueIF& operator=(RespQueueIF&&) = default;
+
 public:
-    virtual void insertPayload(tlm::tlm_generic_payload*, sc_core::sc_time) = 0;
+    RespQueueIF() = default;
+    virtual ~RespQueueIF() = default;
+
+    virtual void insertPayload(tlm::tlm_generic_payload* payload, sc_core::sc_time strobeEnd) = 0;
     virtual tlm::tlm_generic_payload* nextPayload() = 0;
     [[nodiscard]] virtual sc_core::sc_time getTriggerTime() const = 0;
-    virtual ~RespQueueIF() = default;
 };
 
 } // namespace DRAMSys

@@ -42,9 +42,9 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-PowerDownManagerStaggered::PowerDownManagerStaggered(std::vector<BankMachine*>& bankMachinesOnRank,
-        Rank rank, CheckerIF& checker)
-    : bankMachinesOnRank(bankMachinesOnRank)
+PowerDownManagerStaggered::PowerDownManagerStaggered(
+    ControllerVector<Bank, BankMachine*>& bankMachinesOnRank, Rank rank) :
+    bankMachinesOnRank(bankMachinesOnRank)
 {
     setUpDummy(powerDownPayload, UINT64_MAX - 1, rank);
 }
@@ -98,7 +98,7 @@ void PowerDownManagerStaggered::evaluate()
     else if (entryTriggered)
     {
         nextCommand = Command::PDEP;
-        for (auto it : bankMachinesOnRank)
+        for (auto* it : bankMachinesOnRank)
         {
             if (it->isActivated())
             {
@@ -117,47 +117,49 @@ void PowerDownManagerStaggered::update(Command command)
 {
     switch (command)
     {
-        case Command::PDEA:
-            state = State::ActivePdn;
-            entryTriggered = false;
-            break;
-        case Command::PDEP:
-            state = State::PrechargePdn;
-            entryTriggered = false;
-            break;
-        case Command::SREFEN:
-            state = State::SelfRefresh;
-            entryTriggered = false;
-            enterSelfRefresh = false;
-            break;
-        case Command::PDXA:
+    case Command::PDEA:
+        state = State::ActivePdn;
+        entryTriggered = false;
+        break;
+    case Command::PDEP:
+        state = State::PrechargePdn;
+        entryTriggered = false;
+        break;
+    case Command::SREFEN:
+        state = State::SelfRefresh;
+        entryTriggered = false;
+        enterSelfRefresh = false;
+        break;
+    case Command::PDXA:
+        state = State::Idle;
+        exitTriggered = false;
+        break;
+    case Command::PDXP:
+        state = State::Idle;
+        exitTriggered = false;
+        if (controllerIdle)
+            enterSelfRefresh = true;
+        break;
+    case Command::SREFEX:
+        state = State::ExtraRefresh;
+        break;
+    case Command::REFAB:
+        if (state == State::ExtraRefresh)
+        {
             state = State::Idle;
             exitTriggered = false;
-            break;
-        case Command::PDXP:
-            state = State::Idle;
-            exitTriggered = false;
-            if (controllerIdle)
-                enterSelfRefresh = true;
-            break;
-        case Command::SREFEX:
-            state = State::ExtraRefresh;
-            break;
-        case Command::REFAB:
-            if (state == State::ExtraRefresh)
-            {
-                state = State::Idle;
-                exitTriggered = false;
-            }
-            else if (controllerIdle)
-                entryTriggered = true;
-            break;
-        case Command::REFPB: case Command::REFP2B: case Command::REFSB:
-            if (controllerIdle)
-                entryTriggered = true;
-            break;
-        default:
-            break;
+        }
+        else if (controllerIdle)
+            entryTriggered = true;
+        break;
+    case Command::REFPB:
+    case Command::REFP2B:
+    case Command::REFSB:
+        if (controllerIdle)
+            entryTriggered = true;
+        break;
+    default:
+        break;
     }
 }
 

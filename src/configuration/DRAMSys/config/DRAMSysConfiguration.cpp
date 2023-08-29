@@ -57,17 +57,18 @@ Configuration from_path(std::string_view path, std::string_view resourceDirector
 
     // This custom parser callback is responsible to swap out the paths to the sub-config json files
     // with the actual json data.
-    std::function<bool(int depth, nlohmann::detail::parse_event_t event, json_t &parsed)>
+    std::function<bool(int depth, nlohmann::detail::parse_event_t event, json_t& parsed)>
         parser_callback;
-    parser_callback =
-        [&parser_callback, &current_sub_config, resourceDirectory](
-            int depth, nlohmann::detail::parse_event_t event, json_t &parsed) -> bool {
+    parser_callback = [&parser_callback, &current_sub_config, resourceDirectory](
+                          int depth, nlohmann::detail::parse_event_t event, json_t& parsed) -> bool
+    {
         using nlohmann::detail::parse_event_t;
 
         if (depth != 2)
             return true;
 
-        if (event == parse_event_t::key) {
+        if (event == parse_event_t::key)
+        {
             assert(parsed.is_string());
 
             if (parsed == MemSpec::KEY)
@@ -86,12 +87,14 @@ Configuration from_path(std::string_view path, std::string_view resourceDirector
 
         // In case we have an value (string) instead of an object, replace the value with the loaded
         // json object.
-        if (event == parse_event_t::value && current_sub_config != SubConfig::Unkown) {
+        if (event == parse_event_t::value && current_sub_config != SubConfig::Unkown)
+        {
             // Replace name of json file with actual json data
             auto parse_json = [&parser_callback,
                                resourceDirectory](std::string_view base_dir,
                                                   std::string_view sub_config_key,
-                                                  const std::string &filename) -> json_t {
+                                                  const std::string& filename) -> json_t
+            {
                 std::filesystem::path path(resourceDirectory);
                 path /= base_dir;
                 path /= filename;
@@ -121,12 +124,12 @@ Configuration from_path(std::string_view path, std::string_view resourceDirector
         return true;
     };
 
-    if (file.is_open()) {
+    if (file.is_open())
+    {
         json_t simulation = json_t::parse(file, parser_callback, true, true).at(Configuration::KEY);
         return simulation.get<DRAMSys::Config::Configuration>();
-    } else {
-        throw std::runtime_error("Failed to open file " + std::string(path));
     }
+    throw std::runtime_error("Failed to open file " + std::string(path));
 }
 
 } // namespace DRAMSys::Config

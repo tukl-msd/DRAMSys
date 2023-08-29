@@ -35,43 +35,44 @@
 
 #include "TrafficGenerator.h"
 
-TrafficGenerator::TrafficGenerator(DRAMSys::Config::TrafficGeneratorStateMachine const &config,
-                                   MemoryManager &memoryManager,
+TrafficGenerator::TrafficGenerator(DRAMSys::Config::TrafficGeneratorStateMachine const& config,
+                                   MemoryManager& memoryManager,
                                    uint64_t memorySize,
                                    unsigned int defaultDataLength,
                                    std::function<void()> transactionFinished,
-                                   std::function<void()> terminateInitiator)
-    : consumer(
-          config.name.c_str(),
-          memoryManager,
-          config.maxPendingReadRequests,
-          config.maxPendingWriteRequests,
-          [this] { return nextRequest(); },
-          std::move(transactionFinished),
-          std::move(terminateInitiator)),
-      stateTransistions(config.transitions)
+                                   std::function<void()> terminateInitiator) :
+    stateTransistions(config.transitions),
+    generatorPeriod(sc_core::sc_time(1.0 / static_cast<double>(config.clkMhz), sc_core::SC_US)),
+    issuer(
+        config.name.c_str(),
+        memoryManager,
+        config.clkMhz,
+        config.maxPendingReadRequests,
+        config.maxPendingWriteRequests,
+        [this] { return nextRequest(); },
+        std::move(transactionFinished),
+        std::move(terminateInitiator))
 {
     unsigned int dataLength = config.dataLength.value_or(defaultDataLength);
     unsigned int dataAlignment = config.dataAlignment.value_or(dataLength);
 
-    for (auto const &state : config.states)
+    for (auto const& state : config.states)
     {
         std::visit(
-            [=, &config](auto &&arg)
+            [=, &config](auto&& arg)
             {
                 using DRAMSys::Config::TrafficGeneratorActiveState;
                 using DRAMSys::Config::TrafficGeneratorIdleState;
                 using T = std::decay_t<decltype(arg)>;
                 if constexpr (std::is_same_v<T, TrafficGeneratorActiveState>)
                 {
-                    auto const &activeState = arg;
+                    auto const& activeState = arg;
                     if (activeState.addressDistribution ==
                         DRAMSys::Config::AddressDistribution::Random)
                     {
                         auto producer = std::make_unique<RandomProducer>(activeState.numRequests,
                                                                          config.seed,
                                                                          activeState.rwRatio,
-                                                                         config.clkMhz,
                                                                          activeState.minAddress,
                                                                          activeState.maxAddress,
                                                                          memorySize,
@@ -86,7 +87,6 @@ TrafficGenerator::TrafficGenerator(DRAMSys::Config::TrafficGeneratorStateMachine
                             std::make_unique<SequentialProducer>(activeState.numRequests,
                                                                  config.seed,
                                                                  activeState.rwRatio,
-                                                                 config.clkMhz,
                                                                  activeState.addressIncrement,
                                                                  activeState.minAddress,
                                                                  activeState.maxAddress,
@@ -98,7 +98,7 @@ TrafficGenerator::TrafficGenerator(DRAMSys::Config::TrafficGeneratorStateMachine
                 }
                 else if constexpr (std::is_same_v<T, TrafficGeneratorIdleState>)
                 {
-                    auto const &idleState = arg;
+                    auto const& idleState = arg;
                     idleStateClks.emplace(idleState.id, idleState.idleClks);
                 }
             },
@@ -106,20 +106,22 @@ TrafficGenerator::TrafficGenerator(DRAMSys::Config::TrafficGeneratorStateMachine
     }
 }
 
-TrafficGenerator::TrafficGenerator(DRAMSys::Config::TrafficGenerator const &config,
-                                   MemoryManager &memoryManager,
+TrafficGenerator::TrafficGenerator(DRAMSys::Config::TrafficGenerator const& config,
+                                   MemoryManager& memoryManager,
                                    uint64_t memorySize,
                                    unsigned int defaultDataLength,
                                    std::function<void()> transactionFinished,
-                                   std::function<void()> terminateInitiator)
-    : consumer(
-          config.name.c_str(),
-          memoryManager,
-          config.maxPendingReadRequests,
-          config.maxPendingWriteRequests,
-          [this] { return nextRequest(); },
-          std::move(transactionFinished),
-          std::move(terminateInitiator))
+                                   std::function<void()> terminateInitiator) :
+    generatorPeriod(sc_core::sc_time(1.0 / static_cast<double>(config.clkMhz), sc_core::SC_US)),
+    issuer(
+        config.name.c_str(),
+        memoryManager,
+        config.clkMhz,
+        config.maxPendingReadRequests,
+        config.maxPendingWriteRequests,
+        [this] { return nextRequest(); },
+        std::move(transactionFinished),
+        std::move(terminateInitiator))
 {
     unsigned int dataLength = config.dataLength.value_or(defaultDataLength);
     unsigned int dataAlignment = config.dataAlignment.value_or(dataLength);
@@ -129,7 +131,6 @@ TrafficGenerator::TrafficGenerator(DRAMSys::Config::TrafficGenerator const &conf
         auto producer = std::make_unique<RandomProducer>(config.numRequests,
                                                          config.seed,
                                                          config.rwRatio,
-                                                         config.clkMhz,
                                                          config.minAddress,
                                                          config.maxAddress,
                                                          memorySize,
@@ -142,7 +143,6 @@ TrafficGenerator::TrafficGenerator(DRAMSys::Config::TrafficGenerator const &conf
         auto producer = std::make_unique<SequentialProducer>(config.numRequests,
                                                              config.seed,
                                                              config.rwRatio,
-                                                             config.clkMhz,
                                                              config.addressIncrement,
                                                              config.minAddress,
                                                              config.maxAddress,
@@ -163,7 +163,7 @@ Request TrafficGenerator::nextRequest()
         auto newState = stateTransition(currentState);
 
         if (!newState.has_value())
-            return Request{.command = Request::Command::Stop};
+            return Request{Request::Command::Stop};
 
         auto idleStateIt = idleStateClks.find(newState.value());
         while (idleStateIt != idleStateClks.cend())
@@ -172,7 +172,7 @@ Request TrafficGenerator::nextRequest()
             newState = stateTransition(currentState);
 
             if (!newState.has_value())
-                return Request{.command = Request::Command::Stop};
+                return Request{Request::Command::Stop};
 
             currentState = newState.value();
             idleStateIt = idleStateClks.find(newState.value());
@@ -183,9 +183,9 @@ Request TrafficGenerator::nextRequest()
     }
 
     requestsInState++;
-    
+
     Request request = producers[currentState]->nextRequest();
-    request.delay += producers[currentState]->clkPeriod() * clksToIdle;
+    request.delay += generatorPeriod * static_cast<double>(clksToIdle);
     return request;
 }
 

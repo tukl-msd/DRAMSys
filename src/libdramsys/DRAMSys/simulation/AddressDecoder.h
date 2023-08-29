@@ -42,20 +42,30 @@
 #include "DRAMSys/config/DRAMSysConfiguration.h"
 #include "DRAMSys/configuration/Configuration.h"
 
-#include <vector>
 #include <utility>
+#include <vector>
 
 namespace DRAMSys
 {
 
 struct DecodedAddress
 {
-    DecodedAddress(unsigned channel, unsigned rank,
-                   unsigned bankgroup, unsigned bank,
-                   unsigned row, unsigned column, unsigned bytes)
-        : channel(channel), rank(rank),
-          bankgroup(bankgroup), bank(bank),
-          row(row), column(column), byte(bytes) {}
+    DecodedAddress(unsigned channel,
+                   unsigned rank,
+                   unsigned bankgroup,
+                   unsigned bank,
+                   unsigned row,
+                   unsigned column,
+                   unsigned bytes) :
+        channel(channel),
+        rank(rank),
+        bankgroup(bankgroup),
+        bank(bank),
+        row(row),
+        column(column),
+        byte(bytes)
+    {
+    }
 
     DecodedAddress() = default;
 
@@ -71,7 +81,7 @@ struct DecodedAddress
 class AddressDecoder
 {
 public:
-    AddressDecoder(const DRAMSys::Config::AddressMapping &addressMapping, const MemSpec &memSpec);
+    AddressDecoder(const DRAMSys::Config::AddressMapping& addressMapping, const MemSpec& memSpec);
     [[nodiscard]] DecodedAddress decodeAddress(uint64_t encAddr) const;
     [[nodiscard]] unsigned decodeChannel(uint64_t encAddr) const;
     [[nodiscard]] uint64_t encodeAddress(DecodedAddress decodedAddress) const;
@@ -83,7 +93,8 @@ private:
 
     uint64_t maximumAddress;
 
-    // This container stores for each used xor gate a pair of address bits, the first bit is overwritten with the result
+    // This container stores for each used xor gate a pair of address bits, the first bit is
+    // overwritten with the result
     std::vector<std::pair<unsigned, unsigned>> vXor;
     std::vector<unsigned> vChannelBits;
     std::vector<unsigned> vRankBits;

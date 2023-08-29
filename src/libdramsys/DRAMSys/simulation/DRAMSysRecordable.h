@@ -37,8 +37,8 @@
 #ifndef DRAMSYSRECORDABLE_H
 #define DRAMSYSRECORDABLE_H
 
-#include "DRAMSys/simulation/DRAMSys.h"
 #include "DRAMSys/common/TlmRecorder.h"
+#include "DRAMSys/simulation/DRAMSys.h"
 
 #include "DRAMSys/config/DRAMSysConfiguration.h"
 
@@ -48,7 +48,8 @@ namespace DRAMSys
 class DRAMSysRecordable : public DRAMSys
 {
 public:
-    DRAMSysRecordable(const sc_core::sc_module_name& name, const ::DRAMSys::Config::Configuration& configLib);
+    DRAMSysRecordable(const sc_core::sc_module_name& name,
+                      const ::DRAMSys::Config::Configuration& configLib);
 
 protected:
     void end_of_simulation() override;
@@ -58,9 +59,11 @@ private:
     // They generate the output databases.
     std::vector<TlmRecorder> tlmRecorders;
 
-    void setupTlmRecorders(const std::string& traceName, const ::DRAMSys::Config::Configuration& configLib);
+    void setupTlmRecorders(const std::string& traceName,
+                           const ::DRAMSys::Config::Configuration& configLib);
 
-    void instantiateModules(const std::string& traceName, const ::DRAMSys::Config::Configuration& configLib);
+    void instantiateModules(const std::string& traceName,
+                            const ::DRAMSys::Config::Configuration& configLib);
 };
 
 } // namespace DRAMSys

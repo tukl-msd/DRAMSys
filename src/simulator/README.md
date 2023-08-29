@@ -6,7 +6,7 @@ Initiators in the simulator are split up into two disctinct components: **Reques
 
 **RequestProducers** are simple C++ classes that implement the `RequestProducer` interface. Upon calling the `nextRequest()` method of a producer, a new `Request` is either generated on-the-fly or constructed from a trace file.
 
-**RequestIssuers** are the SystemC modules that connect with DRAMSys. Issuers have no knowledge of where the requests are coming from. They simply call their `nextRequest()` callback that it has been passed in the constructor to obtain the next request to be sent to DRAMSys. Using this concept, the generation and the issuing of request is completely decoupled to make very flexible initiator designs possible.
+**RequestIssuers** are the SystemC modules that connect to DRAMSys. Issuers have no knowledge of where the requests are coming from. They simply call their `nextRequest()` callback that it has been passed in the constructor to obtain the next request to be sent to DRAMSys. Using this concept, the generation and the issuing of request is completely decoupled to make very flexible initiator designs possible.
 
 **Initiators** implement the `Initiator` interface, which describes how the initiator is bound to DRAMSys. This abstracts over the actual socket type used by the initiator.
 Complex initiators may implement the interface directly, but for simple cases, there exists the templated `SimpleInitiator<Producer>` class. This specialized initiator consists of only one producer and one issuer that operate together. The `StlPlayer` and `RowHammer` issuers make use of the `SimpleInitiator`.

@@ -65,6 +65,7 @@
         },
         "memtimingspec": {
             "CCD": 8,
+            "CCDMW": 32,
             "CKE": 12,
             "CMDCKE": 3,
             "DQS2DQ": 2,

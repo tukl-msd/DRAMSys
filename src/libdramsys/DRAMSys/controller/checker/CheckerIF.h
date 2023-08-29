@@ -44,10 +44,17 @@ namespace DRAMSys
 
 class CheckerIF
 {
+protected:
+    CheckerIF(const CheckerIF &) = default;
+    CheckerIF(CheckerIF &&) = default;
+    CheckerIF &operator=(const CheckerIF &) = default;
+    CheckerIF &operator=(CheckerIF &&) = default;
+
 public:
+    CheckerIF() = default;
     virtual ~CheckerIF() = default;
 
-    virtual sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const = 0;
+    [[nodiscard]] virtual sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const = 0;
     virtual void insert(Command command, const tlm::tlm_generic_payload& payload) = 0;
 };
 

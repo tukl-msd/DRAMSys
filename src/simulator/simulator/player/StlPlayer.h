@@ -46,6 +46,7 @@
 #include <systemc>
 #include <tlm>
 
+#include <array>
 #include <fstream>
 #include <memory>
 #include <thread>
@@ -68,7 +69,6 @@ public:
 
     Request nextRequest() override;
 
-    sc_core::sc_time clkPeriod() override { return playerPeriod; }
     uint64_t totalRequests() override { return numberOfLines; }
 
 private:

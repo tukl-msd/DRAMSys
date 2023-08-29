@@ -35,16 +35,16 @@
 #ifndef SCHEDULERGRPFRFCFSWM_H
 #define SCHEDULERGRPFRFCFSWM_H
 
-#include "DRAMSys/controller/scheduler/SchedulerIF.h"
 #include "DRAMSys/common/dramExtensions.h"
+#include "DRAMSys/configuration/Configuration.h"
 #include "DRAMSys/controller/BankMachine.h"
 #include "DRAMSys/controller/scheduler/BufferCounterIF.h"
-#include "DRAMSys/configuration/Configuration.h"
+#include "DRAMSys/controller/scheduler/SchedulerIF.h"
 
-#include <vector>
 #include <list>
 #include <memory>
 #include <tlm>
+#include <vector>
 
 namespace DRAMSys
 {
@@ -54,18 +54,20 @@ class SchedulerGrpFrFcfsWm final : public SchedulerIF
 public:
     explicit SchedulerGrpFrFcfsWm(const Configuration& config);
     [[nodiscard]] bool hasBufferSpace() const override;
-    void storeRequest(tlm::tlm_generic_payload&) override;
-    void removeRequest(tlm::tlm_generic_payload&) override;
-    [[nodiscard]] tlm::tlm_generic_payload* getNextRequest(const BankMachine&) const override;
-    [[nodiscard]] bool hasFurtherRowHit(Bank, Row, tlm::tlm_command) const override;
-    [[nodiscard]] bool hasFurtherRequest(Bank, tlm::tlm_command) const override;
+    void storeRequest(tlm::tlm_generic_payload& payload) override;
+    void removeRequest(tlm::tlm_generic_payload& payload) override;
+    [[nodiscard]] tlm::tlm_generic_payload*
+    getNextRequest(const BankMachine& bankMachine) const override;
+    [[nodiscard]] bool
+    hasFurtherRowHit(Bank bank, Row row, tlm::tlm_command command) const override;
+    [[nodiscard]] bool hasFurtherRequest(Bank bank, tlm::tlm_command command) const override;
     [[nodiscard]] const std::vector<unsigned>& getBufferDepth() const override;
 
 private:
     void evaluateWriteMode();
 
-    std::vector<std::list<tlm::tlm_generic_payload*>> readBuffer;
-    std::vector<std::list<tlm::tlm_generic_payload*>> writeBuffer;
+    ControllerVector<Bank, std::list<tlm::tlm_generic_payload*>> readBuffer;
+    ControllerVector<Bank, std::list<tlm::tlm_generic_payload*>> writeBuffer;
     std::unique_ptr<BufferCounterIF> bufferCounter;
     const unsigned lowWatermark;
     const unsigned highWatermark;

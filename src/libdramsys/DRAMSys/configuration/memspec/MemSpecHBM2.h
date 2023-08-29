@@ -47,11 +47,11 @@ namespace DRAMSys
 class MemSpecHBM2 final : public MemSpec
 {
 public:
-    explicit MemSpecHBM2(const DRAMSys::Config::MemSpec &memSpec);
+    explicit MemSpecHBM2(const DRAMSys::Config::MemSpec& memSpec);
 
     // Memspec Variables:
     const sc_core::sc_time tDQSCK;
-//    sc_time tDQSQ; // TODO: check actual value of this parameter
+    //    sc_time tDQSQ; // TODO: check actual value of this parameter
     const sc_core::sc_time tRC;
     const sc_core::sc_time tRAS;
     const sc_core::sc_time tRCDRD;
@@ -67,13 +67,13 @@ public:
     const sc_core::sc_time tWR;
     const sc_core::sc_time tCCDL;
     const sc_core::sc_time tCCDS;
-//    sc_time tCCDR; // TODO: consecutive reads to different stack IDs
+    //    sc_time tCCDR; // TODO: consecutive reads to different stack IDs
     const sc_core::sc_time tWTRL;
     const sc_core::sc_time tWTRS;
     const sc_core::sc_time tRTW;
     const sc_core::sc_time tXP;
     const sc_core::sc_time tCKE;
-    const sc_core::sc_time tPD; // = tCKE;
+    const sc_core::sc_time tPD;    // = tCKE;
     const sc_core::sc_time tCKESR; // = tCKE + tCK;
     const sc_core::sc_time tXS;
     const sc_core::sc_time tRFC;
@@ -85,13 +85,18 @@ public:
     // Currents and Voltages:
     // TODO: to be completed
 
-    sc_core::sc_time getRefreshIntervalAB() const override;
-    sc_core::sc_time getRefreshIntervalPB() const override;
+    [[nodiscard]] sc_core::sc_time getRefreshIntervalAB() const override;
+    [[nodiscard]] sc_core::sc_time getRefreshIntervalPB() const override;
 
-    bool hasRasAndCasBus() const override;
+    [[nodiscard]] bool hasRasAndCasBus() const override;
 
-    sc_core::sc_time getExecutionTime(Command command, const tlm::tlm_generic_payload &payload) const override;
-    TimeInterval getIntervalOnDataStrobe(Command command, const tlm::tlm_generic_payload &payload) const override;
+    [[nodiscard]] sc_core::sc_time
+    getExecutionTime(Command command, const tlm::tlm_generic_payload& payload) const override;
+    [[nodiscard]] TimeInterval
+    getIntervalOnDataStrobe(Command command,
+                            const tlm::tlm_generic_payload& payload) const override;
+
+    [[nodiscard]] bool requiresMaskedWrite(const tlm::tlm_generic_payload& payload) const override;
 };
 
 } // namespace DRAMSys

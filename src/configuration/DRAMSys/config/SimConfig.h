@@ -51,10 +51,11 @@ enum class StoreModeType
     Invalid = -1
 };
 
-NLOHMANN_JSON_SERIALIZE_ENUM(StoreModeType, {{StoreModeType::Invalid, nullptr},
-                                         {StoreModeType::NoStorage, "NoStorage"},
-                                         {StoreModeType::Store, "Store"},
-                                         {StoreModeType::ErrorModel, "ErrorModel"}})
+NLOHMANN_JSON_SERIALIZE_ENUM(StoreModeType,
+                             {{StoreModeType::Invalid, nullptr},
+                              {StoreModeType::NoStorage, "NoStorage"},
+                              {StoreModeType::Store, "Store"},
+                              {StoreModeType::ErrorModel, "ErrorModel"}})
 
 struct SimConfig
 {
@@ -93,6 +94,6 @@ NLOHMANN_JSONIFY_ALL_THINGS(SimConfig,
                             UseMalloc,
                             WindowSize)
 
-} // namespace Configuration
+} // namespace DRAMSys::Config
 
 #endif // DRAMSYSCONFIGURATION_SIMCONFIG_H

@@ -45,10 +45,12 @@ namespace DRAMSys
 
 SchedulerFrFcfs::SchedulerFrFcfs(const Configuration& config)
 {
-    buffer = std::vector<std::list<tlm_generic_payload*>>(config.memSpec->banksPerChannel);
+    buffer =
+        ControllerVector<Bank, std::list<tlm_generic_payload*>>(config.memSpec->banksPerChannel);
 
     if (config.schedulerBuffer == Configuration::SchedulerBuffer::Bankwise)
-        bufferCounter = std::make_unique<BufferCounterBankwise>(config.requestBufferSize, config.memSpec->banksPerChannel);
+        bufferCounter = std::make_unique<BufferCounterBankwise>(config.requestBufferSize,
+                                                                config.memSpec->banksPerChannel);
     else if (config.schedulerBuffer == Configuration::SchedulerBuffer::ReadWrite)
         bufferCounter = std::make_unique<BufferCounterReadWrite>(config.requestBufferSize);
     else if (config.schedulerBuffer == Configuration::SchedulerBuffer::Shared)
@@ -60,21 +62,21 @@ bool SchedulerFrFcfs::hasBufferSpace() const
     return bufferCounter->hasBufferSpace();
 }
 
-void SchedulerFrFcfs::storeRequest(tlm_generic_payload& trans)
+void SchedulerFrFcfs::storeRequest(tlm_generic_payload& payload)
 {
-    buffer[ControllerExtension::getBank(trans).ID()].push_back(&trans);
-    bufferCounter->storeRequest(trans);
+    buffer[ControllerExtension::getBank(payload)].push_back(&payload);
+    bufferCounter->storeRequest(payload);
 }
 
-void SchedulerFrFcfs::removeRequest(tlm_generic_payload& trans)
+void SchedulerFrFcfs::removeRequest(tlm_generic_payload& payload)
 {
-    bufferCounter->removeRequest(trans);
-    unsigned bankID = ControllerExtension::getBank(trans).ID();
-    for (auto it = buffer[bankID].begin(); it != buffer[bankID].end(); it++)
+    bufferCounter->removeRequest(payload);
+    Bank bank = ControllerExtension::getBank(payload);
+    for (auto it = buffer[bank].begin(); it != buffer[bank].end(); it++)
     {
-        if (*it == &trans)
+        if (*it == &payload)
         {
-            buffer[bankID].erase(it);
+            buffer[bank].erase(it);
             break;
         }
     }
@@ -82,29 +84,31 @@ void SchedulerFrFcfs::removeRequest(tlm_generic_payload& trans)
 
 tlm_generic_payload* SchedulerFrFcfs::getNextRequest(const BankMachine& bankMachine) const
 {
-    unsigned bankID = bankMachine.getBank().ID();
-    if (!buffer[bankID].empty())
+    Bank bank = bankMachine.getBank();
+    if (!buffer[bank].empty())
     {
         if (bankMachine.isActivated())
         {
             // Search for row hit
             Row openRow = bankMachine.getOpenRow();
-            for (auto it : buffer[bankID])
+            for (auto* it : buffer[bank])
             {
                 if (ControllerExtension::getRow(*it) == openRow)
                     return it;
             }
         }
         // No row hit found or bank precharged
-        return buffer[bankID].front();
+        return buffer[bank].front();
     }
     return nullptr;
 }
 
-bool SchedulerFrFcfs::hasFurtherRowHit(Bank bank, Row row, tlm_command command) const
+bool SchedulerFrFcfs::hasFurtherRowHit(Bank bank,
+                                       Row row,
+                                       [[maybe_unused]] tlm_command command) const
 {
     unsigned rowHitCounter = 0;
-    for (auto it : buffer[bank.ID()])
+    for (auto* it : buffer[bank])
     {
         if (ControllerExtension::getRow(*it) == row)
         {
@@ -116,9 +120,9 @@ bool SchedulerFrFcfs::hasFurtherRowHit(Bank bank, Row row, tlm_command command) 
     return false;
 }
 
-bool SchedulerFrFcfs::hasFurtherRequest(Bank bank, tlm_command command) const
+bool SchedulerFrFcfs::hasFurtherRequest(Bank bank, [[maybe_unused]] tlm_command command) const
 {
-    return (buffer[bank.ID()].size() >= 2);
+    return (buffer[bank].size() >= 2);
 }
 
 const std::vector<unsigned>& SchedulerFrFcfs::getBufferDepth() const

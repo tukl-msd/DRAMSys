@@ -78,6 +78,6 @@ NLOHMANN_JSONIFY_ALL_THINGS(AddressMapping,
                             CHANNEL_BIT,
                             XOR)
 
-} // namespace Configuration
+} // namespace DRAMSys::Config
 
 #endif // DRAMSYSCONFIGURATION_ADDRESSMAPPING_H

@@ -57,29 +57,26 @@
  * with the actual json object that is stored at this path.
  */
 
-namespace DRAMSys::Config {
+namespace DRAMSys::Config
+{
 
 struct Configuration
 {
     static constexpr std::string_view KEY = "simulation";
-    
+
     AddressMapping addressmapping;
     McConfig mcconfig;
     MemSpec memspec;
     SimConfig simconfig;
     std::string simulationid;
-    std::optional<TraceSetup> tracesetup;
+    std::optional<std::vector<Initiator>> tracesetup;
 };
 
-NLOHMANN_JSONIFY_ALL_THINGS(Configuration,
-                            addressmapping,
-                            mcconfig,
-                            memspec,
-                            simconfig,
-                            simulationid,
-                            tracesetup)
+NLOHMANN_JSONIFY_ALL_THINGS(
+    Configuration, addressmapping, mcconfig, memspec, simconfig, simulationid, tracesetup)
 
-Configuration from_path(std::string_view path, std::string_view resourceDirectory = DRAMSYS_RESOURCE_DIR);
+Configuration from_path(std::string_view path,
+                        std::string_view resourceDirectory = DRAMSYS_RESOURCE_DIR);
 
 } // namespace DRAMSys::Config
 

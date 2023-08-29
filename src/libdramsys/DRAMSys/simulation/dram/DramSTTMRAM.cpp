@@ -40,8 +40,8 @@ using namespace sc_core;
 namespace DRAMSys
 {
 
-DramSTTMRAM::DramSTTMRAM(const sc_module_name& name, const Configuration& config)
-    : Dram(name, config)
+DramSTTMRAM::DramSTTMRAM(const sc_module_name& name, const Configuration& config) :
+    Dram(name, config)
 {
 #ifdef DRAMPOWER
     if (powerAnalysis)

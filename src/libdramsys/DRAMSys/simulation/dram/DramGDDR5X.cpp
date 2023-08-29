@@ -40,8 +40,7 @@ using namespace sc_core;
 namespace DRAMSys
 {
 
-DramGDDR5X::DramGDDR5X(const sc_module_name& name, const Configuration& config)
-    : Dram(name, config)
+DramGDDR5X::DramGDDR5X(const sc_module_name& name, const Configuration& config) : Dram(name, config)
 {
 #ifdef DRAMPOWER
     if (powerAnalysis)

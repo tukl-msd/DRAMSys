@@ -41,8 +41,8 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-BufferCounterBankwise::BufferCounterBankwise(unsigned requestBufferSize, unsigned numberOfBanks)
-    : requestBufferSize(requestBufferSize)
+BufferCounterBankwise::BufferCounterBankwise(unsigned requestBufferSize, unsigned numberOfBanks) :
+    requestBufferSize(requestBufferSize)
 {
     numRequestsOnBank = std::vector<unsigned>(numberOfBanks, 0);
 }
@@ -54,7 +54,7 @@ bool BufferCounterBankwise::hasBufferSpace() const
 
 void BufferCounterBankwise::storeRequest(const tlm_generic_payload& trans)
 {
-    lastBankID = ControllerExtension::getBank(trans).ID();
+    lastBankID = static_cast<std::size_t>(ControllerExtension::getBank(trans));
     numRequestsOnBank[lastBankID]++;
     if (trans.is_read())
         numReadRequests++;
@@ -64,7 +64,7 @@ void BufferCounterBankwise::storeRequest(const tlm_generic_payload& trans)
 
 void BufferCounterBankwise::removeRequest(const tlm_generic_payload& trans)
 {
-    numRequestsOnBank[ControllerExtension::getBank(trans).ID()]--;
+    numRequestsOnBank[static_cast<std::size_t>(ControllerExtension::getBank(trans))]--;
     if (trans.is_read())
         numReadRequests--;
     else

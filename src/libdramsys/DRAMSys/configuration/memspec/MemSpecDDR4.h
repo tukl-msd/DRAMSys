@@ -47,7 +47,7 @@ namespace DRAMSys
 class MemSpecDDR4 final : public MemSpec
 {
 public:
-    explicit MemSpecDDR4(const DRAMSys::Config::MemSpec &memSpec);
+    explicit MemSpecDDR4(const DRAMSys::Config::MemSpec& memSpec);
 
     // Memspec Variables:
     const sc_core::sc_time tCKE;
@@ -100,10 +100,15 @@ public:
     const double iDD62;
     const double vDD2;
 
-    sc_core::sc_time getRefreshIntervalAB() const override;
+    [[nodiscard]] sc_core::sc_time getRefreshIntervalAB() const override;
 
-    sc_core::sc_time getExecutionTime(Command command, const tlm::tlm_generic_payload &payload) const override;
-    TimeInterval getIntervalOnDataStrobe(Command command, const tlm::tlm_generic_payload &payload) const override;
+    [[nodiscard]] sc_core::sc_time
+    getExecutionTime(Command command, const tlm::tlm_generic_payload& payload) const override;
+    [[nodiscard]] TimeInterval
+    getIntervalOnDataStrobe(Command command,
+                            const tlm::tlm_generic_payload& payload) const override;
+
+    [[nodiscard]] bool requiresMaskedWrite(const tlm::tlm_generic_payload& payload) const override;
 };
 
 } // namespace DRAMSys

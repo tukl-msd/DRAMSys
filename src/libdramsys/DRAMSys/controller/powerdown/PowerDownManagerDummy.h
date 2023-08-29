@@ -50,7 +50,7 @@ public:
     void triggerInterruption() override {}
 
     CommandTuple::Type getNextCommand() override;
-    void update(Command) override {}
+    void update([[maybe_unused]] Command command) override {}
     void evaluate() override {}
 };
 

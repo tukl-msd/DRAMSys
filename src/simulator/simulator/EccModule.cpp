@@ -43,19 +43,19 @@
 using namespace sc_core;
 using namespace tlm;
 
-EccModule::EccModule(sc_module_name name, DRAMSys::AddressDecoder const &addressDecoder) :
+EccModule::EccModule(sc_module_name name, DRAMSys::AddressDecoder const& addressDecoder) :
     sc_core::sc_module(name),
     payloadEventQueue(this, &EccModule::peqCallback),
-    addressDecoder(addressDecoder),
-    memoryManager(false)
+    memoryManager(false),
+    addressDecoder(addressDecoder)
 {
     iSocket.register_nb_transport_bw(this, &EccModule::nb_transport_bw);
     tSocket.register_nb_transport_fw(this, &EccModule::nb_transport_fw);
 }
 
-tlm::tlm_sync_enum EccModule::nb_transport_fw(tlm::tlm_generic_payload &payload,
-                                              tlm::tlm_phase &phase,
-                                              sc_core::sc_time &fwDelay)
+tlm::tlm_sync_enum EccModule::nb_transport_fw(tlm::tlm_generic_payload& payload,
+                                              tlm::tlm_phase& phase,
+                                              sc_core::sc_time& fwDelay)
 {
     if (phase == BEGIN_REQ)
     {
@@ -66,15 +66,15 @@ tlm::tlm_sync_enum EccModule::nb_transport_fw(tlm::tlm_generic_payload &payload,
     return TLM_ACCEPTED;
 }
 
-tlm::tlm_sync_enum EccModule::nb_transport_bw(tlm::tlm_generic_payload &payload,
-                                              tlm::tlm_phase &phase,
-                                              sc_core::sc_time &bwDelay)
+tlm::tlm_sync_enum EccModule::nb_transport_bw(tlm::tlm_generic_payload& payload,
+                                              tlm::tlm_phase& phase,
+                                              sc_core::sc_time& bwDelay)
 {
     payloadEventQueue.notify(payload, phase, bwDelay);
     return TLM_ACCEPTED;
 }
 
-void EccModule::peqCallback(tlm::tlm_generic_payload &cbPayload, const tlm::tlm_phase &cbPhase)
+void EccModule::peqCallback(tlm::tlm_generic_payload& cbPayload, const tlm::tlm_phase& cbPhase)
 {
     if (cbPhase == BEGIN_REQ) // from initiator
     {
@@ -88,30 +88,30 @@ void EccModule::peqCallback(tlm::tlm_generic_payload &cbPayload, const tlm::tlm_
             tlm_phase tPhase = BEGIN_REQ;
             sc_time tDelay = SC_ZERO_TIME;
 
-            DRAMSys::DecodedAddress decodedAddress = addressDecoder.decodeAddress(cbPayload.get_address());
+            DRAMSys::DecodedAddress decodedAddress =
+                addressDecoder.decodeAddress(cbPayload.get_address());
             decodedAddress = calculateOffsetAddress(decodedAddress);
 
             // Update the original address to account for the offsets
             cbPayload.set_address(addressDecoder.encodeAddress(decodedAddress));
 
-            auto currentBlock = alignToBlock(decodedAddress.column);
-            
             // In case there is no entry yet.
             activeEccBlocks.try_emplace(decodedAddress.bank);
 
 #ifdef ECC_ENABLE
+            auto currentBlock = alignToBlock(decodedAddress.column);
             if (!activeEccBlock(decodedAddress.bank, decodedAddress.row, currentBlock))
             {
                 blockedRequest = &cbPayload;
 
-                auto &eccFifo = activeEccBlocks[decodedAddress.bank];
+                auto& eccFifo = activeEccBlocks[decodedAddress.bank];
                 eccFifo.push_back({currentBlock, decodedAddress.row});
 
                 // Only hold 4 elements at max.
                 if (eccFifo.size() >= 4)
                     eccFifo.pop_front();
 
-                tlm::tlm_generic_payload *eccPayload = generateEccPayload(decodedAddress);
+                tlm::tlm_generic_payload* eccPayload = generateEccPayload(decodedAddress);
 
                 iSocket->nb_transport_fw(*eccPayload, tPhase, tDelay);
             }
@@ -139,7 +139,7 @@ void EccModule::peqCallback(tlm::tlm_generic_payload &cbPayload, const tlm::tlm_
 
         if (blockedRequest != nullptr)
         {
-            tlm_generic_payload &tPayload = *blockedRequest;
+            tlm_generic_payload& tPayload = *blockedRequest;
             blockedRequest = nullptr;
 
             tlm_phase tPhase = BEGIN_REQ;
@@ -153,28 +153,31 @@ void EccModule::peqCallback(tlm::tlm_generic_payload &cbPayload, const tlm::tlm_
 
         if (pendingRequest != nullptr)
         {
-            tlm_generic_payload &tPayload = *pendingRequest;
+            tlm_generic_payload& tPayload = *pendingRequest;
 
             tlm_phase tPhase = BEGIN_REQ;
             sc_time tDelay = SC_ZERO_TIME;
 
-            DRAMSys::DecodedAddress decodedAddress = addressDecoder.decodeAddress(tPayload.get_address());
+            DRAMSys::DecodedAddress decodedAddress =
+                addressDecoder.decodeAddress(tPayload.get_address());
             decodedAddress = calculateOffsetAddress(decodedAddress);
-            auto currentBlock = alignToBlock(decodedAddress.column);
+
 #ifdef ECC_ENABLE
+            auto currentBlock = alignToBlock(decodedAddress.column);
+
             if (!activeEccBlock(decodedAddress.bank, decodedAddress.row, currentBlock))
             {
                 blockedRequest = pendingRequest;
                 pendingRequest = nullptr;
 
-                auto &eccFifo = activeEccBlocks[decodedAddress.bank];
+                auto& eccFifo = activeEccBlocks[decodedAddress.bank];
                 eccFifo.push_back({currentBlock, decodedAddress.row});
 
                 // Only hold 4 elements at max.
                 if (eccFifo.size() >= 4)
                     eccFifo.pop_front();
 
-                tlm::tlm_generic_payload *eccPayload = generateEccPayload(decodedAddress);
+                tlm::tlm_generic_payload* eccPayload = generateEccPayload(decodedAddress);
 
                 iSocket->nb_transport_fw(*eccPayload, tPhase, tDelay);
             }
@@ -241,7 +244,7 @@ void EccModule::peqCallback(tlm::tlm_generic_payload &cbPayload, const tlm::tlm_
     }
 }
 
-tlm::tlm_generic_payload *EccModule::generateEccPayload(DRAMSys::DecodedAddress decodedAddress)
+tlm::tlm_generic_payload* EccModule::generateEccPayload(DRAMSys::DecodedAddress decodedAddress)
 {
     unsigned int eccAtom = decodedAddress.column / 512;
     uint64_t eccColumn = 1792 + eccAtom * 32;
@@ -249,7 +252,7 @@ tlm::tlm_generic_payload *EccModule::generateEccPayload(DRAMSys::DecodedAddress 
     decodedAddress.column = eccColumn;
     uint64_t eccAddress = addressDecoder.encodeAddress(decodedAddress);
 
-    tlm_generic_payload &payload = memoryManager.allocate(32);
+    tlm_generic_payload& payload = memoryManager.allocate(32);
     payload.acquire();
     payload.set_address(eccAddress);
     payload.set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
@@ -285,13 +288,14 @@ void EccModule::end_of_simulation()
     uint64_t latencies = 0;
     uint64_t numberOfLatencies = 0;
 
-    for (auto const &[latency, occurences] : latencyMap)
+    for (auto const& [latency, occurences] : latencyMap)
     {
         latencies += (latency.to_double() / 1000.0) * occurences;
         numberOfLatencies += occurences;
     }
 
-    std::cout << "Average latency: " << static_cast<double>(latencies) / numberOfLatencies << std::endl;
+    std::cout << "Average latency: " << static_cast<double>(latencies) / numberOfLatencies
+              << std::endl;
 }
 
 sc_time EccModule::roundLatency(sc_time latency)
@@ -304,7 +308,8 @@ sc_time EccModule::roundLatency(sc_time latency)
 
 bool EccModule::activeEccBlock(Bank bank, Row row, Block block) const
 {
-    auto eccIt = std::find_if(activeEccBlocks.at(bank).cbegin(), activeEccBlocks.at(bank).cend(),
+    auto eccIt = std::find_if(activeEccBlocks.at(bank).cbegin(),
+                              activeEccBlocks.at(bank).cend(),
                               [block, row](EccIdentifier identifier) {
                                   return (identifier.first == block) && (identifier.second == row);
                               });

@@ -49,19 +49,19 @@ class CheckerDDR3 final : public CheckerIF
 {
 public:
     explicit CheckerDDR3(const Configuration& config);
-    sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const override;
+    [[nodiscard]] sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const override;
     void insert(Command command, const tlm::tlm_generic_payload& payload) override;
 
 private:
     const MemSpecDDR3 *memSpec;
 
-    std::vector<std::vector<sc_core::sc_time>> lastScheduledByCommandAndBank;
-    std::vector<std::vector<sc_core::sc_time>> lastScheduledByCommandAndRank;
+    std::vector<ControllerVector<Bank, sc_core::sc_time>> lastScheduledByCommandAndBank;
+    std::vector<ControllerVector<Rank, sc_core::sc_time>> lastScheduledByCommandAndRank;
     std::vector<sc_core::sc_time> lastScheduledByCommand;
     sc_core::sc_time lastCommandOnBus;
 
     // Four activate window
-    std::vector<std::queue<sc_core::sc_time>> last4Activates;
+    ControllerVector<Rank, std::queue<sc_core::sc_time>> last4Activates;
 
     const sc_core::sc_time scMaxTime = sc_core::sc_max_time();
     sc_core::sc_time tBURST;

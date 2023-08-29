@@ -42,11 +42,15 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-ControllerRecordable::ControllerRecordable(const sc_module_name& name, const Configuration& config,
-                                           const AddressDecoder& addressDecoder, TlmRecorder& tlmRecorder)
-    : Controller(name, config, addressDecoder), tlmRecorder(tlmRecorder),
-    activeTimeMultiplier(config.memSpec->tCK / config.memSpec->dataRate), enableWindowing(config.enableWindowing),
-    windowSizeTime(config.windowSize * memSpec.tCK)
+ControllerRecordable::ControllerRecordable(const sc_module_name& name,
+                                           const Configuration& config,
+                                           const AddressDecoder& addressDecoder,
+                                           TlmRecorder& tlmRecorder) :
+    Controller(name, config, addressDecoder),
+    tlmRecorder(tlmRecorder),
+    windowSizeTime(config.windowSize * memSpec.tCK),
+    activeTimeMultiplier(config.memSpec->tCK / config.memSpec->dataRate),
+    enableWindowing(config.enableWindowing)
 {
     if (enableWindowing)
     {
@@ -58,21 +62,24 @@ ControllerRecordable::ControllerRecordable(const sc_module_name& name, const Con
     }
 }
 
-tlm_sync_enum ControllerRecordable::nb_transport_fw(tlm_generic_payload& trans,
-                              tlm_phase& phase, sc_time& delay)
+tlm_sync_enum
+ControllerRecordable::nb_transport_fw(tlm_generic_payload& trans, tlm_phase& phase, sc_time& delay)
 {
     tlmRecorder.recordPhase(trans, phase, delay);
     return Controller::nb_transport_fw(trans, phase, delay);
 }
 
-tlm_sync_enum ControllerRecordable::nb_transport_bw(tlm_generic_payload&,
-                              tlm_phase&, sc_time&)
+tlm_sync_enum ControllerRecordable::nb_transport_bw([[maybe_unused]] tlm_generic_payload& trans,
+                                                    [[maybe_unused]] tlm_phase& phase,
+                                                    [[maybe_unused]] sc_time& delay)
 {
     SC_REPORT_FATAL("Controller", "nb_transport_bw of controller must not be called");
     return TLM_ACCEPTED;
 }
 
-void ControllerRecordable::sendToFrontend(tlm_generic_payload& payload, tlm_phase& phase, sc_time& delay)
+void ControllerRecordable::sendToFrontend(tlm_generic_payload& payload,
+                                          tlm_phase& phase,
+                                          sc_time& delay)
 {
     tlmRecorder.recordPhase(payload, phase, delay);
     tSocket->nb_transport_bw(payload, phase, delay);
@@ -84,7 +91,7 @@ void ControllerRecordable::controllerMethod()
     {
         sc_time timeDiff = sc_time_stamp() - lastTimeCalled;
         lastTimeCalled = sc_time_stamp();
-        const std::vector<unsigned> &bufferDepth = scheduler->getBufferDepth();
+        const std::vector<unsigned>& bufferDepth = scheduler->getBufferDepth();
 
         for (std::size_t index = 0; index < slidingAverageBufferDepth.size(); index++)
             slidingAverageBufferDepth[index] += bufferDepth[index] * timeDiff;
@@ -106,7 +113,8 @@ void ControllerRecordable::controllerMethod()
 
             uint64_t windowNumberOfBeatsServed = numberOfBeatsServed - lastNumberOfBeatsServed;
             lastNumberOfBeatsServed = numberOfBeatsServed;
-            sc_time windowActiveTime = activeTimeMultiplier * static_cast<double>(windowNumberOfBeatsServed);
+            sc_time windowActiveTime =
+                activeTimeMultiplier * static_cast<double>(windowNumberOfBeatsServed);
             double windowAverageBandwidth = windowActiveTime / windowSizeTime;
             tlmRecorder.recordBandwidth(sc_time_stamp().to_seconds(), windowAverageBandwidth);
         }

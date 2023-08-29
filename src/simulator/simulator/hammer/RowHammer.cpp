@@ -35,22 +35,18 @@
 
 #include "RowHammer.h"
 
-RowHammer::RowHammer(uint64_t numRequests,
-                     unsigned int clkMhz,
-                     uint64_t rowIncrement,
-                     unsigned int dataLength)
-    : numberOfRequests(numRequests),
-      generatorPeriod(sc_core::sc_time(1.0 / static_cast<double>(clkMhz), sc_core::SC_US)),
-      dataLength(dataLength),
-      rowIncrement(rowIncrement)
+RowHammer::RowHammer(uint64_t numRequests, uint64_t rowIncrement, unsigned int dataLength) :
+    numberOfRequests(numRequests),
+    dataLength(dataLength),
+    rowIncrement(rowIncrement)
 {
 }
 
 Request RowHammer::nextRequest()
 {
     if (generatedRequests >= numberOfRequests)
-        return Request{.command = Request::Command::Stop};
-    
+        return Request{Request::Command::Stop};
+
     generatedRequests++;
 
     if (currentAddress == 0x00)
@@ -62,6 +58,6 @@ Request RowHammer::nextRequest()
     request.address = currentAddress;
     request.command = Request::Command::Read;
     request.length = dataLength;
-    request.delay = generatorPeriod;
+    request.delay = sc_core::SC_ZERO_TIME;
     return request;
 }

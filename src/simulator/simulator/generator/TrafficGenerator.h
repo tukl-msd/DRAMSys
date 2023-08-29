@@ -46,21 +46,21 @@
 class TrafficGenerator : public Initiator
 {
 public:
-    TrafficGenerator(DRAMSys::Config::TrafficGenerator const &config,
-                     MemoryManager &memoryManager,
+    TrafficGenerator(DRAMSys::Config::TrafficGenerator const& config,
+                     MemoryManager& memoryManager,
                      uint64_t memorySize,
                      unsigned int defaultDataLength,
                      std::function<void()> transactionFinished,
                      std::function<void()> terminateInitiator);
 
-    TrafficGenerator(DRAMSys::Config::TrafficGeneratorStateMachine const &config,
-                     MemoryManager &memoryManager,
+    TrafficGenerator(DRAMSys::Config::TrafficGeneratorStateMachine const& config,
+                     MemoryManager& memoryManager,
                      uint64_t memorySize,
                      unsigned int defaultDataLength,
                      std::function<void()> transactionFinished,
                      std::function<void()> terminateInitiator);
 
-    void bind(tlm_utils::multi_target_base<> &target) override { consumer.iSocket.bind(target); }
+    void bind(tlm_utils::multi_target_base<>& target) override { issuer.iSocket.bind(target); }
 
     uint64_t totalRequests() override;
     Request nextRequest();
@@ -74,9 +74,10 @@ private:
 
     using IdleClks = uint64_t;
     std::unordered_map<unsigned int, IdleClks> idleStateClks;
+    const sc_core::sc_time generatorPeriod;
 
     std::default_random_engine randomGenerator;
 
     std::unordered_map<unsigned int, std::unique_ptr<RequestProducer>> producers;
-    RequestIssuer consumer;
+    RequestIssuer issuer;
 };

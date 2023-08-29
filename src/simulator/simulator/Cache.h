@@ -30,7 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Christian Malek
+ *    Lukas Steiner
  *    Derek Christ
  */
 
@@ -38,6 +38,7 @@
 
 #include "MemoryManager.h"
 
+#include <cstdint>
 #include <list>
 #include <queue>
 #include <systemc>
@@ -52,7 +53,7 @@ public:
     tlm_utils::simple_initiator_socket<Cache> iSocket;
     tlm_utils::simple_target_socket<Cache> tSocket;
 
-    Cache(const sc_core::sc_module_name &name,
+    Cache(const sc_core::sc_module_name& name,
           std::size_t size,
           std::size_t associativity,
           std::size_t lineSize,
@@ -62,24 +63,24 @@ public:
           bool storageEnabled,
           sc_core::sc_time cycleTime,
           std::size_t hitCycles,
-          MemoryManager &memoryManager);
+          MemoryManager& memoryManager);
     SC_HAS_PROCESS(Cache);
 
 private:
-    void peqCallback(tlm::tlm_generic_payload &trans, const tlm::tlm_phase &phase);
+    void peqCallback(tlm::tlm_generic_payload& trans, const tlm::tlm_phase& phase);
 
-    tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload &trans,
-                                       tlm::tlm_phase &phase,
-                                       sc_core::sc_time &fwDelay);
-    tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload &trans,
-                                       tlm::tlm_phase &phase,
-                                       sc_core::sc_time &bwDelay);
-    unsigned int transport_dbg(tlm::tlm_generic_payload &trans);
+    tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans,
+                                       tlm::tlm_phase& phase,
+                                       sc_core::sc_time& fwDelay);
+    tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload& trans,
+                                       tlm::tlm_phase& phase,
+                                       sc_core::sc_time& bwDelay);
+    unsigned int transport_dbg(tlm::tlm_generic_payload& trans);
 
-    void fetchLineAndSendEndRequest(tlm::tlm_generic_payload &trans);
+    void fetchLineAndSendEndRequest(tlm::tlm_generic_payload& trans);
     void clearInitiatorBackpressureAndProcessBuffers();
-    void sendEndResponseAndFillLine(tlm::tlm_generic_payload &trans);
-    void clearTargetBackpressureAndProcessLines(tlm::tlm_generic_payload &trans);
+    void sendEndResponseAndFillLine(tlm::tlm_generic_payload& trans);
+    void clearTargetBackpressureAndProcessLines(tlm::tlm_generic_payload& trans);
 
     tlm_utils::peq_with_cb_and_phase<Cache> payloadEventQueue;
 
@@ -108,7 +109,7 @@ private:
     struct CacheLine
     {
         tag_t tag = 0;
-        unsigned char *dataPtr = nullptr;
+        unsigned char* dataPtr = nullptr;
         bool allocated = false;
         bool valid = false;
         bool dirty = false;
@@ -125,15 +126,15 @@ private:
                    tag_t tag,
                    lineOffset_t lineOffset,
                    unsigned int dataLength,
-                   const unsigned char *dataPtr);
-                   
+                   const unsigned char* dataPtr);
+
     void readLine(index_t index,
                   tag_t tag,
                   lineOffset_t lineOffset,
                   unsigned int dataLength,
-                  unsigned char *dataPtr);
+                  unsigned char* dataPtr);
 
-    CacheLine *evictLine(index_t index);
+    CacheLine* evictLine(index_t index);
 
     std::tuple<index_t, tag_t, lineOffset_t> decodeAddress(std::uint64_t address) const;
     std::uint64_t encodeAddress(index_t index, tag_t tag, lineOffset_t lineOffset = 0) const;
@@ -142,10 +143,12 @@ private:
     {
         index_t index;
         tag_t tag;
-        tlm::tlm_generic_payload *trans;
+        tlm::tlm_generic_payload* trans;
 
-        BufferEntry(index_t index, tag_t tag, tlm::tlm_generic_payload *trans)
-            : index(index), tag(tag), trans(trans)
+        BufferEntry(index_t index, tag_t tag, tlm::tlm_generic_payload* trans) :
+            index(index),
+            tag(tag),
+            trans(trans)
         {
         }
     };
@@ -154,7 +157,7 @@ private:
     {
         index_t index;
         tag_t tag;
-        std::list<tlm::tlm_generic_payload *> requestList;
+        std::list<tlm::tlm_generic_payload*> requestList;
 
         /// Whether the Mshr entry was already issued to the target.
         bool issued = false;
@@ -169,8 +172,10 @@ private:
         /// delay when it is already being waited on.
         bool hitDelayStarted = false;
 
-        Mshr(index_t index, tag_t tag, tlm::tlm_generic_payload *request)
-            : index(index), tag(tag), requestList{request}
+        Mshr(index_t index, tag_t tag, tlm::tlm_generic_payload* request) :
+            index(index),
+            tag(tag),
+            requestList{request}
         {
         }
     };
@@ -195,22 +200,22 @@ private:
     bool tSocketBackpressure = false;
 
     // Request to the target
-    tlm::tlm_generic_payload *requestInProgress = nullptr;
+    tlm::tlm_generic_payload* requestInProgress = nullptr;
 
     // Backpressure on initiator
-    tlm::tlm_generic_payload *endRequestPending = nullptr;
+    tlm::tlm_generic_payload* endRequestPending = nullptr;
 
     sc_core::sc_time lastEndReq = sc_core::sc_max_time();
 
-    void fillLine(tlm::tlm_generic_payload &trans);
-    void accessCacheAndSendResponse(tlm::tlm_generic_payload &trans);
-    void allocateLine(CacheLine *line, tag_t tag);
+    void fillLine(tlm::tlm_generic_payload& trans);
+    void accessCacheAndSendResponse(tlm::tlm_generic_payload& trans);
+    static void allocateLine(CacheLine* line, tag_t tag);
 
     bool isAllocated(index_t index, tag_t tag) const;
     bool hasBufferSpace() const;
 
-    sc_core::sc_time ceilTime(const sc_core::sc_time &inTime) const;
-    sc_core::sc_time ceilDelay(const sc_core::sc_time &inDelay) const;
+    sc_core::sc_time ceilTime(const sc_core::sc_time& inTime) const;
+    sc_core::sc_time ceilDelay(const sc_core::sc_time& inDelay) const;
 
-    MemoryManager &memoryManager;
+    MemoryManager& memoryManager;
 };

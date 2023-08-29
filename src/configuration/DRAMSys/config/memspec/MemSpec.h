@@ -36,14 +36,15 @@
 #ifndef DRAMSYSCONFIGURATION_MEMSPEC_H
 #define DRAMSYSCONFIGURATION_MEMSPEC_H
 
-#include "DRAMSys/util/json.h"
 #include "DRAMSys/config/memspec/MemArchitectureSpec.h"
 #include "DRAMSys/config/memspec/MemPowerSpec.h"
 #include "DRAMSys/config/memspec/MemTimingSpec.h"
+#include "DRAMSys/util/json.h"
 
 #include <optional>
 
-namespace DRAMSys::Config {
+namespace DRAMSys::Config
+{
 
 struct MemSpec
 {
@@ -60,6 +61,6 @@ struct MemSpec
 NLOHMANN_JSONIFY_ALL_THINGS(
     MemSpec, memarchitecturespec, memoryId, memoryType, memtimingspec, mempowerspec)
 
-} // namespace Configuration
+} // namespace DRAMSys::Config
 
 #endif // DRAMSYSCONFIGURATION_MEMSPEC_H

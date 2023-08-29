@@ -37,8 +37,8 @@
 
 #include "DRAMSys/controller/scheduler/BufferCounterIF.h"
 
-#include <vector>
 #include <tlm>
+#include <vector>
 
 namespace DRAMSys
 {
@@ -57,7 +57,7 @@ public:
 private:
     const unsigned requestBufferSize;
     std::vector<unsigned> numRequestsOnBank;
-    unsigned lastBankID = 0;
+    std::size_t lastBankID = 0;
     unsigned numReadRequests = 0;
     unsigned numWriteRequests = 0;
 };

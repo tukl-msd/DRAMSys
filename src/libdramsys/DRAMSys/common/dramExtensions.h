@@ -38,6 +38,7 @@
 #define DRAMEXTENSIONS_H
 
 #include <iostream>
+#include <vector>
 
 #include <systemc>
 #include <tlm>
@@ -45,134 +46,58 @@
 namespace DRAMSys
 {
 
-class Thread
+enum class Thread : std::size_t;
+enum class Channel : std::size_t;
+enum class Rank : std::size_t;
+enum class LogicalRank : std::size_t;
+enum class PhysicalRank : std::size_t;
+enum class DimmRank : std::size_t;
+enum class BankGroup : std::size_t;
+enum class Bank : std::size_t;
+enum class Row : std::size_t;
+enum class Column : std::size_t;
+
+template <typename IndexType, typename ValueType>
+class ControllerVector : private std::vector<ValueType>
 {
 public:
-    explicit Thread(unsigned int id) : id(id) {}
+    using std::vector<ValueType>::vector;
+    using std::vector<ValueType>::push_back;
+    using std::vector<ValueType>::begin;
+    using std::vector<ValueType>::end;
+    using std::vector<ValueType>::front;
 
-    unsigned int ID() const
+    typename std::vector<ValueType>::const_reference operator[](IndexType index) const
     {
-        return id;
+        return std::vector<ValueType>::operator[](static_cast<std::size_t>(index));
     }
 
-private:
-    unsigned int id;
-};
-
-class Channel
-{
-public:
-    explicit Channel(unsigned int id) : id(id) {}
-
-    unsigned int ID() const
+    typename std::vector<ValueType>::reference operator[](IndexType index)
     {
-        return id;
+        return std::vector<ValueType>::operator[](static_cast<std::size_t>(index));
     }
-
-private:
-    unsigned int id;
-};
-
-class Rank
-{
-public:
-    explicit Rank(unsigned int id) : id(id) {}
-
-    unsigned int ID() const
-    {
-        return id;
-    }
-
-private:
-    unsigned int id;
-};
-
-class BankGroup
-{
-public:
-    explicit BankGroup(unsigned int id) : id(id) {}
-
-    unsigned int ID() const
-    {
-        return id;
-    }
-
-private:
-    unsigned int id;
-};
-
-class Bank
-{
-public:
-    explicit Bank(unsigned int id) : id(id) {}
-
-    unsigned int ID() const
-    {
-        return id;
-    }
-
-    std::string toString() const
-    {
-        return std::to_string(id);
-    }
-
-private:
-    unsigned int id;
-};
-
-class Row
-{
-public:
-    static const Row NO_ROW;
-
-    Row() : id(0), isNoRow(true) {}
-
-    explicit Row(unsigned int id) : id(id), isNoRow(false) {}
-
-    unsigned int ID() const
-    {
-        return id;
-    }
-
-    Row operator++();
-
-private:
-    unsigned int id;
-    bool isNoRow;
-
-    friend bool operator==(const Row &lhs, const Row &rhs);
-};
-
-class Column
-{
-public:
-    explicit Column(unsigned int id) : id(id) {}
-
-    unsigned int ID() const
-    {
-        return id;
-    }
-
-private:
-    unsigned int id;
 };
 
 class ArbiterExtension : public tlm::tlm_extension<ArbiterExtension>
 {
 public:
     static void setAutoExtension(tlm::tlm_generic_payload& trans, Thread thread, Channel channel);
-    static void setExtension(tlm::tlm_generic_payload& trans, Thread thread, Channel channel,
-                             uint64_t threadPayloadID, const sc_core::sc_time& timeOfGeneration);
-    static void setIDAndTimeOfGeneration(tlm::tlm_generic_payload& trans, uint64_t threadPayloadID,
+    static void setExtension(tlm::tlm_generic_payload& trans,
+                             Thread thread,
+                             Channel channel,
+                             uint64_t threadPayloadID,
+                             const sc_core::sc_time& timeOfGeneration);
+    static void setIDAndTimeOfGeneration(tlm::tlm_generic_payload& trans,
+                                         uint64_t threadPayloadID,
                                          const sc_core::sc_time& timeOfGeneration);
 
-    tlm::tlm_extension_base* clone() const override;
+    [[nodiscard]] tlm::tlm_extension_base* clone() const override;
     void copy_from(const tlm::tlm_extension_base& ext) override;
 
-    Thread getThread() const;
-    Channel getChannel() const;
-    uint64_t getThreadPayloadID() const;
-    sc_core::sc_time getTimeOfGeneration() const;
+    [[nodiscard]] Thread getThread() const;
+    [[nodiscard]] Channel getChannel() const;
+    [[nodiscard]] uint64_t getThreadPayloadID() const;
+    [[nodiscard]] sc_core::sc_time getTimeOfGeneration() const;
 
     static const ArbiterExtension& getExtension(const tlm::tlm_generic_payload& trans);
     static Thread getThread(const tlm::tlm_generic_payload& trans);
@@ -181,7 +106,10 @@ public:
     static sc_core::sc_time getTimeOfGeneration(const tlm::tlm_generic_payload& trans);
 
 private:
-    ArbiterExtension(Thread thread, Channel channel, uint64_t threadPayloadID, const sc_core::sc_time& timeOfGeneration);
+    ArbiterExtension(Thread thread,
+                     Channel channel,
+                     uint64_t threadPayloadID,
+                     const sc_core::sc_time& timeOfGeneration);
     Thread thread;
     Channel channel;
     uint64_t threadPayloadID;
@@ -191,24 +119,36 @@ private:
 class ControllerExtension : public tlm::tlm_extension<ControllerExtension>
 {
 public:
-    static void setAutoExtension(tlm::tlm_generic_payload& trans, uint64_t channelPayloadID, Rank rank, BankGroup bankGroup,
-                             Bank bank, Row row, Column column, unsigned burstLength);
+    static void setAutoExtension(tlm::tlm_generic_payload& trans,
+                                 uint64_t channelPayloadID,
+                                 Rank rank,
+                                 BankGroup bankGroup,
+                                 Bank bank,
+                                 Row row,
+                                 Column column,
+                                 unsigned burstLength);
 
-    static void setExtension(tlm::tlm_generic_payload& trans, uint64_t channelPayloadID, Rank rank, BankGroup bankGroup,
-                                 Bank bank, Row row, Column column, unsigned burstLength);
+    static void setExtension(tlm::tlm_generic_payload& trans,
+                             uint64_t channelPayloadID,
+                             Rank rank,
+                             BankGroup bankGroup,
+                             Bank bank,
+                             Row row,
+                             Column column,
+                             unsigned burstLength);
 
-    //static ControllerExtension& getExtension(const tlm::tlm_generic_payload& trans);
+    // static ControllerExtension& getExtension(const tlm::tlm_generic_payload& trans);
 
-    tlm::tlm_extension_base* clone() const override;
+    [[nodiscard]] tlm::tlm_extension_base* clone() const override;
     void copy_from(const tlm::tlm_extension_base& ext) override;
 
-    uint64_t getChannelPayloadID() const;
-    Rank getRank() const;
-    BankGroup getBankGroup() const;
-    Bank getBank() const;
-    Row getRow() const;
-    Column getColumn() const;
-    unsigned getBurstLength() const;
+    [[nodiscard]] uint64_t getChannelPayloadID() const;
+    [[nodiscard]] Rank getRank() const;
+    [[nodiscard]] BankGroup getBankGroup() const;
+    [[nodiscard]] Bank getBank() const;
+    [[nodiscard]] Row getRow() const;
+    [[nodiscard]] Column getColumn() const;
+    [[nodiscard]] unsigned getBurstLength() const;
 
     static const ControllerExtension& getExtension(const tlm::tlm_generic_payload& trans);
     static uint64_t getChannelPayloadID(const tlm::tlm_generic_payload& trans);
@@ -220,7 +160,12 @@ public:
     static unsigned getBurstLength(const tlm::tlm_generic_payload& trans);
 
 private:
-    ControllerExtension(uint64_t channelPayloadID, Rank rank, BankGroup bankGroup, Bank bank, Row row, Column column,
+    ControllerExtension(uint64_t channelPayloadID,
+                        Rank rank,
+                        BankGroup bankGroup,
+                        Bank bank,
+                        Row row,
+                        Column column,
                         unsigned burstLength);
     uint64_t channelPayloadID;
     Rank rank;
@@ -231,30 +176,6 @@ private:
     unsigned burstLength;
 };
 
-
-bool operator==(const Thread &lhs, const Thread &rhs);
-bool operator!=(const Thread &lhs, const Thread &rhs);
-bool operator<(const Thread &lhs, const Thread &rhs);
-
-bool operator==(const Channel &lhs, const Channel &rhs);
-bool operator!=(const Channel &lhs, const Channel &rhs);
-
-bool operator==(const Rank &lhs, const Rank &rhs);
-bool operator!=(const Rank &lhs, const Rank &rhs);
-
-bool operator==(const BankGroup &lhs, const BankGroup &rhs);
-bool operator!=(const BankGroup &lhs, const BankGroup &rhs);
-
-bool operator==(const Bank &lhs, const Bank &rhs);
-bool operator!=(const Bank &lhs, const Bank &rhs);
-bool operator<(const Bank &lhs, const Bank &rhs);
-
-bool operator==(const Row &lhs, const Row &rhs);
-bool operator!=(const Row &lhs, const Row &rhs);
-
-bool operator==(const Column &lhs, const Column &rhs);
-bool operator!=(const Column &lhs, const Column &rhs);
-
 class ChildExtension : public tlm::tlm_extension<ChildExtension>
 {
 private:
@@ -262,13 +183,14 @@ private:
     explicit ChildExtension(tlm::tlm_generic_payload& parentTrans) : parentTrans(&parentTrans) {}
 
 public:
-    //ChildExtension() = delete;
+    // ChildExtension() = delete;
 
-    tlm::tlm_extension_base* clone() const override;
+    [[nodiscard]] tlm::tlm_extension_base* clone() const override;
     void copy_from(const tlm::tlm_extension_base& ext) override;
     tlm::tlm_generic_payload& getParentTrans();
     static tlm::tlm_generic_payload& getParentTrans(tlm::tlm_generic_payload& childTrans);
-    static void setExtension(tlm::tlm_generic_payload& childTrans, tlm::tlm_generic_payload& parentTrans);
+    static void setExtension(tlm::tlm_generic_payload& childTrans,
+                             tlm::tlm_generic_payload& parentTrans);
     static bool isChildTrans(const tlm::tlm_generic_payload& trans);
 };
 
@@ -277,15 +199,18 @@ class ParentExtension : public tlm::tlm_extension<ParentExtension>
 private:
     std::vector<tlm::tlm_generic_payload*> childTranses;
     unsigned completedChildTranses = 0;
-    explicit ParentExtension(std::vector<tlm::tlm_generic_payload*> _childTranses)
-            : childTranses(std::move(_childTranses)) {}
+    explicit ParentExtension(std::vector<tlm::tlm_generic_payload*> _childTranses) :
+        childTranses(std::move(_childTranses))
+    {
+    }
 
 public:
     ParentExtension() = delete;
 
-    tlm_extension_base* clone() const override;
+    [[nodiscard]] tlm_extension_base* clone() const override;
     void copy_from(const tlm_extension_base& ext) override;
-    static void setExtension(tlm::tlm_generic_payload& parentTrans, std::vector<tlm::tlm_generic_payload*> childTranses);
+    static void setExtension(tlm::tlm_generic_payload& parentTrans,
+                             std::vector<tlm::tlm_generic_payload*> childTranses);
     const std::vector<tlm::tlm_generic_payload*>& getChildTranses();
     bool notifyChildTransCompletion();
     static bool notifyChildTransCompletion(tlm::tlm_generic_payload& trans);
@@ -294,15 +219,9 @@ public:
 class EccExtension : public tlm::tlm_extension<EccExtension>
 {
 public:
-    tlm_extension_base* clone() const override
-    {
-        return new EccExtension;
-    }
+    [[nodiscard]] tlm_extension_base* clone() const override { return new EccExtension; }
 
-    void copy_from(tlm_extension_base const &ext) override
-    {    
-        auto const &cpyFrom = static_cast<EccExtension const &>(ext);
-    }
+    void copy_from([[maybe_unused]] tlm_extension_base const& ext) override {}
 };
 
 } // namespace DRAMSys

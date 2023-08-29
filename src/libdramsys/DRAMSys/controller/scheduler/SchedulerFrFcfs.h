@@ -35,15 +35,15 @@
 #ifndef SCHEDULERFRFCFS_H
 #define SCHEDULERFRFCFS_H
 
-#include "DRAMSys/controller/scheduler/SchedulerIF.h"
 #include "DRAMSys/common/dramExtensions.h"
 #include "DRAMSys/controller/BankMachine.h"
 #include "DRAMSys/controller/scheduler/BufferCounterIF.h"
+#include "DRAMSys/controller/scheduler/SchedulerIF.h"
 
-#include <vector>
 #include <list>
 #include <memory>
 #include <tlm>
+#include <vector>
 
 namespace DRAMSys
 {
@@ -53,15 +53,17 @@ class SchedulerFrFcfs final : public SchedulerIF
 public:
     explicit SchedulerFrFcfs(const Configuration& config);
     [[nodiscard]] bool hasBufferSpace() const override;
-    void storeRequest(tlm::tlm_generic_payload&) override;
-    void removeRequest(tlm::tlm_generic_payload&) override;
-    [[nodiscard]] tlm::tlm_generic_payload* getNextRequest(const BankMachine&) const override;
-    [[nodiscard]] bool hasFurtherRowHit(Bank, Row, tlm::tlm_command) const override;
-    [[nodiscard]] bool hasFurtherRequest(Bank, tlm::tlm_command) const override;
+    void storeRequest(tlm::tlm_generic_payload& payload) override;
+    void removeRequest(tlm::tlm_generic_payload& payload) override;
+    [[nodiscard]] tlm::tlm_generic_payload*
+    getNextRequest(const BankMachine& bankMachine) const override;
+    [[nodiscard]] bool
+    hasFurtherRowHit(Bank bank, Row row, tlm::tlm_command command) const override;
+    [[nodiscard]] bool hasFurtherRequest(Bank bank, tlm::tlm_command command) const override;
     [[nodiscard]] const std::vector<unsigned>& getBufferDepth() const override;
 
 private:
-    std::vector<std::list<tlm::tlm_generic_payload*>> buffer;
+    ControllerVector<Bank, std::list<tlm::tlm_generic_payload*>> buffer;
     std::unique_ptr<BufferCounterIF> bufferCounter;
 };
 

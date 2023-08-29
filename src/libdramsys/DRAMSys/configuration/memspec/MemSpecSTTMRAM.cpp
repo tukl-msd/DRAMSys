@@ -46,97 +46,110 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-MemSpecSTTMRAM::MemSpecSTTMRAM(const DRAMSys::Config::MemSpec &memSpec)
-    : MemSpec(memSpec, MemoryType::STTMRAM,
-      memSpec.memarchitecturespec.entries.at("nbrOfChannels"),
-      1,
-      memSpec.memarchitecturespec.entries.at("nbrOfRanks"),
-      memSpec.memarchitecturespec.entries.at("nbrOfBanks"),
-      1,
-      memSpec.memarchitecturespec.entries.at("nbrOfBanks"),
-      memSpec.memarchitecturespec.entries.at("nbrOfBanks")
-          * memSpec.memarchitecturespec.entries.at("nbrOfRanks"),
-      memSpec.memarchitecturespec.entries.at("nbrOfRanks"),
-      memSpec.memarchitecturespec.entries.at("nbrOfDevices")),
-      tCKE     (tCK * memSpec.memtimingspec.entries.at("CKE")),
-      tPD      (tCKE),
-      tCKESR   (tCK * memSpec.memtimingspec.entries.at("CKESR")),
-      tDQSCK   (tCK * memSpec.memtimingspec.entries.at("DQSCK")),
-      tRAS     (tCK * memSpec.memtimingspec.entries.at("RAS")),
-      tRC      (tCK * memSpec.memtimingspec.entries.at("RC")),
-      tRCD     (tCK * memSpec.memtimingspec.entries.at("RCD")),
-      tRL      (tCK * memSpec.memtimingspec.entries.at("RL")),
-      tRTP     (tCK * memSpec.memtimingspec.entries.at("RTP")),
-      tWL      (tCK * memSpec.memtimingspec.entries.at("WL")),
-      tWR      (tCK * memSpec.memtimingspec.entries.at("WR")),
-      tXP      (tCK * memSpec.memtimingspec.entries.at("XP")),
-      tXS      (tCK * memSpec.memtimingspec.entries.at("XS")),
-      tCCD     (tCK * memSpec.memtimingspec.entries.at("CCD")),
-      tFAW     (tCK * memSpec.memtimingspec.entries.at("FAW")),
-      tRP      (tCK * memSpec.memtimingspec.entries.at("RP")),
-      tRRD     (tCK * memSpec.memtimingspec.entries.at("RRD")),
-      tWTR     (tCK * memSpec.memtimingspec.entries.at("WTR")),
-      tAL      (tCK * memSpec.memtimingspec.entries.at("AL")),
-      tXPDLL   (tCK * memSpec.memtimingspec.entries.at("XPDLL")),
-      tXSDLL   (tCK * memSpec.memtimingspec.entries.at("XSDLL")),
-      tACTPDEN (tCK * memSpec.memtimingspec.entries.at("ACTPDEN")),
-      tPRPDEN  (tCK * memSpec.memtimingspec.entries.at("PRPDEN")),
-      tRTRS    (tCK * memSpec.memtimingspec.entries.at("RTRS"))
+MemSpecSTTMRAM::MemSpecSTTMRAM(const DRAMSys::Config::MemSpec& memSpec) :
+    MemSpec(memSpec,
+            MemoryType::STTMRAM,
+            memSpec.memarchitecturespec.entries.at("nbrOfChannels"),
+            1,
+            memSpec.memarchitecturespec.entries.at("nbrOfRanks"),
+            memSpec.memarchitecturespec.entries.at("nbrOfBanks"),
+            1,
+            memSpec.memarchitecturespec.entries.at("nbrOfBanks"),
+            memSpec.memarchitecturespec.entries.at("nbrOfBanks") *
+                memSpec.memarchitecturespec.entries.at("nbrOfRanks"),
+            memSpec.memarchitecturespec.entries.at("nbrOfRanks"),
+            memSpec.memarchitecturespec.entries.at("nbrOfDevices")),
+    tCKE(tCK * memSpec.memtimingspec.entries.at("CKE")),
+    tPD(tCKE),
+    tCKESR(tCK * memSpec.memtimingspec.entries.at("CKESR")),
+    tRAS(tCK * memSpec.memtimingspec.entries.at("RAS")),
+    tRC(tCK * memSpec.memtimingspec.entries.at("RC")),
+    tRCD(tCK * memSpec.memtimingspec.entries.at("RCD")),
+    tRL(tCK * memSpec.memtimingspec.entries.at("RL")),
+    tRTP(tCK * memSpec.memtimingspec.entries.at("RTP")),
+    tWL(tCK * memSpec.memtimingspec.entries.at("WL")),
+    tWR(tCK * memSpec.memtimingspec.entries.at("WR")),
+    tXP(tCK * memSpec.memtimingspec.entries.at("XP")),
+    tXS(tCK * memSpec.memtimingspec.entries.at("XS")),
+    tRP(tCK * memSpec.memtimingspec.entries.at("RP")),
+    tDQSCK(tCK * memSpec.memtimingspec.entries.at("DQSCK")),
+    tCCD(tCK * memSpec.memtimingspec.entries.at("CCD")),
+    tFAW(tCK * memSpec.memtimingspec.entries.at("FAW")),
+    tRRD(tCK * memSpec.memtimingspec.entries.at("RRD")),
+    tWTR(tCK * memSpec.memtimingspec.entries.at("WTR")),
+    tXPDLL(tCK * memSpec.memtimingspec.entries.at("XPDLL")),
+    tXSDLL(tCK * memSpec.memtimingspec.entries.at("XSDLL")),
+    tAL(tCK * memSpec.memtimingspec.entries.at("AL")),
+    tACTPDEN(tCK * memSpec.memtimingspec.entries.at("ACTPDEN")),
+    tPRPDEN(tCK * memSpec.memtimingspec.entries.at("PRPDEN")),
+    tRTRS(tCK * memSpec.memtimingspec.entries.at("RTRS"))
 {
-    uint64_t deviceSizeBits = static_cast<uint64_t>(banksPerRank) * rowsPerBank * columnsPerRow * bitWidth;
+    uint64_t deviceSizeBits =
+        static_cast<uint64_t>(banksPerRank) * rowsPerBank * columnsPerRow * bitWidth;
     uint64_t deviceSizeBytes = deviceSizeBits / 8;
     memorySizeBytes = deviceSizeBytes * devicesPerRank * ranksPerChannel * numberOfChannels;
 
     std::cout << headline << std::endl;
     std::cout << "Memory Configuration:" << std::endl << std::endl;
-    std::cout << " Memory type:           " << "STT-MRAM"            << std::endl;
-    std::cout << " Memory size in bytes:  " << memorySizeBytes       << std::endl;
-    std::cout << " Channels:              " << numberOfChannels      << std::endl;
+    std::cout << " Memory type:           "
+              << "STT-MRAM" << std::endl;
+    std::cout << " Memory size in bytes:  " << memorySizeBytes << std::endl;
+    std::cout << " Channels:              " << numberOfChannels << std::endl;
     std::cout << " Ranks per channel:     " << ranksPerChannel << std::endl;
-    std::cout << " Banks per rank:        " << banksPerRank          << std::endl;
+    std::cout << " Banks per rank:        " << banksPerRank << std::endl;
     std::cout << " Rows per bank:         " << rowsPerBank << std::endl;
     std::cout << " Columns per row:       " << columnsPerRow << std::endl;
-    std::cout << " Device width in bits:  " << bitWidth              << std::endl;
-    std::cout << " Device size in bits:   " << deviceSizeBits        << std::endl;
-    std::cout << " Device size in bytes:  " << deviceSizeBytes       << std::endl;
+    std::cout << " Device width in bits:  " << bitWidth << std::endl;
+    std::cout << " Device size in bits:   " << deviceSizeBits << std::endl;
+    std::cout << " Device size in bytes:  " << deviceSizeBytes << std::endl;
     std::cout << " Devices per rank:      " << devicesPerRank << std::endl;
     std::cout << std::endl;
 }
 
 // Returns the execution time for commands that have a fixed execution time
-sc_time MemSpecSTTMRAM::getExecutionTime(Command command, const tlm_generic_payload &) const
+sc_time MemSpecSTTMRAM::getExecutionTime(Command command,
+                                         [[maybe_unused]] const tlm_generic_payload& payload) const
 {
     if (command == Command::PREPB || command == Command::PREAB)
         return tRP;
-    else if (command == Command::ACT)
+
+    if (command == Command::ACT)
         return tRCD;
-    else if (command == Command::RD)
+
+    if (command == Command::RD)
         return tRL + burstDuration;
-    else if (command == Command::RDA)
+
+    if (command == Command::RDA)
         return tRTP + tRP;
-    else if (command == Command::WR)
+
+    if (command == Command::WR || command == Command::MWR)
         return tWL + burstDuration;
-    else if (command == Command::WRA)
+
+    if (command == Command::WRA || command == Command::MWRA)
         return tWL + burstDuration + tWR + tRP;
-    else
-    {
-        SC_REPORT_FATAL("getExecutionTime",
-                        "command not known or command doesn't have a fixed execution time");
-        return SC_ZERO_TIME;
-    }
+
+    SC_REPORT_FATAL("getExecutionTime",
+                    "command not known or command doesn't have a fixed execution time");
+    return SC_ZERO_TIME;
 }
 
-TimeInterval MemSpecSTTMRAM::getIntervalOnDataStrobe(Command command, const tlm::tlm_generic_payload &) const
+TimeInterval MemSpecSTTMRAM::getIntervalOnDataStrobe(
+    Command command, [[maybe_unused]] const tlm::tlm_generic_payload& payload) const
 {
     if (command == Command::RD || command == Command::RDA)
         return {tRL, tRL + burstDuration};
-    else if (command == Command::WR || command == Command::WRA)
+
+    if (command == Command::WR || command == Command::WRA || command == Command::MWR ||
+        command == Command::MWRA)
         return {tWL, tWL + burstDuration};
-    else
-    {
-        SC_REPORT_FATAL("MemSpec", "Method was called with invalid argument");
-        return {};
-    }
+
+    SC_REPORT_FATAL("MemSpec", "Method was called with invalid argument");
+    throw;
+}
+
+bool MemSpecSTTMRAM::requiresMaskedWrite(const tlm::tlm_generic_payload& payload) const
+{
+    return !allBytesEnabled(payload);
 }
 
 } // namespace DRAMSys

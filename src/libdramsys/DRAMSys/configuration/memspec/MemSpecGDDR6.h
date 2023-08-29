@@ -46,7 +46,7 @@ namespace DRAMSys
 struct MemSpecGDDR6 final : public MemSpec
 {
 public:
-    explicit MemSpecGDDR6(const DRAMSys::Config::MemSpec &memSpec);
+    explicit MemSpecGDDR6(const DRAMSys::Config::MemSpec& memSpec);
 
     // Memspec Variables:
     const sc_core::sc_time tRP;
@@ -79,8 +79,8 @@ public:
     const sc_core::sc_time tRREFD;
     const sc_core::sc_time tXS;
     const sc_core::sc_time tFAW;
-//    sc_time tRDSRE; // = tCL + tWCK2CKPIN + tWCK2CK + tWCK2DQO + BurstLength / DataRate * tCK;
-//    sc_time tWRSRE; // = tWL + tWCK2CKPIN + tWCK2CK + tWCK2DQI + BurstLength / DataRate * tCK;
+    //    sc_time tRDSRE; // = tCL + tWCK2CKPIN + tWCK2CK + tWCK2DQO + BurstLength / DataRate * tCK;
+    //    sc_time tWRSRE; // = tWL + tWCK2CKPIN + tWCK2CK + tWCK2DQI + BurstLength / DataRate * tCK;
     const sc_core::sc_time tPPD;
     const sc_core::sc_time tLK;
     const sc_core::sc_time tACTPDE;
@@ -91,13 +91,16 @@ public:
     // Currents and Voltages:
     // TODO: to be completed
 
-    sc_core::sc_time getRefreshIntervalAB() const override;
-    sc_core::sc_time getRefreshIntervalPB() const override;
-    sc_core::sc_time getRefreshIntervalP2B() const override;
-    unsigned getPer2BankOffset() const override;
+    [[nodiscard]] sc_core::sc_time getRefreshIntervalAB() const override;
+    [[nodiscard]] sc_core::sc_time getRefreshIntervalPB() const override;
+    [[nodiscard]] sc_core::sc_time getRefreshIntervalP2B() const override;
+    [[nodiscard]] unsigned getPer2BankOffset() const override;
 
-    sc_core::sc_time getExecutionTime(Command command, const tlm::tlm_generic_payload &payload) const override;
-    TimeInterval getIntervalOnDataStrobe(Command command, const tlm::tlm_generic_payload &payload) const override;
+    [[nodiscard]] sc_core::sc_time
+    getExecutionTime(Command command, const tlm::tlm_generic_payload& payload) const override;
+    [[nodiscard]] TimeInterval
+    getIntervalOnDataStrobe(Command command,
+                            const tlm::tlm_generic_payload& payload) const override;
 
 private:
     unsigned per2BankOffset;

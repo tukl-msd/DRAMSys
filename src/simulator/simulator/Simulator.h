@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2023, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,55 +30,42 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Robert Gernhardt
- *    Matthias Jung
- *    Eder F. Zulian
- *    Luiza Correa
  *    Derek Christ
  */
 
-#ifndef UTILS_H
-#define UTILS_H
+#pragma once
 
-#include "DRAMSys/common/dramExtensions.h"
+#include "Initiator.h"
+#include "MemoryManager.h"
 
-#include <string>
-#include <systemc>
-#include <tlm>
+#include <DRAMSys/config/DRAMSysConfiguration.h>
+#include <DRAMSys/simulation/DRAMSysRecordable.h>
 
-namespace DRAMSys
-{
+static constexpr std::string_view TRACE_DIRECTORY = "traces";
 
-class TimeInterval
+class Simulator
 {
 public:
-    sc_core::sc_time start, end;
-    TimeInterval() : start(sc_core::SC_ZERO_TIME), end(sc_core::SC_ZERO_TIME) {}
-    TimeInterval(const sc_core::sc_time& start, const sc_core::sc_time& end) :
-        start(start),
-        end(end)
-    {
-    }
+    Simulator(DRAMSys::Config::Configuration configuration,
+              std::filesystem::path resourceDirectory);
 
-    [[nodiscard]] sc_core::sc_time getLength() const;
-    [[nodiscard]] bool timeIsInInterval(const sc_core::sc_time& time) const;
-    [[nodiscard]] bool intersects(const TimeInterval& other) const;
+    static void run();
+
+private:
+    std::unique_ptr<Initiator> instantiateInitiator(const DRAMSys::Config::Initiator& initiator);
+
+    MemoryManager memoryManager;
+
+    DRAMSys::Config::Configuration configuration;
+    std::filesystem::path resourceDirectory;
+
+    std::unique_ptr<DRAMSys::DRAMSys> dramSys;
+    std::vector<std::unique_ptr<Initiator>> initiators;
+
+    std::function<void()> terminateInitiator;
+    std::function<void()> finishTransaction;
+
+    unsigned int terminatedInitiators = 0;
+    uint64_t totalTransactions{};
+    uint64_t transactionsFinished = 0;
 };
-
-constexpr const std::string_view headline =
-    "===========================================================================";
-
-std::string getPhaseName(const tlm::tlm_phase& phase);
-
-void setUpDummy(tlm::tlm_generic_payload& payload,
-                uint64_t channelPayloadID,
-                Rank rank = Rank(0),
-                BankGroup bankGroup = BankGroup(0),
-                Bank bank = Bank(0));
-
-bool isFullCycle(sc_core::sc_time time, sc_core::sc_time cycleTime);
-sc_core::sc_time alignAtNext(sc_core::sc_time time, sc_core::sc_time alignment);
-
-} // namespace DRAMSys
-
-#endif // UTILS_H

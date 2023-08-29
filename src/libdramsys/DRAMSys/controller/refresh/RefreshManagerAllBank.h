@@ -35,14 +35,14 @@
 #ifndef REFRESHMANAGERALLBANK_H
 #define REFRESHMANAGERALLBANK_H
 
-#include "DRAMSys/controller/refresh/RefreshManagerIF.h"
-#include "DRAMSys/controller/checker/CheckerIF.h"
 #include "DRAMSys/configuration/Configuration.h"
 #include "DRAMSys/configuration/memspec/MemSpec.h"
+#include "DRAMSys/controller/checker/CheckerIF.h"
+#include "DRAMSys/controller/refresh/RefreshManagerIF.h"
 
-#include <vector>
 #include <systemc>
 #include <tlm>
+#include <vector>
 
 namespace DRAMSys
 {
@@ -53,18 +53,24 @@ class PowerDownManagerIF;
 class RefreshManagerAllBank final : public RefreshManagerIF
 {
 public:
-    RefreshManagerAllBank(const Configuration& config, std::vector<BankMachine*>& bankMachinesOnRank,
-                          PowerDownManagerIF& powerDownManager, Rank rank);
+    RefreshManagerAllBank(const Configuration& config,
+                          ControllerVector<Bank, BankMachine*>& bankMachinesOnRank,
+                          PowerDownManagerIF& powerDownManager,
+                          Rank rank);
 
     CommandTuple::Type getNextCommand() override;
     void evaluate() override;
-    void update(Command) override;
+    void update(Command command) override;
     sc_core::sc_time getTimeForNextTrigger() override;
 
 private:
-    enum class State {Regular, Pulledin} state = State::Regular;
+    enum class State
+    {
+        Regular,
+        Pulledin
+    } state = State::Regular;
     const MemSpec& memSpec;
-    std::vector<BankMachine*>& bankMachinesOnRank;
+    ControllerVector<Bank, BankMachine*>& bankMachinesOnRank;
     PowerDownManagerIF& powerDownManager;
     tlm::tlm_generic_payload refreshPayload;
     sc_core::sc_time timeForNextTrigger = sc_core::sc_max_time();

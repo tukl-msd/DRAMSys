@@ -45,7 +45,7 @@ namespace DRAMSys
 class DramHBM2 : public Dram
 {
 public:
-    DramHBM2(const sc_core::sc_module_name &name, const Configuration& config);
+    DramHBM2(const sc_core::sc_module_name& name, const Configuration& config);
     SC_HAS_PROCESS(DramHBM2);
 };
 

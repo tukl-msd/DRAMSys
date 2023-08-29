@@ -39,8 +39,8 @@
 #include "DRAMSys/util/json.h"
 
 #include <optional>
-#include <utility>
 #include <string>
+#include <utility>
 
 namespace DRAMSys::Config
 {
@@ -54,13 +54,14 @@ enum class PagePolicyType
     Invalid = -1
 };
 
-NLOHMANN_JSON_SERIALIZE_ENUM(PagePolicyType, {
-                                             {PagePolicyType::Invalid, nullptr},
-                                             {PagePolicyType::Open, "Open"},
-                                             {PagePolicyType::OpenAdaptive, "OpenAdaptive"},
-                                             {PagePolicyType::Closed, "Closed"},
-                                             {PagePolicyType::ClosedAdaptive, "ClosedAdaptive"},
-                                         })
+NLOHMANN_JSON_SERIALIZE_ENUM(PagePolicyType,
+                             {
+                                 {PagePolicyType::Invalid, nullptr},
+                                 {PagePolicyType::Open, "Open"},
+                                 {PagePolicyType::OpenAdaptive, "OpenAdaptive"},
+                                 {PagePolicyType::Closed, "Closed"},
+                                 {PagePolicyType::ClosedAdaptive, "ClosedAdaptive"},
+                             })
 
 enum class SchedulerType
 {
@@ -72,12 +73,13 @@ enum class SchedulerType
     Invalid = -1
 };
 
-NLOHMANN_JSON_SERIALIZE_ENUM(SchedulerType, {{SchedulerType::Invalid, nullptr},
-                                         {SchedulerType::Fifo, "Fifo"},
-                                         {SchedulerType::FrFcfs, "FrFcfs"},
-                                         {SchedulerType::FrFcfsGrp, "FrFcfsGrp"},
-                                         {SchedulerType::GrpFrFcfs, "GrpFrFcfs"},
-                                         {SchedulerType::GrpFrFcfsWm, "GrpFrFcfsWm"}})
+NLOHMANN_JSON_SERIALIZE_ENUM(SchedulerType,
+                             {{SchedulerType::Invalid, nullptr},
+                              {SchedulerType::Fifo, "Fifo"},
+                              {SchedulerType::FrFcfs, "FrFcfs"},
+                              {SchedulerType::FrFcfsGrp, "FrFcfsGrp"},
+                              {SchedulerType::GrpFrFcfs, "GrpFrFcfs"},
+                              {SchedulerType::GrpFrFcfsWm, "GrpFrFcfsWm"}})
 
 enum class SchedulerBufferType
 {
@@ -87,10 +89,11 @@ enum class SchedulerBufferType
     Invalid = -1
 };
 
-NLOHMANN_JSON_SERIALIZE_ENUM(SchedulerBufferType, {{SchedulerBufferType::Invalid, nullptr},
-                                               {SchedulerBufferType::Bankwise, "Bankwise"},
-                                               {SchedulerBufferType::ReadWrite, "ReadWrite"},
-                                               {SchedulerBufferType::Shared, "Shared"}})
+NLOHMANN_JSON_SERIALIZE_ENUM(SchedulerBufferType,
+                             {{SchedulerBufferType::Invalid, nullptr},
+                              {SchedulerBufferType::Bankwise, "Bankwise"},
+                              {SchedulerBufferType::ReadWrite, "ReadWrite"},
+                              {SchedulerBufferType::Shared, "Shared"}})
 
 enum class CmdMuxType
 {
@@ -100,7 +103,9 @@ enum class CmdMuxType
 };
 
 NLOHMANN_JSON_SERIALIZE_ENUM(CmdMuxType,
-                             {{CmdMuxType::Invalid, nullptr}, {CmdMuxType::Oldest, "Oldest"}, {CmdMuxType::Strict, "Strict"}})
+                             {{CmdMuxType::Invalid, nullptr},
+                              {CmdMuxType::Oldest, "Oldest"},
+                              {CmdMuxType::Strict, "Strict"}})
 
 enum class RespQueueType
 {
@@ -109,9 +114,10 @@ enum class RespQueueType
     Invalid = -1
 };
 
-NLOHMANN_JSON_SERIALIZE_ENUM(RespQueueType, {{RespQueueType::Invalid, nullptr},
-                                         {RespQueueType::Fifo, "Fifo"},
-                                         {RespQueueType::Reorder, "Reorder"}})
+NLOHMANN_JSON_SERIALIZE_ENUM(RespQueueType,
+                             {{RespQueueType::Invalid, nullptr},
+                              {RespQueueType::Fifo, "Fifo"},
+                              {RespQueueType::Reorder, "Reorder"}})
 
 enum class RefreshPolicyType
 {
@@ -123,18 +129,19 @@ enum class RefreshPolicyType
     Invalid = -1
 };
 
-NLOHMANN_JSON_SERIALIZE_ENUM(RefreshPolicyType, {{RefreshPolicyType::Invalid, nullptr},
-                                               {RefreshPolicyType::NoRefresh, "NoRefresh"},
-                                               {RefreshPolicyType::AllBank, "AllBank"},
-                                               {RefreshPolicyType::PerBank, "PerBank"},
-                                               {RefreshPolicyType::Per2Bank, "Per2Bank"},
-                                               {RefreshPolicyType::SameBank, "SameBank"},
+NLOHMANN_JSON_SERIALIZE_ENUM(RefreshPolicyType,
+                             {{RefreshPolicyType::Invalid, nullptr},
+                              {RefreshPolicyType::NoRefresh, "NoRefresh"},
+                              {RefreshPolicyType::AllBank, "AllBank"},
+                              {RefreshPolicyType::PerBank, "PerBank"},
+                              {RefreshPolicyType::Per2Bank, "Per2Bank"},
+                              {RefreshPolicyType::SameBank, "SameBank"},
 
-                                               // Alternative conversions to provide backwards-compatibility
-                                               // when deserializing. Will not be used for serializing.
-                                               {RefreshPolicyType::AllBank, "Rankwise"},
-                                               {RefreshPolicyType::PerBank, "Bankwise"},
-                                               {RefreshPolicyType::SameBank, "Groupwise"}})
+                              // Alternative conversions to provide backwards-compatibility
+                              // when deserializing. Will not be used for serializing.
+                              {RefreshPolicyType::AllBank, "Rankwise"},
+                              {RefreshPolicyType::PerBank, "Bankwise"},
+                              {RefreshPolicyType::SameBank, "Groupwise"}})
 
 enum class PowerDownPolicyType
 {
@@ -143,9 +150,10 @@ enum class PowerDownPolicyType
     Invalid = -1
 };
 
-NLOHMANN_JSON_SERIALIZE_ENUM(PowerDownPolicyType, {{PowerDownPolicyType::Invalid, nullptr},
-                                               {PowerDownPolicyType::NoPowerDown, "NoPowerDown"},
-                                               {PowerDownPolicyType::Staggered, "Staggered"}})
+NLOHMANN_JSON_SERIALIZE_ENUM(PowerDownPolicyType,
+                             {{PowerDownPolicyType::Invalid, nullptr},
+                              {PowerDownPolicyType::NoPowerDown, "NoPowerDown"},
+                              {PowerDownPolicyType::Staggered, "Staggered"}})
 
 enum class ArbiterType
 {
@@ -155,10 +163,11 @@ enum class ArbiterType
     Invalid = -1
 };
 
-NLOHMANN_JSON_SERIALIZE_ENUM(ArbiterType, {{ArbiterType::Invalid, nullptr},
-                                       {ArbiterType::Simple, "Simple"},
-                                       {ArbiterType::Fifo, "Fifo"},
-                                       {ArbiterType::Reorder, "Reorder"}})
+NLOHMANN_JSON_SERIALIZE_ENUM(ArbiterType,
+                             {{ArbiterType::Invalid, nullptr},
+                              {ArbiterType::Simple, "Simple"},
+                              {ArbiterType::Fifo, "Fifo"},
+                              {ArbiterType::Reorder, "Reorder"}})
 
 struct McConfig
 {
@@ -215,6 +224,6 @@ NLOHMANN_JSONIFY_ALL_THINGS(McConfig,
                             BlockingReadDelay,
                             BlockingWriteDelay)
 
-} // namespace Configuration
+} // namespace DRAMSys::Config
 
 #endif // DRAMSYSCONFIGURATION_MCCONFIG_H

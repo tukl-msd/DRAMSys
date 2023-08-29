@@ -40,9 +40,9 @@
 
 using namespace tlm;
 
-MemoryManager::MemoryManager(bool storageEnabled)
-    : numberOfAllocations(0), numberOfFrees(0), storageEnabled(storageEnabled)
-{}
+MemoryManager::MemoryManager(bool storageEnabled) : storageEnabled(storageEnabled)
+{
+}
 
 MemoryManager::~MemoryManager()
 {
@@ -61,8 +61,9 @@ MemoryManager::~MemoryManager()
     }
 
     // Comment in if you are suspecting a memory leak in the manager
-    //PRINTDEBUGMESSAGE("MemoryManager","Number of allocated payloads: " + to_string(numberOfAllocations));
-    //PRINTDEBUGMESSAGE("MemoryManager","Number of freed payloads: " + to_string(numberOfFrees));
+    // PRINTDEBUGMESSAGE("MemoryManager","Number of allocated payloads: " +
+    // to_string(numberOfAllocations)); PRINTDEBUGMESSAGE("MemoryManager","Number of freed payloads:
+    // " + to_string(numberOfFrees));
 }
 
 tlm_generic_payload& MemoryManager::allocate(unsigned dataLength)
@@ -82,12 +83,10 @@ tlm_generic_payload& MemoryManager::allocate(unsigned dataLength)
 
         return *payload;
     }
-    else
-    {
-        tlm_generic_payload* result = freePayloads[dataLength].top();
-        freePayloads[dataLength].pop();
-        return *result;
-    }
+
+    tlm_generic_payload* result = freePayloads[dataLength].top();
+    freePayloads[dataLength].pop();
+    return *result;
 }
 
 void MemoryManager::free(tlm_generic_payload* payload)

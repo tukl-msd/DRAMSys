@@ -40,8 +40,8 @@ using namespace sc_core;
 namespace DRAMSys
 {
 
-DramWideIO2::DramWideIO2(const sc_module_name& name, const Configuration& config)
-    : Dram(name, config)
+DramWideIO2::DramWideIO2(const sc_module_name& name, const Configuration& config) :
+    Dram(name, config)
 {
 #ifdef DRAMPOWER
     if (config.powerAnalysis)

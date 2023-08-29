@@ -35,15 +35,15 @@
 #ifndef REFRESHMANAGERSAMEBANK_H
 #define REFRESHMANAGERSAMEBANK_H
 
-#include "DRAMSys/controller/refresh/RefreshManagerIF.h"
-#include "DRAMSys/controller/checker/CheckerIF.h"
-#include "DRAMSys/configuration/memspec/MemSpec.h"
 #include "DRAMSys/configuration/Configuration.h"
+#include "DRAMSys/configuration/memspec/MemSpec.h"
+#include "DRAMSys/controller/checker/CheckerIF.h"
+#include "DRAMSys/controller/refresh/RefreshManagerIF.h"
 
-#include <vector>
 #include <list>
 #include <systemc>
 #include <tlm>
+#include <vector>
 
 namespace DRAMSys
 {
@@ -54,25 +54,31 @@ class PowerDownManagerIF;
 class RefreshManagerSameBank final : public RefreshManagerIF
 {
 public:
-    RefreshManagerSameBank(const Configuration& config, std::vector<BankMachine *>& bankMachinesOnRank,
-                           PowerDownManagerIF& powerDownManager, Rank rank);
+    RefreshManagerSameBank(const Configuration& config,
+                           ControllerVector<Bank, BankMachine*>& bankMachinesOnRank,
+                           PowerDownManagerIF& powerDownManager,
+                           Rank rank);
 
     CommandTuple::Type getNextCommand() override;
     void evaluate() override;
-    void update(Command) override;
+    void update(Command command) override;
     sc_core::sc_time getTimeForNextTrigger() override;
 
 private:
-    enum class State {Regular, Pulledin} state = State::Regular;
+    enum class State
+    {
+        Regular,
+        Pulledin
+    } state = State::Regular;
     const MemSpec& memSpec;
     PowerDownManagerIF& powerDownManager;
     std::vector<tlm::tlm_generic_payload> refreshPayloads;
     sc_core::sc_time timeForNextTrigger = sc_core::sc_max_time();
     Command nextCommand = Command::NOP;
 
-    std::list<std::vector<BankMachine *>> remainingBankMachines;
-    std::list<std::vector<BankMachine *>> allBankMachines;
-    std::list<std::vector<BankMachine *>>::iterator currentIterator;
+    std::list<std::vector<BankMachine*>> remainingBankMachines;
+    std::list<std::vector<BankMachine*>> allBankMachines;
+    std::list<std::vector<BankMachine*>>::iterator currentIterator;
 
     int flexibilityCounter = 0;
     const int maxPostponed;

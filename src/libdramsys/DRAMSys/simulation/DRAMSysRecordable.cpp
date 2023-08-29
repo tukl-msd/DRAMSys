@@ -36,19 +36,19 @@
 
 #include "DRAMSysRecordable.h"
 
-#include "DRAMSys/controller/ControllerRecordable.h"
 #include "DRAMSys/common/TlmRecorder.h"
-#include "DRAMSys/simulation/dram/DramRecordable.h"
+#include "DRAMSys/controller/ControllerRecordable.h"
 #include "DRAMSys/simulation/dram/DramDDR3.h"
 #include "DRAMSys/simulation/dram/DramDDR4.h"
-#include "DRAMSys/simulation/dram/DramWideIO.h"
-#include "DRAMSys/simulation/dram/DramLPDDR4.h"
-#include "DRAMSys/simulation/dram/DramWideIO2.h"
-#include "DRAMSys/simulation/dram/DramHBM2.h"
 #include "DRAMSys/simulation/dram/DramGDDR5.h"
 #include "DRAMSys/simulation/dram/DramGDDR5X.h"
 #include "DRAMSys/simulation/dram/DramGDDR6.h"
+#include "DRAMSys/simulation/dram/DramHBM2.h"
+#include "DRAMSys/simulation/dram/DramLPDDR4.h"
+#include "DRAMSys/simulation/dram/DramRecordable.h"
 #include "DRAMSys/simulation/dram/DramSTTMRAM.h"
+#include "DRAMSys/simulation/dram/DramWideIO.h"
+#include "DRAMSys/simulation/dram/DramWideIO2.h"
 
 #ifdef DDR5_SIM
 #include "DRAMSys/simulation/dram/DramDDR5.h"
@@ -65,8 +65,9 @@
 namespace DRAMSys
 {
 
-DRAMSysRecordable::DRAMSysRecordable(const sc_core::sc_module_name& name, const ::DRAMSys::Config::Configuration& configLib)
-        : DRAMSys(name, configLib, false)
+DRAMSysRecordable::DRAMSysRecordable(const sc_core::sc_module_name& name,
+                                     const ::DRAMSys::Config::Configuration& configLib) :
+    DRAMSys(name, configLib, false)
 {
     // If a simulation file is passed as argument to DRAMSys the simulation ID
     // is prepended to the simulation name if found.
@@ -90,11 +91,11 @@ void DRAMSysRecordable::end_of_simulation()
     // Report power before TLM recorders are finalized
     if (config.powerAnalysis)
     {
-        for (auto& dram: drams)
+        for (auto& dram : drams)
             dram->reportPower();
     }
 
-    for (auto& tlmRecorder: tlmRecorders)
+    for (auto& tlmRecorder : tlmRecorders)
         tlmRecorder.finalize();
 }
 
@@ -108,7 +109,8 @@ void DRAMSysRecordable::setupTlmRecorders(const std::string& traceName,
     tlmRecorders.reserve(config.memSpec->numberOfChannels);
     for (std::size_t i = 0; i < config.memSpec->numberOfChannels; i++)
     {
-        std::string dbName = std::string(name()) + "_" + traceName + "_ch" + std::to_string(i) + ".tdb";
+        std::string dbName =
+            std::string(name()) + "_" + traceName + "_ch" + std::to_string(i) + ".tdb";
         std::string recorderName = "tlmRecorder" + std::to_string(i);
 
         nlohmann::json mcconfig;
@@ -145,58 +147,59 @@ void DRAMSysRecordable::instantiateModules(const std::string& traceName,
     MemSpec::MemoryType memoryType = config.memSpec->memoryType;
     for (std::size_t i = 0; i < config.memSpec->numberOfChannels; i++)
     {
-        controllers.emplace_back(std::make_unique<ControllerRecordable>(("controller" + std::to_string(i)).c_str(),
-                                                                        config, *addressDecoder, tlmRecorders[i]));
+        controllers.emplace_back(std::make_unique<ControllerRecordable>(
+            ("controller" + std::to_string(i)).c_str(), config, *addressDecoder, tlmRecorders[i]));
 
         if (memoryType == MemSpec::MemoryType::DDR3)
-            drams.emplace_back(std::make_unique<DramRecordable<DramDDR3>>(("dram" + std::to_string(i)).c_str(),
-                                                                          config, tlmRecorders[i]));
+            drams.emplace_back(std::make_unique<DramRecordable<DramDDR3>>(
+                ("dram" + std::to_string(i)).c_str(), config, tlmRecorders[i]));
         else if (memoryType == MemSpec::MemoryType::DDR4)
-            drams.emplace_back(std::make_unique<DramRecordable<DramDDR4>>(("dram" + std::to_string(i)).c_str(),
-                                                                          config, tlmRecorders[i]));
+            drams.emplace_back(std::make_unique<DramRecordable<DramDDR4>>(
+                ("dram" + std::to_string(i)).c_str(), config, tlmRecorders[i]));
         else if (memoryType == MemSpec::MemoryType::WideIO)
-            drams.emplace_back(std::make_unique<DramRecordable<DramWideIO>>(("dram" + std::to_string(i)).c_str(),
-                                                                            config, tlmRecorders[i]));
+            drams.emplace_back(std::make_unique<DramRecordable<DramWideIO>>(
+                ("dram" + std::to_string(i)).c_str(), config, tlmRecorders[i]));
         else if (memoryType == MemSpec::MemoryType::LPDDR4)
-            drams.emplace_back(std::make_unique<DramRecordable<DramLPDDR4>>(("dram" + std::to_string(i)).c_str(),
-                                                                            config, tlmRecorders[i]));
+            drams.emplace_back(std::make_unique<DramRecordable<DramLPDDR4>>(
+                ("dram" + std::to_string(i)).c_str(), config, tlmRecorders[i]));
         else if (memoryType == MemSpec::MemoryType::WideIO2)
-            drams.emplace_back(std::make_unique<DramRecordable<DramWideIO2>>(("dram" + std::to_string(i)).c_str(),
-                                                                             config, tlmRecorders[i]));
+            drams.emplace_back(std::make_unique<DramRecordable<DramWideIO2>>(
+                ("dram" + std::to_string(i)).c_str(), config, tlmRecorders[i]));
         else if (memoryType == MemSpec::MemoryType::HBM2)
-            drams.emplace_back(std::make_unique<DramRecordable<DramHBM2>>(("dram" + std::to_string(i)).c_str(),
-                                                                          config, tlmRecorders[i]));
+            drams.emplace_back(std::make_unique<DramRecordable<DramHBM2>>(
+                ("dram" + std::to_string(i)).c_str(), config, tlmRecorders[i]));
         else if (memoryType == MemSpec::MemoryType::GDDR5)
-            drams.emplace_back(std::make_unique<DramRecordable<DramGDDR5>>(("dram" + std::to_string(i)).c_str(),
-                                                                           config, tlmRecorders[i]));
+            drams.emplace_back(std::make_unique<DramRecordable<DramGDDR5>>(
+                ("dram" + std::to_string(i)).c_str(), config, tlmRecorders[i]));
         else if (memoryType == MemSpec::MemoryType::GDDR5X)
-            drams.emplace_back(std::make_unique<DramRecordable<DramGDDR5X>>(("dram" + std::to_string(i)).c_str(),
-                                                                            config, tlmRecorders[i]));
+            drams.emplace_back(std::make_unique<DramRecordable<DramGDDR5X>>(
+                ("dram" + std::to_string(i)).c_str(), config, tlmRecorders[i]));
         else if (memoryType == MemSpec::MemoryType::GDDR6)
-            drams.emplace_back(std::make_unique<DramRecordable<DramGDDR6>>(("dram" + std::to_string(i)).c_str(),
-                                                                           config, tlmRecorders[i]));
+            drams.emplace_back(std::make_unique<DramRecordable<DramGDDR6>>(
+                ("dram" + std::to_string(i)).c_str(), config, tlmRecorders[i]));
         else if (memoryType == MemSpec::MemoryType::STTMRAM)
-            drams.emplace_back(std::make_unique<DramRecordable<DramSTTMRAM>>(("dram" + std::to_string(i)).c_str(),
-                                                                             config, tlmRecorders[i]));
+            drams.emplace_back(std::make_unique<DramRecordable<DramSTTMRAM>>(
+                ("dram" + std::to_string(i)).c_str(), config, tlmRecorders[i]));
 #ifdef DDR5_SIM
         else if (memoryType == MemSpec::MemoryType::DDR5)
-            drams.emplace_back(std::make_unique<DramRecordable<DramDDR5>>(("dram" + std::to_string(i)).c_str(),
-                                                                          config, tlmRecorders[i]));
+            drams.emplace_back(std::make_unique<DramRecordable<DramDDR5>>(
+                ("dram" + std::to_string(i)).c_str(), config, tlmRecorders[i]));
 #endif
 #ifdef LPDDR5_SIM
         else if (memoryType == MemSpec::MemoryType::LPDDR5)
-            drams.emplace_back(std::make_unique<DramRecordable<DramLPDDR5>>(("dram" + std::to_string(i)).c_str(),
-                                                                            config, tlmRecorders[i]));
+            drams.emplace_back(std::make_unique<DramRecordable<DramLPDDR5>>(
+                ("dram" + std::to_string(i)).c_str(), config, tlmRecorders[i]));
 #endif
 #ifdef HBM3_SIM
         else if (memoryType == MemSpec::MemoryType::HBM3)
-            drams.emplace_back(std::make_unique<DramRecordable<DramHBM3>>(("dram" + std::to_string(i)).c_str(),
-                                                                          config, tlmRecorders[i]));
+            drams.emplace_back(std::make_unique<DramRecordable<DramHBM3>>(
+                ("dram" + std::to_string(i)).c_str(), config, tlmRecorders[i]));
 #endif
 
         if (config.checkTLM2Protocol)
-            controllersTlmCheckers.emplace_back(std::make_unique<tlm_utils::tlm2_base_protocol_checker<>>
-                                                        (("TLMCheckerController" + std::to_string(i)).c_str()));
+            controllersTlmCheckers.emplace_back(
+                std::make_unique<tlm_utils::tlm2_base_protocol_checker<>>(
+                    ("TLMCheckerController" + std::to_string(i)).c_str()));
     }
 }
 

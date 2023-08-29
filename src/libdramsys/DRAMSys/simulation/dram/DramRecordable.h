@@ -49,18 +49,20 @@
 namespace DRAMSys
 {
 
-template<typename BaseDram>
-class DramRecordable final : public BaseDram
+template <typename BaseDram> class DramRecordable final : public BaseDram
 {
 public:
-    DramRecordable(const sc_core::sc_module_name& name, const Configuration& config, TlmRecorder& tlmRecorder);
+    DramRecordable(const sc_core::sc_module_name& name,
+                   const Configuration& config,
+                   TlmRecorder& tlmRecorder);
     SC_HAS_PROCESS(DramRecordable);
 
     void reportPower() override;
 
 private:
     tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans,
-                                       tlm::tlm_phase& phase, sc_core::sc_time& delay) override;
+                                       tlm::tlm_phase& phase,
+                                       sc_core::sc_time& delay) override;
 
     TlmRecorder& tlmRecorder;
 
@@ -76,7 +78,8 @@ private:
 
 #ifdef DRAMPOWER
     // This Thread is only triggered when Power Simulation is enabled.
-    // It estimates the current average power which will be stored in the trace database for visualization purposes.
+    // It estimates the current average power which will be stored in the trace database for
+    // visualization purposes.
     void powerWindow();
 #endif
 };

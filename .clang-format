@@ -1,0 +1,11 @@
+﻿AccessModifierOffset: '-4'
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: Never
+BinPackArguments: 'false'
+BinPackParameters: 'false'
+BreakBeforeBraces: Allman
+BreakConstructorInitializers: AfterColon
+ColumnLimit: '100'
+IndentWidth: '4'
+PackConstructorInitializers: CurrentLine
+PointerAlignment: Left

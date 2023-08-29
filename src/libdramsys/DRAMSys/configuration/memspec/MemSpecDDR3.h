@@ -37,8 +37,8 @@
 #ifndef MEMSPECDDR3_H
 #define MEMSPECDDR3_H
 
-#include "DRAMSys/configuration/memspec/MemSpec.h"
 #include "DRAMSys/config/DRAMSysConfiguration.h"
+#include "DRAMSys/configuration/memspec/MemSpec.h"
 
 #include <systemc>
 
@@ -48,7 +48,7 @@ namespace DRAMSys
 class MemSpecDDR3 final : public MemSpec
 {
 public:
-    explicit MemSpecDDR3(const DRAMSys::Config::MemSpec &memSpec);
+    explicit MemSpecDDR3(const DRAMSys::Config::MemSpec& memSpec);
 
     // Memspec Variables:
     const sc_core::sc_time tCKE;
@@ -93,10 +93,15 @@ public:
     const double iDD3P0;
     const double iDD3P1;
 
-    sc_core::sc_time getRefreshIntervalAB() const override;
+    [[nodiscard]] sc_core::sc_time getRefreshIntervalAB() const override;
 
-    sc_core::sc_time getExecutionTime(Command command, const tlm::tlm_generic_payload &payload) const override;
-    TimeInterval getIntervalOnDataStrobe(Command command, const tlm::tlm_generic_payload &payload) const override;
+    [[nodiscard]] sc_core::sc_time
+    getExecutionTime(Command command, const tlm::tlm_generic_payload& payload) const override;
+    [[nodiscard]] TimeInterval
+    getIntervalOnDataStrobe(Command command,
+                            const tlm::tlm_generic_payload& payload) const override;
+
+    [[nodiscard]] bool requiresMaskedWrite(const tlm::tlm_generic_payload& payload) const override;
 };
 
 } // namespace DRAMSys

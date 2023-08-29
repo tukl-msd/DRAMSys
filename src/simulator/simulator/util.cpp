@@ -52,21 +52,21 @@ void loadBar(uint64_t x, uint64_t n, unsigned int w, unsigned int granularity)
     for (unsigned int x = 0; x < c; x++)
         std::cout << "█";
 
-    if (rest >= 0 && rest < 0.125f && c != w)
+    if (rest >= 0 && rest < 0.125F && c != w)
         std::cout << " ";
-    if (rest >= 0.125f && rest < 2 * 0.125f)
+    if (rest >= 0.125F && rest < 2 * 0.125F)
         std::cout << "▏";
-    if (rest >= 2 * 0.125f && rest < 3 * 0.125f)
+    if (rest >= 2 * 0.125F && rest < 3 * 0.125F)
         std::cout << "▎";
-    if (rest >= 3 * 0.125f && rest < 4 * 0.125f)
+    if (rest >= 3 * 0.125F && rest < 4 * 0.125F)
         std::cout << "▍";
-    if (rest >= 4 * 0.125f && rest < 5 * 0.125f)
+    if (rest >= 4 * 0.125F && rest < 5 * 0.125F)
         std::cout << "▌";
-    if (rest >= 5 * 0.125f && rest < 6 * 0.125f)
+    if (rest >= 5 * 0.125F && rest < 6 * 0.125F)
         std::cout << "▋";
-    if (rest >= 6 * 0.125f && rest < 7 * 0.125f)
+    if (rest >= 6 * 0.125F && rest < 7 * 0.125F)
         std::cout << "▊";
-    if (rest >= 7 * 0.125f && rest < 8 * 0.125f)
+    if (rest >= 7 * 0.125F && rest < 8 * 0.125F)
         std::cout << "▉";
 
     for (unsigned int x = c; x < (w - 1); x++)

@@ -45,10 +45,12 @@ namespace DRAMSys
 
 SchedulerFifo::SchedulerFifo(const Configuration& config)
 {
-    buffer = std::vector<std::deque<tlm_generic_payload*>>(config.memSpec->banksPerChannel);
+    buffer =
+        ControllerVector<Bank, std::deque<tlm_generic_payload*>>(config.memSpec->banksPerChannel);
 
     if (config.schedulerBuffer == Configuration::SchedulerBuffer::Bankwise)
-        bufferCounter = std::make_unique<BufferCounterBankwise>(config.requestBufferSize, config.memSpec->banksPerChannel);
+        bufferCounter = std::make_unique<BufferCounterBankwise>(config.requestBufferSize,
+                                                                config.memSpec->banksPerChannel);
     else if (config.schedulerBuffer == Configuration::SchedulerBuffer::ReadWrite)
         bufferCounter = std::make_unique<BufferCounterReadWrite>(config.requestBufferSize);
     else if (config.schedulerBuffer == Configuration::SchedulerBuffer::Shared)
@@ -62,42 +64,39 @@ bool SchedulerFifo::hasBufferSpace() const
 
 void SchedulerFifo::storeRequest(tlm_generic_payload& payload)
 {
-    buffer[ControllerExtension::getBank(payload).ID()].push_back(&payload);
+    buffer[ControllerExtension::getBank(payload)].push_back(&payload);
     bufferCounter->storeRequest(payload);
 }
 
 void SchedulerFifo::removeRequest(tlm_generic_payload& payload)
 {
-    buffer[ControllerExtension::getBank(payload).ID()].pop_front();
+    buffer[ControllerExtension::getBank(payload)].pop_front();
     bufferCounter->removeRequest(payload);
 }
 
 tlm_generic_payload* SchedulerFifo::getNextRequest(const BankMachine& bankMachine) const
 {
-    unsigned bankID = bankMachine.getBank().ID();
-    if (!buffer[bankID].empty())
-        return buffer[bankID].front();
-    else
-        return nullptr;
+    Bank bank = bankMachine.getBank();
+    if (!buffer[bank].empty())
+        return buffer[bank].front();
+
+    return nullptr;
 }
 
-bool SchedulerFifo::hasFurtherRowHit(Bank bank, Row row, tlm_command command) const
+bool SchedulerFifo::hasFurtherRowHit(Bank bank, Row row, [[maybe_unused]] tlm_command command) const
 {
-    if (buffer[bank.ID()].size() >= 2)
+    if (buffer[bank].size() >= 2)
     {
-        tlm_generic_payload& nextRequest = *buffer[bank.ID()][1];
+        tlm_generic_payload& nextRequest = *buffer[bank][1];
         if (ControllerExtension::getRow(nextRequest) == row)
             return true;
     }
     return false;
 }
 
-bool SchedulerFifo::hasFurtherRequest(Bank bank, tlm_command command) const
+bool SchedulerFifo::hasFurtherRequest(Bank bank, [[maybe_unused]] tlm_command command) const
 {
-    if (buffer[bank.ID()].size() >= 2)
-        return true;
-    else
-        return false;
+    return buffer[bank].size() >= 2;
 }
 
 const std::vector<unsigned>& SchedulerFifo::getBufferDepth() const

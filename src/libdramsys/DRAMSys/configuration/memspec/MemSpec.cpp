@@ -1,38 +1,38 @@
 /*
-* Copyright (c) 2015, RPTU Kaiserslautern-Landau
-* All rights reserved.
-*
-* Redistribution and use in source and binary forms, with or without
-* modification, are permitted provided that the following conditions are
-* met:
-*
-* 1. Redistributions of source code must retain the above copyright notice,
-*    this list of conditions and the following disclaimer.
-*
-* 2. Redistributions in binary form must reproduce the above copyright
-*    notice, this list of conditions and the following disclaimer in the
-*    documentation and/or other materials provided with the distribution.
-*
-* 3. Neither the name of the copyright holder nor the names of its
-*    contributors may be used to endorse or promote products derived from
-*    this software without specific prior written permission.
-*
-* THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-* "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-* TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-* PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER
-* OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-* EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-* PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-* PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-* LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-* NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-* SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*
-* Authors:
-*    Lukas Steiner
-*    Derek Christ
-*/
+ * Copyright (c) 2015, RPTU Kaiserslautern-Landau
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+ * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER
+ * OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Authors:
+ *    Lukas Steiner
+ *    Derek Christ
+ */
 
 #include "MemSpec.h"
 
@@ -43,13 +43,17 @@ namespace DRAMSys
 {
 
 MemSpec::MemSpec(const DRAMSys::Config::MemSpec& memSpec,
-    MemoryType memoryType,
-    unsigned numberOfChannels, unsigned pseudoChannelsPerChannel,
-    unsigned ranksPerChannel, unsigned banksPerRank,
-    unsigned groupsPerRank, unsigned banksPerGroup,
-    unsigned banksPerChannel, unsigned bankGroupsPerChannel,
-    unsigned devicesPerRank)
-    : numberOfChannels(numberOfChannels),
+                 MemoryType memoryType,
+                 unsigned numberOfChannels,
+                 unsigned pseudoChannelsPerChannel,
+                 unsigned ranksPerChannel,
+                 unsigned banksPerRank,
+                 unsigned groupsPerRank,
+                 unsigned banksPerGroup,
+                 unsigned banksPerChannel,
+                 unsigned bankGroupsPerChannel,
+                 unsigned devicesPerRank) :
+    numberOfChannels(numberOfChannels),
     pseudoChannelsPerChannel(pseudoChannelsPerChannel),
     ranksPerChannel(ranksPerChannel),
     banksPerRank(banksPerRank),
@@ -62,21 +66,21 @@ MemSpec::MemSpec(const DRAMSys::Config::MemSpec& memSpec,
     columnsPerRow(memSpec.memarchitecturespec.entries.at("nbrOfColumns")),
     defaultBurstLength(memSpec.memarchitecturespec.entries.at("burstLength")),
     maxBurstLength(memSpec.memarchitecturespec.entries.find("maxBurstLength") !=
-        memSpec.memarchitecturespec.entries.end()
-        ? memSpec.memarchitecturespec.entries.at("maxBurstLength")
-        : defaultBurstLength),
+                           memSpec.memarchitecturespec.entries.end()
+                       ? memSpec.memarchitecturespec.entries.at("maxBurstLength")
+                       : defaultBurstLength),
     dataRate(memSpec.memarchitecturespec.entries.at("dataRate")),
     bitWidth(memSpec.memarchitecturespec.entries.at("width")),
-    dataBusWidth(bitWidth* devicesPerRank),
+    dataBusWidth(bitWidth * devicesPerRank),
     bytesPerBeat(dataBusWidth / 8),
-    defaultBytesPerBurst((defaultBurstLength* dataBusWidth) / 8),
-    maxBytesPerBurst((maxBurstLength* dataBusWidth) / 8),
+    defaultBytesPerBurst((defaultBurstLength * dataBusWidth) / 8),
+    maxBytesPerBurst((maxBurstLength * dataBusWidth) / 8),
     fCKMHz(memSpec.memtimingspec.entries.at("clkMhz")),
     tCK(sc_time(1.0 / fCKMHz, SC_US)),
     memoryId(memSpec.memoryId),
     memoryType(memoryType),
-    burstDuration(tCK* (static_cast<double>(defaultBurstLength) / dataRate)),
-    memorySizeBytes(0)
+    burstDuration(tCK * (static_cast<double>(defaultBurstLength) / dataRate))
+
 {
     commandLengthInCycles = std::vector<double>(Command::numberOfCommands(), 1);
 }
@@ -146,6 +150,31 @@ unsigned MemSpec::getRAAMMT() const
 bool MemSpec::hasRasAndCasBus() const
 {
     return false;
+}
+
+bool MemSpec::requiresMaskedWrite(const tlm::tlm_generic_payload& payload) const
+{
+    if (allBytesEnabled(payload))
+        return false;
+
+    SC_REPORT_FATAL("MemSpec", "Standard does not support masked writes!");
+    throw;
+}
+
+bool MemSpec::allBytesEnabled(const tlm::tlm_generic_payload& trans)
+{
+    if (trans.get_byte_enable_ptr() == nullptr)
+        return true;
+
+    for (std::size_t i = 0; i < trans.get_byte_enable_length(); i++)
+    {
+        if (trans.get_byte_enable_ptr()[i] != TLM_BYTE_ENABLED)
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 } // namespace DRAMSys

@@ -36,8 +36,9 @@
 #ifndef DRAMSYS_UTIL_UTIL_H
 #define DRAMSYS_UTIL_UTIL_H
 
-namespace DRAMSys::util { 
+namespace DRAMSys::util
+{
 
 }
 
-#endif 
+#endif

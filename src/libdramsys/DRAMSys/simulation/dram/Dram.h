@@ -54,7 +54,6 @@ class libDRAMPower;
 namespace DRAMSys
 {
 
-
 class Dram : public sc_core::sc_module
 {
 protected:
@@ -74,7 +73,8 @@ protected:
 #endif
 
     virtual tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans,
-                                               tlm::tlm_phase& phase, sc_core::sc_time& delay);
+                                               tlm::tlm_phase& phase,
+                                               sc_core::sc_time& delay);
     virtual void b_transport(tlm::tlm_generic_payload& trans, sc_core::sc_time& delay);
     virtual unsigned int transport_dbg(tlm::tlm_generic_payload& trans);
 
@@ -86,6 +86,11 @@ public:
     tlm_utils::simple_target_socket<Dram> tSocket;
 
     virtual void reportPower();
+
+    Dram(const Dram&) = delete;
+    Dram(Dram&&) = delete;
+    Dram& operator=(const Dram&) = delete;
+    Dram& operator=(Dram&&) = delete;
     ~Dram() override;
 };
 

@@ -44,11 +44,15 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-BankMachine::BankMachine(const Configuration& config, const SchedulerIF& scheduler, Bank bank)
-    : scheduler(scheduler), memSpec(*config.memSpec), bank(bank),
-    bankgroup(BankGroup(bank.ID() / memSpec.banksPerGroup)), rank(Rank(bank.ID() / memSpec.banksPerRank)),
+BankMachine::BankMachine(const Configuration& config, const SchedulerIF& scheduler, Bank bank) :
+    memSpec(*config.memSpec),
+    scheduler(scheduler),
+    bank(bank),
+    bankgroup(BankGroup(static_cast<std::size_t>(bank) / memSpec.banksPerGroup)),
+    rank(Rank(static_cast<std::size_t>(bank) / memSpec.banksPerRank)),
     refreshManagement(config.refreshManagement)
-{}
+{
+}
 
 CommandTuple::Type BankMachine::getNextCommand()
 {
@@ -65,24 +69,35 @@ void BankMachine::update(Command command)
         keepTrans = true;
         refreshManagementCounter++;
         break;
-    case Command::PREPB: case Command::PRESB: case Command::PREAB:
+    case Command::PREPB:
+    case Command::PRESB:
+    case Command::PREAB:
         state = State::Precharged;
         keepTrans = false;
         break;
-    case Command::RD: case Command::WR:
+    case Command::RD:
+    case Command::WR:
+    case Command::MWR:
         currentPayload = nullptr;
         keepTrans = false;
         break;
-    case Command::RDA: case Command::WRA:
+    case Command::RDA:
+    case Command::WRA:
+    case Command::MWRA:
         state = State::Precharged;
         currentPayload = nullptr;
         keepTrans = false;
         break;
-    case Command::PDEA: case Command::PDEP: case Command::SREFEN:
+    case Command::PDEA:
+    case Command::PDEP:
+    case Command::SREFEN:
         assert(!keepTrans);
         sleeping = true;
         break;
-    case Command::REFPB: case Command::REFP2B: case Command::REFSB: case Command::REFAB:
+    case Command::REFPB:
+    case Command::REFP2B:
+    case Command::REFSB:
+    case Command::REFAB:
         sleeping = false;
         blocked = false;
 
@@ -94,7 +109,10 @@ void BankMachine::update(Command command)
                 refreshManagementCounter = 0;
         }
         break;
-    case Command::RFMPB: case Command::RFMP2B: case Command::RFMSB: case Command::RFMAB:
+    case Command::RFMPB:
+    case Command::RFMP2B:
+    case Command::RFMSB:
+    case Command::RFMAB:
         assert(!keepTrans);
         sleeping = false;
         blocked = false;
@@ -107,7 +125,8 @@ void BankMachine::update(Command command)
                 refreshManagementCounter = 0;
         }
         break;
-    case Command::PDXA: case Command::PDXP:
+    case Command::PDXA:
+    case Command::PDXP:
         assert(!keepTrans);
         sleeping = false;
         break;
@@ -162,8 +181,12 @@ bool BankMachine::isPrecharged() const
     return state == State::Precharged;
 }
 
-BankMachineOpen::BankMachineOpen(const Configuration& config, const SchedulerIF& scheduler, Bank bank)
-    : BankMachine(config, scheduler, bank) {}
+BankMachineOpen::BankMachineOpen(const Configuration& config,
+                                 const SchedulerIF& scheduler,
+                                 Bank bank) :
+    BankMachine(config, scheduler, bank)
+{
+}
 
 void BankMachineOpen::evaluate()
 {
@@ -173,43 +196,46 @@ void BankMachineOpen::evaluate()
     {
         tlm_generic_payload* newPayload = scheduler.getNextRequest(*this);
         if (newPayload == nullptr)
-        {
             return;
+
+        assert(!keepTrans || currentPayload != nullptr);
+        if (keepTrans)
+        {
+            if (ControllerExtension::getRow(*newPayload) == openRow)
+                currentPayload = newPayload;
         }
         else
         {
-            assert(!keepTrans || currentPayload != nullptr);
-            if (keepTrans)
-            {
-                if (ControllerExtension::getRow(*newPayload) == openRow)
-                    currentPayload = newPayload;
-            }
-            else
-            {
-                currentPayload = newPayload;
-            }
+            currentPayload = newPayload;
+        }
 
-            if (state == State::Precharged) // bank precharged
-                nextCommand = Command::ACT;
-            else if (state == State::Activated)
+        if (state == State::Precharged) // bank precharged
+            nextCommand = Command::ACT;
+        else if (state == State::Activated)
+        {
+            if (ControllerExtension::getRow(*currentPayload) == openRow) // row hit
             {
-                if (ControllerExtension::getRow(*currentPayload) == openRow) // row hit
+                assert(currentPayload->is_read() || currentPayload->is_write());
+                if (currentPayload->is_read())
+                    nextCommand = Command::RD;
+                else
                 {
-                    assert(currentPayload->is_read() || currentPayload->is_write());
-                    if (currentPayload->is_read())
-                        nextCommand = Command::RD;
-                    else
-                        nextCommand = Command::WR;
+                    nextCommand =
+                        memSpec.requiresMaskedWrite(*currentPayload) ? Command::MWR : Command::WR;
                 }
-                else // row miss
-                    nextCommand = Command::PREPB;
             }
+            else // row miss
+                nextCommand = Command::PREPB;
         }
     }
 }
 
-BankMachineClosed::BankMachineClosed(const Configuration& config, const SchedulerIF& scheduler, Bank bank)
-    : BankMachine(config, scheduler, bank) {}
+BankMachineClosed::BankMachineClosed(const Configuration& config,
+                                     const SchedulerIF& scheduler,
+                                     Bank bank) :
+    BankMachine(config, scheduler, bank)
+{
+}
 
 void BankMachineClosed::evaluate()
 {
@@ -219,38 +245,41 @@ void BankMachineClosed::evaluate()
     {
         tlm_generic_payload* newPayload = scheduler.getNextRequest(*this);
         if (newPayload == nullptr)
-        {
             return;
+
+        assert(!keepTrans || currentPayload != nullptr);
+        if (keepTrans)
+        {
+            if (ControllerExtension::getRow(*newPayload) == openRow)
+                currentPayload = newPayload;
         }
         else
         {
-            assert(!keepTrans || currentPayload != nullptr);
-            if (keepTrans)
-            {
-                if (ControllerExtension::getRow(*newPayload) == openRow)
-                    currentPayload = newPayload;
-            }
+            currentPayload = newPayload;
+        }
+
+        if (state == State::Precharged) // bank precharged
+            nextCommand = Command::ACT;
+        else if (state == State::Activated)
+        {
+            assert(currentPayload->is_read() || currentPayload->is_write());
+            if (currentPayload->is_read())
+                nextCommand = Command::RDA;
             else
             {
-                currentPayload = newPayload;
-            }
-
-            if (state == State::Precharged) // bank precharged
-                nextCommand = Command::ACT;
-            else if (state == State::Activated)
-            {
-                assert(currentPayload->is_read() || currentPayload->is_write());
-                if (currentPayload->is_read())
-                    nextCommand = Command::RDA;
-                else
-                    nextCommand = Command::WRA;
+                nextCommand =
+                    memSpec.requiresMaskedWrite(*currentPayload) ? Command::MWRA : Command::WRA;
             }
         }
     }
 }
 
-BankMachineOpenAdaptive::BankMachineOpenAdaptive(const Configuration& config, const SchedulerIF& scheduler, Bank bank)
-    : BankMachine(config, scheduler, bank) {}
+BankMachineOpenAdaptive::BankMachineOpenAdaptive(const Configuration& config,
+                                                 const SchedulerIF& scheduler,
+                                                 Bank bank) :
+    BankMachine(config, scheduler, bank)
+{
+}
 
 void BankMachineOpenAdaptive::evaluate()
 {
@@ -260,56 +289,61 @@ void BankMachineOpenAdaptive::evaluate()
     {
         tlm_generic_payload* newPayload = scheduler.getNextRequest(*this);
         if (newPayload == nullptr)
-        {
             return;
+
+        assert(!keepTrans || currentPayload != nullptr);
+        if (keepTrans)
+        {
+            if (ControllerExtension::getRow(*newPayload) == openRow)
+                currentPayload = newPayload;
         }
         else
         {
-            assert(!keepTrans || currentPayload != nullptr);
-            if (keepTrans)
-            {
-                if (ControllerExtension::getRow(*newPayload) == openRow)
-                    currentPayload = newPayload;
-            }
-            else
-            {
-                currentPayload = newPayload;
-            }
+            currentPayload = newPayload;
+        }
 
-            if (state == State::Precharged) // bank precharged
-                nextCommand = Command::ACT;
-            else if (state == State::Activated)
+        if (state == State::Precharged) // bank precharged
+            nextCommand = Command::ACT;
+        else if (state == State::Activated)
+        {
+            if (ControllerExtension::getRow(*currentPayload) == openRow) // row hit
             {
-                if (ControllerExtension::getRow(*currentPayload) == openRow) // row hit
+                if (scheduler.hasFurtherRequest(bank, currentPayload->get_command()) &&
+                    !scheduler.hasFurtherRowHit(bank, openRow, currentPayload->get_command()))
                 {
-                    if (scheduler.hasFurtherRequest(bank, currentPayload->get_command())
-                        && !scheduler.hasFurtherRowHit(bank, openRow, currentPayload->get_command()))
-                    {
-                        assert(currentPayload->is_read() || currentPayload->is_write());
-                        if (currentPayload->is_read())
-                            nextCommand = Command::RDA;
-                        else
-                            nextCommand = Command::WRA;
-                    }
+                    assert(currentPayload->is_read() || currentPayload->is_write());
+                    if (currentPayload->is_read())
+                        nextCommand = Command::RDA;
                     else
                     {
-                        assert(currentPayload->is_read() || currentPayload->is_write());
-                        if (currentPayload->is_read())
-                            nextCommand = Command::RD;
-                        else
-                            nextCommand = Command::WR;
+                        nextCommand = memSpec.requiresMaskedWrite(*currentPayload) ? Command::MWRA
+                                                                                   : Command::WRA;
                     }
                 }
-                else // row miss
-                    nextCommand = Command::PREPB;
+                else
+                {
+                    assert(currentPayload->is_read() || currentPayload->is_write());
+                    if (currentPayload->is_read())
+                        nextCommand = Command::RD;
+                    else
+                    {
+                        nextCommand = memSpec.requiresMaskedWrite(*currentPayload) ? Command::MWR
+                                                                                   : Command::WR;
+                    }
+                }
             }
+            else // row miss
+                nextCommand = Command::PREPB;
         }
     }
 }
 
-BankMachineClosedAdaptive::BankMachineClosedAdaptive(const Configuration& config, const SchedulerIF& scheduler,
-                                                     Bank bank)
-    : BankMachine(config, scheduler, bank) {}
+BankMachineClosedAdaptive::BankMachineClosedAdaptive(const Configuration& config,
+                                                     const SchedulerIF& scheduler,
+                                                     Bank bank) :
+    BankMachine(config, scheduler, bank)
+{
+}
 
 void BankMachineClosedAdaptive::evaluate()
 {
@@ -319,48 +353,50 @@ void BankMachineClosedAdaptive::evaluate()
     {
         tlm_generic_payload* newPayload = scheduler.getNextRequest(*this);
         if (newPayload == nullptr)
-        {
             return;
+
+        assert(!keepTrans || currentPayload != nullptr);
+        if (keepTrans)
+        {
+            if (ControllerExtension::getRow(*newPayload) == openRow)
+                currentPayload = newPayload;
         }
         else
         {
-            assert(!keepTrans || currentPayload != nullptr);
-            if (keepTrans)
-            {
-                if (ControllerExtension::getRow(*newPayload) == openRow)
-                    currentPayload = newPayload;
-            }
-            else
-            {
-                currentPayload = newPayload;
-            }
+            currentPayload = newPayload;
+        }
 
-            if (state == State::Precharged) // bank precharged
-                nextCommand = Command::ACT;
-            else if (state == State::Activated)
+        if (state == State::Precharged) // bank precharged
+            nextCommand = Command::ACT;
+        else if (state == State::Activated)
+        {
+            if (ControllerExtension::getRow(*currentPayload) == openRow) // row hit
             {
-                if (ControllerExtension::getRow(*currentPayload) == openRow) // row hit
+                if (scheduler.hasFurtherRowHit(bank, openRow, currentPayload->get_command()))
                 {
-                    if (scheduler.hasFurtherRowHit(bank, openRow, currentPayload->get_command()))
-                    {
-                        assert(currentPayload->is_read() || currentPayload->is_write());
-                        if (currentPayload->is_read())
-                            nextCommand = Command::RD;
-                        else
-                            nextCommand = Command::WR;
-                    }
+                    assert(currentPayload->is_read() || currentPayload->is_write());
+                    if (currentPayload->is_read())
+                        nextCommand = Command::RD;
                     else
                     {
-                        assert(currentPayload->is_read() || currentPayload->is_write());
-                        if (currentPayload->is_read())
-                            nextCommand = Command::RDA;
-                        else
-                            nextCommand = Command::WRA;
+                        nextCommand = memSpec.requiresMaskedWrite(*currentPayload) ? Command::MWR
+                                                                                   : Command::WR;
                     }
                 }
-                else // row miss, can happen when RD/WR mode is switched
-                    nextCommand = Command::PREPB;
+                else
+                {
+                    assert(currentPayload->is_read() || currentPayload->is_write());
+                    if (currentPayload->is_read())
+                        nextCommand = Command::RDA;
+                    else
+                    {
+                        nextCommand = memSpec.requiresMaskedWrite(*currentPayload) ? Command::MWRA
+                                                                                   : Command::WRA;
+                    }
+                }
             }
+            else // row miss, can happen when RD/WR mode is switched
+                nextCommand = Command::PREPB;
         }
     }
 }

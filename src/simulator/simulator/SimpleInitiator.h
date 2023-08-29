@@ -38,30 +38,31 @@
 #include "Initiator.h"
 #include "request/RequestIssuer.h"
 
-template <typename Producer>
-class SimpleInitiator : public Initiator
+template <typename Producer> class SimpleInitiator : public Initiator
 {
 public:
-    SimpleInitiator(sc_core::sc_module_name const &name,
-                    MemoryManager &memoryManager,
+    SimpleInitiator(sc_core::sc_module_name const& name,
+                    MemoryManager& memoryManager,
+                    unsigned int clkMhz,
                     std::optional<unsigned int> maxPendingReadRequests,
                     std::optional<unsigned int> maxPendingWriteRequests,
                     std::function<void()> transactionFinished,
                     std::function<void()> terminate,
-                    Producer &&producer)
-        : producer(std::forward<Producer>(producer)),
-          issuer(
-              name,
-              memoryManager,
-              maxPendingReadRequests,
-              maxPendingWriteRequests,
-              [this] { return this->producer.nextRequest(); },
-              std::move(transactionFinished),
-              std::move(terminate))
+                    Producer&& producer) :
+        producer(std::forward<Producer>(producer)),
+        issuer(
+            name,
+            memoryManager,
+            clkMhz,
+            maxPendingReadRequests,
+            maxPendingWriteRequests,
+            [this] { return this->producer.nextRequest(); },
+            std::move(transactionFinished),
+            std::move(terminate))
     {
     }
 
-    void bind(tlm_utils::multi_target_base<> &target) override { issuer.iSocket.bind(target); }
+    void bind(tlm_utils::multi_target_base<>& target) override { issuer.iSocket.bind(target); }
     uint64_t totalRequests() override { return producer.totalRequests(); };
 
 private:
