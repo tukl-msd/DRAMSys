@@ -54,7 +54,10 @@ namespace DRAMSys
 
 TlmRecorder::TlmRecorder(const std::string& name,
                          const Configuration& config,
-                         const std::string& dbName) :
+                         const std::string& dbName,
+                         std::string mcconfig,
+                         std::string memspec,
+                         std::string traces) :
     name(name),
     config(config),
     memSpec(*config.memSpec),
@@ -76,7 +79,7 @@ TlmRecorder::TlmRecorder(const std::string& name,
     executeInitialSqlCommand();
     prepareSqlStatements();
 
-    insertGeneralInfo();
+    insertGeneralInfo(mcconfig, memspec, traces);
     insertCommandLengths();
 
     PRINTDEBUGMESSAGE(name, "Starting new database transaction");
@@ -432,7 +435,7 @@ void TlmRecorder::insertDebugMessageInDB(const std::string& message, const sc_ti
     executeSqlStatement(insertDebugMessageStatement);
 }
 
-void TlmRecorder::insertGeneralInfo()
+void TlmRecorder::insertGeneralInfo(std::string mcconfig, std::string memspec, std::string traces)
 {
     sqlite3_bind_int(
         insertGeneralInfoStatement, 1, static_cast<int>(config.memSpec->ranksPerChannel));

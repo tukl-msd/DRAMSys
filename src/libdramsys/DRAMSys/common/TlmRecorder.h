@@ -62,18 +62,17 @@ namespace DRAMSys
 class TlmRecorder
 {
 public:
-    TlmRecorder(const std::string& name, const Configuration& config, const std::string& dbName);
+    TlmRecorder(const std::string& name,
+                const Configuration& config,
+                const std::string& dbName,
+                std::string mcconfig,
+                std::string memspec,
+                std::string traces);
     TlmRecorder(const TlmRecorder&) = delete;
     TlmRecorder(TlmRecorder&&) = default;
     TlmRecorder& operator=(const TlmRecorder&) = delete;
     TlmRecorder& operator=(TlmRecorder&&) = delete;
     ~TlmRecorder() = default;
-
-    void recordMcConfig(std::string _mcconfig) { mcconfig = std::move(_mcconfig); }
-
-    void recordMemspec(std::string _memspec) { memspec = std::move(_memspec); }
-
-    void recordTraceNames(std::string _traces) { traces = std::move(_traces); }
 
     void recordPhase(tlm::tlm_generic_payload& trans,
                      const tlm::tlm_phase& phase,
@@ -157,8 +156,6 @@ private:
         std::vector<Phase> recordedPhases;
     };
 
-    std::string mcconfig, memspec, traces;
-
     void prepareSqlStatements();
     void executeInitialSqlCommand();
     static void executeSqlStatement(sqlite3_stmt* statement);
@@ -171,7 +168,7 @@ private:
 
     void terminateRemainingTransactions();
     void commitRecordedDataToDB();
-    void insertGeneralInfo();
+    void insertGeneralInfo(std::string mcconfig, std::string memspec, std::string traces);
     void insertCommandLengths();
     void insertTransactionInDB(const Transaction& recordingData);
     void insertRangeInDB(uint64_t id, const sc_core::sc_time& begin, const sc_core::sc_time& end);

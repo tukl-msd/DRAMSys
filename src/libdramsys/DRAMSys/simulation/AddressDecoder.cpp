@@ -125,12 +125,17 @@ AddressDecoder::AddressDecoder(const DRAMSys::Config::AddressMapping& addressMap
             SC_REPORT_FATAL("AddressDecoder", "Not all address bits occur exactly once");
     }
 
-    unsigned highestByteBit = *std::max_element(vByteBits.begin(), vByteBits.end());
+    int highestByteBit = -1;
 
-    for (unsigned bitPosition = 0; bitPosition <= highestByteBit; bitPosition++)
+    if (!vByteBits.empty())
     {
-        if (std::find(vByteBits.begin(), vByteBits.end(), bitPosition) == vByteBits.end())
-            SC_REPORT_FATAL("AddressDecoder", "Byte bits are not continuous starting from 0");
+        highestByteBit = static_cast<int>(*std::max_element(vByteBits.begin(), vByteBits.end()));
+
+        for (unsigned bitPosition = 0; bitPosition <= highestByteBit; bitPosition++)
+        {
+            if (std::find(vByteBits.begin(), vByteBits.end(), bitPosition) == vByteBits.end())
+                SC_REPORT_FATAL("AddressDecoder", "Byte bits are not continuous starting from 0");
+        }
     }
 
     auto maxBurstLengthBits = static_cast<unsigned>(std::log2(memSpec.maxBurstLength));

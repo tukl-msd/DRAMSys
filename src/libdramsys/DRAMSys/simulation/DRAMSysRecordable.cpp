@@ -118,10 +118,8 @@ void DRAMSysRecordable::setupTlmRecorders(const std::string& traceName,
         mcconfig[Config::McConfig::KEY] = configLib.mcconfig;
         memspec[Config::MemSpec::KEY] = configLib.memspec;
 
-        tlmRecorders.emplace_back(recorderName, config, dbName);
-        tlmRecorders.back().recordMcConfig(mcconfig.dump());
-        tlmRecorders.back().recordMemspec(memspec.dump());
-        tlmRecorders.back().recordTraceNames(config.simulationName);
+        tlmRecorders.emplace_back(
+            recorderName, config, dbName, mcconfig.dump(), memspec.dump(), config.simulationName);
     }
 }
 
