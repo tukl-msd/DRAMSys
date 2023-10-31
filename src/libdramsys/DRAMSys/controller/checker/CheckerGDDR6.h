@@ -35,9 +35,9 @@
 #ifndef CHECKERGDDR6_H
 #define CHECKERGDDR6_H
 
-#include "DRAMSys/controller/checker/CheckerIF.h"
-#include "DRAMSys/configuration/memspec/MemSpecGDDR6.h"
 #include "DRAMSys/configuration/Configuration.h"
+#include "DRAMSys/configuration/memspec/MemSpecGDDR6.h"
+#include "DRAMSys/controller/checker/CheckerIF.h"
 
 #include <queue>
 #include <vector>
@@ -49,11 +49,13 @@ class CheckerGDDR6 final : public CheckerIF
 {
 public:
     explicit CheckerGDDR6(const Configuration& config);
-    [[nodiscard]] sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const override;
+    [[nodiscard]] sc_core::sc_time
+    timeToSatisfyConstraints(Command command,
+                             const tlm::tlm_generic_payload& payload) const override;
     void insert(Command command, const tlm::tlm_generic_payload& payload) override;
 
 private:
-    const MemSpecGDDR6 *memSpec;
+    const MemSpecGDDR6* memSpec;
 
     std::vector<ControllerVector<Bank, sc_core::sc_time>> lastScheduledByCommandAndBank;
     std::vector<ControllerVector<BankGroup, sc_core::sc_time>> lastScheduledByCommandAndBankGroup;

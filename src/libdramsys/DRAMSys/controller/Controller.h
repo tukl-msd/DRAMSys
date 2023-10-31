@@ -48,6 +48,7 @@
 #include <stack>
 #include <systemc>
 #include <tlm>
+#include <utility>
 #include <vector>
 
 namespace DRAMSys
@@ -60,6 +61,9 @@ public:
                const Configuration& config,
                const AddressDecoder& addressDecoder);
     SC_HAS_PROCESS(Controller);
+
+    [[nodiscard]] bool idle() const override;
+    void registerIdleCallback(std::function<void()> idleCallback);
 
 protected:
     tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans,
@@ -88,6 +92,7 @@ protected:
 
 private:
     unsigned totalNumberOfPayloads = 0;
+    std::function<void()> idleCallback;
     ControllerVector<Rank, unsigned> ranksNumberOfPayloads;
     ReadyCommands readyCommands;
 

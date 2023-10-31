@@ -131,7 +131,7 @@ AddressDecoder::AddressDecoder(const DRAMSys::Config::AddressMapping& addressMap
     {
         highestByteBit = static_cast<int>(*std::max_element(vByteBits.begin(), vByteBits.end()));
 
-        for (unsigned bitPosition = 0; bitPosition <= highestByteBit; bitPosition++)
+        for (unsigned bitPosition = 0; bitPosition <= static_cast<unsigned>(highestByteBit); bitPosition++)
         {
             if (std::find(vByteBits.begin(), vByteBits.end(), bitPosition) == vByteBits.end())
                 SC_REPORT_FATAL("AddressDecoder", "Byte bits are not continuous starting from 0");

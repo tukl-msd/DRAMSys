@@ -35,9 +35,9 @@
 #ifndef CHECKERLPDDR4_H
 #define CHECKERLPDDR4_H
 
-#include "DRAMSys/controller/checker/CheckerIF.h"
-#include "DRAMSys/configuration/memspec/MemSpecLPDDR4.h"
 #include "DRAMSys/configuration/Configuration.h"
+#include "DRAMSys/configuration/memspec/MemSpecLPDDR4.h"
+#include "DRAMSys/controller/checker/CheckerIF.h"
 
 #include <queue>
 #include <vector>
@@ -49,11 +49,13 @@ class CheckerLPDDR4 final : public CheckerIF
 {
 public:
     explicit CheckerLPDDR4(const Configuration& config);
-    [[nodiscard]] sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const override;
+    [[nodiscard]] sc_core::sc_time
+    timeToSatisfyConstraints(Command command,
+                             const tlm::tlm_generic_payload& payload) const override;
     void insert(Command command, const tlm::tlm_generic_payload& payload) override;
 
 private:
-    const MemSpecLPDDR4 *memSpec;
+    const MemSpecLPDDR4* memSpec;
 
     std::vector<ControllerVector<Bank, sc_core::sc_time>> lastScheduledByCommandAndBank;
     std::vector<ControllerVector<Rank, sc_core::sc_time>> lastScheduledByCommandAndRank;

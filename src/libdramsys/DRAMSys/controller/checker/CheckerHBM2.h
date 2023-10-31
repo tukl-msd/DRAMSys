@@ -35,9 +35,9 @@
 #ifndef CHECKERHBM2_H
 #define CHECKERHBM2_H
 
-#include "DRAMSys/controller/checker/CheckerIF.h"
-#include "DRAMSys/configuration/memspec/MemSpecHBM2.h"
 #include "DRAMSys/configuration/Configuration.h"
+#include "DRAMSys/configuration/memspec/MemSpecHBM2.h"
+#include "DRAMSys/controller/checker/CheckerIF.h"
 
 #include <queue>
 #include <vector>
@@ -49,11 +49,13 @@ class CheckerHBM2 final : public CheckerIF
 {
 public:
     explicit CheckerHBM2(const Configuration& config);
-    [[nodiscard]] sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const override;
+    [[nodiscard]] sc_core::sc_time
+    timeToSatisfyConstraints(Command command,
+                             const tlm::tlm_generic_payload& payload) const override;
     void insert(Command command, const tlm::tlm_generic_payload& payload) override;
 
 private:
-    const MemSpecHBM2 *memSpec;
+    const MemSpecHBM2* memSpec;
 
     std::vector<ControllerVector<Bank, sc_core::sc_time>> lastScheduledByCommandAndBank;
     std::vector<ControllerVector<BankGroup, sc_core::sc_time>> lastScheduledByCommandAndBankGroup;

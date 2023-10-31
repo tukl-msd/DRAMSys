@@ -5,7 +5,7 @@
         "DatabaseRecording": true,
         "Debug": false,
         "EnableWindowing": true,
-        "PowerAnalysis": true,
+        "PowerAnalysis": false,
         "SimulationName": "gem5_se",
         "SimulationProgressBar": true,
         "StoreMode": "Store",

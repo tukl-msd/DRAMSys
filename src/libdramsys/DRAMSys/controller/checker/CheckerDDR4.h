@@ -35,14 +35,14 @@
 #ifndef CHECKERDDR4_H
 #define CHECKERDDR4_H
 
-#include "DRAMSys/controller/checker/CheckerIF.h"
-#include "DRAMSys/configuration/memspec/MemSpecDDR4.h"
 #include "DRAMSys/configuration/Configuration.h"
+#include "DRAMSys/configuration/memspec/MemSpecDDR4.h"
+#include "DRAMSys/controller/checker/CheckerIF.h"
 
 #include <queue>
-#include <vector>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 namespace DRAMSys
 {
@@ -51,11 +51,13 @@ class CheckerDDR4 final : public CheckerIF
 {
 public:
     explicit CheckerDDR4(const Configuration& config);
-    [[nodiscard]] sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const override;
+    [[nodiscard]] sc_core::sc_time
+    timeToSatisfyConstraints(Command command,
+                             const tlm::tlm_generic_payload& payload) const override;
     void insert(Command command, const tlm::tlm_generic_payload& payload) override;
 
 private:
-    const MemSpecDDR4 *memSpec;
+    const MemSpecDDR4* memSpec;
 
     std::vector<ControllerVector<Bank, sc_core::sc_time>> lastScheduledByCommandAndBank;
     std::vector<ControllerVector<BankGroup, sc_core::sc_time>> lastScheduledByCommandAndBankGroup;

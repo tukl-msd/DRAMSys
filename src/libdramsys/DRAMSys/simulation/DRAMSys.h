@@ -41,14 +41,14 @@
 #ifndef DRAMSYS_H
 #define DRAMSYS_H
 
+#include "DRAMSys/common/Serialize.h"
 #include "DRAMSys/common/tlm2_base_protocol_checker.h"
-#include "DRAMSys/controller/ControllerIF.h"
+#include "DRAMSys/config/DRAMSysConfiguration.h"
+#include "DRAMSys/controller/Controller.h"
 #include "DRAMSys/simulation/AddressDecoder.h"
 #include "DRAMSys/simulation/Arbiter.h"
 #include "DRAMSys/simulation/ReorderBuffer.h"
 #include "DRAMSys/simulation/dram/Dram.h"
-
-#include "DRAMSys/config/DRAMSysConfiguration.h"
 
 #include <list>
 #include <memory>
@@ -72,6 +72,17 @@ public:
     const Configuration& getConfig() const;
     const AddressDecoder& getAddressDecoder() const { return *addressDecoder; }
 
+    /**
+     * Returns true if all memory controllers are in idle state.
+     */
+    [[nodiscard]] bool idle() const;
+
+    /**
+     * Registers a callback that is called whenever a memory controller switches to the idle state.
+     * Check afterwards with idle() if all memory controllers are now idle.
+     */
+    void registerIdleCallback(const std::function<void()>& idleCallback);
+
 protected:
     DRAMSys(const sc_core::sc_module_name& name,
             const ::DRAMSys::Config::Configuration& configLib,
@@ -91,7 +102,7 @@ protected:
     std::unique_ptr<Arbiter> arbiter;
 
     // Each DRAM unit has a controller
-    std::vector<std::unique_ptr<ControllerIF>> controllers;
+    std::vector<std::unique_ptr<Controller>> controllers;
 
     // DRAM units
     std::vector<std::unique_ptr<Dram>> drams;

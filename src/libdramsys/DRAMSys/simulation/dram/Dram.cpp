@@ -71,10 +71,10 @@ Dram::Dram(const sc_module_name& name, const Configuration& config) :
     memSpec(*config.memSpec),
     storeMode(config.storeMode),
     powerAnalysis(config.powerAnalysis),
+    channelSize(memSpec.getSimMemSizeInBytes() / memSpec.numberOfChannels),
     useMalloc(config.useMalloc),
     tSocket("socket")
 {
-    uint64_t channelSize = memSpec.getSimMemSizeInBytes() / memSpec.numberOfChannels;
     if (storeMode == Configuration::StoreMode::Store)
     {
         if (useMalloc)
@@ -319,6 +319,18 @@ void Dram::b_transport(tlm_generic_payload& trans, [[maybe_unused]] sc_time& del
     {
         SC_REPORT_FATAL("DRAM", "Blocking transport not supported with error model yet.");
     }
+
+    trans.set_response_status(tlm::TLM_OK_RESPONSE);
+}
+
+void Dram::serialize(std::ostream& stream) const
+{
+    stream.write(reinterpret_cast<char const*>(memory), channelSize);
+}
+
+void Dram::deserialize(std::istream& stream)
+{
+    stream.read(reinterpret_cast<char*>(memory), channelSize);
 }
 
 } // namespace DRAMSys

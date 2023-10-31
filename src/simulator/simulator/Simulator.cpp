@@ -43,7 +43,8 @@
 
 Simulator::Simulator(DRAMSys::Config::Configuration configuration,
                      std::filesystem::path resourceDirectory) :
-    memoryManager(configuration.simconfig.StoreMode == DRAMSys::Config::StoreModeType::Store),
+    storageEnabled(configuration.simconfig.StoreMode == DRAMSys::Config::StoreModeType::Store),
+    memoryManager(storageEnabled),
     configuration(std::move(configuration)),
     resourceDirectory(std::move(resourceDirectory))
 {
@@ -122,8 +123,11 @@ Simulator::instantiateInitiator(const DRAMSys::Config::Initiator& initiator)
                     SC_REPORT_FATAL("Simulator", report.c_str());
                 }
 
-                StlPlayer player(
-                    tracePath.c_str(), config.clkMhz, defaultDataLength, *traceType, false);
+                StlPlayer player(tracePath.c_str(),
+                                 config.clkMhz,
+                                 defaultDataLength,
+                                 *traceType,
+                                 storageEnabled);
 
                 return std::make_unique<SimpleInitiator<StlPlayer>>(config.name.c_str(),
                                                                     memoryManager,

@@ -41,6 +41,8 @@
 #ifndef DRAM_H
 #define DRAM_H
 
+#include "DRAMSys/common/Deserialize.h"
+#include "DRAMSys/common/Serialize.h"
 #include "DRAMSys/configuration/Configuration.h"
 #include "DRAMSys/configuration/memspec/MemSpec.h"
 
@@ -54,7 +56,7 @@ class libDRAMPower;
 namespace DRAMSys
 {
 
-class Dram : public sc_core::sc_module
+class Dram : public sc_core::sc_module, public Serialize, public Deserialize
 {
 protected:
     Dram(const sc_core::sc_module_name& name, const Configuration& config);
@@ -66,6 +68,7 @@ protected:
     const Configuration::StoreMode storeMode;
     const bool powerAnalysis;
     unsigned char* memory;
+    const uint64_t channelSize;
     const bool useMalloc;
 
 #ifdef DRAMPOWER
@@ -86,6 +89,9 @@ public:
     tlm_utils::simple_target_socket<Dram> tSocket;
 
     virtual void reportPower();
+
+    void serialize(std::ostream& stream) const override;
+    void deserialize(std::istream& stream) override;
 
     Dram(const Dram&) = delete;
     Dram(Dram&&) = delete;

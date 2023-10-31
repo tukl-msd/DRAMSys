@@ -27,3 +27,4 @@ DRAMSys/docs/doxygen
 cmake-build*
 .idea
 .cache
+.env

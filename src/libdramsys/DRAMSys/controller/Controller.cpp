@@ -273,6 +273,16 @@ Controller::Controller(const sc_module_name& name,
         SC_REPORT_FATAL("Controller", "Selected refresh mode not supported!");
 }
 
+bool Controller::idle() const
+{
+    return totalNumberOfPayloads == 0;
+}
+
+void Controller::registerIdleCallback(std::function<void()> idleCallback)
+{
+    this->idleCallback = std::move(idleCallback);
+}
+
 void Controller::controllerMethod()
 {
     if (isFullCycle(sc_time_stamp(), memSpec.tCK))
@@ -575,6 +585,11 @@ void Controller::manageResponses()
             if (totalNumberOfPayloads == 0)
             {
                 idleTimeCollector.start();
+
+                if (idleCallback)
+                {
+                    idleCallback();
+                }
             }
         }
         else

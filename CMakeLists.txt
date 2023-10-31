@@ -28,7 +28,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Authors: 
+# Authors:
 #    Thomas Psota
 #    Lukas Steiner
 
@@ -125,7 +125,7 @@ if(DRAMSYS_BUILD_TESTS)
 endif()
 
 ### SystemC ###
-list(APPEND CMAKE_PREFIX_PATH $ENV{SYSTEMC_HOME} /opt/systemc/)
+list(APPEND CMAKE_PREFIX_PATH $ENV{SYSTEMC_HOME})
 FetchContent_Declare(
     systemc
     GIT_REPOSITORY https://github.com/accellera-official/systemc.git
@@ -133,7 +133,11 @@ FetchContent_Declare(
     FIND_PACKAGE_ARGS NAMES SystemCLanguage)
 
 set(DISABLE_COPYRIGHT_MESSAGE True)
-FetchContent_MakeAvailable(systemc)
+
+# Allow populating of a user-set SystemC package
+if (NOT TARGET SystemC::systemc)
+    FetchContent_MakeAvailable(systemc)
+endif()
 
 ### DRAMPower ###
 if (DRAMSYS_WITH_DRAMPOWER)

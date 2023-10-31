@@ -199,7 +199,8 @@ void StlPlayer::parseTraceFile()
                 iss >> element;
 
                 // Check if data length in the trace file is correct.
-                // We need two characters to represent 1 byte in hexadecimal. Offset for 0x prefix.
+                // We need two characters to represent 1 byte in hexadecimal. Offset for 0x
+                // prefix.
                 if (element.length() != (content.length * 2 + 2))
                     SC_REPORT_FATAL(
                         "StlPlayer",

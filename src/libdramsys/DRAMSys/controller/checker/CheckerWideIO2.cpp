@@ -50,10 +50,12 @@ CheckerWideIO2::CheckerWideIO2(const Configuration& config) :
     if (memSpec == nullptr)
         SC_REPORT_FATAL("CheckerWideIO2", "Wrong MemSpec chosen");
 
-    lastScheduledByCommandAndBank = std::vector<ControllerVector<Bank, sc_time>>
-            (Command::numberOfCommands(), ControllerVector<Bank, sc_time>(memSpec->banksPerChannel, scMaxTime));
-    lastScheduledByCommandAndRank = std::vector<ControllerVector<Rank, sc_time>>
-            (Command::numberOfCommands(), ControllerVector<Rank, sc_time>(memSpec->ranksPerChannel, scMaxTime));
+    lastScheduledByCommandAndBank = std::vector<ControllerVector<Bank, sc_time>>(
+        Command::numberOfCommands(),
+        ControllerVector<Bank, sc_time>(memSpec->banksPerChannel, scMaxTime));
+    lastScheduledByCommandAndRank = std::vector<ControllerVector<Rank, sc_time>>(
+        Command::numberOfCommands(),
+        ControllerVector<Rank, sc_time>(memSpec->ranksPerChannel, scMaxTime));
     lastScheduledByCommand = std::vector<sc_time>(Command::numberOfCommands(), scMaxTime);
     lastCommandOnBus = scMaxTime;
     last4Activates = ControllerVector<Rank, std::queue<sc_time>>(memSpec->ranksPerChannel);
@@ -70,7 +72,8 @@ CheckerWideIO2::CheckerWideIO2(const Configuration& config) :
     tWRRD_R = memSpec->tWL + memSpec->tCK + tBURST + memSpec->tRTRS - memSpec->tRL;
 }
 
-sc_time CheckerWideIO2::timeToSatisfyConstraints(Command command, const tlm_generic_payload& payload) const
+sc_time CheckerWideIO2::timeToSatisfyConstraints(Command command,
+                                                 const tlm_generic_payload& payload) const
 {
     Rank rank = ControllerExtension::getRank(payload);
     Bank bank = ControllerExtension::getBank(payload);
@@ -92,30 +95,42 @@ sc_time CheckerWideIO2::timeToSatisfyConstraints(Command command, const tlm_gene
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCCD);
 
-        lastCommandStart = lastScheduledByCommand[Command::RD] != lastScheduledByCommandAndRank[Command::RD][rank] ? lastScheduledByCommand[Command::RD] : scMaxTime;
+        lastCommandStart =
+            lastScheduledByCommand[Command::RD] != lastScheduledByCommandAndRank[Command::RD][rank]
+                ? lastScheduledByCommand[Command::RD]
+                : scMaxTime;
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tBURST + memSpec->tRTRS);
+            earliestTimeToStart =
+                std::max(earliestTimeToStart, lastCommandStart + tBURST + memSpec->tRTRS);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::RDA][rank];
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCCD);
 
-        lastCommandStart = lastScheduledByCommand[Command::RDA] != lastScheduledByCommandAndRank[Command::RDA][rank] ? lastScheduledByCommand[Command::RDA] : scMaxTime;
+        lastCommandStart = lastScheduledByCommand[Command::RDA] !=
+                                   lastScheduledByCommandAndRank[Command::RDA][rank]
+                               ? lastScheduledByCommand[Command::RDA]
+                               : scMaxTime;
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tBURST + memSpec->tRTRS);
+            earliestTimeToStart =
+                std::max(earliestTimeToStart, lastCommandStart + tBURST + memSpec->tRTRS);
 
         if (command == Command::RDA)
         {
             lastCommandStart = lastScheduledByCommandAndBank[Command::WR][bank];
             if (lastCommandStart != scMaxTime)
-                earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRPRE - tRDPRE);
+                earliestTimeToStart =
+                    std::max(earliestTimeToStart, lastCommandStart + tWRPRE - tRDPRE);
         }
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::WR][rank];
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRRD);
 
-        lastCommandStart = lastScheduledByCommand[Command::WR] != lastScheduledByCommandAndRank[Command::WR][rank] ? lastScheduledByCommand[Command::WR] : scMaxTime;
+        lastCommandStart =
+            lastScheduledByCommand[Command::WR] != lastScheduledByCommandAndRank[Command::WR][rank]
+                ? lastScheduledByCommand[Command::WR]
+                : scMaxTime;
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRRD_R);
 
@@ -123,7 +138,10 @@ sc_time CheckerWideIO2::timeToSatisfyConstraints(Command command, const tlm_gene
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRRD);
 
-        lastCommandStart = lastScheduledByCommand[Command::WRA] != lastScheduledByCommandAndRank[Command::WRA][rank] ? lastScheduledByCommand[Command::WRA] : scMaxTime;
+        lastCommandStart = lastScheduledByCommand[Command::WRA] !=
+                                   lastScheduledByCommandAndRank[Command::WRA][rank]
+                               ? lastScheduledByCommand[Command::WRA]
+                               : scMaxTime;
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRRD_R);
 
@@ -131,7 +149,8 @@ sc_time CheckerWideIO2::timeToSatisfyConstraints(Command command, const tlm_gene
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXP);
     }
-    else if (command == Command::WR || command == Command::WRA || command == Command::MWR || command == Command::MWRA)
+    else if (command == Command::WR || command == Command::WRA || command == Command::MWR ||
+             command == Command::MWRA)
     {
         unsigned burstLength = ControllerExtension::getBurstLength(payload);
         assert((burstLength == 4) || (burstLength == 8));
@@ -145,7 +164,10 @@ sc_time CheckerWideIO2::timeToSatisfyConstraints(Command command, const tlm_gene
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tRDWR);
 
-        lastCommandStart = lastScheduledByCommand[Command::RD] != lastScheduledByCommandAndRank[Command::RD][rank] ? lastScheduledByCommand[Command::RD] : scMaxTime;
+        lastCommandStart =
+            lastScheduledByCommand[Command::RD] != lastScheduledByCommandAndRank[Command::RD][rank]
+                ? lastScheduledByCommand[Command::RD]
+                : scMaxTime;
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tRDWR_R);
 
@@ -153,7 +175,10 @@ sc_time CheckerWideIO2::timeToSatisfyConstraints(Command command, const tlm_gene
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tRDWR);
 
-        lastCommandStart = lastScheduledByCommand[Command::RDA] != lastScheduledByCommandAndRank[Command::RDA][rank] ? lastScheduledByCommand[Command::RDA] : scMaxTime;
+        lastCommandStart = lastScheduledByCommand[Command::RDA] !=
+                                   lastScheduledByCommandAndRank[Command::RDA][rank]
+                               ? lastScheduledByCommand[Command::RDA]
+                               : scMaxTime;
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tRDWR_R);
 
@@ -161,17 +186,25 @@ sc_time CheckerWideIO2::timeToSatisfyConstraints(Command command, const tlm_gene
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCCD);
 
-        lastCommandStart = lastScheduledByCommand[Command::WR] != lastScheduledByCommandAndRank[Command::WR][rank] ? lastScheduledByCommand[Command::WR] : scMaxTime;
+        lastCommandStart =
+            lastScheduledByCommand[Command::WR] != lastScheduledByCommandAndRank[Command::WR][rank]
+                ? lastScheduledByCommand[Command::WR]
+                : scMaxTime;
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tBURST + memSpec->tRTRS);
+            earliestTimeToStart =
+                std::max(earliestTimeToStart, lastCommandStart + tBURST + memSpec->tRTRS);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::WRA][rank];
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCCD);
 
-        lastCommandStart = lastScheduledByCommand[Command::WRA] != lastScheduledByCommandAndRank[Command::WRA][rank] ? lastScheduledByCommand[Command::WRA] : scMaxTime;
+        lastCommandStart = lastScheduledByCommand[Command::WRA] !=
+                                   lastScheduledByCommandAndRank[Command::WRA][rank]
+                               ? lastScheduledByCommand[Command::WRA]
+                               : scMaxTime;
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tBURST + memSpec->tRTRS);
+            earliestTimeToStart =
+                std::max(earliestTimeToStart, lastCommandStart + tBURST + memSpec->tRTRS);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PDXA][rank];
         if (lastCommandStart != scMaxTime)
@@ -189,11 +222,13 @@ sc_time CheckerWideIO2::timeToSatisfyConstraints(Command command, const tlm_gene
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::RDA][bank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tRDPRE + memSpec->tRPpb);
+            earliestTimeToStart =
+                std::max(earliestTimeToStart, lastCommandStart + tRDPRE + memSpec->tRPpb);
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::WRA][bank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec->tRPpb);
+            earliestTimeToStart =
+                std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec->tRPpb);
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::PREPB][bank];
         if (lastCommandStart != scMaxTime)
@@ -228,7 +263,8 @@ sc_time CheckerWideIO2::timeToSatisfyConstraints(Command command, const tlm_gene
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXSR);
 
         if (last4Activates[rank].size() >= 4)
-            earliestTimeToStart = std::max(earliestTimeToStart, last4Activates[rank].front() + memSpec->tFAW);
+            earliestTimeToStart =
+                std::max(earliestTimeToStart, last4Activates[rank].front() + memSpec->tFAW);
     }
     else if (command == Command::PREPB)
     {
@@ -246,7 +282,8 @@ sc_time CheckerWideIO2::timeToSatisfyConstraints(Command command, const tlm_gene
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PREPB][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + 2 * memSpec->tCK);
+            earliestTimeToStart =
+                std::max(earliestTimeToStart, lastCommandStart + 2 * memSpec->tCK);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PDXA][rank];
         if (lastCommandStart != scMaxTime)
@@ -276,7 +313,8 @@ sc_time CheckerWideIO2::timeToSatisfyConstraints(Command command, const tlm_gene
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PREPB][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + 2 * memSpec->tCK);
+            earliestTimeToStart =
+                std::max(earliestTimeToStart, lastCommandStart + 2 * memSpec->tCK);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PDXA][rank];
         if (lastCommandStart != scMaxTime)
@@ -286,7 +324,7 @@ sc_time CheckerWideIO2::timeToSatisfyConstraints(Command command, const tlm_gene
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCpb);
     }
-    else if(command == Command::REFAB)
+    else if (command == Command::REFAB)
     {
         lastCommandStart = lastScheduledByCommandAndRank[Command::ACT][rank];
         if (lastCommandStart != scMaxTime)
@@ -294,11 +332,13 @@ sc_time CheckerWideIO2::timeToSatisfyConstraints(Command command, const tlm_gene
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::RDA][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tRDPRE + memSpec->tRPpb);
+            earliestTimeToStart =
+                std::max(earliestTimeToStart, lastCommandStart + tRDPRE + memSpec->tRPpb);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::WRA][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec->tRPpb);
+            earliestTimeToStart =
+                std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec->tRPpb);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PREPB][rank];
         if (lastCommandStart != scMaxTime)
@@ -324,7 +364,7 @@ sc_time CheckerWideIO2::timeToSatisfyConstraints(Command command, const tlm_gene
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXSR);
     }
-    else if(command == Command::REFPB)
+    else if (command == Command::REFPB)
     {
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank];
         if (lastCommandStart != scMaxTime)
@@ -336,11 +376,13 @@ sc_time CheckerWideIO2::timeToSatisfyConstraints(Command command, const tlm_gene
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::RDA][bank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tRDPRE + memSpec->tRPpb);
+            earliestTimeToStart =
+                std::max(earliestTimeToStart, lastCommandStart + tRDPRE + memSpec->tRPpb);
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::WRA][bank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec->tRPpb);
+            earliestTimeToStart =
+                std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec->tRPpb);
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::PREPB][bank];
         if (lastCommandStart != scMaxTime)
@@ -371,7 +413,8 @@ sc_time CheckerWideIO2::timeToSatisfyConstraints(Command command, const tlm_gene
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXSR);
 
         if (last4Activates[rank].size() >= 4)
-            earliestTimeToStart = std::max(earliestTimeToStart, last4Activates[rank].front() + memSpec->tFAW);
+            earliestTimeToStart =
+                std::max(earliestTimeToStart, last4Activates[rank].front() + memSpec->tFAW);
     }
     else if (command == Command::PDEA)
     {
@@ -437,11 +480,14 @@ sc_time CheckerWideIO2::timeToSatisfyConstraints(Command command, const tlm_gene
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::RDA][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + std::max(tRDPDEN, tRDPRE + memSpec->tRPpb));
+            earliestTimeToStart = std::max(
+                earliestTimeToStart, lastCommandStart + std::max(tRDPDEN, tRDPRE + memSpec->tRPpb));
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::WRA][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + std::max(tWRAPDEN, tWRPRE + memSpec->tRPpb));
+            earliestTimeToStart =
+                std::max(earliestTimeToStart,
+                         lastCommandStart + std::max(tWRAPDEN, tWRPRE + memSpec->tRPpb));
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PREPB][rank];
         if (lastCommandStart != scMaxTime)
@@ -494,8 +540,9 @@ void CheckerWideIO2::insert(Command command, const tlm_generic_payload& payload)
     else if (command == Command::MWRA)
         command = Command::WRA;
 
-    PRINTDEBUGMESSAGE("CheckerWideIO2", "Changing state on bank " + std::to_string(static_cast<std::size_t>(bank))
-                      + " command is " + command.toString());
+    PRINTDEBUGMESSAGE("CheckerWideIO2",
+                      "Changing state on bank " + std::to_string(static_cast<std::size_t>(bank)) +
+                          " command is " + command.toString());
 
     lastScheduledByCommandAndBank[command][bank] = sc_time_stamp();
     lastScheduledByCommandAndRank[command][rank] = sc_time_stamp();

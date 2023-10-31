@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2023, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,55 +29,32 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Author: Lukas Steiner
+ * Author:
+ *    Derek Christ
  */
 
-#ifndef CHECKERWIDEIO2_H
-#define CHECKERWIDEIO2_H
+#ifndef DEDESERIALIZE_H
+#define DEDESERIALIZE_H
 
-#include "DRAMSys/configuration/Configuration.h"
-#include "DRAMSys/configuration/memspec/MemSpecWideIO2.h"
-#include "DRAMSys/controller/checker/CheckerIF.h"
-
-#include <queue>
-#include <vector>
+#include <istream>
 
 namespace DRAMSys
 {
-
-class CheckerWideIO2 final : public CheckerIF
+class Deserialize
 {
+protected:
+    Deserialize() = default;
+    Deserialize(const Deserialize&) = default;
+    Deserialize(Deserialize&&) = default;
+    Deserialize& operator=(const Deserialize&) = default;
+    Deserialize& operator=(Deserialize&&) = default;
+
 public:
-    explicit CheckerWideIO2(const Configuration& config);
-    [[nodiscard]] sc_core::sc_time
-    timeToSatisfyConstraints(Command command,
-                             const tlm::tlm_generic_payload& payload) const override;
-    void insert(Command command, const tlm::tlm_generic_payload& payload) override;
+    virtual ~Deserialize() = default;
 
-private:
-    const MemSpecWideIO2* memSpec;
-
-    std::vector<ControllerVector<Bank, sc_core::sc_time>> lastScheduledByCommandAndBank;
-    std::vector<ControllerVector<Rank, sc_core::sc_time>> lastScheduledByCommandAndRank;
-    std::vector<sc_core::sc_time> lastScheduledByCommand;
-    sc_core::sc_time lastCommandOnBus;
-
-    // Four activate window
-    ControllerVector<Rank, std::queue<sc_core::sc_time>> last4Activates;
-
-    const sc_core::sc_time scMaxTime = sc_core::sc_max_time();
-    sc_core::sc_time tBURST;
-    sc_core::sc_time tRDPRE;
-    sc_core::sc_time tRDPDEN;
-    sc_core::sc_time tRDWR;
-    sc_core::sc_time tRDWR_R;
-    sc_core::sc_time tWRPRE;
-    sc_core::sc_time tWRPDEN;
-    sc_core::sc_time tWRAPDEN;
-    sc_core::sc_time tWRRD;
-    sc_core::sc_time tWRRD_R;
+    virtual void deserialize(std::istream& stream) = 0;
 };
 
 } // namespace DRAMSys
 
-#endif // CHECKERWIDEIO2_H
+#endif

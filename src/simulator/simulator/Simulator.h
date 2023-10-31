@@ -54,6 +54,7 @@ public:
 private:
     std::unique_ptr<Initiator> instantiateInitiator(const DRAMSys::Config::Initiator& initiator);
 
+    const bool storageEnabled;
     MemoryManager memoryManager;
 
     DRAMSys::Config::Configuration configuration;

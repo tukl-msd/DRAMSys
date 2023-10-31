@@ -106,6 +106,21 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
     }
 }
 
+bool DRAMSys::idle() const
+{
+    return std::all_of(controllers.cbegin(),
+                       controllers.cend(),
+                       [](auto const& controller) { return controller->idle(); });
+}
+
+void DRAMSys::registerIdleCallback(const std::function<void()>& idleCallback)
+{
+    for (auto& controller : controllers)
+    {
+        controller->registerIdleCallback(idleCallback);
+    }
+}
+
 const Configuration& DRAMSys::getConfig() const
 {
     return config;

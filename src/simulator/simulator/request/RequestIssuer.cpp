@@ -78,6 +78,8 @@ void RequestIssuer::sendNextRequest()
     payload.set_command(request.command == Request::Command::Read ? tlm::TLM_READ_COMMAND
                                                                   : tlm::TLM_WRITE_COMMAND);
 
+    std::copy(request.data.cbegin(), request.data.cend(), payload.get_data_ptr());
+
     tlm::tlm_phase phase = tlm::BEGIN_REQ;
     sc_core::sc_time delay = request.delay;
 

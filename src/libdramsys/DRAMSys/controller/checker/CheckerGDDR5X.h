@@ -35,9 +35,9 @@
 #ifndef CHECKERGDDR5X_H
 #define CHECKERGDDR5X_H
 
-#include "DRAMSys/controller/checker/CheckerIF.h"
-#include "DRAMSys/configuration/memspec/MemSpecGDDR5X.h"
 #include "DRAMSys/configuration/Configuration.h"
+#include "DRAMSys/configuration/memspec/MemSpecGDDR5X.h"
+#include "DRAMSys/controller/checker/CheckerIF.h"
 
 #include <queue>
 #include <vector>
@@ -49,11 +49,13 @@ class CheckerGDDR5X final : public CheckerIF
 {
 public:
     explicit CheckerGDDR5X(const Configuration& config);
-    [[nodiscard]] sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const override;
+    [[nodiscard]] sc_core::sc_time
+    timeToSatisfyConstraints(Command command,
+                             const tlm::tlm_generic_payload& payload) const override;
     void insert(Command command, const tlm::tlm_generic_payload& payload) override;
 
 private:
-    const MemSpecGDDR5X *memSpec;
+    const MemSpecGDDR5X* memSpec;
 
     std::vector<ControllerVector<Bank, sc_core::sc_time>> lastScheduledByCommandAndBank;
     std::vector<ControllerVector<BankGroup, sc_core::sc_time>> lastScheduledByCommandAndBankGroup;

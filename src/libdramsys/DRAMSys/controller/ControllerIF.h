@@ -97,6 +97,8 @@ public:
                   << std::endl;
     }
 
+    [[nodiscard]] virtual bool idle() const = 0;
+
 protected:
     const MemSpec& memSpec;
 
