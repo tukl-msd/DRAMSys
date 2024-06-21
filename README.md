@@ -29,7 +29,7 @@ If you decide to use DRAMSys in your research please cite the paper [2] or [3]. 
 
 - Cycle-accurate **DDR5**, **LPDDR5** and **HBM3** modelling
 - **Trace Analyzer** for visual and metric-based result analysis
-- **Free academic** or **commercial** licenses available (please contact [Matthias Jung](mailto:matthias.jung@iese.fraunhofer.de) for more information)
+- **Free academic** or **commercial** licenses available (please contact [DRAMSys@iese.fraunhofer.de](mailto:DRAMSys@iese.fraunhofer.de) for more information)
 
 ## Video
 
@@ -45,7 +45,7 @@ All requests, responses and DRAM commands can be recorded in an SQLite trace dat
 
 The Trace Analyzer's main window is shown below.
 
-If you are interested in the Trace Analyzer, if you need support with the setup of DRAMSys in a virtual platform of your company, or if you require custom modifications of the simulator please contact [Matthias Jung](mailto:matthias.jung@iese.fraunhofer.de).
+If you are interested in the Trace Analyzer, if you need support with the setup of DRAMSys in a virtual platform of your company, or if you require custom modifications of the simulator please contact [DRAMSys@iese.fraunhofer.de](mailto:DRAMSys@iese.fraunhofer.de).
 
 ![Trace Analyzer Main Window](docs/images/traceanalyzer.png)
 
@@ -115,28 +115,37 @@ To make the additional files available, run:
 git lfs pull
 ```
 
+## Contact Information
+
+Further questions about the simulator and the Trace Analyzer can be directed to:
+
+[DRAMSys@iese.fraunhofer.de](mailto:DRAMSys@iese.fraunhofer.de)
+
+Feel free to ask for updates to the simulator's features and please do report any bugs and errors you encounter.
+This will encourage us to continuously improve the tool.
+
 ## Acknowledgements
 
 The development of DRAMSys was supported by the German Research Foundation (DFG) as part of the priority program [Dependable Embedded Systems SPP1500](http://spp1500.itec.kit.edu) and the DFG grant no. [WE2442/10-1](https://www.uni-kl.de/en/3d-dram/). Furthermore, it was supported within the Fraunhofer and DFG cooperation program (grant no. [WE2442/14-1](https://www.iese.fraunhofer.de/en/innovation_trends/autonomous-systems/memtonomy.html)) and by the [Fraunhofer High Performance Center for Simulation- and Software-Based Innovation](https://www.leistungszentrum-simulation-software.de/en.html). Special thanks go to all listed contributors for their work and commitment during seven years of development.
 
-Shama Bhosale
-Derek Christ
-Luiza Correa
-Peter Ehses
-Johannes Feldmann
-Robert Gernhardt
-Doris Gulai
-Matthias Jung
-Frederik Lauer
-Ana Mativi
-Felipe S. Prado
-Iron Prando
-Tran Anh Quoc
-Janik Schlemminger
-Lukas Steiner
-Thanh C. Tran
-Norbert Wehn
-Christian Weis
+Shama Bhosale      \
+Derek Christ       \
+Luiza Correa       \
+Peter Ehses        \
+Johannes Feldmann  \
+Robert Gernhardt   \
+Doris Gulai        \
+Matthias Jung      \
+Frederik Lauer     \
+Ana Mativi         \
+Felipe S. Prado    \
+Iron Prando        \
+Tran Anh Quoc      \
+Janik Schlemminger \
+Lukas Steiner      \
+Thanh C. Tran      \
+Norbert Wehn       \
+Christian Weis     \
 Éder F. Zulian
 
 ## References
