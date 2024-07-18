@@ -39,16 +39,18 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-BufferCounterReadWrite::BufferCounterReadWrite(unsigned requestBufferSize) :
-    requestBufferSize(requestBufferSize)
+BufferCounterReadWrite::BufferCounterReadWrite(unsigned requestBufferSizeRead,
+                                               unsigned requestBufferSizeWrite) :
+    requestBufferSizeRead(requestBufferSizeRead),
+    requestBufferSizeWrite(requestBufferSizeWrite)
 {
     numReadWriteRequests = std::vector<unsigned>(2);
 }
 
 bool BufferCounterReadWrite::hasBufferSpace() const
 {
-    return (numReadWriteRequests[0] < requestBufferSize &&
-            numReadWriteRequests[1] < requestBufferSize);
+    return (numReadWriteRequests[0] < requestBufferSizeRead &&
+            numReadWriteRequests[1] < requestBufferSizeWrite);
 }
 
 void BufferCounterReadWrite::storeRequest(const tlm_generic_payload& trans)

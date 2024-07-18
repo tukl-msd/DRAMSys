@@ -41,7 +41,9 @@
 #define ARBITER_H
 
 #include "DRAMSys/common/dramExtensions.h"
+#include "DRAMSys/controller/McConfig.h"
 #include "DRAMSys/simulation/AddressDecoder.h"
+#include "DRAMSys/simulation/SimConfig.h"
 
 #include <iostream>
 #include <queue>
@@ -67,7 +69,9 @@ public:
 
 protected:
     Arbiter(const sc_core::sc_module_name& name,
-            const Configuration& config,
+            const SimConfig& simConfig,
+            const McConfig& mcConfig,
+            const MemSpec& memSpec,
             const AddressDecoder& addressDecoder);
     SC_HAS_PROCESS(Arbiter);
 
@@ -109,7 +113,9 @@ class ArbiterSimple final : public Arbiter
 {
 public:
     ArbiterSimple(const sc_core::sc_module_name& name,
-                  const Configuration& config,
+                  const SimConfig& simConfig,
+                  const McConfig& mcConfig,
+                  const MemSpec& memSpec,
                   const AddressDecoder& addressDecoder);
     SC_HAS_PROCESS(ArbiterSimple);
 
@@ -124,7 +130,9 @@ class ArbiterFifo final : public Arbiter
 {
 public:
     ArbiterFifo(const sc_core::sc_module_name& name,
-                const Configuration& config,
+                const SimConfig& simConfig,
+                const McConfig& mcConfig,
+                const MemSpec& memSpec,
                 const AddressDecoder& addressDecoder);
     SC_HAS_PROCESS(ArbiterFifo);
 
@@ -146,7 +154,9 @@ class ArbiterReorder final : public Arbiter
 {
 public:
     ArbiterReorder(const sc_core::sc_module_name& name,
-                   const Configuration& config,
+                   const SimConfig& simConfig,
+                   const McConfig& mcConfig,
+                   const MemSpec& memSpec,
                    const AddressDecoder& addressDecoder);
     SC_HAS_PROCESS(ArbiterReorder);
 

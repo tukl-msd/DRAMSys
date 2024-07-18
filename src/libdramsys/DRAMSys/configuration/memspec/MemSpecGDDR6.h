@@ -46,7 +46,7 @@ namespace DRAMSys
 struct MemSpecGDDR6 final : public MemSpec
 {
 public:
-    explicit MemSpecGDDR6(const DRAMSys::Config::MemSpec& memSpec);
+    explicit MemSpecGDDR6(const Config::MemSpec& memSpec);
 
     // Memspec Variables:
     const sc_core::sc_time tRP;

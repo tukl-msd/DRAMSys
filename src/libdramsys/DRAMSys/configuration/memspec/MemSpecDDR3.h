@@ -48,7 +48,7 @@ namespace DRAMSys
 class MemSpecDDR3 final : public MemSpec
 {
 public:
-    explicit MemSpecDDR3(const DRAMSys::Config::MemSpec& memSpec);
+    explicit MemSpecDDR3(const Config::MemSpec& memSpec);
 
     // Memspec Variables:
     const sc_core::sc_time tCKE;
@@ -102,6 +102,10 @@ public:
                             const tlm::tlm_generic_payload& payload) const override;
 
     [[nodiscard]] bool requiresMaskedWrite(const tlm::tlm_generic_payload& payload) const override;
+
+#ifdef DRAMPOWER
+    [[nodiscard]] DRAMPower::MemorySpecification toDramPowerMemSpec() const override;
+#endif
 };
 
 } // namespace DRAMSys

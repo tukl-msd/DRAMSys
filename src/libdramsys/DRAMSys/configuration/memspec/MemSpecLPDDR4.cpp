@@ -46,9 +46,8 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-MemSpecLPDDR4::MemSpecLPDDR4(const DRAMSys::Config::MemSpec& memSpec) :
+MemSpecLPDDR4::MemSpecLPDDR4(const Config::MemSpec& memSpec) :
     MemSpec(memSpec,
-            MemoryType::LPDDR4,
             memSpec.memarchitecturespec.entries.at("nbrOfChannels"),
             1,
             memSpec.memarchitecturespec.entries.at("nbrOfRanks"),

@@ -35,7 +35,7 @@
 #ifndef REFRESHMANAGERIF_H
 #define REFRESHMANAGERIF_H
 
-#include "DRAMSys/configuration/Configuration.h"
+#include "DRAMSys/common/dramExtensions.h"
 #include "DRAMSys/controller/Command.h"
 #include "DRAMSys/controller/ManagerIF.h"
 

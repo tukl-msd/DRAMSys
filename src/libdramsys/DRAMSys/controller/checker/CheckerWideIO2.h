@@ -35,7 +35,6 @@
 #ifndef CHECKERWIDEIO2_H
 #define CHECKERWIDEIO2_H
 
-#include "DRAMSys/configuration/Configuration.h"
 #include "DRAMSys/configuration/memspec/MemSpecWideIO2.h"
 #include "DRAMSys/controller/checker/CheckerIF.h"
 
@@ -48,14 +47,14 @@ namespace DRAMSys
 class CheckerWideIO2 final : public CheckerIF
 {
 public:
-    explicit CheckerWideIO2(const Configuration& config);
+    explicit CheckerWideIO2(const MemSpecWideIO2& memSpec);
     [[nodiscard]] sc_core::sc_time
     timeToSatisfyConstraints(Command command,
                              const tlm::tlm_generic_payload& payload) const override;
     void insert(Command command, const tlm::tlm_generic_payload& payload) override;
 
 private:
-    const MemSpecWideIO2* memSpec;
+    const MemSpecWideIO2& memSpec;
 
     std::vector<ControllerVector<Bank, sc_core::sc_time>> lastScheduledByCommandAndBank;
     std::vector<ControllerVector<Rank, sc_core::sc_time>> lastScheduledByCommandAndRank;

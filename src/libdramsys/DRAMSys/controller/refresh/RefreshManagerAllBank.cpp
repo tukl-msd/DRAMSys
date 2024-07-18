@@ -45,11 +45,12 @@ namespace DRAMSys
 {
 
 RefreshManagerAllBank::RefreshManagerAllBank(
-    const Configuration& config,
+    const McConfig& config,
+    const MemSpec& memSpec,
     ControllerVector<Bank, BankMachine*>& bankMachinesOnRank,
     PowerDownManagerIF& powerDownManager,
     Rank rank) :
-    memSpec(*config.memSpec),
+    memSpec(memSpec),
     bankMachinesOnRank(bankMachinesOnRank),
     powerDownManager(powerDownManager),
     maxPostponed(static_cast<int>(config.refreshMaxPostponed)),

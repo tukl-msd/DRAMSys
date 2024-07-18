@@ -273,11 +273,15 @@ An example follows.
     - "Fifo": first in, first out policy
     - "FrFcfs": first-ready - first-come, first-served policy (row hits are preferred to row misses)
     - "FrFcfsGrp": first-ready - first-come, first-served policy with additional grouping of read and write requests
+    - "GrpFrFcfs": grouping of read and write requests has higher priority than grouping of page hits (reverse of "FrFcfsGrp"), **experimental without hazard detection**
+    - "GrpFrFcfsWm": "GrpFrFcfs" scheduler with watermarks to switch between read and write mode, **experimental without hazard detection**
+- *LowWatermark* (unsigned int), *HighWatermark* (unsigned int)
+    - watermarks of "GrpFrFcfsWm" scheduler
 - *SchedulerBuffer* (string)
-    - "Bankwise": requests are stored in bankwise buffers
-    - "ReadWrite": read and write requests are stored in different buffers
-    - "Shared": all requests are stored in one shared buffer
-- *RequestBufferSize* (unsigned int)
+    - "Bankwise": requests are stored in bankwise buffers (buffer depth is configured with parameter *RequestBufferSize*)
+    - "ReadWrite": read and write requests are stored in two separate buffers (buffer depth is configured with parameters *RequestBufferSizeRead* and *RequestBufferSizeWrite*)
+    - "Shared": all requests are stored in one shared buffer (buffer depth is configured with parameter *RequestBufferSize*)
+- *RequestBufferSize* (unsigned int), *RequestBufferSizeRead* (unsigned int), *RequestBufferSizeWrite* (unsigned int)
     - depth of a single scheduler buffer entity, total buffer depth depends on the selected scheduler buffer policy
 - *CmdMux* (string)
     - "Oldest": from all commands that are ready to be issued in the current clock cycle the one that belongs to the oldest transaction has the highest priority; commands from refresh managers have a higher priority than all other commands, commands from power down managers have a lower priority than all other commands

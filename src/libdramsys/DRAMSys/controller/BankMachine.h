@@ -36,10 +36,10 @@
 #define BANKMACHINE_H
 
 #include "DRAMSys/common/dramExtensions.h"
-#include "DRAMSys/configuration/Configuration.h"
 #include "DRAMSys/configuration/memspec/MemSpec.h"
 #include "DRAMSys/controller/Command.h"
 #include "DRAMSys/controller/ManagerIF.h"
+#include "DRAMSys/controller/McConfig.h"
 #include "DRAMSys/controller/checker/CheckerIF.h"
 #include "DRAMSys/controller/scheduler/SchedulerIF.h"
 
@@ -71,7 +71,7 @@ protected:
         Precharged,
         Activated
     } state = State::Precharged;
-    BankMachine(const Configuration& config, const SchedulerIF& scheduler, Bank bank);
+    BankMachine(const McConfig& config, const MemSpec& memSpec, const SchedulerIF& scheduler, Bank bank);
     const MemSpec& memSpec;
     tlm::tlm_generic_payload* currentPayload = nullptr;
     const SchedulerIF& scheduler;
@@ -90,28 +90,28 @@ protected:
 class BankMachineOpen final : public BankMachine
 {
 public:
-    BankMachineOpen(const Configuration& config, const SchedulerIF& scheduler, Bank bank);
+    BankMachineOpen(const McConfig& config, const MemSpec& memSpec, const SchedulerIF& scheduler, Bank bank);
     void evaluate() override;
 };
 
 class BankMachineClosed final : public BankMachine
 {
 public:
-    BankMachineClosed(const Configuration& config, const SchedulerIF& scheduler, Bank bank);
+    BankMachineClosed(const McConfig& config, const MemSpec& memSpec, const SchedulerIF& scheduler, Bank bank);
     void evaluate() override;
 };
 
 class BankMachineOpenAdaptive final : public BankMachine
 {
 public:
-    BankMachineOpenAdaptive(const Configuration& config, const SchedulerIF& scheduler, Bank bank);
+    BankMachineOpenAdaptive(const McConfig& config, const MemSpec& memSpec, const SchedulerIF& scheduler, Bank bank);
     void evaluate() override;
 };
 
 class BankMachineClosedAdaptive final : public BankMachine
 {
 public:
-    BankMachineClosedAdaptive(const Configuration& config, const SchedulerIF& scheduler, Bank bank);
+    BankMachineClosedAdaptive(const McConfig& config, const MemSpec& memSpec, const SchedulerIF& scheduler, Bank bank);
     void evaluate() override;
 };
 

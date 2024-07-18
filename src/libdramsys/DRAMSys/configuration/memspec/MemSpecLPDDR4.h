@@ -47,7 +47,7 @@ namespace DRAMSys
 class MemSpecLPDDR4 final : public MemSpec
 {
 public:
-    explicit MemSpecLPDDR4(const DRAMSys::Config::MemSpec& memSpec);
+    explicit MemSpecLPDDR4(const Config::MemSpec& memSpec);
 
     // Memspec Variables:
     const sc_core::sc_time tREFI;

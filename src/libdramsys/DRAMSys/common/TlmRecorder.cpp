@@ -53,14 +53,17 @@ namespace DRAMSys
 {
 
 TlmRecorder::TlmRecorder(const std::string& name,
-                         const Configuration& config,
+                         const SimConfig& simConfig,
+                         const McConfig& mcConfig,
+                         const MemSpec& memSpec,
                          const std::string& dbName,
-                         std::string mcconfig,
-                         std::string memspec,
-                         std::string traces) :
+                         const std::string& mcConfigString,
+                         const std::string& memSpecString,
+                         const std::string& traces) :
     name(name),
-    config(config),
-    memSpec(*config.memSpec),
+    simConfig(simConfig),
+    mcConfig(mcConfig),
+    memSpec(memSpec),
     currentDataBuffer(&recordingDataBuffer.at(0)),
     storageDataBuffer(&recordingDataBuffer.at(1)),
     simulationTimeCoveredByRecording(SC_ZERO_TIME)
@@ -79,7 +82,7 @@ TlmRecorder::TlmRecorder(const std::string& name,
     executeInitialSqlCommand();
     prepareSqlStatements();
 
-    insertGeneralInfo(mcconfig, memspec, traces);
+    insertGeneralInfo(mcConfigString, memSpecString, traces);
     insertCommandLengths();
 
     PRINTDEBUGMESSAGE(name, "Starting new database transaction");
@@ -435,52 +438,54 @@ void TlmRecorder::insertDebugMessageInDB(const std::string& message, const sc_ti
     executeSqlStatement(insertDebugMessageStatement);
 }
 
-void TlmRecorder::insertGeneralInfo(std::string mcconfig, std::string memspec, std::string traces)
+void TlmRecorder::insertGeneralInfo(const std::string& mcConfigString,
+                                    const std::string& memSpecString,
+                                    const std::string& traces)
 {
-    sqlite3_bind_int(
-        insertGeneralInfoStatement, 1, static_cast<int>(config.memSpec->ranksPerChannel));
-    sqlite3_bind_int(
-        insertGeneralInfoStatement, 2, static_cast<int>(config.memSpec->bankGroupsPerChannel));
-    sqlite3_bind_int(
-        insertGeneralInfoStatement, 3, static_cast<int>(config.memSpec->banksPerChannel));
-    sqlite3_bind_int64(
-        insertGeneralInfoStatement, 4, static_cast<int64_t>(config.memSpec->tCK.value()));
+    sqlite3_bind_int(insertGeneralInfoStatement, 1, static_cast<int>(memSpec.ranksPerChannel));
+    sqlite3_bind_int(insertGeneralInfoStatement, 2, static_cast<int>(memSpec.bankGroupsPerChannel));
+    sqlite3_bind_int(insertGeneralInfoStatement, 3, static_cast<int>(memSpec.banksPerChannel));
+    sqlite3_bind_int64(insertGeneralInfoStatement, 4, static_cast<int64_t>(memSpec.tCK.value()));
     sqlite3_bind_text(insertGeneralInfoStatement, 5, "PS", 2, nullptr);
 
     sqlite3_bind_text(insertGeneralInfoStatement,
                       6,
-                      mcconfig.c_str(),
-                      static_cast<int>(mcconfig.length()),
+                      mcConfigString.c_str(),
+                      static_cast<int>(mcConfigString.length()),
                       nullptr);
     sqlite3_bind_text(insertGeneralInfoStatement,
                       7,
-                      memspec.c_str(),
-                      static_cast<int>(memspec.length()),
+                      memSpecString.c_str(),
+                      static_cast<int>(memSpecString.length()),
                       nullptr);
     sqlite3_bind_text(
         insertGeneralInfoStatement, 8, traces.c_str(), static_cast<int>(traces.length()), nullptr);
-    if (config.enableWindowing)
+
+    if (simConfig.enableWindowing)
+    {
         sqlite3_bind_int64(insertGeneralInfoStatement,
                            9,
-                           static_cast<int64_t>((config.memSpec->tCK * config.windowSize).value()));
+                           static_cast<int64_t>((memSpec.tCK * simConfig.windowSize).value()));
+    }
     else
+    {
         sqlite3_bind_int64(insertGeneralInfoStatement, 9, 0);
-    sqlite3_bind_int(insertGeneralInfoStatement, 10, static_cast<int>(config.refreshMaxPostponed));
-    sqlite3_bind_int(insertGeneralInfoStatement, 11, static_cast<int>(config.refreshMaxPulledin));
-    sqlite3_bind_int(insertGeneralInfoStatement, 12, static_cast<int>(UINT_MAX));
-    sqlite3_bind_int(insertGeneralInfoStatement, 13, static_cast<int>(config.requestBufferSize));
+    }
     sqlite3_bind_int(
-        insertGeneralInfoStatement, 14, static_cast<int>(config.memSpec->getPer2BankOffset()));
+        insertGeneralInfoStatement, 10, static_cast<int>(mcConfig.refreshMaxPostponed));
+    sqlite3_bind_int(insertGeneralInfoStatement, 11, static_cast<int>(mcConfig.refreshMaxPulledin));
+    sqlite3_bind_int(insertGeneralInfoStatement, 12, static_cast<int>(UINT_MAX));
+    sqlite3_bind_int(insertGeneralInfoStatement, 13, static_cast<int>(mcConfig.requestBufferSize));
+    sqlite3_bind_int(insertGeneralInfoStatement, 14, static_cast<int>(memSpec.getPer2BankOffset()));
 
-    const MemSpec& memSpec = *config.memSpec;
     const auto memoryType = memSpec.memoryType;
 
     bool rowColumnCommandBus =
-        (memoryType == MemSpec::MemoryType::HBM2) || (memoryType == MemSpec::MemoryType::HBM3);
+        (memoryType == Config::MemoryType::HBM2) || (memoryType == Config::MemoryType::HBM3);
 
-    bool pseudoChannelMode = [&memSpec, memoryType]() -> bool
+    bool pseudoChannelMode = [this, memoryType]() -> bool
     {
-        if (memoryType != MemSpec::MemoryType::HBM2 && memoryType != MemSpec::MemoryType::HBM3)
+        if (memoryType != Config::MemoryType::HBM2 && memoryType != Config::MemoryType::HBM3)
             return false;
 
         return memSpec.pseudoChannelsPerChannel != 1;
@@ -493,16 +498,14 @@ void TlmRecorder::insertGeneralInfo(std::string mcconfig, std::string memspec, s
 
 void TlmRecorder::insertCommandLengths()
 {
-    const MemSpec& _memSpec = *config.memSpec;
-
-    auto insertCommandLength = [this, &_memSpec](Command command)
+    auto insertCommandLength = [this](Command command)
     {
         auto commandName = command.toString();
 
         sqlite3_bind_text(
             insertCommandLengthsStatement, 1, commandName.c_str(), commandName.length(), nullptr);
         sqlite3_bind_double(
-            insertCommandLengthsStatement, 2, _memSpec.getCommandLengthInCycles(command));
+            insertCommandLengthsStatement, 2, memSpec.getCommandLengthInCycles(command));
         executeSqlStatement(insertCommandLengthsStatement);
     };
 

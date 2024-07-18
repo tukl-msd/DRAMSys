@@ -43,17 +43,17 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-SchedulerFifo::SchedulerFifo(const Configuration& config)
+SchedulerFifo::SchedulerFifo(const McConfig& config, const MemSpec& memSpec)
 {
-    buffer =
-        ControllerVector<Bank, std::deque<tlm_generic_payload*>>(config.memSpec->banksPerChannel);
+    buffer = ControllerVector<Bank, std::deque<tlm_generic_payload*>>(memSpec.banksPerChannel);
 
-    if (config.schedulerBuffer == Configuration::SchedulerBuffer::Bankwise)
+    if (config.schedulerBuffer == Config::SchedulerBufferType::Bankwise)
         bufferCounter = std::make_unique<BufferCounterBankwise>(config.requestBufferSize,
-                                                                config.memSpec->banksPerChannel);
-    else if (config.schedulerBuffer == Configuration::SchedulerBuffer::ReadWrite)
-        bufferCounter = std::make_unique<BufferCounterReadWrite>(config.requestBufferSize);
-    else if (config.schedulerBuffer == Configuration::SchedulerBuffer::Shared)
+                                                                memSpec.banksPerChannel);
+    else if (config.schedulerBuffer == Config::SchedulerBufferType::ReadWrite)
+        bufferCounter = std::make_unique<BufferCounterReadWrite>(config.requestBufferSizeRead,
+                                                                 config.requestBufferSizeWrite);
+    else if (config.schedulerBuffer == Config::SchedulerBufferType::Shared)
         bufferCounter = std::make_unique<BufferCounterShared>(config.requestBufferSize);
 }
 

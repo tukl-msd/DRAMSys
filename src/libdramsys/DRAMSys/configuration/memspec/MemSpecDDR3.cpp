@@ -46,9 +46,8 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-MemSpecDDR3::MemSpecDDR3(const DRAMSys::Config::MemSpec& memSpec) :
+MemSpecDDR3::MemSpecDDR3(const Config::MemSpec& memSpec) :
     MemSpec(memSpec,
-            MemoryType::DDR3,
             memSpec.memarchitecturespec.entries.at("nbrOfChannels"),
             1,
             memSpec.memarchitecturespec.entries.at("nbrOfRanks"),
@@ -181,5 +180,98 @@ bool MemSpecDDR3::requiresMaskedWrite(const tlm::tlm_generic_payload& payload) c
 {
     return !allBytesEnabled(payload);
 }
+
+#ifdef DRAMPOWER
+DRAMPower::MemorySpecification MemSpecDDR3::toDramPowerMemSpec() const
+{
+    DRAMPower::MemArchitectureSpec memArchSpec;
+    memArchSpec.burstLength = defaultBurstLength;
+    memArchSpec.dataRate = dataRate;
+    memArchSpec.nbrOfRows = rowsPerBank;
+    memArchSpec.nbrOfBanks = banksPerChannel;
+    memArchSpec.nbrOfColumns = columnsPerRow;
+    memArchSpec.nbrOfRanks = ranksPerChannel;
+    memArchSpec.width = bitWidth;
+    memArchSpec.nbrOfBankGroups = bankGroupsPerChannel;
+    memArchSpec.twoVoltageDomains = false;
+    memArchSpec.dll = true;
+
+    DRAMPower::MemTimingSpec memTimingSpec;
+    // FIXME: memTimingSpec.FAWB   = tFAW / tCK;
+    // FIXME: memTimingSpec.RASB   = tRAS / tCK;
+    // FIXME: memTimingSpec.RCB    = tRC / tCK;
+    // FIXME: memTimingSpec.RPB    = tRP / tCK;
+    // FIXME: memTimingSpec.RRDB   = tRRD / tCK;
+    // FIXME: memTimingSpec.RRDB_L = tRRD / tCK;
+    // FIXME: memTimingSpec.RRDB_S = tRRD / tCK;
+    memTimingSpec.AL = tAL / tCK;
+    memTimingSpec.CCD = tCCD / tCK;
+    memTimingSpec.CCD_L = tCCD / tCK;
+    memTimingSpec.CCD_S = tCCD / tCK;
+    memTimingSpec.CKE = tCKE / tCK;
+    memTimingSpec.CKESR = tCKESR / tCK;
+    // See also MemTimingSpec.cc in DRAMPower
+    memTimingSpec.clkMhz = 1 / (tCK.to_seconds() * 1'000'000);
+    memTimingSpec.clkPeriod = tCK.to_seconds() * 1'000'000'000;
+    memTimingSpec.DQSCK = tDQSCK / tCK;
+    memTimingSpec.FAW = tFAW / tCK;
+    memTimingSpec.RAS = tRAS / tCK;
+    memTimingSpec.RC = tRC / tCK;
+    memTimingSpec.RCD = tRCD / tCK;
+    memTimingSpec.REFI = tREFI / tCK;
+    memTimingSpec.RFC = tRFC / tCK;
+    memTimingSpec.RL = tRL / tCK;
+    memTimingSpec.RP = tRP / tCK;
+    memTimingSpec.RRD = tRRD / tCK;
+    memTimingSpec.RRD_L = tRRD / tCK;
+    memTimingSpec.RRD_S = tRRD / tCK;
+    memTimingSpec.RTP = tRTP / tCK;
+    memTimingSpec.TAW = tFAW / tCK;
+    memTimingSpec.WL = tWL / tCK;
+    memTimingSpec.WR = tWR / tCK;
+    memTimingSpec.WTR = tWTR / tCK;
+    memTimingSpec.WTR_L = tWTR / tCK;
+    memTimingSpec.WTR_S = tWTR / tCK;
+    memTimingSpec.XP = tXP / tCK;
+    memTimingSpec.XPDLL = tXPDLL / tCK;
+    memTimingSpec.XS = tXS / tCK;
+    memTimingSpec.XSDLL = tXSDLL / tCK;
+
+    DRAMPower::MemPowerSpec memPowerSpec;
+    memPowerSpec.idd0 = iDD0;
+    memPowerSpec.idd02 = 0;
+    memPowerSpec.idd2p0 = iDD2P0;
+    memPowerSpec.idd2p02 = 0;
+    memPowerSpec.idd2p1 = iDD2P1;
+    memPowerSpec.idd2p12 = 0;
+    memPowerSpec.idd2n = iDD2N;
+    memPowerSpec.idd2n2 = 0;
+    memPowerSpec.idd3p0 = iDD3P0;
+    memPowerSpec.idd3p02 = 0;
+    memPowerSpec.idd3p1 = iDD3P1;
+    memPowerSpec.idd3p12 = 0;
+    memPowerSpec.idd3n = iDD3N;
+    memPowerSpec.idd3n2 = 0;
+    memPowerSpec.idd4r = iDD4R;
+    memPowerSpec.idd4r2 = 0;
+    memPowerSpec.idd4w = iDD4W;
+    memPowerSpec.idd4w2 = 0;
+    memPowerSpec.idd5 = iDD5;
+    memPowerSpec.idd52 = 0;
+    memPowerSpec.idd6 = iDD6;
+    memPowerSpec.idd62 = 0;
+    memPowerSpec.vdd = vDD;
+    memPowerSpec.vdd2 = 0;
+
+    DRAMPower::MemorySpecification powerSpec;
+    powerSpec.id = memoryId;
+    powerSpec.memoryType = DRAMPower::MemoryType::DDR3;
+    powerSpec.memTimingSpec = memTimingSpec;
+    powerSpec.memPowerSpec = memPowerSpec;
+    powerSpec.memArchSpec = memArchSpec;
+
+    return powerSpec;
+}
+#endif
 
 } // namespace DRAMSys

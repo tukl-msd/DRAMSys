@@ -46,6 +46,40 @@
 namespace DRAMSys::Config
 {
 
+enum class MemoryType
+{
+    DDR3,
+    DDR4,
+    DDR5,
+    LPDDR4,
+    LPDDR5,
+    WideIO,
+    WideIO2,
+    GDDR5,
+    GDDR5X,
+    GDDR6,
+    HBM2,
+    HBM3,
+    STTMRAM,
+    Invalid = -1
+};
+
+NLOHMANN_JSON_SERIALIZE_ENUM(MemoryType,
+                             {{MemoryType::Invalid, nullptr},
+                              {MemoryType::DDR3, "DDR3"},
+                              {MemoryType::DDR4, "DDR4"},
+                              {MemoryType::DDR5, "DDR5"},
+                              {MemoryType::LPDDR4, "LPDDR4"},
+                              {MemoryType::LPDDR5, "LPDDR5"},
+                              {MemoryType::WideIO, "WIDEIO_SDR"},
+                              {MemoryType::WideIO2, "WIDEIO2"},
+                              {MemoryType::GDDR5, "GDDR5"},
+                              {MemoryType::GDDR5X, "GDDR5X"},
+                              {MemoryType::GDDR6, "GDDR6"},
+                              {MemoryType::HBM2, "HBM2"},
+                              {MemoryType::HBM3, "HBM3"},
+                              {MemoryType::STTMRAM, "STTMRAM"}})
+
 struct MemSpec
 {
     static constexpr std::string_view KEY = "memspec";
@@ -53,7 +87,7 @@ struct MemSpec
 
     MemArchitectureSpecType memarchitecturespec;
     std::string memoryId;
-    std::string memoryType;
+    MemoryType memoryType;
     MemTimingSpecType memtimingspec;
     std::optional<MemPowerSpec> mempowerspec;
 };

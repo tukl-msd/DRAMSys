@@ -44,11 +44,12 @@ namespace DRAMSys
 {
 
 RefreshManagerPer2Bank::RefreshManagerPer2Bank(
-    const Configuration& config,
+    const McConfig& config,
+    const MemSpec& memSpec,
     ControllerVector<Bank, BankMachine*>& bankMachinesOnRank,
     PowerDownManagerIF& powerDownManager,
     Rank rank) :
-    memSpec(*config.memSpec),
+    memSpec(memSpec),
     powerDownManager(powerDownManager),
     maxPostponed(static_cast<int>(config.refreshMaxPostponed * memSpec.banksPerRank / 2)),
     maxPulledin(-static_cast<int>(config.refreshMaxPulledin * memSpec.banksPerRank / 2))

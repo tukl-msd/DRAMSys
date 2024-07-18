@@ -46,7 +46,8 @@ namespace DRAMSys
 class BufferCounterReadWrite final : public BufferCounterIF
 {
 public:
-    explicit BufferCounterReadWrite(unsigned requestBufferSize);
+    explicit BufferCounterReadWrite(unsigned requestBufferSizeRead,
+                                    unsigned requestBufferSizeWrite);
     [[nodiscard]] bool hasBufferSpace() const override;
     void storeRequest(const tlm::tlm_generic_payload& trans) override;
     void removeRequest(const tlm::tlm_generic_payload& trans) override;
@@ -55,7 +56,8 @@ public:
     [[nodiscard]] unsigned getNumWriteRequests() const override;
 
 private:
-    const unsigned requestBufferSize;
+    const unsigned requestBufferSizeRead;
+    const unsigned requestBufferSizeWrite;
     std::vector<unsigned> numReadWriteRequests;
 };
 

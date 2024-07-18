@@ -37,7 +37,6 @@
  */
 
 #include "AddressDecoder.h"
-#include "DRAMSys/configuration/Configuration.h"
 
 #include <bitset>
 #include <cmath>
@@ -47,59 +46,90 @@
 namespace DRAMSys
 {
 
-AddressDecoder::AddressDecoder(const DRAMSys::Config::AddressMapping& addressMapping,
-                               const MemSpec& memSpec)
+static void addMapping(std::vector<Config::AddressMapping::BitEntry> const& mappingVector,
+                       std::vector<unsigned>& bitVector,
+                       std::vector<std::vector<unsigned>>& xorVector)
+{
+    for (const auto& bitEntry : mappingVector)
+    {
+        std::visit(
+            [&bitVector, &xorVector](auto&& arg)
+            {
+                using T = std::decay_t<decltype(arg)>;
+                if constexpr (std::is_same_v<T, unsigned>)
+                {
+                    bitVector.push_back(arg);
+                }
+                else if constexpr (std::is_same_v<T, std::vector<unsigned>>)
+                {
+                    bitVector.push_back(arg.at(0));
+                    xorVector.push_back(arg);
+                }
+            },
+            bitEntry);
+    }
+}
+
+AddressDecoder::AddressDecoder(const Config::AddressMapping& addressMapping)
 {
     if (const auto& channelBits = addressMapping.CHANNEL_BIT)
     {
-        std::copy(channelBits->begin(), channelBits->end(), std::back_inserter(vChannelBits));
+        addMapping(*channelBits, vChannelBits, vXor);
     }
 
     if (const auto& rankBits = addressMapping.RANK_BIT)
     {
-        std::copy(rankBits->begin(), rankBits->end(), std::back_inserter(vRankBits));
+        addMapping(*rankBits, vRankBits, vXor);
     }
 
     // HBM pseudo channels are internally modelled as ranks
     if (const auto& pseudoChannelBits = addressMapping.PSEUDOCHANNEL_BIT)
     {
-        std::copy(
-            pseudoChannelBits->begin(), pseudoChannelBits->end(), std::back_inserter(vRankBits));
+        addMapping(*pseudoChannelBits, vRankBits, vXor);
     }
 
     if (const auto& bankGroupBits = addressMapping.BANKGROUP_BIT)
     {
-        std::copy(bankGroupBits->begin(), bankGroupBits->end(), std::back_inserter(vBankGroupBits));
+        addMapping(*bankGroupBits, vBankGroupBits, vXor);
     }
 
     if (const auto& byteBits = addressMapping.BYTE_BIT)
     {
-        std::copy(byteBits->begin(), byteBits->end(), std::back_inserter(vByteBits));
-    }
-
-    if (const auto& xorBits = addressMapping.XOR)
-    {
-        for (const auto& xorBit : *xorBits)
-        {
-            vXor.emplace_back(xorBit.FIRST, xorBit.SECOND);
-        }
+        addMapping(*byteBits, vByteBits, vXor);
     }
 
     if (const auto& bankBits = addressMapping.BANK_BIT)
     {
-        std::copy(bankBits->begin(), bankBits->end(), std::back_inserter(vBankBits));
+        addMapping(*bankBits, vBankBits, vXor);
     }
 
     if (const auto& rowBits = addressMapping.ROW_BIT)
     {
-        std::copy(rowBits->begin(), rowBits->end(), std::back_inserter(vRowBits));
+        addMapping(*rowBits, vRowBits, vXor);
     }
 
     if (const auto& columnBits = addressMapping.COLUMN_BIT)
     {
-        std::copy(columnBits->begin(), columnBits->end(), std::back_inserter(vColumnBits));
+        addMapping(*columnBits, vColumnBits, vXor);
     }
 
+    unsigned channels = std::lround(std::pow(2.0, vChannelBits.size()));
+    unsigned ranks = std::lround(std::pow(2.0, vRankBits.size()));
+    unsigned bankGroups = std::lround(std::pow(2.0, vBankGroupBits.size()));
+    unsigned banks = std::lround(std::pow(2.0, vBankBits.size()));
+    unsigned rows = std::lround(std::pow(2.0, vRowBits.size()));
+    unsigned columns = std::lround(std::pow(2.0, vColumnBits.size()));
+    unsigned bytes = std::lround(std::pow(2.0, vByteBits.size()));
+
+    maximumAddress =
+        static_cast<uint64_t>(bytes) * columns * rows * banks * bankGroups * ranks * channels - 1;
+
+    bankgroupsPerRank = bankGroups;
+    banksPerGroup = banks;
+}
+
+void AddressDecoder::plausibilityCheck(const MemSpec& memSpec)
+{
     unsigned channels = std::lround(std::pow(2.0, vChannelBits.size()));
     unsigned ranks = std::lround(std::pow(2.0, vRankBits.size()));
     unsigned bankGroups = std::lround(std::pow(2.0, vBankGroupBits.size()));
@@ -131,7 +161,8 @@ AddressDecoder::AddressDecoder(const DRAMSys::Config::AddressMapping& addressMap
     {
         highestByteBit = static_cast<int>(*std::max_element(vByteBits.begin(), vByteBits.end()));
 
-        for (unsigned bitPosition = 0; bitPosition <= static_cast<unsigned>(highestByteBit); bitPosition++)
+        for (unsigned bitPosition = 0; bitPosition <= static_cast<unsigned>(highestByteBit);
+             bitPosition++)
         {
             if (std::find(vByteBits.begin(), vByteBits.end(), bitPosition) == vByteBits.end())
                 SC_REPORT_FATAL("AddressDecoder", "Byte bits are not continuous starting from 0");
@@ -148,16 +179,13 @@ AddressDecoder::AddressDecoder(const DRAMSys::Config::AddressMapping& addressMap
             SC_REPORT_FATAL("AddressDecoder", "No continuous column bits for maximum burst length");
     }
 
-    bankgroupsPerRank = bankGroups;
-    bankGroups = bankgroupsPerRank * ranks;
-
-    banksPerGroup = banks;
-    banks = banksPerGroup * bankGroups;
+    unsigned absoluteBankGroups = bankgroupsPerRank * ranks;
+    unsigned absoluteBanks = banksPerGroup * absoluteBankGroups;
 
     if (memSpec.numberOfChannels != channels || memSpec.ranksPerChannel != ranks ||
-        memSpec.bankGroupsPerChannel != bankGroups || memSpec.banksPerChannel != banks ||
-        memSpec.rowsPerBank != rows || memSpec.columnsPerRow != columns ||
-        memSpec.devicesPerRank * memSpec.bitWidth != bytes * 8)
+        memSpec.bankGroupsPerChannel != absoluteBankGroups ||
+        memSpec.banksPerChannel != absoluteBanks || memSpec.rowsPerBank != rows ||
+        memSpec.columnsPerRow != columns || memSpec.devicesPerRank * memSpec.bitWidth != bytes * 8)
         SC_REPORT_FATAL("AddressDecoder", "Memspec and address mapping do not match");
 }
 
@@ -174,12 +202,16 @@ DecodedAddress AddressDecoder::decodeAddress(uint64_t encAddr) const
     // For each used xor:
     //   Get the first bit and second bit. Apply a bitwise xor operator and save it back to the
     //   first bit.
+    auto tempAddr = encAddr;
     for (const auto& it : vXor)
     {
-        uint64_t xoredBit =
-            (((encAddr >> it.first) & UINT64_C(1)) ^ ((encAddr >> it.second) & UINT64_C(1)));
-        encAddr &= ~(UINT64_C(1) << it.first);
-        encAddr |= xoredBit << it.first;
+        uint64_t xoredBit = std::accumulate(it.cbegin(),
+                                            it.cend(),
+                                            0,
+                                            [tempAddr](uint64_t acc, unsigned xorBit)
+                                            { return acc ^= (tempAddr >> xorBit) & UINT64_C(1); });
+        encAddr &= ~(UINT64_C(1) << it[0]);
+        encAddr |= xoredBit << it[0];
     }
 
     DecodedAddress decAddr;
@@ -224,12 +256,16 @@ unsigned AddressDecoder::decodeChannel(uint64_t encAddr) const
     // For each used xor:
     //   Get the first bit and second bit. Apply a bitwise xor operator and save it back to the
     //   first bit.
+    auto tempAddr = encAddr;
     for (const auto& it : vXor)
     {
-        uint64_t xoredBit =
-            (((encAddr >> it.first) & UINT64_C(1)) ^ ((encAddr >> it.second) & UINT64_C(1)));
-        encAddr &= ~(UINT64_C(1) << it.first);
-        encAddr |= xoredBit << it.first;
+        uint64_t xoredBit = std::accumulate(it.cbegin(),
+                                            it.cend(),
+                                            0,
+                                            [tempAddr](uint64_t acc, unsigned xorBit)
+                                            { return acc ^= (tempAddr >> xorBit) & UINT64_C(1); });
+        encAddr &= ~(UINT64_C(1) << it[0]);
+        encAddr |= xoredBit << it[0];
     }
 
     unsigned channel = 0;
@@ -284,10 +320,13 @@ void AddressDecoder::print() const
     {
         uint64_t addressBits =
             (UINT64_C(1) << vChannelBits[static_cast<std::vector<unsigned>::size_type>(it)]);
-        for (auto it2 : vXor)
+        for (auto xorMapping : vXor)
         {
-            if (it2.first == vChannelBits[static_cast<std::vector<unsigned>::size_type>(it)])
-                addressBits |= (UINT64_C(1) << it2.second);
+            if (xorMapping.at(0) == vChannelBits[static_cast<std::vector<unsigned>::size_type>(it)])
+            {
+                for (auto it = xorMapping.cbegin() + 1; it != xorMapping.cend(); it++)
+                    addressBits |= (UINT64_C(1) << *it);
+            }
         }
         std::cout << " Ch " << std::setw(2) << it << ": " << std::bitset<64>(addressBits)
                   << std::endl;
@@ -297,10 +336,13 @@ void AddressDecoder::print() const
     {
         uint64_t addressBits =
             (UINT64_C(1) << vRankBits[static_cast<std::vector<unsigned>::size_type>(it)]);
-        for (auto it2 : vXor)
+        for (auto xorMapping : vXor)
         {
-            if (it2.first == vRankBits[static_cast<std::vector<unsigned>::size_type>(it)])
-                addressBits |= (UINT64_C(1) << it2.second);
+            if (xorMapping.at(0) == vRankBits[static_cast<std::vector<unsigned>::size_type>(it)])
+            {
+                for (auto it = xorMapping.cbegin() + 1; it != xorMapping.cend(); it++)
+                    addressBits |= (UINT64_C(1) << *it);
+            }
         }
         std::cout << " Ra " << std::setw(2) << it << ": " << std::bitset<64>(addressBits)
                   << std::endl;
@@ -310,10 +352,14 @@ void AddressDecoder::print() const
     {
         uint64_t addressBits =
             (UINT64_C(1) << vBankGroupBits[static_cast<std::vector<unsigned>::size_type>(it)]);
-        for (auto it2 : vXor)
+        for (auto xorMapping : vXor)
         {
-            if (it2.first == vBankGroupBits[static_cast<std::vector<unsigned>::size_type>(it)])
-                addressBits |= (UINT64_C(1) << it2.second);
+            if (xorMapping.at(0) ==
+                vBankGroupBits[static_cast<std::vector<unsigned>::size_type>(it)])
+            {
+                for (auto it = xorMapping.cbegin() + 1; it != xorMapping.cend(); it++)
+                    addressBits |= (UINT64_C(1) << *it);
+            }
         }
         std::cout << " Bg " << std::setw(2) << it << ": " << std::bitset<64>(addressBits)
                   << std::endl;
@@ -323,10 +369,13 @@ void AddressDecoder::print() const
     {
         uint64_t addressBits =
             (UINT64_C(1) << vBankBits[static_cast<std::vector<unsigned>::size_type>(it)]);
-        for (auto it2 : vXor)
+        for (auto xorMapping : vXor)
         {
-            if (it2.first == vBankBits[static_cast<std::vector<unsigned>::size_type>(it)])
-                addressBits |= (UINT64_C(1) << it2.second);
+            if (xorMapping.at(0) == vBankBits[static_cast<std::vector<unsigned>::size_type>(it)])
+            {
+                for (auto it = xorMapping.cbegin() + 1; it != xorMapping.cend(); it++)
+                    addressBits |= (UINT64_C(1) << *it);
+            }
         }
         std::cout << " Ba " << std::setw(2) << it << ": " << std::bitset<64>(addressBits)
                   << std::endl;
@@ -336,10 +385,13 @@ void AddressDecoder::print() const
     {
         uint64_t addressBits =
             (UINT64_C(1) << vRowBits[static_cast<std::vector<unsigned>::size_type>(it)]);
-        for (auto it2 : vXor)
+        for (auto xorMapping : vXor)
         {
-            if (it2.first == vRowBits[static_cast<std::vector<unsigned>::size_type>(it)])
-                addressBits |= (UINT64_C(1) << it2.second);
+            if (xorMapping.at(0) == vRowBits[static_cast<std::vector<unsigned>::size_type>(it)])
+            {
+                for (auto it = xorMapping.cbegin() + 1; it != xorMapping.cend(); it++)
+                    addressBits |= (UINT64_C(1) << *it);
+            }
         }
         std::cout << " Ro " << std::setw(2) << it << ": " << std::bitset<64>(addressBits)
                   << std::endl;
@@ -349,10 +401,13 @@ void AddressDecoder::print() const
     {
         uint64_t addressBits =
             (UINT64_C(1) << vColumnBits[static_cast<std::vector<unsigned>::size_type>(it)]);
-        for (auto it2 : vXor)
+        for (auto xorMapping : vXor)
         {
-            if (it2.first == vColumnBits[static_cast<std::vector<unsigned>::size_type>(it)])
-                addressBits |= (UINT64_C(1) << it2.second);
+            if (xorMapping.at(0) == vColumnBits[static_cast<std::vector<unsigned>::size_type>(it)])
+            {
+                for (auto it = xorMapping.cbegin() + 1; it != xorMapping.cend(); it++)
+                    addressBits |= (UINT64_C(1) << *it);
+            }
         }
         std::cout << " Co " << std::setw(2) << it << ": " << std::bitset<64>(addressBits)
                   << std::endl;
@@ -362,10 +417,13 @@ void AddressDecoder::print() const
     {
         uint64_t addressBits =
             (UINT64_C(1) << vByteBits[static_cast<std::vector<unsigned>::size_type>(it)]);
-        for (auto it2 : vXor)
+        for (auto xorMapping : vXor)
         {
-            if (it2.first == vByteBits[static_cast<std::vector<unsigned>::size_type>(it)])
-                addressBits |= (UINT64_C(1) << it2.second);
+            if (xorMapping.at(0) == vByteBits[static_cast<std::vector<unsigned>::size_type>(it)])
+            {
+                for (auto it = xorMapping.cbegin() + 1; it != xorMapping.cend(); it++)
+                    addressBits |= (UINT64_C(1) << *it);
+            }
         }
         std::cout << " By " << std::setw(2) << it << ": " << std::bitset<64>(addressBits)
                   << std::endl;

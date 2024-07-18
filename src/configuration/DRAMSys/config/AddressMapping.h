@@ -43,28 +43,21 @@
 namespace DRAMSys::Config
 {
 
-struct XorPair
-{
-    unsigned int FIRST;
-    unsigned int SECOND;
-};
-
-NLOHMANN_JSONIFY_ALL_THINGS(XorPair, FIRST, SECOND)
-
 struct AddressMapping
 {
     static constexpr std::string_view KEY = "addressmapping";
     static constexpr std::string_view SUB_DIR = "addressmapping";
 
-    std::optional<std::vector<unsigned int>> BYTE_BIT;
-    std::optional<std::vector<unsigned int>> COLUMN_BIT;
-    std::optional<std::vector<unsigned int>> ROW_BIT;
-    std::optional<std::vector<unsigned int>> BANK_BIT;
-    std::optional<std::vector<unsigned int>> BANKGROUP_BIT;
-    std::optional<std::vector<unsigned int>> RANK_BIT;
-    std::optional<std::vector<unsigned int>> PSEUDOCHANNEL_BIT;
-    std::optional<std::vector<unsigned int>> CHANNEL_BIT;
-    std::optional<std::vector<XorPair>> XOR;
+    using BitEntry = std::variant<unsigned int, std::vector<unsigned int>>;
+
+    std::optional<std::vector<BitEntry>> BYTE_BIT;
+    std::optional<std::vector<BitEntry>> COLUMN_BIT;
+    std::optional<std::vector<BitEntry>> ROW_BIT;
+    std::optional<std::vector<BitEntry>> BANK_BIT;
+    std::optional<std::vector<BitEntry>> BANKGROUP_BIT;
+    std::optional<std::vector<BitEntry>> RANK_BIT;
+    std::optional<std::vector<BitEntry>> PSEUDOCHANNEL_BIT;
+    std::optional<std::vector<BitEntry>> CHANNEL_BIT;
 };
 
 NLOHMANN_JSONIFY_ALL_THINGS(AddressMapping,
@@ -75,8 +68,7 @@ NLOHMANN_JSONIFY_ALL_THINGS(AddressMapping,
                             BANKGROUP_BIT,
                             RANK_BIT,
                             PSEUDOCHANNEL_BIT,
-                            CHANNEL_BIT,
-                            XOR)
+                            CHANNEL_BIT)
 
 } // namespace DRAMSys::Config
 

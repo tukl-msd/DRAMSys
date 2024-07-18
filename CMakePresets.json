@@ -22,8 +22,8 @@
             "inherits": "cmake-pedantic",
             "cacheVariables": {
                 "DRAMSYS_BUILD_TESTS": "ON",
-                "DRAMSYS_ENABLE_EXTENSIONS": "ON",
-                "DRAMSYS_WITH_DRAMPOWER": "ON"
+                "DRAMSYS_WITH_DRAMPOWER": "ON",
+                "DRAMSYS_BUILD_TRACE_ANALYZER": "ON"
             }
         },
         {
@@ -62,7 +62,7 @@
         },
         {
             "name": "dev",
-            "generator": "Unix Makefiles",
+            "generator": "Ninja",
             "binaryDir": "${sourceDir}/build",
             "inherits": [
                 "dev-mode",
@@ -70,7 +70,7 @@
             ],
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_CXX_FLAGS": "-Wall -Wextra -Wpedantic"
+                "CMAKE_CXX_FLAGS": "-Wall -Wextra -Wpedantic -fdiagnostics-color=always"
             }
         }
     ]

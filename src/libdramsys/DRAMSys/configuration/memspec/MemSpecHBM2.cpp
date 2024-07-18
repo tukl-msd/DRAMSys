@@ -46,9 +46,8 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-MemSpecHBM2::MemSpecHBM2(const DRAMSys::Config::MemSpec& memSpec) :
+MemSpecHBM2::MemSpecHBM2(const Config::MemSpec& memSpec) :
     MemSpec(memSpec,
-            MemoryType::HBM2,
             memSpec.memarchitecturespec.entries.at("nbrOfChannels"),
             memSpec.memarchitecturespec.entries.at("nbrOfPseudoChannels"),
             memSpec.memarchitecturespec.entries.at("nbrOfPseudoChannels"),

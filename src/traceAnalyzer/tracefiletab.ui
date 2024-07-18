@@ -1,0 +1,480 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>TraceFileTab</class>
+ <widget class="QWidget" name="TraceFileTab">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1235</width>
+    <height>937</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QGridLayout" name="gridLayout">
+   <item row="0" column="0">
+    <widget class="QSplitter" name="splitter_2">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="baseSize">
+      <size>
+       <width>1000</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+     <widget class="QSplitter" name="splitter">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+        <horstretch>1</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
+      </property>
+      <widget class="QWidget" name="traceplotContainer" native="true">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>250</verstretch>
+        </sizepolicy>
+       </property>
+       <layout class="QHBoxLayout" name="horizontalLayout_3">
+        <item>
+         <widget class="TracePlot" name="traceplot">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="focusPolicy">
+           <enum>Qt::StrongFocus</enum>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QScrollBar" name="traceplotScrollbar">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="pageStep">
+           <number>25</number>
+          </property>
+          <property name="orientation">
+           <enum>Qt::Vertical</enum>
+          </property>
+          <property name="invertedAppearance">
+           <bool>false</bool>
+          </property>
+          <property name="invertedControls">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="TraceScroller" name="traceScroller">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Minimum">
+         <horstretch>0</horstretch>
+         <verstretch>1</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>150</height>
+        </size>
+       </property>
+      </widget>
+     </widget>
+     <widget class="QTabWidget" name="tabWidget">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>500</height>
+       </size>
+      </property>
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="tabSelectedTrans">
+       <attribute name="title">
+        <string>Selected Transaction</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout_2">
+        <item row="0" column="0">
+         <widget class="SelectedTransactionTreeWidget" name="selectedTransactionTree">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>3</horstretch>
+            <verstretch>3</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>300</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>16777215</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="itemsExpandable">
+           <bool>true</bool>
+          </property>
+          <property name="sortingEnabled">
+           <bool>false</bool>
+          </property>
+          <property name="animated">
+           <bool>false</bool>
+          </property>
+          <property name="columnCount">
+           <number>0</number>
+          </property>
+          <attribute name="headerStretchLastSection">
+           <bool>true</bool>
+          </attribute>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tabSimConfig">
+       <attribute name="title">
+        <string>Configuration</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout">
+        <item>
+         <widget class="QTableView" name="mcConfigView">
+          <property name="selectionMode">
+           <enum>QAbstractItemView::SingleSelection</enum>
+          </property>
+          <property name="selectionBehavior">
+           <enum>QAbstractItemView::SelectRows</enum>
+          </property>
+          <property name="showGrid">
+           <bool>true</bool>
+          </property>
+          <attribute name="horizontalHeaderStretchLastSection">
+           <bool>true</bool>
+          </attribute>
+          <attribute name="verticalHeaderVisible">
+           <bool>false</bool>
+          </attribute>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTreeView" name="memSpecView">
+          <property name="uniformRowHeights">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tabCustomizePlot">
+       <attribute name="title">
+        <string>Customize Plot</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_2">
+        <item>
+         <widget class="QLabel" name="customizePlotDescription">
+          <property name="text">
+           <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;To customize the displayed rows double click or drag and drop items from the upper list to the lower list.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+          </property>
+          <property name="scaledContents">
+           <bool>false</bool>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTreeView" name="availableTreeView">
+          <property name="showDropIndicator" stdset="0">
+           <bool>false</bool>
+          </property>
+          <property name="dragEnabled">
+           <bool>true</bool>
+          </property>
+          <property name="dragDropMode">
+           <enum>QAbstractItemView::DragOnly</enum>
+          </property>
+          <property name="selectionMode">
+           <enum>QAbstractItemView::ExtendedSelection</enum>
+          </property>
+          <property name="expandsOnDoubleClick">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTreeView" name="selectedTreeView">
+          <property name="acceptDrops">
+           <bool>true</bool>
+          </property>
+          <property name="dragEnabled">
+           <bool>true</bool>
+          </property>
+          <property name="dragDropMode">
+           <enum>QAbstractItemView::DragDrop</enum>
+          </property>
+          <property name="defaultDropAction">
+           <enum>Qt::MoveAction</enum>
+          </property>
+          <property name="selectionMode">
+           <enum>QAbstractItemView::ExtendedSelection</enum>
+          </property>
+          <property name="expandsOnDoubleClick">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tabComments">
+       <attribute name="title">
+        <string>Comments</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout_5">
+        <item row="0" column="0">
+         <widget class="QTableView" name="commentView">
+          <property name="editTriggers">
+           <set>QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed</set>
+          </property>
+          <property name="alternatingRowColors">
+           <bool>true</bool>
+          </property>
+          <property name="selectionBehavior">
+           <enum>QAbstractItemView::SelectRows</enum>
+          </property>
+          <property name="gridStyle">
+           <enum>Qt::NoPen</enum>
+          </property>
+          <attribute name="horizontalHeaderStretchLastSection">
+           <bool>true</bool>
+          </attribute>
+          <attribute name="verticalHeaderVisible">
+           <bool>false</bool>
+          </attribute>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tabLatencyAnalysis">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <attribute name="title">
+        <string>Latency Analysis</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout_3">
+        <item row="0" column="0">
+         <layout class="QVBoxLayout" name="latencyLayout">
+          <item>
+           <widget class="QPushButton" name="startLatencyAnalysis">
+            <property name="text">
+             <string>Start Analysis</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QProgressBar" name="latencyAnalysisProgressBar">
+            <property name="value">
+             <number>0</number>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QwtPlot" name="latencyPlot">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>200</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QTreeView" name="latencyTreeView">
+            <property name="editTriggers">
+             <set>QAbstractItemView::NoEditTriggers</set>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tabPowerAnalysis">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="accessibleName">
+        <string/>
+       </property>
+       <attribute name="title">
+        <string>Power and Bandwidth Analysis</string>
+       </attribute>
+       <layout class="QGridLayout" name="gridLayout_4">
+        <item row="2" column="0">
+         <layout class="QVBoxLayout" name="powerLayout">
+          <item>
+           <widget class="QPushButton" name="startPowerAnalysis">
+            <property name="text">
+             <string>Start Analysis</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QGroupBox" name="powerBox">
+            <property name="title">
+             <string>Power:</string>
+            </property>
+            <layout class="QVBoxLayout" name="verticalLayout_6">
+             <item>
+              <widget class="QwtPlot" name="powerPlot"/>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QGroupBox" name="bandwidthBox">
+            <property name="title">
+             <string>Bandwidth:</string>
+            </property>
+            <layout class="QVBoxLayout" name="verticalLayout_5">
+             <item>
+              <widget class="QwtPlot" name="bandwidthPlot"/>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QGroupBox" name="bufferBox">
+            <property name="title">
+             <string>Buffer Analysis:</string>
+            </property>
+            <layout class="QVBoxLayout" name="verticalLayout_8">
+             <item>
+              <widget class="QwtPlot" name="bufferPlot"/>
+             </item>
+            </layout>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="tabDepInfos">
+       <attribute name="title">
+        <string>Dependency Information</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_depInfos">
+        <item>
+         <widget class="QLabel" name="depInfoLabel">
+          <property name="text">
+           <string>To display timing dependencies between transaction phases, select the respective phases and press &quot;Calculate Dependencies&quot;. The dependencies can now be displayed in the trace view using the context menu.</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTreeView" name="depInfosView">
+          <property name="uniformRowHeights">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QListWidget" name="depTabPossiblePhases"/>
+        </item>
+        <item>
+         <widget class="QPushButton" name="calculateDependencies">
+          <property name="text">
+           <string>Calculate Dependencies</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>QwtPlot</class>
+   <extends>QFrame</extends>
+   <header>qwt_plot.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>TracePlot</class>
+   <extends>QListView</extends>
+   <header>presentation/traceplot.h</header>
+  </customwidget>
+  <customwidget>
+   <class>TraceScroller</class>
+   <extends>QListView</extends>
+   <header>presentation/tracescroller.h</header>
+  </customwidget>
+  <customwidget>
+   <class>SelectedTransactionTreeWidget</class>
+   <extends>QTreeWidget</extends>
+   <header>presentation/selectedtransactiontreewidget.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections/>
+</ui>

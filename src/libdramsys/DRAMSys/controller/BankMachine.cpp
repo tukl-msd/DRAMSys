@@ -34,8 +34,6 @@
 
 #include "BankMachine.h"
 
-#include "DRAMSys/configuration/Configuration.h"
-
 #include <algorithm>
 
 using namespace sc_core;
@@ -44,8 +42,11 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-BankMachine::BankMachine(const Configuration& config, const SchedulerIF& scheduler, Bank bank) :
-    memSpec(*config.memSpec),
+BankMachine::BankMachine(const McConfig& config,
+                         const MemSpec& memSpec,
+                         const SchedulerIF& scheduler,
+                         Bank bank) :
+    memSpec(memSpec),
     scheduler(scheduler),
     bank(bank),
     bankgroup(BankGroup(static_cast<std::size_t>(bank) / memSpec.banksPerGroup)),
@@ -181,10 +182,11 @@ bool BankMachine::isPrecharged() const
     return state == State::Precharged;
 }
 
-BankMachineOpen::BankMachineOpen(const Configuration& config,
+BankMachineOpen::BankMachineOpen(const McConfig& config,
+                                 const MemSpec& memSpec,
                                  const SchedulerIF& scheduler,
                                  Bank bank) :
-    BankMachine(config, scheduler, bank)
+    BankMachine(config, memSpec, scheduler, bank)
 {
 }
 
@@ -230,10 +232,11 @@ void BankMachineOpen::evaluate()
     }
 }
 
-BankMachineClosed::BankMachineClosed(const Configuration& config,
+BankMachineClosed::BankMachineClosed(const McConfig& config,
+                                     const MemSpec& memSpec,
                                      const SchedulerIF& scheduler,
                                      Bank bank) :
-    BankMachine(config, scheduler, bank)
+    BankMachine(config, memSpec, scheduler, bank)
 {
 }
 
@@ -274,10 +277,11 @@ void BankMachineClosed::evaluate()
     }
 }
 
-BankMachineOpenAdaptive::BankMachineOpenAdaptive(const Configuration& config,
+BankMachineOpenAdaptive::BankMachineOpenAdaptive(const McConfig& config,
+                                                 const MemSpec& memSpec,
                                                  const SchedulerIF& scheduler,
                                                  Bank bank) :
-    BankMachine(config, scheduler, bank)
+    BankMachine(config, memSpec, scheduler, bank)
 {
 }
 
@@ -338,10 +342,11 @@ void BankMachineOpenAdaptive::evaluate()
     }
 }
 
-BankMachineClosedAdaptive::BankMachineClosedAdaptive(const Configuration& config,
+BankMachineClosedAdaptive::BankMachineClosedAdaptive(const McConfig& config,
+                                                     const MemSpec& memSpec,
                                                      const SchedulerIF& scheduler,
                                                      Bank bank) :
-    BankMachine(config, scheduler, bank)
+    BankMachine(config, memSpec, scheduler, bank)
 {
 }
 

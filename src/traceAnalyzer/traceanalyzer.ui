@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>TraceAnalyzer</class>
+ <widget class="QMainWindow" name="TraceAnalyzer">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>800</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Trace Analyzer</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <item>
+     <widget class="QTabWidget" name="traceFileTabs">
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <property name="documentMode">
+       <bool>false</bool>
+      </property>
+      <property name="tabsClosable">
+       <bool>true</bool>
+      </property>
+      <property name="movable">
+       <bool>true</bool>
+      </property>
+      <widget class="QWidget" name="tab">
+       <attribute name="title">
+        <string>Tab 1</string>
+       </attribute>
+      </widget>
+      <widget class="QWidget" name="tab_2">
+       <attribute name="title">
+        <string>Tab 2</string>
+       </attribute>
+      </widget>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>800</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>&amp;File</string>
+    </property>
+    <addaction name="actionOpen"/>
+    <addaction name="actionSave"/>
+    <addaction name="actionSave_all"/>
+    <addaction name="actionReload"/>
+    <addaction name="actionReload_all"/>
+    <addaction name="separator"/>
+    <addaction name="actionExportAsVCD"/>
+    <addaction name="separator"/>
+    <addaction name="actionMetrics"/>
+    <addaction name="separator"/>
+    <addaction name="actionClose"/>
+    <addaction name="actionClose_all"/>
+    <addaction name="separator"/>
+    <addaction name="actionQuit"/>
+   </widget>
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
+     <string>&amp;Help</string>
+    </property>
+    <addaction name="actionAbout"/>
+    <addaction name="actionAbout_Qt"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuHelp"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionOpen">
+   <property name="icon">
+    <iconset theme="document-open">
+     <normaloff>../../../../.designer/backup</normaloff>../../../../.designer/backup</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Open...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="actionReload">
+   <property name="icon">
+    <iconset theme="view-refresh">
+     <normaloff>../../../../.designer/backup</normaloff>../../../../.designer/backup</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Reload</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+R</string>
+   </property>
+  </action>
+  <action name="actionSave">
+   <property name="icon">
+    <iconset theme="document-save">
+     <normaloff>../../../../.designer/backup</normaloff>../../../../.designer/backup</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Save</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
+   </property>
+  </action>
+  <action name="actionClose_all">
+   <property name="text">
+    <string>C&amp;lose all</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+W</string>
+   </property>
+  </action>
+  <action name="actionAbout">
+   <property name="text">
+    <string>&amp;About DRAMSys</string>
+   </property>
+  </action>
+  <action name="actionMetrics">
+   <property name="text">
+    <string>&amp;Metrics</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+M</string>
+   </property>
+  </action>
+  <action name="actionExportAsVCD">
+   <property name="icon">
+    <iconset theme="document-export">
+     <normaloff>../../../../.designer/backup</normaloff>../../../../.designer/backup</iconset>
+   </property>
+   <property name="text">
+    <string>Export as &amp;VCD...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+V</string>
+   </property>
+  </action>
+  <action name="actionClose">
+   <property name="icon">
+    <iconset theme="document-close">
+     <normaloff>../../../../.designer/backup</normaloff>../../../../.designer/backup</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Close</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+W</string>
+   </property>
+  </action>
+  <action name="actionReload_all">
+   <property name="text">
+    <string>R&amp;eload all</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+R</string>
+   </property>
+  </action>
+  <action name="actionQuit">
+   <property name="icon">
+    <iconset theme="application-exit">
+     <normaloff>../../../../.designer/backup</normaloff>../../../../.designer/backup</iconset>
+   </property>
+   <property name="text">
+    <string>&amp;Quit</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
+   </property>
+  </action>
+  <action name="actionSave_all">
+   <property name="icon">
+    <iconset theme="document-save-all">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Save &amp;all</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+S</string>
+   </property>
+  </action>
+  <action name="actionSave_as">
+   <property name="icon">
+    <iconset theme="document-save-as">
+     <normaloff>.</normaloff>.</iconset>
+   </property>
+   <property name="text">
+    <string>Save &amp;as...</string>
+   </property>
+  </action>
+  <action name="actionAbout_Qt">
+   <property name="text">
+    <string>About &amp;Qt</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::AboutQtRole</enum>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>actionQuit</sender>
+   <signal>triggered()</signal>
+   <receiver>TraceAnalyzer</receiver>
+   <slot>close()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>399</x>
+     <y>299</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

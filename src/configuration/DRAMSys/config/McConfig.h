@@ -180,6 +180,8 @@ struct McConfig
     std::optional<unsigned int> LowWatermark;
     std::optional<SchedulerBufferType> SchedulerBuffer;
     std::optional<unsigned int> RequestBufferSize;
+    std::optional<unsigned int> RequestBufferSizeRead;
+    std::optional<unsigned int> RequestBufferSizeWrite;
     std::optional<CmdMuxType> CmdMux;
     std::optional<RespQueueType> RespQueue;
     std::optional<RefreshPolicyType> RefreshPolicy;
@@ -206,6 +208,8 @@ NLOHMANN_JSONIFY_ALL_THINGS(McConfig,
                             LowWatermark,
                             SchedulerBuffer,
                             RequestBufferSize,
+                            RequestBufferSizeRead,
+                            RequestBufferSizeWrite,
                             CmdMux,
                             RespQueue,
                             RefreshPolicy,

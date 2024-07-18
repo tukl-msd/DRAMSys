@@ -36,7 +36,6 @@
  */
 
 #include "dramExtensions.h"
-#include <DRAMSys/configuration/Configuration.h>
 
 using namespace sc_core;
 using namespace tlm;

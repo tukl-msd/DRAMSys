@@ -43,14 +43,16 @@ namespace DRAMSys
 {
 
 ControllerRecordable::ControllerRecordable(const sc_module_name& name,
-                                           const Configuration& config,
+                                           const McConfig& config,
+                                           const SimConfig& simConfig,
+                                           const MemSpec& memSpec,
                                            const AddressDecoder& addressDecoder,
                                            TlmRecorder& tlmRecorder) :
-    Controller(name, config, addressDecoder),
+    Controller(name, config, memSpec, addressDecoder),
     tlmRecorder(tlmRecorder),
-    windowSizeTime(config.windowSize * memSpec.tCK),
-    activeTimeMultiplier(config.memSpec->tCK / config.memSpec->dataRate),
-    enableWindowing(config.enableWindowing)
+    windowSizeTime(simConfig.windowSize * memSpec.tCK),
+    activeTimeMultiplier(memSpec.tCK / memSpec.dataRate),
+    enableWindowing(simConfig.enableWindowing)
 {
     if (enableWindowing)
     {

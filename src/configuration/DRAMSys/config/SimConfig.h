@@ -47,15 +47,13 @@ enum class StoreModeType
 {
     NoStorage,
     Store,
-    ErrorModel,
     Invalid = -1
 };
 
 NLOHMANN_JSON_SERIALIZE_ENUM(StoreModeType,
                              {{StoreModeType::Invalid, nullptr},
                               {StoreModeType::NoStorage, "NoStorage"},
-                              {StoreModeType::Store, "Store"},
-                              {StoreModeType::ErrorModel, "ErrorModel"}})
+                              {StoreModeType::Store, "Store"}})
 
 struct SimConfig
 {
@@ -67,8 +65,6 @@ struct SimConfig
     std::optional<bool> DatabaseRecording;
     std::optional<bool> Debug;
     std::optional<bool> EnableWindowing;
-    std::optional<std::string> ErrorCSVFile;
-    std::optional<unsigned int> ErrorChipSeed;
     std::optional<bool> PowerAnalysis;
     std::optional<std::string> SimulationName;
     std::optional<bool> SimulationProgressBar;
@@ -84,8 +80,6 @@ NLOHMANN_JSONIFY_ALL_THINGS(SimConfig,
                             DatabaseRecording,
                             Debug,
                             EnableWindowing,
-                            ErrorCSVFile,
-                            ErrorChipSeed,
                             PowerAnalysis,
                             SimulationName,
                             SimulationProgressBar,

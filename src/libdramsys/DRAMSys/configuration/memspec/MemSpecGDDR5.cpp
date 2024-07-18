@@ -46,9 +46,8 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-MemSpecGDDR5::MemSpecGDDR5(const DRAMSys::Config::MemSpec& memSpec) :
+MemSpecGDDR5::MemSpecGDDR5(const Config::MemSpec& memSpec) :
     MemSpec(memSpec,
-            MemoryType::GDDR5,
             memSpec.memarchitecturespec.entries.at("nbrOfChannels"),
             1,
             memSpec.memarchitecturespec.entries.at("nbrOfRanks"),

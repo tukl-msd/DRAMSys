@@ -42,26 +42,26 @@
 
 #include "DRAMSys/common/DebugManager.h"
 #include "DRAMSys/common/utils.h"
-#include "DRAMSys/controller/Controller.h"
-#include "DRAMSys/simulation/dram/DramDDR3.h"
-#include "DRAMSys/simulation/dram/DramDDR4.h"
-#include "DRAMSys/simulation/dram/DramGDDR5.h"
-#include "DRAMSys/simulation/dram/DramGDDR5X.h"
-#include "DRAMSys/simulation/dram/DramGDDR6.h"
-#include "DRAMSys/simulation/dram/DramHBM2.h"
-#include "DRAMSys/simulation/dram/DramLPDDR4.h"
-#include "DRAMSys/simulation/dram/DramSTTMRAM.h"
-#include "DRAMSys/simulation/dram/DramWideIO.h"
-#include "DRAMSys/simulation/dram/DramWideIO2.h"
+
+#include "DRAMSys/configuration/memspec/MemSpecDDR3.h"
+#include "DRAMSys/configuration/memspec/MemSpecDDR4.h"
+#include "DRAMSys/configuration/memspec/MemSpecGDDR5.h"
+#include "DRAMSys/configuration/memspec/MemSpecGDDR5X.h"
+#include "DRAMSys/configuration/memspec/MemSpecGDDR6.h"
+#include "DRAMSys/configuration/memspec/MemSpecHBM2.h"
+#include "DRAMSys/configuration/memspec/MemSpecLPDDR4.h"
+#include "DRAMSys/configuration/memspec/MemSpecSTTMRAM.h"
+#include "DRAMSys/configuration/memspec/MemSpecWideIO.h"
+#include "DRAMSys/configuration/memspec/MemSpecWideIO2.h"
 
 #ifdef DDR5_SIM
-#include "DRAMSys/simulation/dram/DramDDR5.h"
+#include "DRAMSys/configuration/memspec/MemSpecDDR5.h"
 #endif
 #ifdef LPDDR5_SIM
-#include "DRAMSys/simulation/dram/DramLPDDR5.h"
+#include "DRAMSys/configuration/memspec/MemSpecLPDDR5.h"
 #endif
 #ifdef HBM3_SIM
-#include "DRAMSys/simulation/dram/DramHBM3.h"
+#include "DRAMSys/configuration/memspec/MemSpecHBM3.h"
 #endif
 
 #include <cstdlib>
@@ -73,36 +73,117 @@
 namespace DRAMSys
 {
 
-DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
-                 const ::DRAMSys::Config::Configuration& configLib) :
-    DRAMSys(name, configLib, true)
-{
-}
-
-DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
-                 const ::DRAMSys::Config::Configuration& configLib,
-                 bool initAndBind) :
+DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuration& config) :
     sc_module(name),
-    tSocket("DRAMSys_tSocket")
+    memSpec(createMemSpec(config.memspec)),
+    simConfig(config.simconfig),
+    mcConfig(config.mcconfig, *memSpec),
+    addressDecoder(std::make_unique<AddressDecoder>(config.addressmapping)),
+    arbiter(createArbiter(simConfig, mcConfig, *memSpec, *addressDecoder))
 {
     logo();
-
-    // Load configLib and initialize modules
-    // Important: The memSpec needs to be the first configuration to be loaded!
-    config.loadMemSpec(configLib.memspec);
-    config.loadMCConfig(configLib.mcconfig);
-    config.loadSimConfig(configLib.simconfig);
+    addressDecoder->plausibilityCheck(*memSpec);
+    addressDecoder->print();
 
     // Setup the debug manager:
-    setupDebugManager(config.simulationName);
+    setupDebugManager(simConfig.simulationName);
 
-    if (initAndBind)
+    // Instantiate all internal DRAMSys modules:
+    if (simConfig.databaseRecording)
     {
-        // Instantiate all internal DRAMSys modules:
-        instantiateModules(configLib.addressmapping);
-        // Connect all internal DRAMSys modules:
-        bindSockets();
-        report(headline);
+        std::string traceName = simConfig.simulationName;
+
+        if (!config.simulationid.empty())
+            traceName = config.simulationid + '_' + traceName;
+
+        // Create and properly initialize TLM recorders.
+        // They need to be ready before creating some modules.
+        setupTlmRecorders(traceName, config);
+
+        // Create controllers and DRAMs
+        for (std::size_t i = 0; i < memSpec->numberOfChannels; i++)
+        {
+            controllers.emplace_back(
+                std::make_unique<ControllerRecordable>(("controller" + std::to_string(i)).c_str(),
+                                                       mcConfig,
+                                                       simConfig,
+                                                       *memSpec,
+                                                       *addressDecoder,
+                                                       tlmRecorders[i]));
+
+            drams.emplace_back(std::make_unique<DramRecordable>(
+                ("dram" + std::to_string(i)).c_str(), simConfig, *memSpec, tlmRecorders[i]));
+
+            if (simConfig.checkTLM2Protocol)
+                controllersTlmCheckers.emplace_back(
+                    std::make_unique<tlm_utils::tlm2_base_protocol_checker<>>(
+                        ("TLMCheckerController" + std::to_string(i)).c_str()));
+        }
+    }
+    else
+    {
+        for (std::size_t i = 0; i < memSpec->numberOfChannels; i++)
+        {
+            controllers.emplace_back(std::make_unique<Controller>(
+                ("controller" + std::to_string(i)).c_str(), mcConfig, *memSpec, *addressDecoder));
+
+            drams.emplace_back(
+                std::make_unique<Dram>(("dram" + std::to_string(i)).c_str(), simConfig, *memSpec));
+
+            if (simConfig.checkTLM2Protocol)
+            {
+                controllersTlmCheckers.push_back(
+                    std::make_unique<tlm_utils::tlm2_base_protocol_checker<>>(
+                        ("TlmCheckerController" + std::to_string(i)).c_str()));
+            }
+        }
+    }
+
+    // Connect all internal DRAMSys modules:
+    tSocket.bind(arbiter->tSocket);
+    for (unsigned i = 0; i < memSpec->numberOfChannels; i++)
+    {
+        if (simConfig.checkTLM2Protocol)
+        {
+            arbiter->iSocket.bind(controllersTlmCheckers[i]->target_socket);
+            controllersTlmCheckers[i]->initiator_socket.bind(controllers[i]->tSocket);
+        }
+        else
+        {
+            arbiter->iSocket.bind(controllers[i]->tSocket);
+        }
+        controllers[i]->iSocket.bind(drams[i]->tSocket);
+    }
+
+    report();
+}
+
+void DRAMSys::setupTlmRecorders(const std::string& traceName, const Config::Configuration& config)
+{
+    // Create TLM Recorders, one per channel.
+    // Reserve is required because the recorders use double buffers that are accessed with pointers.
+    // Without a reserve, the vector reallocates storage before inserting a second
+    // element and the pointers are not valid anymore.
+    tlmRecorders.reserve(memSpec->numberOfChannels);
+    for (std::size_t i = 0; i < memSpec->numberOfChannels; i++)
+    {
+        std::string dbName =
+            std::string(name()) + "_" + traceName + "_ch" + std::to_string(i) + ".tdb";
+        std::string recorderName = "tlmRecorder" + std::to_string(i);
+
+        nlohmann::json mcconfig;
+        nlohmann::json memspec;
+        mcconfig[Config::McConfig::KEY] = config.mcconfig;
+        memspec[Config::MemSpec::KEY] = config.memspec;
+
+        tlmRecorders.emplace_back(recorderName,
+                                  simConfig,
+                                  mcConfig,
+                                  *memSpec,
+                                  dbName,
+                                  mcconfig.dump(),
+                                  memspec.dump(),
+                                  simConfig.simulationName);
     }
 }
 
@@ -121,18 +202,16 @@ void DRAMSys::registerIdleCallback(const std::function<void()>& idleCallback)
     }
 }
 
-const Configuration& DRAMSys::getConfig() const
-{
-    return config;
-}
-
 void DRAMSys::end_of_simulation()
 {
-    if (config.powerAnalysis)
+    if (simConfig.powerAnalysis)
     {
         for (auto& dram : drams)
             dram->reportPower();
     }
+
+    for (auto& tlmRecorder : tlmRecorders)
+        tlmRecorder.finalize();
 }
 
 void DRAMSys::logo()
@@ -160,7 +239,7 @@ void DRAMSys::setupDebugManager([[maybe_unused]] const std::string& traceName) c
 {
 #ifndef NDEBUG
     auto& dbg = DebugManager::getInstance();
-    bool debugEnabled = config.debug;
+    bool debugEnabled = simConfig.debug;
     bool writeToConsole = false;
     bool writeToFile = true;
     dbg.setup(debugEnabled, writeToConsole, writeToFile);
@@ -169,102 +248,84 @@ void DRAMSys::setupDebugManager([[maybe_unused]] const std::string& traceName) c
 #endif
 }
 
-void DRAMSys::instantiateModules(const ::DRAMSys::Config::AddressMapping& addressMapping)
+void DRAMSys::report()
 {
-    addressDecoder = std::make_unique<AddressDecoder>(addressMapping, *config.memSpec);
-    addressDecoder->print();
+    PRINTDEBUGMESSAGE(name(), headline.data());
+    std::cout << headline << std::endl;
+}
 
-    // Create arbiter
-    if (config.arbiter == Configuration::Arbiter::Simple)
-        arbiter = std::make_unique<ArbiterSimple>("arbiter", config, *addressDecoder);
-    else if (config.arbiter == Configuration::Arbiter::Fifo)
-        arbiter = std::make_unique<ArbiterFifo>("arbiter", config, *addressDecoder);
-    else if (config.arbiter == Configuration::Arbiter::Reorder)
-        arbiter = std::make_unique<ArbiterReorder>("arbiter", config, *addressDecoder);
+std::unique_ptr<const MemSpec> DRAMSys::createMemSpec(const Config::MemSpec& memSpec)
+{
+    auto memoryType = memSpec.memoryType;
 
-    // Create controllers and DRAMs
-    MemSpec::MemoryType memoryType = config.memSpec->memoryType;
-    for (std::size_t i = 0; i < config.memSpec->numberOfChannels; i++)
-    {
-        controllers.emplace_back(std::make_unique<Controller>(
-            ("controller" + std::to_string(i)).c_str(), config, *addressDecoder));
+    if (memoryType == Config::MemoryType::DDR3)
+        return std::make_unique<const MemSpecDDR3>(memSpec);
 
-        if (memoryType == MemSpec::MemoryType::DDR3)
-            drams.emplace_back(
-                std::make_unique<DramDDR3>(("dram" + std::to_string(i)).c_str(), config));
-        else if (memoryType == MemSpec::MemoryType::DDR4)
-            drams.emplace_back(
-                std::make_unique<DramDDR4>(("dram" + std::to_string(i)).c_str(), config));
-        else if (memoryType == MemSpec::MemoryType::WideIO)
-            drams.emplace_back(
-                std::make_unique<DramWideIO>(("dram" + std::to_string(i)).c_str(), config));
-        else if (memoryType == MemSpec::MemoryType::LPDDR4)
-            drams.emplace_back(
-                std::make_unique<DramLPDDR4>(("dram" + std::to_string(i)).c_str(), config));
-        else if (memoryType == MemSpec::MemoryType::WideIO2)
-            drams.emplace_back(
-                std::make_unique<DramWideIO2>(("dram" + std::to_string(i)).c_str(), config));
-        else if (memoryType == MemSpec::MemoryType::HBM2)
-            drams.emplace_back(
-                std::make_unique<DramHBM2>(("dram" + std::to_string(i)).c_str(), config));
-        else if (memoryType == MemSpec::MemoryType::GDDR5)
-            drams.emplace_back(
-                std::make_unique<DramGDDR5>(("dram" + std::to_string(i)).c_str(), config));
-        else if (memoryType == MemSpec::MemoryType::GDDR5X)
-            drams.emplace_back(
-                std::make_unique<DramGDDR5X>(("dram" + std::to_string(i)).c_str(), config));
-        else if (memoryType == MemSpec::MemoryType::GDDR6)
-            drams.emplace_back(
-                std::make_unique<DramGDDR6>(("dram" + std::to_string(i)).c_str(), config));
-        else if (memoryType == MemSpec::MemoryType::STTMRAM)
-            drams.emplace_back(
-                std::make_unique<DramSTTMRAM>(("dram" + std::to_string(i)).c_str(), config));
+    if (memoryType == Config::MemoryType::DDR4)
+        return std::make_unique<const MemSpecDDR4>(memSpec);
+
+    if (memoryType == Config::MemoryType::LPDDR4)
+        return std::make_unique<const MemSpecLPDDR4>(memSpec);
+
+    if (memoryType == Config::MemoryType::WideIO)
+        return std::make_unique<const MemSpecWideIO>(memSpec);
+
+    if (memoryType == Config::MemoryType::WideIO2)
+        return std::make_unique<const MemSpecWideIO2>(memSpec);
+
+    if (memoryType == Config::MemoryType::HBM2)
+        return std::make_unique<const MemSpecHBM2>(memSpec);
+
+    if (memoryType == Config::MemoryType::GDDR5)
+        return std::make_unique<const MemSpecGDDR5>(memSpec);
+
+    if (memoryType == Config::MemoryType::GDDR5X)
+        return std::make_unique<const MemSpecGDDR5X>(memSpec);
+
+    if (memoryType == Config::MemoryType::GDDR6)
+        return std::make_unique<const MemSpecGDDR6>(memSpec);
+
+    if (memoryType == Config::MemoryType::STTMRAM)
+        return std::make_unique<const MemSpecSTTMRAM>(memSpec);
+
 #ifdef DDR5_SIM
-        else if (memoryType == MemSpec::MemoryType::DDR5)
-            drams.emplace_back(
-                std::make_unique<DramDDR5>(("dram" + std::to_string(i)).c_str(), config));
+    if (memoryType == Config::MemoryType::DDR5)
+        return std::make_unique<const MemSpecDDR5>(memSpec);
 #endif
+
 #ifdef LPDDR5_SIM
-        else if (memoryType == MemSpec::MemoryType::LPDDR5)
-            drams.emplace_back(
-                std::make_unique<DramLPDDR5>(("dram" + std::to_string(i)).c_str(), config));
+    if (memoryType == Config::MemoryType::LPDDR5)
+        return std::make_unique<const MemSpecLPDDR5>(memSpec);
 #endif
+
 #ifdef HBM3_SIM
-        else if (memoryType == MemSpec::MemoryType::HBM3)
-            drams.emplace_back(
-                std::make_unique<DramHBM3>(("dram" + std::to_string(i)).c_str(), config));
+    if (memoryType == Config::MemoryType::HBM3)
+        return std::make_unique<const MemSpecHBM3>(memSpec);
 #endif
 
-        if (config.checkTLM2Protocol)
-            controllersTlmCheckers.push_back(
-                std::make_unique<tlm_utils::tlm2_base_protocol_checker<>>(
-                    ("TlmCheckerController" + std::to_string(i)).c_str()));
-    }
+    SC_REPORT_FATAL("Configuration", "Unsupported DRAM type");
+    return {};
 }
 
-void DRAMSys::bindSockets()
+std::unique_ptr<Arbiter> DRAMSys::createArbiter(const SimConfig& simConfig,
+                                                const McConfig& mcConfig,
+                                                const MemSpec& memSpec,
+                                                const AddressDecoder& addressDecoder)
 {
-    tSocket.bind(arbiter->tSocket);
+    if (mcConfig.arbiter == Config::ArbiterType::Simple)
+        return std::make_unique<ArbiterSimple>(
+            "arbiter", simConfig, mcConfig, memSpec, addressDecoder);
 
-    for (unsigned i = 0; i < config.memSpec->numberOfChannels; i++)
-    {
-        if (config.checkTLM2Protocol)
-        {
-            arbiter->iSocket.bind(controllersTlmCheckers[i]->target_socket);
-            controllersTlmCheckers[i]->initiator_socket.bind(controllers[i]->tSocket);
-        }
-        else
-        {
-            arbiter->iSocket.bind(controllers[i]->tSocket);
-        }
-        controllers[i]->iSocket.bind(drams[i]->tSocket);
-    }
-}
+    if (mcConfig.arbiter == Config::ArbiterType::Fifo)
+        return std::make_unique<ArbiterFifo>(
+            "arbiter", simConfig, mcConfig, memSpec, addressDecoder);
 
-void DRAMSys::report(std::string_view message)
-{
-    PRINTDEBUGMESSAGE(name(), message.data());
-    std::cout << message << std::endl;
+    if (mcConfig.arbiter == Config::ArbiterType::Reorder)
+        return std::make_unique<ArbiterReorder>(
+            "arbiter", simConfig, mcConfig, memSpec, addressDecoder);
+
+    SC_REPORT_FATAL("DRAMSys", "Invalid Arbiter");
+    return {};
 }
 
 } // namespace DRAMSys

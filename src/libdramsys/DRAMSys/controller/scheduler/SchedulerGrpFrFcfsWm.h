@@ -36,7 +36,6 @@
 #define SCHEDULERGRPFRFCFSWM_H
 
 #include "DRAMSys/common/dramExtensions.h"
-#include "DRAMSys/configuration/Configuration.h"
 #include "DRAMSys/controller/BankMachine.h"
 #include "DRAMSys/controller/scheduler/BufferCounterIF.h"
 #include "DRAMSys/controller/scheduler/SchedulerIF.h"
@@ -52,7 +51,7 @@ namespace DRAMSys
 class SchedulerGrpFrFcfsWm final : public SchedulerIF
 {
 public:
-    explicit SchedulerGrpFrFcfsWm(const Configuration& config);
+    explicit SchedulerGrpFrFcfsWm(const McConfig& config, const MemSpec& memSpec);
     [[nodiscard]] bool hasBufferSpace() const override;
     void storeRequest(tlm::tlm_generic_payload& payload) override;
     void removeRequest(tlm::tlm_generic_payload& payload) override;

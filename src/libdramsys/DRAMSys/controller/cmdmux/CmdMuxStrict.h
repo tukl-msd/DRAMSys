@@ -35,7 +35,7 @@
 #ifndef CMDMUXSTRICT_H
 #define CMDMUXSTRICT_H
 
-#include "DRAMSys/configuration/Configuration.h"
+#include "DRAMSys/configuration/memspec/MemSpec.h"
 #include "DRAMSys/controller/cmdmux/CmdMuxIF.h"
 
 namespace DRAMSys
@@ -44,7 +44,7 @@ namespace DRAMSys
 class CmdMuxStrict : public CmdMuxIF
 {
 public:
-    explicit CmdMuxStrict(const Configuration& config);
+    explicit CmdMuxStrict(const MemSpec& memSpec);
     CommandTuple::Type selectCommand(const ReadyCommands& readyCommands) override;
 
 private:
@@ -56,7 +56,7 @@ private:
 class CmdMuxStrictRasCas : public CmdMuxIF
 {
 public:
-    explicit CmdMuxStrictRasCas(const Configuration& config);
+    explicit CmdMuxStrictRasCas(const MemSpec& memSpec);
     CommandTuple::Type selectCommand(const ReadyCommands& readyCommands) override;
 
 private:

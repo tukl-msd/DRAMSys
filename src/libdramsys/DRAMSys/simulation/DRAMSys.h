@@ -41,14 +41,17 @@
 #ifndef DRAMSYS_H
 #define DRAMSYS_H
 
-#include "DRAMSys/common/Serialize.h"
+#include "DRAMSys/common/TlmRecorder.h"
 #include "DRAMSys/common/tlm2_base_protocol_checker.h"
 #include "DRAMSys/config/DRAMSysConfiguration.h"
 #include "DRAMSys/controller/Controller.h"
+#include "DRAMSys/controller/ControllerRecordable.h"
+#include "DRAMSys/controller/McConfig.h"
 #include "DRAMSys/simulation/AddressDecoder.h"
 #include "DRAMSys/simulation/Arbiter.h"
-#include "DRAMSys/simulation/ReorderBuffer.h"
-#include "DRAMSys/simulation/dram/Dram.h"
+#include "DRAMSys/simulation/Dram.h"
+#include "DRAMSys/simulation/DramRecordable.h"
+#include "DRAMSys/simulation/SimConfig.h"
 
 #include <list>
 #include <memory>
@@ -64,13 +67,15 @@ namespace DRAMSys
 class DRAMSys : public sc_core::sc_module
 {
 public:
-    tlm_utils::multi_passthrough_target_socket<DRAMSys> tSocket;
+    tlm_utils::multi_passthrough_target_socket<DRAMSys> tSocket{"DRAMSys_tSocket"};
 
     SC_HAS_PROCESS(DRAMSys);
-    DRAMSys(const sc_core::sc_module_name& name, const ::DRAMSys::Config::Configuration& configLib);
+    DRAMSys(const sc_core::sc_module_name& name, const Config::Configuration& config);
 
-    const Configuration& getConfig() const;
-    const AddressDecoder& getAddressDecoder() const { return *addressDecoder; }
+    const auto& getSimConfig() const { return simConfig; }
+    const auto& getMcConfig() const { return mcConfig; }
+    const auto& getMemSpec() const { return *memSpec; }
+    const auto& getAddressDecoder() const { return *addressDecoder; }
 
     /**
      * Returns true if all memory controllers are in idle state.
@@ -83,20 +88,29 @@ public:
      */
     void registerIdleCallback(const std::function<void()>& idleCallback);
 
-protected:
-    DRAMSys(const sc_core::sc_module_name& name,
-            const ::DRAMSys::Config::Configuration& configLib,
-            bool initAndBind);
+private:
+    static void logo();
+    static std::unique_ptr<const MemSpec> createMemSpec(const Config::MemSpec& memSpec);
+    static std::unique_ptr<Arbiter> createArbiter(const SimConfig& simConfig,
+                                                  const McConfig& mcConfig,
+                                                  const MemSpec& memSpec,
+                                                  const AddressDecoder& addressDecoder);
 
     void end_of_simulation() override;
 
-    Configuration config;
+    void setupDebugManager(const std::string& traceName) const;
+    void setupTlmRecorders(const std::string& traceName, const Config::Configuration& configLib);
+
+    void report();
+
+    std::unique_ptr<const MemSpec> memSpec;
+    SimConfig simConfig;
+    McConfig mcConfig;
+
+    std::unique_ptr<AddressDecoder> addressDecoder;
 
     // TLM 2.0 Protocol Checkers
     std::vector<std::unique_ptr<tlm_utils::tlm2_base_protocol_checker<>>> controllersTlmCheckers;
-
-    // TODO: Each DRAM has a reorder buffer (check this!)
-    std::unique_ptr<ReorderBuffer> reorder;
 
     // All transactions pass through the same arbiter
     std::unique_ptr<Arbiter> arbiter;
@@ -107,15 +121,9 @@ protected:
     // DRAM units
     std::vector<std::unique_ptr<Dram>> drams;
 
-    std::unique_ptr<AddressDecoder> addressDecoder;
-
-    void report(std::string_view message);
-    void bindSockets();
-
-private:
-    static void logo();
-    void instantiateModules(const ::DRAMSys::Config::AddressMapping& addressMapping);
-    void setupDebugManager(const std::string& traceName) const;
+    // Transaction Recorders (one per channel).
+    // They generate the output databases.
+    std::vector<TlmRecorder> tlmRecorders;
 };
 
 } // namespace DRAMSys

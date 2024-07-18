@@ -40,7 +40,7 @@
 #define ADDRESSDECODER_H
 
 #include "DRAMSys/config/DRAMSysConfiguration.h"
-#include "DRAMSys/configuration/Configuration.h"
+#include "DRAMSys/configuration/memspec/MemSpec.h"
 
 #include <utility>
 #include <vector>
@@ -81,11 +81,15 @@ struct DecodedAddress
 class AddressDecoder
 {
 public:
-    AddressDecoder(const DRAMSys::Config::AddressMapping& addressMapping, const MemSpec& memSpec);
+    AddressDecoder(const Config::AddressMapping& addressMapping);
+
     [[nodiscard]] DecodedAddress decodeAddress(uint64_t encAddr) const;
     [[nodiscard]] unsigned decodeChannel(uint64_t encAddr) const;
     [[nodiscard]] uint64_t encodeAddress(DecodedAddress decodedAddress) const;
+    [[nodiscard]] uint64_t maxAddress() const { return maximumAddress; }
+
     void print() const;
+    void plausibilityCheck(const MemSpec &memSpec);
 
 private:
     unsigned banksPerGroup;
@@ -95,7 +99,7 @@ private:
 
     // This container stores for each used xor gate a pair of address bits, the first bit is
     // overwritten with the result
-    std::vector<std::pair<unsigned, unsigned>> vXor;
+    std::vector<std::vector<unsigned>> vXor;
     std::vector<unsigned> vChannelBits;
     std::vector<unsigned> vRankBits;
     std::vector<unsigned> vBankGroupBits;

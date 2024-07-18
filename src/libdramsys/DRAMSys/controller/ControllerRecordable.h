@@ -37,6 +37,7 @@
 
 #include "DRAMSys/common/TlmRecorder.h"
 #include "DRAMSys/controller/Controller.h"
+#include "DRAMSys/simulation/SimConfig.h"
 
 #include <systemc>
 #include <tlm>
@@ -48,7 +49,9 @@ class ControllerRecordable final : public Controller
 {
 public:
     ControllerRecordable(const sc_core::sc_module_name& name,
-                         const Configuration& config,
+                         const McConfig& config,
+                         const SimConfig& simConfig,
+                         const MemSpec& memSpec,
                          const AddressDecoder& addressDecoder,
                          TlmRecorder& tlmRecorder);
 

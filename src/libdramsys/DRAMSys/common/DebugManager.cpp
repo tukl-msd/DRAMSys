@@ -36,9 +36,10 @@
 
 #include "DebugManager.h"
 
-#ifndef NDEBUG
+#include <iostream>
+#include <systemc>
 
-#include <DRAMSys/configuration/Configuration.h>
+#ifndef NDEBUG
 
 namespace DRAMSys
 {

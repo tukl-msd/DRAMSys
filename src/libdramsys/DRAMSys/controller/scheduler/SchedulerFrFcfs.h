@@ -37,6 +37,7 @@
 
 #include "DRAMSys/common/dramExtensions.h"
 #include "DRAMSys/controller/BankMachine.h"
+#include "DRAMSys/controller/McConfig.h"
 #include "DRAMSys/controller/scheduler/BufferCounterIF.h"
 #include "DRAMSys/controller/scheduler/SchedulerIF.h"
 
@@ -51,7 +52,7 @@ namespace DRAMSys
 class SchedulerFrFcfs final : public SchedulerIF
 {
 public:
-    explicit SchedulerFrFcfs(const Configuration& config);
+    explicit SchedulerFrFcfs(const McConfig& config, const MemSpec& memSpec);
     [[nodiscard]] bool hasBufferSpace() const override;
     void storeRequest(tlm::tlm_generic_payload& payload) override;
     void removeRequest(tlm::tlm_generic_payload& payload) override;

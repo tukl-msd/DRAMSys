@@ -46,9 +46,8 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-MemSpecWideIO::MemSpecWideIO(const DRAMSys::Config::MemSpec& memSpec) :
+MemSpecWideIO::MemSpecWideIO(const Config::MemSpec& memSpec) :
     MemSpec(memSpec,
-            MemoryType::WideIO,
             memSpec.memarchitecturespec.entries.at("nbrOfChannels"),
             1,
             memSpec.memarchitecturespec.entries.at("nbrOfRanks"),
@@ -196,5 +195,98 @@ bool MemSpecWideIO::requiresMaskedWrite(const tlm::tlm_generic_payload& payload)
 {
     return !allBytesEnabled(payload);
 }
+
+#ifdef DRAMPOWER
+DRAMPower::MemorySpecification MemSpecWideIO::toDramPowerMemSpec() const
+{
+    DRAMPower::MemArchitectureSpec memArchSpec;
+    memArchSpec.burstLength = defaultBurstLength;
+    memArchSpec.dataRate = dataRate;
+    memArchSpec.nbrOfRows = rowsPerBank;
+    memArchSpec.nbrOfBanks = banksPerChannel;
+    memArchSpec.nbrOfColumns = columnsPerRow;
+    memArchSpec.nbrOfRanks = ranksPerChannel;
+    memArchSpec.width = bitWidth;
+    memArchSpec.nbrOfBankGroups = bankGroupsPerChannel;
+    memArchSpec.twoVoltageDomains = true;
+    memArchSpec.dll = false;
+
+    DRAMPower::MemTimingSpec memTimingSpec;
+    // FIXME: memTimingSpec.FAWB   = tTAW / tCK;
+    // FIXME: memTimingSpec.RASB   = tRAS / tCK;
+    // FIXME: memTimingSpec.RCB    = tRC / tCK;
+    // FIXME: memTimingSpec.RPB    = tRP / tCK;
+    // FIXME: memTimingSpec.RRDB   = tRRD / tCK;
+    // FIXME: memTimingSpec.RRDB_L = tRRD / tCK;
+    // FIXME: memTimingSpec.RRDB_S = tRRD / tCK;
+    memTimingSpec.AL = 0;
+    memTimingSpec.CCD = defaultBurstLength;
+    memTimingSpec.CCD_L = defaultBurstLength;
+    memTimingSpec.CCD_S = defaultBurstLength;
+    memTimingSpec.CKE = tCKE / tCK;
+    memTimingSpec.CKESR = tCKESR / tCK;
+    // See also MemTimingSpec.cc in DRAMPower
+    memTimingSpec.clkMhz = 1 / (tCK.to_seconds() * 1'000'000);
+    memTimingSpec.clkPeriod = tCK.to_seconds() * 1'000'000'000;
+    memTimingSpec.DQSCK = tDQSCK / tCK;
+    memTimingSpec.FAW = tTAW / tCK;
+    memTimingSpec.RAS = tRAS / tCK;
+    memTimingSpec.RC = tRC / tCK;
+    memTimingSpec.RCD = tRCD / tCK;
+    memTimingSpec.REFI = tREFI / tCK;
+    memTimingSpec.RFC = tRFC / tCK;
+    memTimingSpec.RL = tRL / tCK;
+    memTimingSpec.RP = tRP / tCK;
+    memTimingSpec.RRD = tRRD / tCK;
+    memTimingSpec.RRD_L = tRRD / tCK;
+    memTimingSpec.RRD_S = tRRD / tCK;
+    memTimingSpec.RTP = defaultBurstLength;
+    memTimingSpec.TAW = tTAW / tCK;
+    memTimingSpec.WL = tWL / tCK;
+    memTimingSpec.WR = tWR / tCK;
+    memTimingSpec.WTR = tWTR / tCK;
+    memTimingSpec.WTR_L = tWTR / tCK;
+    memTimingSpec.WTR_S = tWTR / tCK;
+    memTimingSpec.XP = tXP / tCK;
+    memTimingSpec.XPDLL = tXP / tCK;
+    memTimingSpec.XS = tXSR / tCK;
+    memTimingSpec.XSDLL = tXSR / tCK;
+
+    DRAMPower::MemPowerSpec memPowerSpec;
+    memPowerSpec.idd0 = iDD0;
+    memPowerSpec.idd02 = iDD02;
+    memPowerSpec.idd2p0 = iDD2P0;
+    memPowerSpec.idd2p02 = iDD2P02;
+    memPowerSpec.idd2p1 = iDD2P1;
+    memPowerSpec.idd2p12 = iDD2P12;
+    memPowerSpec.idd2n = iDD2N;
+    memPowerSpec.idd2n2 = iDD2N2;
+    memPowerSpec.idd3p0 = iDD3P0;
+    memPowerSpec.idd3p02 = iDD3P02;
+    memPowerSpec.idd3p1 = iDD3P1;
+    memPowerSpec.idd3p12 = iDD3P12;
+    memPowerSpec.idd3n = iDD3N;
+    memPowerSpec.idd3n2 = iDD3N2;
+    memPowerSpec.idd4r = iDD4R;
+    memPowerSpec.idd4r2 = iDD4R2;
+    memPowerSpec.idd4w = iDD4W;
+    memPowerSpec.idd4w2 = iDD4W2;
+    memPowerSpec.idd5 = iDD5;
+    memPowerSpec.idd52 = iDD52;
+    memPowerSpec.idd6 = iDD6;
+    memPowerSpec.idd62 = iDD62;
+    memPowerSpec.vdd = vDD;
+    memPowerSpec.vdd2 = vDD2;
+
+    DRAMPower::MemorySpecification powerSpec;
+    powerSpec.id = memoryId;
+    powerSpec.memoryType = DRAMPower::MemoryType::WIDEIO_SDR;
+    powerSpec.memTimingSpec = memTimingSpec;
+    powerSpec.memPowerSpec = memPowerSpec;
+    powerSpec.memArchSpec = memArchSpec;
+
+    return powerSpec;
+}
+#endif
 
 } // namespace DRAMSys

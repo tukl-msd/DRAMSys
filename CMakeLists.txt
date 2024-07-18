@@ -89,11 +89,15 @@ set(DRAMSYS_RESOURCE_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/configs")
 set(DRAMSYS_EXTENSIONS_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/extensions")
 
 ### Build options ###
-option(DRAMSYS_BUILD_TESTS "Build DRAMSys unit tests" OFF)
+option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
+
 option(DRAMSYS_VERBOSE_CMAKE_OUTPUT "Show detailed CMake output" OFF)
+option(DRAMSYS_BUILD_TESTS "Build DRAMSys unit tests" OFF)
+option(DRAMSYS_BUILD_BENCHMARKS "Build DRAMSys benchmarks" OFF)
 option(DRAMSYS_BUILD_CLI "Build DRAMSys Command Line Tool" ON)
+option(DRAMSYS_BUILD_TRACE_ANALYZER "Build DRAMSys Trace Analyzer" OFF)
 option(DRAMSYS_WITH_DRAMPOWER "Build with DRAMPower support enabled." OFF)
-option(DRAMSYS_ENABLE_EXTENSIONS "Enable proprietary DRAMSys extensions." OFF)
+option(DRAMSYS_USE_EXTERNAL_SYSTEMC "Use an external SystemC installation." OFF)
 
 ###############################################
 ###           Library Settings              ###
@@ -124,20 +128,42 @@ if(DRAMSYS_BUILD_TESTS)
     set_target_properties(gtest_main PROPERTIES FOLDER lib/gtest)
 endif()
 
+### GoogleBenchmark ###
+if(DRAMSYS_BUILD_BENCHMARKS)
+    set(BENCHMARK_ENABLE_TESTING OFF)
+
+    FetchContent_Declare(
+        benchmark
+        URL https://github.com/google/benchmark/archive/refs/tags/v1.8.3.zip
+    )
+
+    FetchContent_MakeAvailable(benchmark)
+endif()
+
 ### SystemC ###
-list(APPEND CMAKE_PREFIX_PATH $ENV{SYSTEMC_HOME})
+if (DRAMSYS_USE_EXTERNAL_SYSTEMC)
+    list(APPEND CMAKE_PREFIX_PATH $ENV{SYSTEMC_HOME} /opt/systemc)
+    find_package(systemc NAMES SystemCLanguage)
+endif()
+
 FetchContent_Declare(
     systemc
     GIT_REPOSITORY https://github.com/accellera-official/systemc.git
-    GIT_TAG 2.3.4
-    FIND_PACKAGE_ARGS NAMES SystemCLanguage)
+    GIT_TAG 2.3.4)
 
 set(DISABLE_COPYRIGHT_MESSAGE True)
 
 # Allow populating of a user-set SystemC package
 if (NOT TARGET SystemC::systemc)
     FetchContent_MakeAvailable(systemc)
+
+    # Set include directories to SYSTEM to suppress warnings
+    set_target_properties(systemc PROPERTIES SYSTEM TRUE)
+else()
+    # Set include directories to SYSTEM to suppress warnings
+    set_target_properties(SystemC::systemc PROPERTIES SYSTEM TRUE)
 endif()
+
 
 ### DRAMPower ###
 if (DRAMSYS_WITH_DRAMPOWER)
@@ -162,9 +188,11 @@ if(DRAMSYS_BUILD_CLI)
     add_subdirectory(src/simulator)
 endif()
 
-if(DRAMSYS_ENABLE_EXTENSIONS)
-    dramsys_enable_extensions()
+if(DRAMSYS_BUILD_TRACE_ANALYZER)
+    add_subdirectory(src/traceAnalyzer)
 endif()
+
+dramsys_enable_extensions()
 
 ###############################################
 ###           Test Directory                ###
@@ -174,4 +202,12 @@ if(DRAMSYS_BUILD_TESTS)
     include(GoogleTest)
     include(CTest)
     add_subdirectory(tests)
+endif()
+
+###############################################
+###         Benchmark Directory             ###
+###############################################
+
+if(DRAMSYS_BUILD_BENCHMARKS)
+    add_subdirectory(benches)
 endif()

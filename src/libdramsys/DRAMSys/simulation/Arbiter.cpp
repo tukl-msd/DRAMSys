@@ -40,10 +40,8 @@
 #include "Arbiter.h"
 
 #include "DRAMSys/common/DebugManager.h"
-#include "DRAMSys/configuration/Configuration.h"
-#include "DRAMSys/simulation/AddressDecoder.h"
-
 #include "DRAMSys/config/DRAMSysConfiguration.h"
+#include "DRAMSys/simulation/AddressDecoder.h"
 
 using namespace sc_core;
 using namespace tlm;
@@ -52,16 +50,18 @@ namespace DRAMSys
 {
 
 Arbiter::Arbiter(const sc_module_name& name,
-                 const Configuration& config,
+                 const SimConfig& simConfig,
+                 const McConfig& mcConfig,
+                 const MemSpec& memSpec,
                  const AddressDecoder& addressDecoder) :
     sc_module(name),
     addressDecoder(addressDecoder),
     payloadEventQueue(this, &Arbiter::peqCallback),
-    tCK(config.memSpec->tCK),
-    arbitrationDelayFw(config.arbitrationDelayFw),
-    arbitrationDelayBw(config.arbitrationDelayBw),
-    bytesPerBeat(config.memSpec->dataBusWidth / 8),
-    addressOffset(config.addressOffset)
+    tCK(memSpec.tCK),
+    arbitrationDelayFw(mcConfig.arbitrationDelayFw),
+    arbitrationDelayBw(mcConfig.arbitrationDelayBw),
+    bytesPerBeat(memSpec.dataBusWidth / 8),
+    addressOffset(simConfig.addressOffset)
 {
     iSocket.register_nb_transport_bw(this, &Arbiter::nb_transport_bw);
     tSocket.register_nb_transport_fw(this, &Arbiter::nb_transport_fw);
@@ -70,25 +70,31 @@ Arbiter::Arbiter(const sc_module_name& name,
 }
 
 ArbiterSimple::ArbiterSimple(const sc_module_name& name,
-                             const Configuration& config,
+                             const SimConfig& simConfig,
+                             const McConfig& mcConfig,
+                             const MemSpec& memSpec,
                              const AddressDecoder& addressDecoder) :
-    Arbiter(name, config, addressDecoder)
+    Arbiter(name, simConfig, mcConfig, memSpec, addressDecoder)
 {
 }
 
 ArbiterFifo::ArbiterFifo(const sc_module_name& name,
-                         const Configuration& config,
+                         const SimConfig& simConfig,
+                         const McConfig& mcConfig,
+                         const MemSpec& memSpec,
                          const AddressDecoder& addressDecoder) :
-    Arbiter(name, config, addressDecoder),
-    maxActiveTransactionsPerThread(config.maxActiveTransactions)
+    Arbiter(name, simConfig, mcConfig, memSpec, addressDecoder),
+    maxActiveTransactionsPerThread(mcConfig.maxActiveTransactions)
 {
 }
 
 ArbiterReorder::ArbiterReorder(const sc_module_name& name,
-                               const Configuration& config,
+                               const SimConfig& simConfig,
+                               const McConfig& mcConfig,
+                               const MemSpec& memSpec,
                                const AddressDecoder& addressDecoder) :
-    Arbiter(name, config, addressDecoder),
-    maxActiveTransactions(config.maxActiveTransactions)
+    Arbiter(name, simConfig, mcConfig, memSpec, addressDecoder),
+    maxActiveTransactions(mcConfig.maxActiveTransactions)
 {
 }
 

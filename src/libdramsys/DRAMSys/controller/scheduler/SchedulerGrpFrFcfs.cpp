@@ -43,19 +43,18 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-SchedulerGrpFrFcfs::SchedulerGrpFrFcfs(const Configuration& config)
+SchedulerGrpFrFcfs::SchedulerGrpFrFcfs(const McConfig& config, const MemSpec& memSpec)
 {
-    readBuffer =
-        ControllerVector<Bank, std::list<tlm_generic_payload*>>(config.memSpec->banksPerChannel);
-    writeBuffer =
-        ControllerVector<Bank, std::list<tlm_generic_payload*>>(config.memSpec->banksPerChannel);
+    readBuffer = ControllerVector<Bank, std::list<tlm_generic_payload*>>(memSpec.banksPerChannel);
+    writeBuffer = ControllerVector<Bank, std::list<tlm_generic_payload*>>(memSpec.banksPerChannel);
 
-    if (config.schedulerBuffer == Configuration::SchedulerBuffer::Bankwise)
+    if (config.schedulerBuffer == Config::SchedulerBufferType::Bankwise)
         bufferCounter = std::make_unique<BufferCounterBankwise>(config.requestBufferSize,
-                                                                config.memSpec->banksPerChannel);
-    else if (config.schedulerBuffer == Configuration::SchedulerBuffer::ReadWrite)
-        bufferCounter = std::make_unique<BufferCounterReadWrite>(config.requestBufferSize);
-    else if (config.schedulerBuffer == Configuration::SchedulerBuffer::Shared)
+                                                                memSpec.banksPerChannel);
+    else if (config.schedulerBuffer == Config::SchedulerBufferType::ReadWrite)
+        bufferCounter = std::make_unique<BufferCounterReadWrite>(config.requestBufferSizeRead,
+                                                                 config.requestBufferSizeWrite);
+    else if (config.schedulerBuffer == Config::SchedulerBufferType::Shared)
         bufferCounter = std::make_unique<BufferCounterShared>(config.requestBufferSize);
 
     SC_REPORT_WARNING("SchedulerGrpFrFcfs", "Hazard detection not yet implemented!");

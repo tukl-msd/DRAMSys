@@ -41,12 +41,17 @@
 
 #include "DRAMSys/common/utils.h"
 #include "DRAMSys/config/DRAMSysConfiguration.h"
+#include "DRAMSys/config/memspec/MemSpec.h"
 #include "DRAMSys/controller/Command.h"
 
 #include <string>
 #include <systemc>
 #include <tlm>
 #include <vector>
+
+#ifdef DRAMPOWER
+#include <LibDRAMPower.h>
+#endif
 
 namespace DRAMSys
 {
@@ -79,25 +84,10 @@ public:
     const unsigned maxBytesPerBurst;
 
     // Clock
-    const double fCKMHz;
     const sc_core::sc_time tCK;
 
     const std::string memoryId;
-    const enum class MemoryType {
-        DDR3,
-        DDR4,
-        DDR5,
-        LPDDR4,
-        LPDDR5,
-        WideIO,
-        WideIO2,
-        GDDR5,
-        GDDR5X,
-        GDDR6,
-        HBM2,
-        HBM3,
-        STTMRAM
-    } memoryType;
+    const Config::MemoryType memoryType;
 
     [[nodiscard]] virtual sc_core::sc_time getRefreshIntervalAB() const;
     [[nodiscard]] virtual sc_core::sc_time getRefreshIntervalPB() const;
@@ -122,9 +112,12 @@ public:
     [[nodiscard]] double getCommandLengthInCycles(Command command) const;
     [[nodiscard]] uint64_t getSimMemSizeInBytes() const;
 
+#ifdef DRAMPOWER
+    [[nodiscard]] virtual DRAMPower::MemorySpecification toDramPowerMemSpec() const;
+#endif
+
 protected:
-    MemSpec(const DRAMSys::Config::MemSpec& memSpec,
-            MemoryType memoryType,
+    MemSpec(const Config::MemSpec& memSpec,
             unsigned numberOfChannels,
             unsigned pseudoChannelsPerChannel,
             unsigned ranksPerChannel,

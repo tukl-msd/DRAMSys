@@ -35,6 +35,7 @@
 #include "CheckerGDDR5.h"
 
 #include "DRAMSys/common/DebugManager.h"
+#include "DRAMSys/configuration/memspec/MemSpecGDDR5.h"
 
 #include <algorithm>
 
@@ -44,36 +45,33 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-CheckerGDDR5::CheckerGDDR5(const Configuration& config) :
-    memSpec(dynamic_cast<const MemSpecGDDR5*>(config.memSpec.get()))
+CheckerGDDR5::CheckerGDDR5(const MemSpecGDDR5& memSpec) :
+    memSpec(memSpec)
 {
-    if (memSpec == nullptr)
-        SC_REPORT_FATAL("CheckerGDDR5", "Wrong MemSpec chosen");
-
     lastScheduledByCommandAndBank = std::vector<ControllerVector<Bank, sc_time>>(
         Command::numberOfCommands(),
-        ControllerVector<Bank, sc_time>(memSpec->banksPerChannel, scMaxTime));
+        ControllerVector<Bank, sc_time>(memSpec.banksPerChannel, scMaxTime));
     lastScheduledByCommandAndBankGroup = std::vector<ControllerVector<BankGroup, sc_time>>(
         Command::numberOfCommands(),
-        ControllerVector<BankGroup, sc_time>(memSpec->bankGroupsPerChannel, scMaxTime));
+        ControllerVector<BankGroup, sc_time>(memSpec.bankGroupsPerChannel, scMaxTime));
     lastScheduledByCommandAndRank = std::vector<ControllerVector<Rank, sc_time>>(
         Command::numberOfCommands(),
-        ControllerVector<Rank, sc_time>(memSpec->ranksPerChannel, scMaxTime));
+        ControllerVector<Rank, sc_time>(memSpec.ranksPerChannel, scMaxTime));
     lastScheduledByCommand = std::vector<sc_time>(Command::numberOfCommands(), scMaxTime);
     lastCommandOnBus = scMaxTime;
-    last4Activates = ControllerVector<Rank, std::queue<sc_time>>(memSpec->ranksPerChannel);
-    last32Activates = ControllerVector<Rank, std::queue<sc_time>>(memSpec->ranksPerChannel);
+    last4Activates = ControllerVector<Rank, std::queue<sc_time>>(memSpec.ranksPerChannel);
+    last32Activates = ControllerVector<Rank, std::queue<sc_time>>(memSpec.ranksPerChannel);
 
-    bankwiseRefreshCounter = ControllerVector<Rank, unsigned>(memSpec->ranksPerChannel);
+    bankwiseRefreshCounter = ControllerVector<Rank, unsigned>(memSpec.ranksPerChannel);
 
-    tBURST = memSpec->defaultBurstLength / memSpec->dataRate * memSpec->tCK;
-    tRDSRE = memSpec->tCL + memSpec->tWCK2CKPIN + memSpec->tWCK2CK + memSpec->tWCK2DQO + tBURST;
-    tWRSRE = memSpec->tWL + memSpec->tWCK2CKPIN + memSpec->tWCK2CK + memSpec->tWCK2DQI + tBURST;
-    tRDWR_R = memSpec->tCL + tBURST + memSpec->tRTRS - memSpec->tWL;
-    tWRRD_R = memSpec->tWL + tBURST + memSpec->tRTRS - memSpec->tCL;
-    tWRRD_S = memSpec->tWL + tBURST + memSpec->tWTRS;
-    tWRRD_L = memSpec->tWL + tBURST + memSpec->tWTRL;
-    tWRPRE = memSpec->tWL + tBURST + memSpec->tWR;
+    tBURST = memSpec.defaultBurstLength / memSpec.dataRate * memSpec.tCK;
+    tRDSRE = memSpec.tCL + memSpec.tWCK2CKPIN + memSpec.tWCK2CK + memSpec.tWCK2DQO + tBURST;
+    tWRSRE = memSpec.tWL + memSpec.tWCK2CKPIN + memSpec.tWCK2CK + memSpec.tWCK2DQI + tBURST;
+    tRDWR_R = memSpec.tCL + tBURST + memSpec.tRTRS - memSpec.tWL;
+    tWRRD_R = memSpec.tWL + tBURST + memSpec.tRTRS - memSpec.tCL;
+    tWRRD_S = memSpec.tWL + tBURST + memSpec.tWTRS;
+    tWRRD_L = memSpec.tWL + tBURST + memSpec.tWTRL;
+    tWRPRE = memSpec.tWL + tBURST + memSpec.tWR;
 }
 
 sc_time CheckerGDDR5::timeToSatisfyConstraints(Command command,
@@ -92,15 +90,15 @@ sc_time CheckerGDDR5::timeToSatisfyConstraints(Command command,
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRCDRD);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRCDRD);
 
         lastCommandStart = lastScheduledByCommandAndBankGroup[Command::RD][bankGroup];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCCDL);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tCCDL);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::RD][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCCDS);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tCCDS);
 
         lastCommandStart =
             lastScheduledByCommand[Command::RD] != lastScheduledByCommandAndRank[Command::RD][rank]
@@ -108,15 +106,15 @@ sc_time CheckerGDDR5::timeToSatisfyConstraints(Command command,
                 : scMaxTime;
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, lastCommandStart + tBURST + memSpec->tRTRS);
+                std::max(earliestTimeToStart, lastCommandStart + tBURST + memSpec.tRTRS);
 
         lastCommandStart = lastScheduledByCommandAndBankGroup[Command::RDA][bankGroup];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCCDL);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tCCDL);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::RDA][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCCDS);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tCCDS);
 
         lastCommandStart = lastScheduledByCommand[Command::RDA] !=
                                    lastScheduledByCommandAndRank[Command::RDA][rank]
@@ -124,14 +122,14 @@ sc_time CheckerGDDR5::timeToSatisfyConstraints(Command command,
                                : scMaxTime;
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, lastCommandStart + tBURST + memSpec->tRTRS);
+                std::max(earliestTimeToStart, lastCommandStart + tBURST + memSpec.tRTRS);
 
         if (command == Command::RDA)
         {
             lastCommandStart = lastScheduledByCommandAndBank[Command::WR][bank];
             if (lastCommandStart != scMaxTime)
                 earliestTimeToStart =
-                    std::max(earliestTimeToStart, lastCommandStart + tWRPRE - memSpec->tRTP);
+                    std::max(earliestTimeToStart, lastCommandStart + tWRPRE - memSpec.tRTP);
         }
 
         lastCommandStart = lastScheduledByCommandAndBankGroup[Command::WR][bankGroup];
@@ -166,11 +164,11 @@ sc_time CheckerGDDR5::timeToSatisfyConstraints(Command command,
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PDXA][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXPN);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXPN);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::SREFEX][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tLK);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tLK);
     }
     else if (command == Command::WR || command == Command::WRA)
     {
@@ -178,11 +176,11 @@ sc_time CheckerGDDR5::timeToSatisfyConstraints(Command command,
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRCDWR);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRCDWR);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::RD][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRTW);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRTW);
 
         lastCommandStart =
             lastScheduledByCommand[Command::RD] != lastScheduledByCommandAndRank[Command::RD][rank]
@@ -193,7 +191,7 @@ sc_time CheckerGDDR5::timeToSatisfyConstraints(Command command,
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::RDA][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRTW);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRTW);
 
         lastCommandStart = lastScheduledByCommand[Command::RDA] !=
                                    lastScheduledByCommandAndRank[Command::RDA][rank]
@@ -204,11 +202,11 @@ sc_time CheckerGDDR5::timeToSatisfyConstraints(Command command,
 
         lastCommandStart = lastScheduledByCommandAndBankGroup[Command::WR][bankGroup];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCCDL);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tCCDL);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::WR][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCCDS);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tCCDS);
 
         lastCommandStart =
             lastScheduledByCommand[Command::WR] != lastScheduledByCommandAndRank[Command::WR][rank]
@@ -216,15 +214,15 @@ sc_time CheckerGDDR5::timeToSatisfyConstraints(Command command,
                 : scMaxTime;
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, lastCommandStart + tBURST + memSpec->tRTRS);
+                std::max(earliestTimeToStart, lastCommandStart + tBURST + memSpec.tRTRS);
 
         lastCommandStart = lastScheduledByCommandAndBankGroup[Command::WRA][bankGroup];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCCDL);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tCCDL);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::WRA][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCCDS);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tCCDS);
 
         lastCommandStart = lastScheduledByCommand[Command::WRA] !=
                                    lastScheduledByCommandAndRank[Command::WRA][rank]
@@ -232,89 +230,89 @@ sc_time CheckerGDDR5::timeToSatisfyConstraints(Command command,
                                : scMaxTime;
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, lastCommandStart + tBURST + memSpec->tRTRS);
+                std::max(earliestTimeToStart, lastCommandStart + tBURST + memSpec.tRTRS);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PDXA][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXPN);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXPN);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::SREFEX][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tLK);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tLK);
     }
     else if (command == Command::ACT)
     {
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRC);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRC);
 
         lastCommandStart = lastScheduledByCommandAndBankGroup[Command::ACT][bankGroup];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRRDL);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRRDL);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::ACT][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRRDS);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRRDS);
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::RDA][bank];
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, lastCommandStart + memSpec->tRTP + memSpec->tRP);
+                std::max(earliestTimeToStart, lastCommandStart + memSpec.tRTP + memSpec.tRP);
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::WRA][bank];
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec->tRP);
+                std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec.tRP);
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::PREPB][bank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRP);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PREAB][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRP);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PDXA][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXPN);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXPN);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PDXP][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXPN);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXPN);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::REFAB][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFC);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRFC);
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::REFPB][bank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCPB);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRFCPB);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::REFPB][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRREFD);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRREFD);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::SREFEX][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXS);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXS);
 
         if (last4Activates[rank].size() >= 4)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, last4Activates[rank].front() + memSpec->tFAW);
+                std::max(earliestTimeToStart, last4Activates[rank].front() + memSpec.tFAW);
 
         if (last32Activates[rank].size() >= 32)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, last32Activates[rank].front() + memSpec->t32AW);
+                std::max(earliestTimeToStart, last32Activates[rank].front() + memSpec.t32AW);
     }
     else if (command == Command::PREPB)
     {
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRAS);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRAS);
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::RD][bank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRTP);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRTP);
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::WR][bank];
         if (lastCommandStart != scMaxTime)
@@ -322,25 +320,25 @@ sc_time CheckerGDDR5::timeToSatisfyConstraints(Command command,
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PREPB][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tPPD);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tPPD);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PDXA][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXPN);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXPN);
     }
     else if (command == Command::PREAB)
     {
         lastCommandStart = lastScheduledByCommandAndRank[Command::ACT][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRAS);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRAS);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::RD][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRTP);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRTP);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::RDA][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRTP);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRTP);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::WR][rank];
         if (lastCommandStart != scMaxTime)
@@ -352,126 +350,126 @@ sc_time CheckerGDDR5::timeToSatisfyConstraints(Command command,
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PREPB][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tPPD);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tPPD);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PDXA][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXPN);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXPN);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::REFPB][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCPB);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRFCPB);
     }
     else if (command == Command::REFAB)
     {
         lastCommandStart = lastScheduledByCommandAndRank[Command::ACT][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRC);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRC);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::RDA][rank];
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, lastCommandStart + memSpec->tRTP + memSpec->tRP);
+                std::max(earliestTimeToStart, lastCommandStart + memSpec.tRTP + memSpec.tRP);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::WRA][rank];
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec->tRP);
+                std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec.tRP);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PREPB][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRP);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PREAB][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRP);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PDXP][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXPN);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXPN);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::REFAB][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFC);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRFC);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::REFPB][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCPB);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRFCPB);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::SREFEX][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXS);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXS);
     }
     else if (command == Command::REFPB)
     {
         lastCommandStart = lastScheduledByCommandAndBank[Command::ACT][bank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRC);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRC);
 
         lastCommandStart = lastScheduledByCommandAndBankGroup[Command::ACT][bankGroup];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRRDL);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRRDL);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::ACT][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRRDS);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRRDS);
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::RDA][bank];
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, lastCommandStart + memSpec->tRTP + memSpec->tRP);
+                std::max(earliestTimeToStart, lastCommandStart + memSpec.tRTP + memSpec.tRP);
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::WRA][bank];
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec->tRP);
+                std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec.tRP);
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::PREPB][bank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRP);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PREAB][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRP);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PDXA][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXPN);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXPN);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PDXP][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXPN);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXPN);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::REFAB][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFC);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRFC);
 
         lastCommandStart = lastScheduledByCommandAndBank[Command::REFPB][bank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCPB);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRFCPB);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::REFPB][rank];
         if (lastCommandStart != scMaxTime)
         {
             if (bankwiseRefreshCounter[rank] == 0)
                 earliestTimeToStart =
-                    std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCPB);
+                    std::max(earliestTimeToStart, lastCommandStart + memSpec.tRFCPB);
             else
                 earliestTimeToStart =
-                    std::max(earliestTimeToStart, lastCommandStart + memSpec->tRREFD);
+                    std::max(earliestTimeToStart, lastCommandStart + memSpec.tRREFD);
         }
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::SREFEX][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXS);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXS);
 
         if (last4Activates[rank].size() >= 4)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, last4Activates[rank].front() + memSpec->tFAW);
+                std::max(earliestTimeToStart, last4Activates[rank].front() + memSpec.tFAW);
 
         if (last32Activates[rank].size() >= 32)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, last32Activates[rank].front() + memSpec->t32AW);
+                std::max(earliestTimeToStart, last32Activates[rank].front() + memSpec.t32AW);
     }
     else if (command == Command::PDEA)
     {
@@ -493,13 +491,13 @@ sc_time CheckerGDDR5::timeToSatisfyConstraints(Command command,
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PDXA][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXPN);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXPN);
     }
     else if (command == Command::PDXA)
     {
         lastCommandStart = lastScheduledByCommandAndRank[Command::PDEA][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tPD);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tPD);
     }
     else if (command == Command::PDEP)
     {
@@ -517,23 +515,23 @@ sc_time CheckerGDDR5::timeToSatisfyConstraints(Command command,
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PDXP][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXPN);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXPN);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::SREFEX][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXS);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXS);
     }
     else if (command == Command::PDXP)
     {
         lastCommandStart = lastScheduledByCommandAndRank[Command::PDEP][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tPD);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tPD);
     }
     else if (command == Command::SREFEN)
     {
         lastCommandStart = lastScheduledByCommandAndRank[Command::ACT][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRC);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRC);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::RD][rank];
         if (lastCommandStart != scMaxTime)
@@ -543,49 +541,49 @@ sc_time CheckerGDDR5::timeToSatisfyConstraints(Command command,
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart =
                 std::max(earliestTimeToStart,
-                         lastCommandStart + std::max(memSpec->tRTP + memSpec->tRP, tRDSRE));
+                         lastCommandStart + std::max(memSpec.tRTP + memSpec.tRP, tRDSRE));
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::WRA][rank];
         if (lastCommandStart != scMaxTime)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec->tRP);
+                std::max(earliestTimeToStart, lastCommandStart + tWRPRE + memSpec.tRP);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PREPB][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRP);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PREAB][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRP);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRP);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::PDXP][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXPN);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXPN);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::REFAB][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFC);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRFC);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::REFPB][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tRFCPB);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tRFCPB);
 
         lastCommandStart = lastScheduledByCommandAndRank[Command::SREFEX][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tXS);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXS);
     }
     else if (command == Command::SREFEX)
     {
         lastCommandStart = lastScheduledByCommandAndRank[Command::SREFEN][rank];
         if (lastCommandStart != scMaxTime)
-            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec->tCKE);
+            earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tCKE);
     }
     else
         SC_REPORT_FATAL("CheckerGDDR5", "Unknown command!");
 
     // Check if command bus is free
     if (lastCommandOnBus != scMaxTime)
-        earliestTimeToStart = std::max(earliestTimeToStart, lastCommandOnBus + memSpec->tCK);
+        earliestTimeToStart = std::max(earliestTimeToStart, lastCommandOnBus + memSpec.tCK);
 
     return earliestTimeToStart;
 }
@@ -618,7 +616,7 @@ void CheckerGDDR5::insert(Command command, const tlm_generic_payload& payload)
     }
 
     if (command == Command::REFPB)
-        bankwiseRefreshCounter[rank] = (bankwiseRefreshCounter[rank] + 1) % memSpec->banksPerRank;
+        bankwiseRefreshCounter[rank] = (bankwiseRefreshCounter[rank] + 1) % memSpec.banksPerRank;
 }
 
 } // namespace DRAMSys

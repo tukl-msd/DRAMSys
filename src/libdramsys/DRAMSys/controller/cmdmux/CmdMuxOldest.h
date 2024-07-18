@@ -35,7 +35,7 @@
 #ifndef CMDMUXOLDEST_H
 #define CMDMUXOLDEST_H
 
-#include "DRAMSys/configuration/Configuration.h"
+#include "DRAMSys/configuration/memspec/MemSpec.h"
 #include "DRAMSys/controller/cmdmux/CmdMuxIF.h"
 
 namespace DRAMSys
@@ -44,7 +44,7 @@ namespace DRAMSys
 class CmdMuxOldest : public CmdMuxIF
 {
 public:
-    explicit CmdMuxOldest(const Configuration& config);
+    explicit CmdMuxOldest(const MemSpec& memSpec);
     CommandTuple::Type selectCommand(const ReadyCommands& readyCommands) override;
 
 private:
@@ -55,7 +55,7 @@ private:
 class CmdMuxOldestRasCas : public CmdMuxIF
 {
 public:
-    explicit CmdMuxOldestRasCas(const Configuration& config);
+    explicit CmdMuxOldestRasCas(const MemSpec& memSpec);
     CommandTuple::Type selectCommand(const ReadyCommands& readyCommands) override;
 
 private:

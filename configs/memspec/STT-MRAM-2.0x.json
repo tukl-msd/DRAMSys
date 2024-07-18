@@ -38,7 +38,7 @@
             "ACTPDEN": 2, 
             "PRPDEN": 2,
             "RTRS": 1,
-            "clkMhz": 800
+            "tCK": 1250
         }
     }
 }

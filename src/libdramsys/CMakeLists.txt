@@ -41,7 +41,7 @@ project(DRAMSys_libdramsys)
 file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS *.cpp)
 file(GLOB_RECURSE HEADER_FILES CONFIGURE_DEPENDS *.h;*.hpp)
 
-add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
+add_library(${PROJECT_NAME} ${SOURCE_FILES} ${HEADER_FILES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -54,8 +54,8 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 if (DRAMSYS_WITH_DRAMPOWER)
-    target_link_libraries(${PROJECT_NAME} PRIVATE DRAMPower)
-    target_compile_definitions(${PROJECT_NAME} PRIVATE DRAMPOWER)
+    target_link_libraries(${PROJECT_NAME} PUBLIC DRAMPower)
+    target_compile_definitions(${PROJECT_NAME} PUBLIC DRAMPOWER)
 endif ()
 
 add_library(DRAMSys::libdramsys ALIAS ${PROJECT_NAME})

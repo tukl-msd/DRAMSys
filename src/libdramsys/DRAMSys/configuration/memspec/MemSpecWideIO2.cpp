@@ -46,9 +46,8 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-MemSpecWideIO2::MemSpecWideIO2(const DRAMSys::Config::MemSpec& memSpec) :
+MemSpecWideIO2::MemSpecWideIO2(const Config::MemSpec& memSpec) :
     MemSpec(memSpec,
-            MemoryType::WideIO2,
             memSpec.memarchitecturespec.entries.at("nbrOfChannels"),
             1,
             memSpec.memarchitecturespec.entries.at("nbrOfRanks"),

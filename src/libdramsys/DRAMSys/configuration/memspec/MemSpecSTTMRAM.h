@@ -47,7 +47,7 @@ namespace DRAMSys
 class MemSpecSTTMRAM final : public MemSpec
 {
 public:
-    explicit MemSpecSTTMRAM(const DRAMSys::Config::MemSpec& memSpec);
+    explicit MemSpecSTTMRAM(const Config::MemSpec& memSpec);
 
     // Memspec Variables:
     const sc_core::sc_time tCKE;

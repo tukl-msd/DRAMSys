@@ -67,7 +67,7 @@
             "PRPDEN": 2,
             "REFPDEN": 2,
             "RTRS": 1,
-            "clkMhz": 1200
+            "tCK": 833
         }
     }
 }

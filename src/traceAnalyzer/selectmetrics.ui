@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SelectMetrics</class>
+ <widget class="QDialog" name="SelectMetrics">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>498</width>
+    <height>666</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Select Metrics</string>
+  </property>
+  <widget class="QPushButton" name="okButton">
+   <property name="geometry">
+    <rect>
+     <x>40</x>
+     <y>620</y>
+     <width>80</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Ok</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="selectAllButton">
+   <property name="geometry">
+    <rect>
+     <x>180</x>
+     <y>620</y>
+     <width>80</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Select All</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="clearAllButton">
+   <property name="geometry">
+    <rect>
+     <x>310</x>
+     <y>620</y>
+     <width>80</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Clear All</string>
+   </property>
+  </widget>
+  <widget class="QScrollArea" name="scrollArea">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>10</y>
+     <width>471</width>
+     <height>601</height>
+    </rect>
+   </property>
+   <property name="acceptDrops">
+    <bool>false</bool>
+   </property>
+   <property name="autoFillBackground">
+    <bool>true</bool>
+   </property>
+   <property name="widgetResizable">
+    <bool>true</bool>
+   </property>
+   <widget class="QWidget" name="scrollAreaWidgetContents">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>0</y>
+      <width>467</width>
+      <height>597</height>
+     </rect>
+    </property>
+   </widget>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

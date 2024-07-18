@@ -42,8 +42,7 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-MemSpec::MemSpec(const DRAMSys::Config::MemSpec& memSpec,
-                 MemoryType memoryType,
+MemSpec::MemSpec(const Config::MemSpec& memSpec,
                  unsigned numberOfChannels,
                  unsigned pseudoChannelsPerChannel,
                  unsigned ranksPerChannel,
@@ -75,10 +74,9 @@ MemSpec::MemSpec(const DRAMSys::Config::MemSpec& memSpec,
     bytesPerBeat(dataBusWidth / 8),
     defaultBytesPerBurst((defaultBurstLength * dataBusWidth) / 8),
     maxBytesPerBurst((maxBurstLength * dataBusWidth) / 8),
-    fCKMHz(memSpec.memtimingspec.entries.at("clkMhz")),
-    tCK(sc_time(1.0 / fCKMHz, SC_US)),
+    tCK(sc_time(memSpec.memtimingspec.entries.at("tCK"), SC_PS)),
     memoryId(memSpec.memoryId),
-    memoryType(memoryType),
+    memoryType(memSpec.memoryType),
     burstDuration(tCK * (static_cast<double>(defaultBurstLength) / dataRate))
 
 {
@@ -176,5 +174,13 @@ bool MemSpec::allBytesEnabled(const tlm::tlm_generic_payload& trans)
 
     return true;
 }
+
+#ifdef DRAMPOWER
+DRAMPower::MemorySpecification MemSpec::toDramPowerMemSpec() const
+{
+    SC_REPORT_FATAL("MemSpec", "DRAMPower does not support this memory standard");
+    return {};
+}
+#endif
 
 } // namespace DRAMSys

@@ -39,7 +39,7 @@
 #include "MemoryManager.h"
 
 #include <DRAMSys/config/DRAMSysConfiguration.h>
-#include <DRAMSys/simulation/DRAMSysRecordable.h>
+#include <DRAMSys/simulation/DRAMSys.h>
 
 static constexpr std::string_view TRACE_DIRECTORY = "traces";
 

@@ -47,7 +47,7 @@ namespace DRAMSys
 class MemSpecHBM2 final : public MemSpec
 {
 public:
-    explicit MemSpecHBM2(const DRAMSys::Config::MemSpec& memSpec);
+    explicit MemSpecHBM2(const Config::MemSpec& memSpec);
 
     // Memspec Variables:
     const sc_core::sc_time tDQSCK;

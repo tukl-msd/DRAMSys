@@ -1,0 +1,35 @@
+NOTICE
+
+This software uses the following third-party libraries:
+
+1. SQLite3
+   License: Public Domain
+   License URL: https://www.sqlite.org/copyright.html
+
+2. NLohmann JSON
+   License: MIT
+   License URL: https://github.com/nlohmann/json/blob/develop/LICENSE.MIT
+
+3. SystemC
+   License: Apache-2.0
+   License URL: https://github.com/accellera-official/systemc/blob/main/LICENSE
+
+4. Qt5
+   License: LGPL-3.0-only
+   License URL: https://doc.qt.io/qt-5/lgpl.html
+
+5. Qwt6 (Qt Widgets for Technical Applications)
+   License: Qwt License (based on LGPL-2.1)
+   License URL: https://qwt.sourceforge.io/qwtlicense.html
+
+6. Google Test
+   License: BSD-3-Clause
+   License URL: https://github.com/google/googletest/blob/main/LICENSE
+
+7. Google Benchmark
+   License: Apache-2.0
+   License URL: https://github.com/google/benchmark/blob/main/LICENSE
+
+8. Pybind11
+   License: BSD-3-Clause
+   License URL: https://github.com/pybind/pybind11/blob/master/LICENSE

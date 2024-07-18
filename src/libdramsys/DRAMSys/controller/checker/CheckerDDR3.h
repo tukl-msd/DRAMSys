@@ -35,7 +35,6 @@
 #ifndef CHECKERDDR3_H
 #define CHECKERDDR3_H
 
-#include "DRAMSys/configuration/Configuration.h"
 #include "DRAMSys/configuration/memspec/MemSpecDDR3.h"
 #include "DRAMSys/controller/checker/CheckerIF.h"
 
@@ -48,14 +47,14 @@ namespace DRAMSys
 class CheckerDDR3 final : public CheckerIF
 {
 public:
-    explicit CheckerDDR3(const Configuration& config);
+    explicit CheckerDDR3(const MemSpecDDR3 &memSpec);
     [[nodiscard]] sc_core::sc_time
     timeToSatisfyConstraints(Command command,
                              const tlm::tlm_generic_payload& payload) const override;
     void insert(Command command, const tlm::tlm_generic_payload& payload) override;
 
 private:
-    const MemSpecDDR3* memSpec;
+    const MemSpecDDR3& memSpec;
 
     std::vector<ControllerVector<Bank, sc_core::sc_time>> lastScheduledByCommandAndBank;
     std::vector<ControllerVector<Rank, sc_core::sc_time>> lastScheduledByCommandAndRank;

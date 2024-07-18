@@ -41,7 +41,7 @@ using namespace sc_core;
 namespace DRAMSys
 {
 
-CmdMuxStrict::CmdMuxStrict(const Configuration& config) : memSpec(*config.memSpec)
+CmdMuxStrict::CmdMuxStrict(const MemSpec& memSpec) : memSpec(memSpec)
 {
 }
 
@@ -91,7 +91,7 @@ CommandTuple::Type CmdMuxStrict::selectCommand(const ReadyCommands& readyCommand
     return {Command::NOP, nullptr, scMaxTime};
 }
 
-CmdMuxStrictRasCas::CmdMuxStrictRasCas(const Configuration& config) : memSpec(*config.memSpec)
+CmdMuxStrictRasCas::CmdMuxStrictRasCas(const MemSpec& memSpec) : memSpec(memSpec)
 {
     readyRasCommands.reserve(memSpec.banksPerChannel);
     readyCasCommands.reserve(memSpec.banksPerChannel);

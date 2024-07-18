@@ -47,7 +47,7 @@ namespace DRAMSys
 class MemSpecGDDR5X final : public MemSpec
 {
 public:
-    explicit MemSpecGDDR5X(const DRAMSys::Config::MemSpec& memSpec);
+    explicit MemSpecGDDR5X(const Config::MemSpec& memSpec);
 
     // Memspec Variables:
     const sc_core::sc_time tRP;

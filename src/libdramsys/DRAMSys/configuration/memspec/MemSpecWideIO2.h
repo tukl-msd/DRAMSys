@@ -47,7 +47,7 @@ namespace DRAMSys
 class MemSpecWideIO2 final : public MemSpec
 {
 public:
-    explicit MemSpecWideIO2(const DRAMSys::Config::MemSpec& memSpec);
+    explicit MemSpecWideIO2(const Config::MemSpec& memSpec);
 
     // Memspec Variables:
     const sc_core::sc_time tDQSCK;

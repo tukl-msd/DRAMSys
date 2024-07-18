@@ -35,9 +35,9 @@
 #ifndef REFRESHMANAGERPERBANK_H
 #define REFRESHMANAGERPERBANK_H
 
-#include "DRAMSys/configuration/Configuration.h"
 #include "DRAMSys/configuration/memspec/MemSpec.h"
 #include "DRAMSys/controller/checker/CheckerIF.h"
+#include "DRAMSys/controller/McConfig.h"
 #include "DRAMSys/controller/refresh/RefreshManagerIF.h"
 
 #include <list>
@@ -55,7 +55,8 @@ class PowerDownManagerIF;
 class RefreshManagerPerBank final : public RefreshManagerIF
 {
 public:
-    RefreshManagerPerBank(const Configuration& config,
+    RefreshManagerPerBank(const McConfig& config,
+                          const MemSpec& memSpec,
                           ControllerVector<Bank, BankMachine*>& bankMachinesOnRank,
                           PowerDownManagerIF& powerDownManager,
                           Rank rank);

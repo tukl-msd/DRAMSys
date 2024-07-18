@@ -46,17 +46,9 @@ Simulator::Simulator(DRAMSys::Config::Configuration configuration,
     storageEnabled(configuration.simconfig.StoreMode == DRAMSys::Config::StoreModeType::Store),
     memoryManager(storageEnabled),
     configuration(std::move(configuration)),
-    resourceDirectory(std::move(resourceDirectory))
+    resourceDirectory(std::move(resourceDirectory)),
+    dramSys(std::make_unique<DRAMSys::DRAMSys>("DRAMSys", this->configuration))
 {
-    if (this->configuration.simconfig.DatabaseRecording.value_or(false))
-    {
-        dramSys = std::make_unique<DRAMSys::DRAMSysRecordable>("DRAMSys", this->configuration);
-    }
-    else
-    {
-        dramSys = std::make_unique<DRAMSys::DRAMSys>("DRAMSys", this->configuration);
-    }
-
     terminateInitiator = [this]()
     {
         terminatedInitiators++;
@@ -74,7 +66,10 @@ Simulator::Simulator(DRAMSys::Config::Configuration configuration,
     };
 
     if (!configuration.tracesetup.has_value())
+    {
         SC_REPORT_FATAL("Simulator", "No traffic initiators specified");
+        std::abort(); // Silence warning
+    }
 
     for (const auto& initiatorConfig : *this->configuration.tracesetup)
     {
@@ -88,8 +83,8 @@ Simulator::Simulator(DRAMSys::Config::Configuration configuration,
 std::unique_ptr<Initiator>
 Simulator::instantiateInitiator(const DRAMSys::Config::Initiator& initiator)
 {
-    uint64_t memorySize = dramSys->getConfig().memSpec->getSimMemSizeInBytes();
-    unsigned int defaultDataLength = dramSys->getConfig().memSpec->defaultBytesPerBurst;
+    uint64_t memorySize = dramSys->getMemSpec().getSimMemSizeInBytes();
+    unsigned int defaultDataLength = dramSys->getMemSpec().defaultBytesPerBurst;
 
     return std::visit(
         [=](auto&& config) -> std::unique_ptr<Initiator>

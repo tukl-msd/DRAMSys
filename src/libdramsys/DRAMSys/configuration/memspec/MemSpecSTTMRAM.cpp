@@ -46,9 +46,8 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-MemSpecSTTMRAM::MemSpecSTTMRAM(const DRAMSys::Config::MemSpec& memSpec) :
+MemSpecSTTMRAM::MemSpecSTTMRAM(const Config::MemSpec& memSpec) :
     MemSpec(memSpec,
-            MemoryType::STTMRAM,
             memSpec.memarchitecturespec.entries.at("nbrOfChannels"),
             1,
             memSpec.memarchitecturespec.entries.at("nbrOfRanks"),

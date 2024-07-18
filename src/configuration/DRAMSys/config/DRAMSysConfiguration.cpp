@@ -127,7 +127,7 @@ Configuration from_path(std::string_view path, std::string_view resourceDirector
     if (file.is_open())
     {
         json_t simulation = json_t::parse(file, parser_callback, true, true).at(Configuration::KEY);
-        return simulation.get<DRAMSys::Config::Configuration>();
+        return simulation.get<Config::Configuration>();
     }
     throw std::runtime_error("Failed to open file " + std::string(path));
 }

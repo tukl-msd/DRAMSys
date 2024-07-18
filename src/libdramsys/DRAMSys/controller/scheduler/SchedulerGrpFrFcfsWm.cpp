@@ -43,21 +43,22 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-SchedulerGrpFrFcfsWm::SchedulerGrpFrFcfsWm(const Configuration& config) :
+SchedulerGrpFrFcfsWm::SchedulerGrpFrFcfsWm(const McConfig& config, const MemSpec& memSpec) :
     lowWatermark(config.lowWatermark),
     highWatermark(config.highWatermark)
 {
     readBuffer =
-        ControllerVector<Bank, std::list<tlm_generic_payload*>>(config.memSpec->banksPerChannel);
+        ControllerVector<Bank, std::list<tlm_generic_payload*>>(memSpec.banksPerChannel);
     writeBuffer =
-        ControllerVector<Bank, std::list<tlm_generic_payload*>>(config.memSpec->banksPerChannel);
+        ControllerVector<Bank, std::list<tlm_generic_payload*>>(memSpec.banksPerChannel);
 
-    if (config.schedulerBuffer == Configuration::SchedulerBuffer::Bankwise)
+    if (config.schedulerBuffer == Config::SchedulerBufferType::Bankwise)
         bufferCounter = std::make_unique<BufferCounterBankwise>(config.requestBufferSize,
-                                                                config.memSpec->banksPerChannel);
-    else if (config.schedulerBuffer == Configuration::SchedulerBuffer::ReadWrite)
-        bufferCounter = std::make_unique<BufferCounterReadWrite>(config.requestBufferSize);
-    else if (config.schedulerBuffer == Configuration::SchedulerBuffer::Shared)
+                                                                memSpec.banksPerChannel);
+    else if (config.schedulerBuffer == Config::SchedulerBufferType::ReadWrite)
+        bufferCounter = std::make_unique<BufferCounterReadWrite>(config.requestBufferSizeRead,
+                                                                 config.requestBufferSizeWrite);
+    else if (config.schedulerBuffer == Config::SchedulerBufferType::Shared)
         bufferCounter = std::make_unique<BufferCounterShared>(config.requestBufferSize);
 
     if (lowWatermark == 0 || lowWatermark >= highWatermark)

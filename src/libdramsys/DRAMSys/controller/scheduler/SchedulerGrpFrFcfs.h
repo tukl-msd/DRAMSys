@@ -51,7 +51,7 @@ namespace DRAMSys
 class SchedulerGrpFrFcfs final : public SchedulerIF
 {
 public:
-    explicit SchedulerGrpFrFcfs(const Configuration& config);
+    explicit SchedulerGrpFrFcfs(const McConfig& config, const MemSpec& memSpec);
     [[nodiscard]] bool hasBufferSpace() const override;
     void storeRequest(tlm::tlm_generic_payload& payload) override;
     void removeRequest(tlm::tlm_generic_payload& payload) override;

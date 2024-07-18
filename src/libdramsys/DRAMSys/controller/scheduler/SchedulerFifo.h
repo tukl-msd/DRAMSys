@@ -39,6 +39,7 @@
 #include "DRAMSys/controller/BankMachine.h"
 #include "DRAMSys/controller/scheduler/BufferCounterIF.h"
 #include "DRAMSys/controller/scheduler/SchedulerIF.h"
+#include "DRAMSys/controller/McConfig.h"
 
 #include <deque>
 #include <memory>
@@ -51,7 +52,7 @@ namespace DRAMSys
 class SchedulerFifo final : public SchedulerIF
 {
 public:
-    explicit SchedulerFifo(const Configuration& config);
+    explicit SchedulerFifo(const McConfig& config, const MemSpec& memSpec);
     [[nodiscard]] bool hasBufferSpace() const override;
     void storeRequest(tlm::tlm_generic_payload& payload) override;
     void removeRequest(tlm::tlm_generic_payload& payload) override;

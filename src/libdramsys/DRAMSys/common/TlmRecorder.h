@@ -43,7 +43,9 @@
 
 #include "DRAMSys/common/dramExtensions.h"
 #include "DRAMSys/common/utils.h"
-#include "DRAMSys/configuration/Configuration.h"
+#include "DRAMSys/configuration/memspec/MemSpec.h"
+#include "DRAMSys/controller/McConfig.h"
+#include "DRAMSys/simulation/SimConfig.h"
 
 #include <string>
 #include <systemc>
@@ -63,11 +65,13 @@ class TlmRecorder
 {
 public:
     TlmRecorder(const std::string& name,
-                const Configuration& config,
+                const SimConfig& simConfig,
+                const McConfig& mcConfig,
+                const MemSpec& memSpec,
                 const std::string& dbName,
-                std::string mcconfig,
-                std::string memspec,
-                std::string traces);
+                const std::string& mcconfig,
+                const std::string& memspec,
+                const std::string& traces);
     TlmRecorder(const TlmRecorder&) = delete;
     TlmRecorder(TlmRecorder&&) = default;
     TlmRecorder& operator=(const TlmRecorder&) = delete;
@@ -85,7 +89,8 @@ public:
 
 private:
     std::string name;
-    const Configuration& config;
+    const SimConfig& simConfig;
+    const McConfig& mcConfig;
     const MemSpec& memSpec;
 
     struct Transaction
@@ -168,7 +173,9 @@ private:
 
     void terminateRemainingTransactions();
     void commitRecordedDataToDB();
-    void insertGeneralInfo(std::string mcconfig, std::string memspec, std::string traces);
+    void insertGeneralInfo(const std::string& mcConfigString,
+                           const std::string& memSpecString,
+                           const std::string& traces);
     void insertCommandLengths();
     void insertTransactionInDB(const Transaction& recordingData);
     void insertRangeInDB(uint64_t id, const sc_core::sc_time& begin, const sc_core::sc_time& end);

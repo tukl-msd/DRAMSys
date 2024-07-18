@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Preferences</class>
+ <widget class="QWidget" name="Preferences">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>400</width>
+    <height>300</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Preferences</string>
+  </property>
+  <widget class="QGroupBox" name="verticalGroupBox">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>10</y>
+     <width>291</width>
+     <height>101</height>
+    </rect>
+   </property>
+   <property name="title">
+    <string>Color-Grouping:</string>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <property name="spacing">
+     <number>0</number>
+    </property>
+    <property name="sizeConstraint">
+     <enum>QLayout::SetMaximumSize</enum>
+    </property>
+    <item>
+     <widget class="QRadioButton" name="rb_grouping_phase">
+      <property name="text">
+       <string>Phase-Type</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QRadioButton" name="rb_grouping_transaction">
+      <property name="text">
+       <string>Transaction</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QRadioButton" name="rb_grouping_thread">
+      <property name="text">
+       <string>Thread</string>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

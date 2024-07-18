@@ -45,7 +45,7 @@ file(GLOB_RECURSE HEADER_FILES CONFIGURE_DEPENDS *.h;*.hpp)
 
 list(FILTER SOURCE_FILES EXCLUDE REGEX "main.cpp")
 
-add_library(${PROJECT_NAME} STATIC ${SOURCE_FILES} ${HEADER_FILES})
+add_library(${PROJECT_NAME} ${SOURCE_FILES} ${HEADER_FILES})
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
@@ -54,6 +54,8 @@ target_link_libraries(${PROJECT_NAME}
         Threads::Threads
         DRAMSys::libdramsys
 )
+
+add_library(DRAMSys::simulator ALIAS ${PROJECT_NAME})
 
 add_executable(DRAMSys
     main.cpp
