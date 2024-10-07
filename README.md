@@ -2,7 +2,7 @@
 
 **DRAMSys** is a flexible DRAM subsystem design space exploration framework based on SystemC TLM-2.0. It was developed by the [Microelectronic Systems Design Research Group](https://eit.rptu.de/en/fgs/ems/home/seite) at [RPTU Kaiserslautern-Landau](https://rptu.de/en/), by [Fraunhofer IESE](https://www.iese.fraunhofer.de/en.html) and by the [Computer Engineering Group](https://www.informatik.uni-wuerzburg.de/ce/) at [JMU Würzburg](https://www.uni-wuerzburg.de/en/home/).
 
-\>> [Official Website](https://www.iese.fraunhofer.de/en/innovation_trends/autonomous-systems/memtonomy/DRAMSys.html) <<
+\>> [Official Website](http://dramsys.de) <<
 
 ## Disclaimer
 
