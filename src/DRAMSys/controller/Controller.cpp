@@ -360,11 +360,10 @@ void Controller::controllerMethod()
     for (auto& it : powerDownManagers)
         it->evaluate();
 
-    // (4) Collect all ready commands from BMs, RMs and PDMs
-
     // clear command buffer
     readyCommands.clear();
 
+    // (4) Collect all ready commands from BMs, RMs and PDMs
     for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
     {
         // (4.1) Check for power-down commands (PDEA/PDEP/SREFEN or PDXA/PDXP/SREFEX)
@@ -389,19 +388,25 @@ void Controller::controllerMethod()
         }
     }
 
-    // (5) Select one of the ready commands and issue it to the DRAM
+    for (auto& it : readyCommands)
+    {
+        Command command = std::get<CommandTuple::Command>(it);
+        tlm_generic_payload* trans = std::get<CommandTuple::Payload>(it);
+        std::get<CommandTuple::Timestamp>(it) = checker->timeToSatisfyConstraints(command, *trans);
+    }
+
+    // (5) Select some of the ready commands and issue it to the DRAM
     bool readyCmdBlocked = false;
     if (!readyCommands.empty())
     {
-        for (auto& it : readyCommands)
-        {
-            Command command = std::get<CommandTuple::Command>(it);
-            tlm_generic_payload* trans = std::get<CommandTuple::Payload>(it);
-            std::get<CommandTuple::Timestamp>(it) =
-                checker->timeToSatisfyConstraints(command, *trans);
-        }
         auto commandTuple = cmdMux->selectCommand(readyCommands);
-        if (commandTuple.has_value()) // can happen with FIFO strict
+
+        if (!commandTuple.has_value() // can happen with FIFO strict
+            || std::get<CommandTuple::Timestamp>(*commandTuple) != sc_time_stamp())
+        {
+            readyCmdBlocked = true;
+        }
+        else
         {
             Command command = std::get<CommandTuple::Command>(*commandTuple);
             tlm_generic_payload* trans = std::get<CommandTuple::Payload>(*commandTuple);
@@ -409,6 +414,7 @@ void Controller::controllerMethod()
             Rank rank = ControllerExtension::getRank(*trans);
             Bank bank = ControllerExtension::getBank(*trans);
 
+            // update
             if (command.isRankCommand())
             {
                 for (auto* it : bankMachinesOnRank[rank])
@@ -429,6 +435,8 @@ void Controller::controllerMethod()
             }
             else // if (isBankCommand(command))
                 bankMachines[bank]->update(command);
+
+            cmdMux->update(command);
 
             refreshManagers[rank]->update(command);
             powerDownManagers[rank]->update(command);
@@ -463,8 +471,6 @@ void Controller::controllerMethod()
             if (traceCallback)
                 traceCallback(*trans, command.toPhase(), config.phyDelayFw);
         }
-        else
-            readyCmdBlocked = true;
     }
 
     // (6) Restart bank machines, refresh managers and power-down managers to issue new requests for

@@ -45,7 +45,9 @@ class CmdMuxStrict : public CmdMuxIF
 {
 public:
     explicit CmdMuxStrict(const MemSpec& memSpec);
-    std::optional<CommandTuple::Type> selectCommand(const ReadyCommands& readyCommands) override;
+    [[nodiscard]] std::optional<CommandTuple::Type>
+    selectCommand(const ReadyCommands& readyCommands) const override;
+    void update(Command command) override;
 
 private:
     uint64_t nextPayloadID = 1;
@@ -57,14 +59,13 @@ class CmdMuxStrictRasCas : public CmdMuxIF
 {
 public:
     explicit CmdMuxStrictRasCas(const MemSpec& memSpec);
-    std::optional<CommandTuple::Type> selectCommand(const ReadyCommands& readyCommands) override;
+    [[nodiscard]] std::optional<CommandTuple::Type>
+    selectCommand(const ReadyCommands& readyCommands) const override;
+    void update(Command command) override;
 
 private:
     uint64_t nextPayloadID = 1;
     const MemSpec& memSpec;
-    ReadyCommands readyRasCommands;
-    ReadyCommands readyCasCommands;
-    ReadyCommands readyRasCasCommands;
     const sc_core::sc_time scMaxTime = sc_core::sc_max_time();
 };
 

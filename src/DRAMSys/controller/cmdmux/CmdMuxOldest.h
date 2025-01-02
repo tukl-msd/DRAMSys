@@ -45,7 +45,8 @@ class CmdMuxOldest : public CmdMuxIF
 {
 public:
     explicit CmdMuxOldest(const MemSpec& memSpec);
-    std::optional<CommandTuple::Type> selectCommand(const ReadyCommands& readyCommands) override;
+    [[nodiscard]] std::optional<CommandTuple::Type>
+    selectCommand(const ReadyCommands& readyCommands) const override;
 
 private:
     const MemSpec& memSpec;
@@ -56,13 +57,11 @@ class CmdMuxOldestRasCas : public CmdMuxIF
 {
 public:
     explicit CmdMuxOldestRasCas(const MemSpec& memSpec);
-    std::optional<CommandTuple::Type> selectCommand(const ReadyCommands& readyCommands) override;
+    [[nodiscard]] std::optional<CommandTuple::Type>
+    selectCommand(const ReadyCommands& readyCommands) const override;
 
 private:
     const MemSpec& memSpec;
-    ReadyCommands readyRasCommands;
-    ReadyCommands readyCasCommands;
-    ReadyCommands readyRasCasCommands;
     const sc_core::sc_time scMaxTime = sc_core::sc_max_time();
 };
 

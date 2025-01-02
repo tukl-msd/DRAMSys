@@ -54,7 +54,9 @@ public:
     CmdMuxIF() = default;
     virtual ~CmdMuxIF() = default;
 
-    virtual std::optional<CommandTuple::Type> selectCommand(const ReadyCommands& readyCommands) = 0;
+    [[nodiscard]] virtual std::optional<CommandTuple::Type>
+    selectCommand(const ReadyCommands& readyCommands) const = 0;
+    virtual void update([[maybe_unused]] Command command) {}
 };
 
 } // namespace DRAMSys

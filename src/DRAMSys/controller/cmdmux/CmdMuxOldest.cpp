@@ -45,7 +45,8 @@ CmdMuxOldest::CmdMuxOldest(const MemSpec& memSpec) : memSpec(memSpec)
 {
 }
 
-std::optional<CommandTuple::Type> CmdMuxOldest::selectCommand(const ReadyCommands& readyCommands)
+std::optional<CommandTuple::Type>
+CmdMuxOldest::selectCommand(const ReadyCommands& readyCommands) const
 {
     auto result = readyCommands.cend();
     uint64_t lastPayloadID = UINT64_MAX;
@@ -73,25 +74,18 @@ std::optional<CommandTuple::Type> CmdMuxOldest::selectCommand(const ReadyCommand
         }
     }
 
-    assert(result != readyCommands.cend());
-
-    if (std::get<CommandTuple::Timestamp>(*result) != sc_time_stamp())
-        return std::nullopt;
-
     return *result;
 }
 
 CmdMuxOldestRasCas::CmdMuxOldestRasCas(const MemSpec& memSpec) : memSpec(memSpec)
 {
-    readyRasCommands.reserve(memSpec.banksPerChannel);
-    readyCasCommands.reserve(memSpec.banksPerChannel);
-    readyRasCasCommands.reserve(2);
 }
 
-std::optional<CommandTuple::Type> CmdMuxOldestRasCas::selectCommand(const ReadyCommands& readyCommands)
+std::optional<CommandTuple::Type>
+CmdMuxOldestRasCas::selectCommand(const ReadyCommands& readyCommands) const
 {
-    readyRasCommands.clear();
-    readyCasCommands.clear();
+    ReadyCommands readyRasCommands;
+    ReadyCommands readyCasCommands;
 
     for (auto it : readyCommands)
     {
@@ -101,14 +95,12 @@ std::optional<CommandTuple::Type> CmdMuxOldestRasCas::selectCommand(const ReadyC
             readyCasCommands.emplace_back(it);
     }
 
-    auto result = readyCommands.cend();
-    auto resultRas = readyRasCommands.cend();
-    auto resultCas = readyCasCommands.cend();
-
     uint64_t lastPayloadID = UINT64_MAX;
     uint64_t newPayloadID = 0;
     sc_time lastTimestamp = scMaxTime;
     sc_time newTimestamp;
+
+    auto resultRas = readyRasCommands.cend();
 
     for (auto it = readyRasCommands.cbegin(); it != readyRasCommands.cend(); it++)
     {
@@ -133,6 +125,8 @@ std::optional<CommandTuple::Type> CmdMuxOldestRasCas::selectCommand(const ReadyC
     lastPayloadID = UINT64_MAX;
     lastTimestamp = scMaxTime;
 
+    auto resultCas = readyCasCommands.cend();
+
     for (auto it = readyCasCommands.cbegin(); it != readyCasCommands.cend(); it++)
     {
         newTimestamp = std::get<CommandTuple::Timestamp>(*it) +
@@ -153,7 +147,7 @@ std::optional<CommandTuple::Type> CmdMuxOldestRasCas::selectCommand(const ReadyC
         }
     }
 
-    readyRasCasCommands.clear();
+    ReadyCommands readyRasCasCommands;
 
     if (resultRas != readyRasCommands.cend())
         readyRasCasCommands.emplace_back(*resultRas);
@@ -162,6 +156,8 @@ std::optional<CommandTuple::Type> CmdMuxOldestRasCas::selectCommand(const ReadyC
 
     lastPayloadID = UINT64_MAX;
     lastTimestamp = scMaxTime;
+
+    auto result = readyCommands.cend();
 
     for (auto it = readyRasCasCommands.cbegin(); it != readyRasCasCommands.cend(); it++)
     {
