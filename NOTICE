@@ -2,7 +2,7 @@ NOTICE
 
 This software uses the following third-party libraries:
 
-1. SQLite3 v3.40.1
+1. SQLite3 v3.47.0
    License: Public Domain
    License URL: https://www.sqlite.org/copyright.html
 
@@ -22,14 +22,14 @@ This software uses the following third-party libraries:
    License: Qwt License (based on LGPL-2.1)
    License URL: https://qwt.sourceforge.io/qwtlicense.html
 
-6. Google Test v1.12.1
+6. Google Test v1.15.2
    License: BSD-3-Clause
    License URL: https://github.com/google/googletest/blob/main/LICENSE
 
-7. Google Benchmark v1.8.3
+7. Google Benchmark v1.9.0
    License: Apache-2.0
    License URL: https://github.com/google/benchmark/blob/main/LICENSE
 
-8. Pybind11 v2.13.1
+8. Pybind11 v2.13.6
    License: BSD-3-Clause
    License URL: https://github.com/pybind/pybind11/blob/master/LICENSE

@@ -631,17 +631,24 @@ void TracePlot::currentTraceTimeChanged()
     bool drawDependencies =
         getDrawingProperties().drawDependenciesOption.draw != DependencyOption::Disabled;
 
-    transactions =
-        navigator->TraceFile().getTransactionsInTimespan(GetCurrentTimespan(), drawDependencies);
+    Timespan newTimespan = GetCurrentTimespan();
+
+    if (!loadedTimespan.contains(newTimespan))
+    {
+        loadedTimespan = Timespan{newTimespan.Begin() - newTimespan.timeCovered(), newTimespan.End() + newTimespan.timeCovered()};
+
+        transactions = navigator->TraceFile().getTransactionsInTimespan(loadedTimespan,
+                                                                        drawDependencies);
 
 #ifdef EXTENSION_ENABLED
-    if (drawDependencies)
-    {
-        navigator->TraceFile().updateDependenciesInTimespan(GetCurrentTimespan());
-    }
+        if (drawDependencies)
+        {
+            navigator->TraceFile().updateDependenciesInTimespan(loadedTimespan);
+        }
 #endif
+    }
 
-    setAxisScale(xBottom, GetCurrentTimespan().Begin(), GetCurrentTimespan().End());
+    setAxisScale(xBottom, newTimespan.Begin(), newTimespan.End());
 
     dependenciesSubMenu->setEnabled(navigator->TraceFile().checkDependencyTableExists());
 

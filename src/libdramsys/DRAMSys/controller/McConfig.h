@@ -100,14 +100,14 @@ struct McConfig
         Config::PowerDownPolicyType::NoPowerDown;
     static constexpr unsigned int DEFAULT_MAX_ACTIVE_TRANSACTIONS = 64;
     static constexpr bool DEFAULT_REFRESH_MANAGEMENT = false;
-    static constexpr unsigned DEFAULT_ARBITRATION_DELAY_FW_NS = 0;
-    static constexpr unsigned DEFAULT_ARBITRATION_DELAY_BW_NS = 0;
-    static constexpr unsigned DEFAULT_THINK_DELAY_FW_NS = 0;
-    static constexpr unsigned DEFAULT_THINK_DELAY_BW_NS = 0;
-    static constexpr unsigned DEFAULT_PHY_DELAY_FW_NS = 0;
-    static constexpr unsigned DEFAULT_PHY_DELAY_BW_NS = 0;
-    static constexpr unsigned DEFAULT_BLOCKING_READ_DELAY_NS = 60;
-    static constexpr unsigned DEFAULT_BLOCKING_WRITE_DELAY_NS = 60;
+    static constexpr unsigned DEFAULT_ARBITRATION_DELAY_FW = 0;
+    static constexpr unsigned DEFAULT_ARBITRATION_DELAY_BW = 0;
+    static constexpr unsigned DEFAULT_THINK_DELAY_FW = 1;
+    static constexpr unsigned DEFAULT_THINK_DELAY_BW = 0;
+    static constexpr unsigned DEFAULT_PHY_DELAY_FW = 0;
+    static constexpr unsigned DEFAULT_PHY_DELAY_BW = 0;
+    static constexpr unsigned DEFAULT_BLOCKING_READ_DELAY = 60;
+    static constexpr unsigned DEFAULT_BLOCKING_WRITE_DELAY = 60;
 };
 
 } // namespace DRAMSys

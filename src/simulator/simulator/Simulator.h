@@ -49,7 +49,7 @@ public:
     Simulator(DRAMSys::Config::Configuration configuration,
               std::filesystem::path resourceDirectory);
 
-    static void run();
+    void run();
 
 private:
     std::unique_ptr<Initiator> instantiateInitiator(const DRAMSys::Config::Initiator& initiator);

@@ -57,7 +57,7 @@ int sc_main(int argc, char** argv)
         DRAMSys::Config::from_path(baseConfig.c_str(), resourceDirectory.c_str());
 
     Simulator simulator(std::move(configuration), std::move(resourceDirectory));
-    Simulator::run();
+    simulator.run();
 
     return 0;
 }

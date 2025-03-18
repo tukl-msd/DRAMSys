@@ -36,25 +36,24 @@
 ###      DRAMSys::config             ###
 ########################################
 
-project(DRAMSys_Configuration)
-
-file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS *.cpp)
-file(GLOB_RECURSE HEADER_FILES CONFIGURE_DEPENDS *.h;*.hpp)
-
-add_library(${PROJECT_NAME} ${SOURCE_FILES} ${HEADER_FILES})
-
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-target_link_libraries(${PROJECT_NAME}
-    PUBLIC
-        DRAMSys::util
+add_library(configuration
+    DRAMSys/config/DRAMSysConfiguration.cpp
+    DRAMSys/config/memspec/MemArchitectureSpec.cpp
+    DRAMSys/config/memspec/MemPowerSpec.cpp
+    DRAMSys/config/memspec/MemTimingSpec.cpp
 )
 
-target_compile_definitions(${PROJECT_NAME}
+target_include_directories(configuration PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_link_libraries(configuration
+    PUBLIC
+        nlohmann_json::nlohmann_json
+)
+
+target_compile_definitions(configuration
     PUBLIC
         DRAMSYS_RESOURCE_DIR="${DRAMSYS_RESOURCE_DIR}"
 )
 
-add_library(DRAMSys::config ALIAS ${PROJECT_NAME})
-
-build_source_group()
+target_compile_features(configuration PUBLIC cxx_std_17)
+add_library(DRAMSys::config ALIAS configuration)

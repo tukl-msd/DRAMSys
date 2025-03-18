@@ -57,9 +57,9 @@ SchedulerFrFcfs::SchedulerFrFcfs(const McConfig& config, const MemSpec& memSpec)
         bufferCounter = std::make_unique<BufferCounterShared>(config.requestBufferSize);
 }
 
-bool SchedulerFrFcfs::hasBufferSpace() const
+bool SchedulerFrFcfs::hasBufferSpace(unsigned entries) const
 {
-    return bufferCounter->hasBufferSpace();
+    return bufferCounter->hasBufferSpace(entries);
 }
 
 void SchedulerFrFcfs::storeRequest(tlm_generic_payload& payload)

@@ -72,6 +72,7 @@ struct SimConfig
     std::optional<bool> ThermalSimulation;
     std::optional<bool> UseMalloc;
     std::optional<unsigned int> WindowSize;
+    std::optional<double> SimulationTime;
 };
 
 NLOHMANN_JSONIFY_ALL_THINGS(SimConfig,
@@ -86,7 +87,8 @@ NLOHMANN_JSONIFY_ALL_THINGS(SimConfig,
                             StoreMode,
                             ThermalSimulation,
                             UseMalloc,
-                            WindowSize)
+                            WindowSize,
+                            SimulationTime)
 
 } // namespace DRAMSys::Config
 

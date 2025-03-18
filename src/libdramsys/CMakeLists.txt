@@ -36,28 +36,81 @@
 ###      DRAMSys::libdramsys         ###
 ########################################
 
-project(DRAMSys_libdramsys)
-
-file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS *.cpp)
-file(GLOB_RECURSE HEADER_FILES CONFIGURE_DEPENDS *.h;*.hpp)
-
-add_library(${PROJECT_NAME} ${SOURCE_FILES} ${HEADER_FILES})
-
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-target_link_libraries(${PROJECT_NAME}
-    PUBLIC
-        SystemC::systemc
-        DRAMSys::util
-        DRAMSys::config
-        sqlite3::sqlite3
+add_library(libdramsys
+    DRAMSys/common/DebugManager.cpp
+    DRAMSys/common/TlmRecorder.cpp
+    DRAMSys/common/dramExtensions.cpp
+    DRAMSys/common/utils.cpp
+    DRAMSys/configuration/memspec/MemSpec.cpp
+    DRAMSys/configuration/memspec/MemSpecDDR3.cpp
+    DRAMSys/configuration/memspec/MemSpecDDR4.cpp
+    DRAMSys/configuration/memspec/MemSpecGDDR5.cpp
+    DRAMSys/configuration/memspec/MemSpecGDDR5X.cpp
+    DRAMSys/configuration/memspec/MemSpecGDDR6.cpp
+    DRAMSys/configuration/memspec/MemSpecHBM2.cpp
+    DRAMSys/configuration/memspec/MemSpecLPDDR4.cpp
+    DRAMSys/configuration/memspec/MemSpecSTTMRAM.cpp
+    DRAMSys/configuration/memspec/MemSpecWideIO.cpp
+    DRAMSys/configuration/memspec/MemSpecWideIO2.cpp
+    DRAMSys/controller/BankMachine.cpp
+    DRAMSys/controller/Command.cpp
+    DRAMSys/controller/Controller.cpp
+    DRAMSys/controller/ControllerRecordable.cpp
+    DRAMSys/controller/McConfig.cpp
+    DRAMSys/controller/checker/CheckerDDR3.cpp
+    DRAMSys/controller/checker/CheckerDDR4.cpp
+    DRAMSys/controller/checker/CheckerGDDR5.cpp
+    DRAMSys/controller/checker/CheckerGDDR5X.cpp
+    DRAMSys/controller/checker/CheckerGDDR6.cpp
+    DRAMSys/controller/checker/CheckerHBM2.cpp
+    DRAMSys/controller/checker/CheckerLPDDR4.cpp
+    DRAMSys/controller/checker/CheckerSTTMRAM.cpp
+    DRAMSys/controller/checker/CheckerWideIO.cpp
+    DRAMSys/controller/checker/CheckerWideIO2.cpp
+    DRAMSys/controller/cmdmux/CmdMuxOldest.cpp
+    DRAMSys/controller/cmdmux/CmdMuxStrict.cpp
+    DRAMSys/controller/powerdown/PowerDownManagerDummy.cpp
+    DRAMSys/controller/powerdown/PowerDownManagerStaggered.cpp
+    DRAMSys/controller/refresh/RefreshManagerAllBank.cpp
+    DRAMSys/controller/refresh/RefreshManagerDummy.cpp
+    DRAMSys/controller/refresh/RefreshManagerPer2Bank.cpp
+    DRAMSys/controller/refresh/RefreshManagerPerBank.cpp
+    DRAMSys/controller/refresh/RefreshManagerSameBank.cpp
+    DRAMSys/controller/respqueue/RespQueueFifo.cpp
+    DRAMSys/controller/respqueue/RespQueueReorder.cpp
+    DRAMSys/controller/scheduler/BufferCounterBankwise.cpp
+    DRAMSys/controller/scheduler/BufferCounterReadWrite.cpp
+    DRAMSys/controller/scheduler/BufferCounterShared.cpp
+    DRAMSys/controller/scheduler/SchedulerFifo.cpp
+    DRAMSys/controller/scheduler/SchedulerFrFcfs.cpp
+    DRAMSys/controller/scheduler/SchedulerFrFcfsGrp.cpp
+    DRAMSys/controller/scheduler/SchedulerGrpFrFcfs.cpp
+    DRAMSys/controller/scheduler/SchedulerGrpFrFcfsWm.cpp
+    DRAMSys/simulation/AddressDecoder.cpp
+    DRAMSys/simulation/Arbiter.cpp
+    DRAMSys/simulation/DRAMSys.cpp
+    DRAMSys/simulation/Dram.cpp
+    DRAMSys/simulation/DramRecordable.cpp
+    DRAMSys/simulation/SimConfig.cpp
 )
 
-if (DRAMSYS_WITH_DRAMPOWER)
-    target_link_libraries(${PROJECT_NAME} PUBLIC DRAMPower)
-    target_compile_definitions(${PROJECT_NAME} PUBLIC DRAMPOWER)
-endif ()
+target_include_directories(libdramsys PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_library(DRAMSys::libdramsys ALIAS ${PROJECT_NAME})
+target_compile_features(libdramsys PUBLIC cxx_std_17)
 
-build_source_group()
+target_compile_definitions(libdramsys
+    PUBLIC
+        $<$<BOOL:${DRAMPower_FOUND}>:DRAMPOWER>
+)
+
+target_link_libraries(libdramsys
+    PUBLIC
+        SystemC::systemc
+        DRAMSys::config
+        $<$<TARGET_EXISTS:DRAMPower::DRAMPower>:DRAMPower::DRAMPower>
+    PRIVATE
+        SQLite::SQLite3
+
+)
+
+add_library(DRAMSys::libdramsys ALIAS libdramsys)

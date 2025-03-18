@@ -57,7 +57,7 @@ public:
     SchedulerIF() = default;
     virtual ~SchedulerIF() = default;
 
-    [[nodiscard]] virtual bool hasBufferSpace() const = 0;
+    [[nodiscard]] virtual bool hasBufferSpace(unsigned entries) const = 0;
     virtual void storeRequest(tlm::tlm_generic_payload& payload) = 0;
     virtual void removeRequest(tlm::tlm_generic_payload& payload) = 0;
     [[nodiscard]] virtual tlm::tlm_generic_payload*

@@ -82,6 +82,11 @@ AddressDecoder::AddressDecoder(const Config::AddressMapping& addressMapping)
         addMapping(*rankBits, vRankBits, vXor);
     }
 
+    if (const auto& stackBits = addressMapping.STACK_BIT)
+    {
+        addMapping(*stackBits, vStackBits, vXor);
+    }
+
     // HBM pseudo channels are internally modelled as ranks
     if (const auto& pseudoChannelBits = addressMapping.PSEUDOCHANNEL_BIT)
     {
@@ -115,14 +120,16 @@ AddressDecoder::AddressDecoder(const Config::AddressMapping& addressMapping)
 
     unsigned channels = std::lround(std::pow(2.0, vChannelBits.size()));
     unsigned ranks = std::lround(std::pow(2.0, vRankBits.size()));
+    unsigned stacks = std::lround(std::pow(2.0, vStackBits.size()));
     unsigned bankGroups = std::lround(std::pow(2.0, vBankGroupBits.size()));
     unsigned banks = std::lround(std::pow(2.0, vBankBits.size()));
     unsigned rows = std::lround(std::pow(2.0, vRowBits.size()));
     unsigned columns = std::lround(std::pow(2.0, vColumnBits.size()));
     unsigned bytes = std::lround(std::pow(2.0, vByteBits.size()));
 
-    maximumAddress =
-        static_cast<uint64_t>(bytes) * columns * rows * banks * bankGroups * ranks * channels - 1;
+    maximumAddress = static_cast<uint64_t>(bytes) * columns * rows * banks * bankGroups * stacks *
+                         ranks * channels -
+                     1;
 
     bankgroupsPerRank = bankGroups;
     banksPerGroup = banks;
@@ -132,20 +139,23 @@ void AddressDecoder::plausibilityCheck(const MemSpec& memSpec)
 {
     unsigned channels = std::lround(std::pow(2.0, vChannelBits.size()));
     unsigned ranks = std::lround(std::pow(2.0, vRankBits.size()));
+    unsigned stacks = std::lround(std::pow(2.0, vStackBits.size()));
     unsigned bankGroups = std::lround(std::pow(2.0, vBankGroupBits.size()));
     unsigned banks = std::lround(std::pow(2.0, vBankBits.size()));
     unsigned rows = std::lround(std::pow(2.0, vRowBits.size()));
     unsigned columns = std::lround(std::pow(2.0, vColumnBits.size()));
     unsigned bytes = std::lround(std::pow(2.0, vByteBits.size()));
 
-    maximumAddress =
-        static_cast<uint64_t>(bytes) * columns * rows * banks * bankGroups * ranks * channels - 1;
+    maximumAddress = static_cast<uint64_t>(bytes) * columns * rows * banks * bankGroups * stacks *
+                         ranks * channels -
+                     1;
 
     auto totalAddressBits = static_cast<unsigned>(std::log2(maximumAddress));
     for (unsigned bitPosition = 0; bitPosition < totalAddressBits; bitPosition++)
     {
         if (std::count(vChannelBits.begin(), vChannelBits.end(), bitPosition) +
                 std::count(vRankBits.begin(), vRankBits.end(), bitPosition) +
+                std::count(vStackBits.begin(), vStackBits.end(), bitPosition) +
                 std::count(vBankGroupBits.begin(), vBankGroupBits.end(), bitPosition) +
                 std::count(vBankBits.begin(), vBankBits.end(), bitPosition) +
                 std::count(vRowBits.begin(), vRowBits.end(), bitPosition) +
@@ -222,6 +232,9 @@ DecodedAddress AddressDecoder::decodeAddress(uint64_t encAddr) const
     for (unsigned it = 0; it < vRankBits.size(); it++)
         decAddr.rank |= ((encAddr >> vRankBits[it]) & UINT64_C(1)) << it;
 
+    for (unsigned it = 0; it < vStackBits.size(); it++)
+        decAddr.stack |= ((encAddr >> vStackBits[it]) & UINT64_C(1)) << it;
+
     for (unsigned it = 0; it < vBankGroupBits.size(); it++)
         decAddr.bankgroup |= ((encAddr >> vBankGroupBits[it]) & UINT64_C(1)) << it;
 
@@ -290,6 +303,9 @@ uint64_t AddressDecoder::encodeAddress(DecodedAddress decodedAddress) const
     for (unsigned i = 0; i < vRankBits.size(); i++)
         address |= ((decodedAddress.rank >> i) & 0x1) << vRankBits[i];
 
+    for (unsigned i = 0; i < vStackBits.size(); i++)
+        address |= ((decodedAddress.stack >> i) & 0x1) << vStackBits[i];
+
     for (unsigned i = 0; i < vBankGroupBits.size(); i++)
         address |= ((decodedAddress.bankgroup >> i) & 0x1) << vBankGroupBits[i];
 
@@ -345,6 +361,22 @@ void AddressDecoder::print() const
             }
         }
         std::cout << " Ra " << std::setw(2) << it << ": " << std::bitset<64>(addressBits)
+                  << std::endl;
+    }
+
+    for (int it = static_cast<int>(vStackBits.size() - 1); it >= 0; it--)
+    {
+        uint64_t addressBits =
+            (UINT64_C(1) << vStackBits[static_cast<std::vector<unsigned>::size_type>(it)]);
+        for (auto xorMapping : vXor)
+        {
+            if (xorMapping.at(0) == vStackBits[static_cast<std::vector<unsigned>::size_type>(it)])
+            {
+                for (auto it = xorMapping.cbegin() + 1; it != xorMapping.cend(); it++)
+                    addressBits |= (UINT64_C(1) << *it);
+            }
+        }
+        std::cout << " SID " << std::setw(2) << it << ": " << std::bitset<64>(addressBits)
                   << std::endl;
     }
 

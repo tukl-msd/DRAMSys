@@ -38,67 +38,88 @@
 ###           TraceAnalyzer          ###
 ########################################
 
-project(TraceAnalyzer)
+option(DRAMSYS_USE_FETCH_CONTENT_PYBIND "Enable FetchContent to provide pybind11" ${DRAMSYS_USE_FETCH_CONTENT})
 
-file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS *.cpp)
-file(GLOB_RECURSE HEADER_FILES CONFIGURE_DEPENDS *.h;*.hpp)
+if (DRAMSYS_USE_FETCH_CONTENT)
+    if (DRAMSYS_USE_FETCH_CONTENT_PYBIND)
+        FetchContent_Declare(
+            pybind11
+            URL https://github.com/pybind/pybind11/archive/refs/tags/v2.13.6.tar.gz
+            OVERRIDE_FIND_PACKAGE
+        )
+        
+        FetchContent_MakeAvailable(pybind11)
+    endif()
+endif()
 
-# Add Python3 Dependency:
-find_package(Python3 COMPONENTS Development Interpreter)
-
-FetchContent_Declare(
-    pybind11
-    URL https://github.com/pybind/pybind11/archive/refs/tags/v2.13.1.zip
-)
-
-FetchContent_MakeAvailable(pybind11)
-
-# Add QWT Dependency:
-find_library(QWT_LIBRARY NAMES "qwt" "qwt-qt5" PATHS
-    "$ENV{QWT_HOME}/lib"
-    "/opt/homebrew/opt/qwt-qt5/lib"
-)
-find_path(QWT_INCLUDE_DIRS NAMES "qwt_plot.h" PATHS
-    "$ENV{QWT_HOME}/include"
-    "/usr/include/qwt-qt5"
-    "/usr/include/qwt"
-    "/opt/homebrew/opt/qwt-qt5/include"
-    "/opt/homebrew/opt/qwt-qt5/lib/qwt.framework/Headers"
-)
-
-# Add QT Library:
 if (APPLE)
     set(Qt5_DIR "/opt/homebrew/opt/qt@5/lib/cmake/Qt5")
 endif(APPLE)
+
 find_package(Qt5 COMPONENTS Core Gui Widgets Sql REQUIRED)
+find_package(Qwt REQUIRED)
+
+find_package(Python3 COMPONENTS Development Interpreter REQUIRED)
+find_package(pybind11 REQUIRED)
+
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-add_executable(TraceAnalyzer ${SOURCE_FILES} ${HEADER_FILES})
+add_executable(TraceAnalyzer
+    businessObjects/commentmodel.cpp
+    businessObjects/configmodels.cpp
+    businessObjects/phases/phase.cpp
+    businessObjects/phases/phasefactory.cpp
+    businessObjects/pythoncaller.cpp
+    businessObjects/timespan.cpp
+    businessObjects/traceplotlinemodel.cpp
+    businessObjects/transaction.cpp
+    data/tracedb.cpp
+    evaluationtool.cpp
+    gototimedialog.cpp
+    main.cpp
+    presentation/debugmessagetreewidget.cpp
+    presentation/selectedtransactiontreewidget.cpp
+    presentation/tracePlotMouseLabel.cpp
+    presentation/tracedrawing.cpp
+    presentation/tracedrawingproperties.cpp
+    presentation/tracemetrictreewidget.cpp
+    presentation/tracenavigator.cpp
+    presentation/traceplot.cpp
+    presentation/traceplotitem.cpp
+    presentation/tracescroller.cpp
+    presentation/transactiontreewidget.cpp
+    presentation/util/clkgrid.cpp
+    presentation/util/colorgenerator.cpp
+    presentation/util/colorobject.cpp
+    presentation/util/customlabelscaledraw.cpp
+    presentation/util/testlight.cpp
+    presentation/util/togglecollapsedaction.cpp
+    queryeditor.cpp
+    selectmetrics.cpp
+    traceanalyzer.cpp
+    tracefiletab.cpp
+)
 
 target_include_directories(TraceAnalyzer
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${QWT_INCLUDE_DIRS}
 )
 
 target_link_libraries(TraceAnalyzer
     PRIVATE
+        DRAMSys::config
         pybind11::embed
-        ${QWT_LIBRARY}
         Qt5::Widgets
         Qt5::Sql
-        DRAMSys::util
-        DRAMSys::config
+        Qwt::Qwt
 )
 
 set(DRAMSYS_TRACE_ANALYZER_EXTENSION_DIR "${CMAKE_SOURCE_DIR}/extensions/apps/traceAnalyzer")
 
-target_compile_definitions(${PROJECT_NAME}
+target_compile_definitions(TraceAnalyzer
     PRIVATE
         DRAMSYS_TRACE_ANALYZER_EXTENSION_DIR="${DRAMSYS_TRACE_ANALYZER_EXTENSION_DIR}"
 )
-
-build_source_group()

@@ -35,28 +35,31 @@
 
 #pragma once
 
-#include "RandomProducer.h"
-#include "SequentialProducer.h"
 #include "simulator/Initiator.h"
 #include "simulator/MemoryManager.h"
 #include "simulator/request/RequestIssuer.h"
 
 #include <DRAMSys/config/DRAMSysConfiguration.h>
+#include <random>
+
+class RequestProducer;
 
 class TrafficGenerator : public Initiator
 {
 public:
     TrafficGenerator(DRAMSys::Config::TrafficGenerator const& config,
-                     MemoryManager& memoryManager,
+                     sc_core::sc_time interfaceClk,
                      uint64_t memorySize,
                      unsigned int defaultDataLength,
+                     MemoryManager& memoryManager,
                      std::function<void()> transactionFinished,
                      std::function<void()> terminateInitiator);
 
     TrafficGenerator(DRAMSys::Config::TrafficGeneratorStateMachine const& config,
-                     MemoryManager& memoryManager,
+                     sc_core::sc_time interfaceClk,
                      uint64_t memorySize,
                      unsigned int defaultDataLength,
+                     MemoryManager& memoryManager,
                      std::function<void()> transactionFinished,
                      std::function<void()> terminateInitiator);
 

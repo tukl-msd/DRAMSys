@@ -6,6 +6,7 @@
             "nbrOfBankGroups": 4,
             "nbrOfBanks": 16,
             "nbrOfColumns": 128,
+            "nbrOfStacks": 2,
             "nbrOfPseudoChannels": 2,
             "nbrOfRows": 32768,
             "width": 64,
@@ -17,6 +18,7 @@
         "memtimingspec": {
             "CCDL": 3,
             "CCDS": 2,
+            "CCDR": 2,
             "CKE": 8,
             "DQSCK": 1,
             "FAW": 16,

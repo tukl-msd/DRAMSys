@@ -43,7 +43,7 @@ template <typename Producer> class SimpleInitiator : public Initiator
 public:
     SimpleInitiator(sc_core::sc_module_name const& name,
                     MemoryManager& memoryManager,
-                    unsigned int clkMhz,
+                    sc_core::sc_time interfaceClk,
                     std::optional<unsigned int> maxPendingReadRequests,
                     std::optional<unsigned int> maxPendingWriteRequests,
                     std::function<void()> transactionFinished,
@@ -53,7 +53,7 @@ public:
         issuer(
             name,
             memoryManager,
-            clkMhz,
+            interfaceClk,
             maxPendingReadRequests,
             maxPendingWriteRequests,
             [this] { return this->producer.nextRequest(); },

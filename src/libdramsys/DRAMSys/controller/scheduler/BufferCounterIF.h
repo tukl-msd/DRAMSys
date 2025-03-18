@@ -53,7 +53,7 @@ public:
     BufferCounterIF() = default;
     virtual ~BufferCounterIF() = default;
 
-    [[nodiscard]] virtual bool hasBufferSpace() const = 0;
+    [[nodiscard]] virtual bool hasBufferSpace(unsigned entries) const = 0;
     virtual void storeRequest(const tlm::tlm_generic_payload& trans) = 0;
     virtual void removeRequest(const tlm::tlm_generic_payload& trans) = 0;
     [[nodiscard]] virtual const std::vector<unsigned>& getBufferDepth() const = 0;

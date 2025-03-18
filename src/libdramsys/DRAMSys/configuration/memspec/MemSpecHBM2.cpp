@@ -50,7 +50,6 @@ MemSpecHBM2::MemSpecHBM2(const Config::MemSpec& memSpec) :
     MemSpec(memSpec,
             memSpec.memarchitecturespec.entries.at("nbrOfChannels"),
             memSpec.memarchitecturespec.entries.at("nbrOfPseudoChannels"),
-            memSpec.memarchitecturespec.entries.at("nbrOfPseudoChannels"),
             memSpec.memarchitecturespec.entries.at("nbrOfBanks"),
             memSpec.memarchitecturespec.entries.at("nbrOfBankGroups"),
             memSpec.memarchitecturespec.entries.at("nbrOfBanks") /
@@ -60,6 +59,7 @@ MemSpecHBM2::MemSpecHBM2(const Config::MemSpec& memSpec) :
             memSpec.memarchitecturespec.entries.at("nbrOfBankGroups") *
                 memSpec.memarchitecturespec.entries.at("nbrOfPseudoChannels"),
             memSpec.memarchitecturespec.entries.at("nbrOfDevices")),
+    stacksPerChannel(memSpec.memarchitecturespec.entries.at("nbrOfStacks")),
     tDQSCK(tCK * memSpec.memtimingspec.entries.at("DQSCK")),
     tRC(tCK * memSpec.memtimingspec.entries.at("RC")),
     tRAS(tCK * memSpec.memtimingspec.entries.at("RAS")),
@@ -76,6 +76,7 @@ MemSpecHBM2::MemSpecHBM2(const Config::MemSpec& memSpec) :
     tWR(tCK * memSpec.memtimingspec.entries.at("WR")),
     tCCDL(tCK * memSpec.memtimingspec.entries.at("CCDL")),
     tCCDS(tCK * memSpec.memtimingspec.entries.at("CCDS")),
+    tCCDR(tCK * memSpec.memtimingspec.entries.at("CCDR")),
     tWTRL(tCK * memSpec.memtimingspec.entries.at("WTRL")),
     tWTRS(tCK * memSpec.memtimingspec.entries.at("WTRS")),
     tRTW(tCK * memSpec.memtimingspec.entries.at("RTW")),
@@ -127,6 +128,11 @@ sc_time MemSpecHBM2::getRefreshIntervalPB() const
 bool MemSpecHBM2::hasRasAndCasBus() const
 {
     return true;
+}
+
+bool MemSpecHBM2::pseudoChannelMode() const
+{
+    return ranksPerChannel != 1;
 }
 
 sc_time MemSpecHBM2::getExecutionTime(Command command, const tlm_generic_payload& payload) const

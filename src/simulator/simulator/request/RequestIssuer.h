@@ -52,7 +52,7 @@ public:
 
     RequestIssuer(sc_core::sc_module_name const& name,
                   MemoryManager& memoryManager,
-                  unsigned int clkMhz,
+                  sc_core::sc_time interfaceClk,
                   std::optional<unsigned int> maxPendingReadRequests,
                   std::optional<unsigned int> maxPendingWriteRequests,
                   std::function<Request()> nextRequest,
@@ -64,7 +64,7 @@ private:
     tlm_utils::peq_with_cb_and_phase<RequestIssuer> payloadEventQueue;
     MemoryManager& memoryManager;
 
-    const sc_core::sc_time clkPeriod;
+    sc_core::sc_time interfaceClk;
 
     bool transactionPostponed = false;
     bool finished = false;
@@ -75,8 +75,8 @@ private:
 
     unsigned int pendingReadRequests = 0;
     unsigned int pendingWriteRequests = 0;
-    const std::optional<unsigned int> maxPendingReadRequests;
-    const std::optional<unsigned int> maxPendingWriteRequests;
+    std::optional<unsigned int> maxPendingReadRequests;
+    std::optional<unsigned int> maxPendingWriteRequests;
 
     std::function<void()> transactionFinished;
     std::function<void()> terminate;

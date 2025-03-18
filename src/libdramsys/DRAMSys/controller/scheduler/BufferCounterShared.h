@@ -47,7 +47,7 @@ class BufferCounterShared final : public BufferCounterIF
 {
 public:
     explicit BufferCounterShared(unsigned requestBufferSize);
-    [[nodiscard]] bool hasBufferSpace() const override;
+    [[nodiscard]] bool hasBufferSpace(unsigned entries) const override;
     void storeRequest(const tlm::tlm_generic_payload& trans) override;
     void removeRequest(const tlm::tlm_generic_payload& trans) override;
     [[nodiscard]] const std::vector<unsigned>& getBufferDepth() const override;

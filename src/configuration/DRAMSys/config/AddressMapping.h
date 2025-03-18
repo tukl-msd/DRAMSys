@@ -56,6 +56,7 @@ struct AddressMapping
     std::optional<std::vector<BitEntry>> BANK_BIT;
     std::optional<std::vector<BitEntry>> BANKGROUP_BIT;
     std::optional<std::vector<BitEntry>> RANK_BIT;
+    std::optional<std::vector<BitEntry>> STACK_BIT;
     std::optional<std::vector<BitEntry>> PSEUDOCHANNEL_BIT;
     std::optional<std::vector<BitEntry>> CHANNEL_BIT;
 };
@@ -67,6 +68,7 @@ NLOHMANN_JSONIFY_ALL_THINGS(AddressMapping,
                             BANK_BIT,
                             BANKGROUP_BIT,
                             RANK_BIT,
+                            STACK_BIT,
                             PSEUDOCHANNEL_BIT,
                             CHANNEL_BIT)
 

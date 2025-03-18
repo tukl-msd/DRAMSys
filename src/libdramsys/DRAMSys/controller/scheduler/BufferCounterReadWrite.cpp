@@ -47,10 +47,10 @@ BufferCounterReadWrite::BufferCounterReadWrite(unsigned requestBufferSizeRead,
     numReadWriteRequests = std::vector<unsigned>(2);
 }
 
-bool BufferCounterReadWrite::hasBufferSpace() const
+bool BufferCounterReadWrite::hasBufferSpace(unsigned entries) const
 {
-    return (numReadWriteRequests[0] < requestBufferSizeRead &&
-            numReadWriteRequests[1] < requestBufferSizeWrite);
+    return (numReadWriteRequests[0] + entries <= requestBufferSizeRead &&
+            numReadWriteRequests[1] + entries <= requestBufferSizeWrite);
 }
 
 void BufferCounterReadWrite::storeRequest(const tlm_generic_payload& trans)

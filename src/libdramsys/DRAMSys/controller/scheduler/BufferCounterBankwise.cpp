@@ -47,9 +47,9 @@ BufferCounterBankwise::BufferCounterBankwise(unsigned requestBufferSize, unsigne
     numRequestsOnBank = std::vector<unsigned>(numberOfBanks, 0);
 }
 
-bool BufferCounterBankwise::hasBufferSpace() const
+bool BufferCounterBankwise::hasBufferSpace(unsigned entries) const
 {
-    return (numRequestsOnBank[lastBankID] < requestBufferSize);
+    return (numRequestsOnBank[lastBankID] + entries <= requestBufferSize);
 }
 
 void BufferCounterBankwise::storeRequest(const tlm_generic_payload& trans)

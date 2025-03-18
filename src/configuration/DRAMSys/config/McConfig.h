@@ -39,8 +39,6 @@
 #include "DRAMSys/util/json.h"
 
 #include <optional>
-#include <string>
-#include <utility>
 
 namespace DRAMSys::Config
 {

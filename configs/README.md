@@ -157,6 +157,7 @@ The content of [ddr3.json](simconfig/example.json) is presented below as an exam
 {
     "simconfig": {
         "SimulationName": "example",
+        "SimulationTime": 1e-3,
         "Debug": false,
         "DatabaseRecording": true,
         "PowerAnalysis": false,
@@ -173,6 +174,9 @@ The content of [ddr3.json](simconfig/example.json) is presented below as an exam
 
 - *SimulationName* (string)
     - Give the name of the simulation for distinguishing from other simulations.
+- *SimulationTime* (double)
+    - Time in seconds after which the simulation is forcibly stopped. Useful for generating multiple simulations over the exact same timeframe.
+    - Default: unlimited
 - *Debug* (boolean)
     - true: enables debug output on console (only supported by a debug build)
     - false: disables debug output
@@ -309,3 +313,21 @@ An example follows.
     - maximum number of active transactions per initiator (only applies to "Fifo" and "Reorder" arbiter policy)
 - *RefreshManagement* (boolean)
     - enable the sending of refresh management commands when the number of activates to one bank exceeds a certain management threshold (only supported in DDR5 and LPDDR5)
+- *ArbitrationDelayFw* (unsigned int)
+    - number of clock cycles spent in forward arbitration to channel controllers
+- *ArbitrationDelayBw* (unsigned int)
+    - number of clock cycles spent in backward arbitration to initiator
+- *ThinkDelayFw* (unsigned int)
+    - minimum number of clock cycles between acceptance of a request to command issuance
+- *ThinkDelayBw* (unsigned int)
+    - minimum number of clock cycles until response is forwarded to the arbiter 
+- *PhyDelayFw* (unsigned int)
+    - number of clock cycles between command issuance and occupation on the command/data bus
+- *PhyDelayBw* (unsigned int)
+    - number of clock cycles between read data on the data bus and arrival in the channel controller 
+- *BlockingReadDelay* (unsigned int)
+    - constant number of clock cycles spent reading data in blocking mode
+    - **warning**: usage of blocking transport produces in inaccurate simulation results
+- *BlockingWriteDelay* (unsigned int)
+    - constant number of clock cycles spent writing data in blocking mode
+    - **warning**: usage of blocking transport produces in inaccurate simulation results

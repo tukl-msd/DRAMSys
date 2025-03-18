@@ -1,5 +1,8 @@
 {
     "addressmapping": {
+        "STACK_BIT":[
+            30
+        ],
         "PSEUDOCHANNEL_BIT":[
             29
         ],

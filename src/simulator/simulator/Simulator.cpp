@@ -84,6 +84,7 @@ std::unique_ptr<Initiator>
 Simulator::instantiateInitiator(const DRAMSys::Config::Initiator& initiator)
 {
     uint64_t memorySize = dramSys->getMemSpec().getSimMemSizeInBytes();
+    sc_core::sc_time interfaceClk = dramSys->getMemSpec().tCK;
     unsigned int defaultDataLength = dramSys->getMemSpec().defaultBytesPerBurst;
 
     return std::visit(
@@ -94,9 +95,10 @@ Simulator::instantiateInitiator(const DRAMSys::Config::Initiator& initiator)
                           std::is_same_v<T, DRAMSys::Config::TrafficGeneratorStateMachine>)
             {
                 return std::make_unique<TrafficGenerator>(config,
-                                                          memoryManager,
+                                                          interfaceClk,
                                                           memorySize,
                                                           defaultDataLength,
+                                                          memoryManager,
                                                           finishTransaction,
                                                           terminateInitiator);
             }
@@ -126,7 +128,7 @@ Simulator::instantiateInitiator(const DRAMSys::Config::Initiator& initiator)
 
                 return std::make_unique<SimpleInitiator<StlPlayer>>(config.name.c_str(),
                                                                     memoryManager,
-                                                                    config.clkMhz,
+                                                                    interfaceClk,
                                                                     std::nullopt,
                                                                     std::nullopt,
                                                                     finishTransaction,
@@ -139,7 +141,7 @@ Simulator::instantiateInitiator(const DRAMSys::Config::Initiator& initiator)
 
                 return std::make_unique<SimpleInitiator<RowHammer>>(config.name.c_str(),
                                                                     memoryManager,
-                                                                    config.clkMhz,
+                                                                    interfaceClk,
                                                                     1,
                                                                     1,
                                                                     finishTransaction,
@@ -156,7 +158,15 @@ void Simulator::run()
     auto start = std::chrono::high_resolution_clock::now();
 
     // Start the SystemC simulation
-    sc_core::sc_start();
+    if (configuration.simconfig.SimulationTime.has_value())
+    {
+        sc_core::sc_start(
+            sc_core::sc_time(configuration.simconfig.SimulationTime.value(), sc_core::SC_SEC));
+    }
+    else
+    {
+        sc_core::sc_start();
+    }
 
     if (!sc_core::sc_end_of_simulation_invoked())
     {

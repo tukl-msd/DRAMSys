@@ -33,6 +33,7 @@
  *    Janik Schlemminger
  *    Robert Gernhardt
  *    Matthias Jung
+ *    Derek Christ
  */
 
 #include "dramExtensions.h"
@@ -157,6 +158,7 @@ sc_time ArbiterExtension::getTimeOfGeneration(const tlm::tlm_generic_payload& tr
 
 ControllerExtension::ControllerExtension(uint64_t channelPayloadID,
                                          Rank rank,
+                                         Stack stack,
                                          BankGroup bankGroup,
                                          Bank bank,
                                          Row row,
@@ -164,6 +166,7 @@ ControllerExtension::ControllerExtension(uint64_t channelPayloadID,
                                          unsigned int burstLength) :
     channelPayloadID(channelPayloadID),
     rank(rank),
+    stack(stack),
     bankGroup(bankGroup),
     bank(bank),
     row(row),
@@ -175,6 +178,7 @@ ControllerExtension::ControllerExtension(uint64_t channelPayloadID,
 void ControllerExtension::setAutoExtension(tlm::tlm_generic_payload& trans,
                                            uint64_t channelPayloadID,
                                            Rank rank,
+                                           Stack stack,
                                            BankGroup bankGroup,
                                            Bank bank,
                                            Row row,
@@ -187,6 +191,7 @@ void ControllerExtension::setAutoExtension(tlm::tlm_generic_payload& trans,
     {
         extension->channelPayloadID = channelPayloadID;
         extension->rank = rank;
+        extension->stack = stack;
         extension->bankGroup = bankGroup;
         extension->bank = bank;
         extension->row = row;
@@ -196,7 +201,7 @@ void ControllerExtension::setAutoExtension(tlm::tlm_generic_payload& trans,
     else
     {
         extension = new ControllerExtension(
-            channelPayloadID, rank, bankGroup, bank, row, column, burstLength);
+            channelPayloadID, rank, stack, bankGroup, bank, row, column, burstLength);
         trans.set_auto_extension(extension);
     }
 }
@@ -204,6 +209,7 @@ void ControllerExtension::setAutoExtension(tlm::tlm_generic_payload& trans,
 void ControllerExtension::setExtension(tlm::tlm_generic_payload& trans,
                                        uint64_t channelPayloadID,
                                        Rank rank,
+                                       Stack stack,
                                        BankGroup bankGroup,
                                        Bank bank,
                                        Row row,
@@ -211,15 +217,15 @@ void ControllerExtension::setExtension(tlm::tlm_generic_payload& trans,
                                        unsigned int burstLength)
 {
     assert(trans.get_extension<ControllerExtension>() == nullptr);
-    auto* extension =
-        new ControllerExtension(channelPayloadID, rank, bankGroup, bank, row, column, burstLength);
+    auto* extension = new ControllerExtension(
+        channelPayloadID, rank, stack, bankGroup, bank, row, column, burstLength);
     trans.set_extension(extension);
 }
 
 tlm_extension_base* ControllerExtension::clone() const
 {
     return new ControllerExtension(
-        channelPayloadID, rank, bankGroup, bank, row, column, burstLength);
+        channelPayloadID, rank, stack, bankGroup, bank, row, column, burstLength);
 }
 
 void ControllerExtension::copy_from(const tlm_extension_base& ext)
@@ -227,6 +233,7 @@ void ControllerExtension::copy_from(const tlm_extension_base& ext)
     const auto& cpyFrom = dynamic_cast<const ControllerExtension&>(ext);
     channelPayloadID = cpyFrom.channelPayloadID;
     rank = cpyFrom.rank;
+    stack = cpyFrom.stack;
     bankGroup = cpyFrom.bankGroup;
     bank = cpyFrom.bank;
     row = cpyFrom.row;
@@ -242,6 +249,11 @@ uint64_t ControllerExtension::getChannelPayloadID() const
 Rank ControllerExtension::getRank() const
 {
     return rank;
+}
+
+Stack ControllerExtension::getStack() const
+{
+    return stack;
 }
 
 BankGroup ControllerExtension::getBankGroup() const
@@ -282,6 +294,11 @@ uint64_t ControllerExtension::getChannelPayloadID(const tlm::tlm_generic_payload
 Rank ControllerExtension::getRank(const tlm::tlm_generic_payload& trans)
 {
     return trans.get_extension<ControllerExtension>()->rank;
+}
+
+Stack ControllerExtension::getStack(const tlm::tlm_generic_payload& trans)
+{
+    return trans.get_extension<ControllerExtension>()->stack;
 }
 
 BankGroup ControllerExtension::getBankGroup(const tlm::tlm_generic_payload& trans)

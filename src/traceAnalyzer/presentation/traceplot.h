@@ -136,6 +136,8 @@ private:
 
     TracePlotLineDataSource* tracePlotLineDataSource;
 
+    Timespan loadedTimespan;
+
     void setUpTracePlotItem();
     void setUpDrawingProperties();
     void setUpGrid();

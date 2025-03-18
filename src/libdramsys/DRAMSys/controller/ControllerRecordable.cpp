@@ -113,8 +113,15 @@ void ControllerRecordable::controllerMethod()
 
             Controller::controllerMethod();
 
-            uint64_t windowNumberOfBeatsServed = numberOfBeatsServed - lastNumberOfBeatsServed;
-            lastNumberOfBeatsServed = numberOfBeatsServed;
+            std::uint64_t totalNumberOfBeatsServed = std::accumulate(numberOfBeatsServed.begin(), numberOfBeatsServed.end(), 0);
+
+            uint64_t windowNumberOfBeatsServed = totalNumberOfBeatsServed - lastNumberOfBeatsServed;
+            lastNumberOfBeatsServed = totalNumberOfBeatsServed;
+
+            // HBM specific, pseudo channels get averaged
+            if (memSpec.pseudoChannelMode())
+                windowNumberOfBeatsServed /= memSpec.ranksPerChannel;
+
             sc_time windowActiveTime =
                 activeTimeMultiplier * static_cast<double>(windowNumberOfBeatsServed);
             double windowAverageBandwidth = windowActiveTime / windowSizeTime;

@@ -35,10 +35,14 @@
 
 #include "TrafficGenerator.h"
 
+#include "RandomProducer.h"
+#include "SequentialProducer.h"
+
 TrafficGenerator::TrafficGenerator(DRAMSys::Config::TrafficGeneratorStateMachine const& config,
-                                   MemoryManager& memoryManager,
+                                   sc_core::sc_time interfaceClk,
                                    uint64_t memorySize,
                                    unsigned int defaultDataLength,
+                                   MemoryManager& memoryManager,
                                    std::function<void()> transactionFinished,
                                    std::function<void()> terminateInitiator) :
     stateTransistions(config.transitions),
@@ -46,7 +50,7 @@ TrafficGenerator::TrafficGenerator(DRAMSys::Config::TrafficGeneratorStateMachine
     issuer(
         config.name.c_str(),
         memoryManager,
-        config.clkMhz,
+        interfaceClk,
         config.maxPendingReadRequests,
         config.maxPendingWriteRequests,
         [this] { return nextRequest(); },
@@ -107,16 +111,17 @@ TrafficGenerator::TrafficGenerator(DRAMSys::Config::TrafficGeneratorStateMachine
 }
 
 TrafficGenerator::TrafficGenerator(DRAMSys::Config::TrafficGenerator const& config,
-                                   MemoryManager& memoryManager,
+                                   sc_core::sc_time interfaceClk,
                                    uint64_t memorySize,
                                    unsigned int defaultDataLength,
+                                   MemoryManager& memoryManager,
                                    std::function<void()> transactionFinished,
                                    std::function<void()> terminateInitiator) :
     generatorPeriod(sc_core::sc_time(1.0 / static_cast<double>(config.clkMhz), sc_core::SC_US)),
     issuer(
         config.name.c_str(),
         memoryManager,
-        config.clkMhz,
+        interfaceClk,
         config.maxPendingReadRequests,
         config.maxPendingWriteRequests,
         [this] { return nextRequest(); },

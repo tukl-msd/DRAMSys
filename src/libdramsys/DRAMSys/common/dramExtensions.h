@@ -32,12 +32,12 @@
  * Authors:
  *    Robert Gernhardt
  *    Matthias Jung
+ *    Derek Christ
  */
 
 #ifndef DRAMEXTENSIONS_H
 #define DRAMEXTENSIONS_H
 
-#include <iostream>
 #include <vector>
 
 #include <systemc>
@@ -49,6 +49,7 @@ namespace DRAMSys
 enum class Thread : std::size_t;
 enum class Channel : std::size_t;
 enum class Rank : std::size_t;
+enum class Stack : std::size_t;
 enum class LogicalRank : std::size_t;
 enum class PhysicalRank : std::size_t;
 enum class DimmRank : std::size_t;
@@ -122,6 +123,7 @@ public:
     static void setAutoExtension(tlm::tlm_generic_payload& trans,
                                  uint64_t channelPayloadID,
                                  Rank rank,
+                                 Stack stack,
                                  BankGroup bankGroup,
                                  Bank bank,
                                  Row row,
@@ -131,6 +133,7 @@ public:
     static void setExtension(tlm::tlm_generic_payload& trans,
                              uint64_t channelPayloadID,
                              Rank rank,
+                             Stack stack,
                              BankGroup bankGroup,
                              Bank bank,
                              Row row,
@@ -143,6 +146,7 @@ public:
     void copy_from(const tlm::tlm_extension_base& ext) override;
 
     [[nodiscard]] uint64_t getChannelPayloadID() const;
+    [[nodiscard]] Stack getStack() const;
     [[nodiscard]] Rank getRank() const;
     [[nodiscard]] BankGroup getBankGroup() const;
     [[nodiscard]] Bank getBank() const;
@@ -152,6 +156,7 @@ public:
 
     static const ControllerExtension& getExtension(const tlm::tlm_generic_payload& trans);
     static uint64_t getChannelPayloadID(const tlm::tlm_generic_payload& trans);
+    static Stack getStack(const tlm::tlm_generic_payload& trans);
     static Rank getRank(const tlm::tlm_generic_payload& trans);
     static BankGroup getBankGroup(const tlm::tlm_generic_payload& trans);
     static Bank getBank(const tlm::tlm_generic_payload& trans);
@@ -162,6 +167,7 @@ public:
 private:
     ControllerExtension(uint64_t channelPayloadID,
                         Rank rank,
+                        Stack stack,
                         BankGroup bankGroup,
                         Bank bank,
                         Row row,
@@ -169,6 +175,7 @@ private:
                         unsigned burstLength);
     uint64_t channelPayloadID;
     Rank rank;
+    Stack stack;
     BankGroup bankGroup;
     Bank bank;
     Row row;

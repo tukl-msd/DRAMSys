@@ -57,13 +57,12 @@ RandomProducer::RandomProducer(uint64_t numRequests,
         SC_REPORT_FATAL("TrafficGenerator", "minAddress is out of range.");
 
     if (maxAddress > memorySize - 1)
-        SC_REPORT_FATAL("TrafficGenerator", "minAddress is out of range.");
+        SC_REPORT_FATAL("TrafficGenerator", "maxAddress is out of range.");
 
     if (maxAddress < minAddress)
         SC_REPORT_FATAL("TrafficGenerator", "maxAddress is smaller than minAddress.");
 
-    if (rwRatio < 0 || rwRatio > 1)
-        SC_REPORT_FATAL("TraceSetup", "Read/Write ratio is not a number between 0 and 1.");
+    rwRatio = std::clamp(rwRatio, 0.0, 1.0);
 }
 
 Request RandomProducer::nextRequest()

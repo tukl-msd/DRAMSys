@@ -49,7 +49,6 @@ namespace DRAMSys
 MemSpecDDR4::MemSpecDDR4(const Config::MemSpec& memSpec) :
     MemSpec(memSpec,
             memSpec.memarchitecturespec.entries.at("nbrOfChannels"),
-            1,
             memSpec.memarchitecturespec.entries.at("nbrOfRanks"),
             memSpec.memarchitecturespec.entries.at("nbrOfBanks"),
             memSpec.memarchitecturespec.entries.at("nbrOfBankGroups"),

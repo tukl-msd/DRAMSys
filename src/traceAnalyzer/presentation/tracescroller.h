@@ -57,6 +57,9 @@ private:
     TraceNavigator* navigator;
     TracePlot* tracePlot;
     TracePlotLineDataSource* tracePlotLineDataSource;
+
+    Timespan loadedTimespan;
+
     constexpr static int tracePlotEnlargementFactor = 4;
     void setUpTracePlotItem();
     void setUpDrawingProperties();

@@ -1,0 +1,154 @@
+{
+    "simulation": {
+        "addressmapping": {
+            "BANKGROUP_BIT": [
+                28,
+                29
+            ],
+            "BANK_BIT": [
+                30,
+                31
+            ],
+            "BYTE_BIT": [
+                0,
+                1,
+                2
+            ],
+            "COLUMN_BIT": [
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12
+            ],
+            "ROW_BIT": [
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27
+            ]
+        },
+        "mcconfig": {
+            "Arbiter": "Simple",
+            "CmdMux": "Oldest",
+            "MaxActiveTransactions": 128,
+            "PagePolicy": "Open",
+            "PowerDownPolicy": "NoPowerDown",
+            "RefreshManagement": false,
+            "RefreshMaxPostponed": 0,
+            "RefreshMaxPulledin": 0,
+            "RefreshPolicy": "AllBank",
+            "RequestBufferSize": 8,
+            "RespQueue": "Fifo",
+            "Scheduler": "FrFcfs",
+            "SchedulerBuffer": "Bankwise"
+        },
+        "memspec": {
+            "memarchitecturespec": {
+                "burstLength": 8,
+                "dataRate": 2,
+                "nbrOfBankGroups": 4,
+                "nbrOfBanks": 16,
+                "nbrOfChannels": 1,
+                "nbrOfColumns": 1024,
+                "nbrOfDevices": 8,
+                "nbrOfRanks": 1,
+                "nbrOfRows": 32768,
+                "width": 8
+            },
+            "memoryId": "MICRON_4Gb_DDR4-1866_8bit_A",
+            "memoryType": "DDR4",
+            "mempowerspec": {
+                "idd0": 56.25,
+                "idd02": 4.05,
+                "idd2n": 33.75,
+                "idd2p0": 17.0,
+                "idd2p1": 17.0,
+                "idd3n": 39.5,
+                "idd3p0": 22.5,
+                "idd3p1": 22.5,
+                "idd4r": 157.5,
+                "idd4w": 135.0,
+                "idd5": 118.0,
+                "idd6": 20.25,
+                "idd62": 2.6,
+                "vdd": 1.2,
+                "vdd2": 2.5
+            },
+            "memtimingspec": {
+                "ACTPDEN": 1,
+                "AL": 0,
+                "CCD_L": 5,
+                "CCD_S": 4,
+                "CKE": 6,
+                "CKESR": 7,
+                "CL": 13,
+                "DQSCK": 2,
+                "FAW": 22,
+                "PRPDEN": 1,
+                "RAS": 32,
+                "RC": 45,
+                "RCD": 13,
+                "REFI": 7280,
+                "REFM": 1,
+                "REFPDEN": 1,
+                "RFC": 243,
+                "RFC2": 150,
+                "RFC4": 103,
+                "RL": 13,
+                "RP": 13,
+                "RPRE": 1,
+                "RRD_L": 5,
+                "RRD_S": 4,
+                "RTP": 8,
+                "RTRS": 1,
+                "WL": 12,
+                "WPRE": 1,
+                "WR": 14,
+                "WTR_L": 7,
+                "WTR_S": 3,
+                "XP": 8,
+                "XPDLL": 255,
+                "XS": 252,
+                "XSDLL": 512,
+                "tCK": 1072
+            }
+        },
+        "simconfig": {
+            "AddressOffset": 0,
+            "CheckTLM2Protocol": false,
+            "DatabaseRecording": true,
+            "Debug": false,
+            "EnableWindowing": false,
+            "PowerAnalysis": false,
+            "SimulationName": "example",
+            "SimulationProgressBar": true,
+            "StoreMode": "NoStorage",
+            "UseMalloc": false,
+            "WindowSize": 1000
+        },
+        "simulationid": "ddr4-example",
+        "tracesetup": [
+            {
+                "clkMhz": 200,
+                "name": "example.stl"
+            }
+        ]
+    }
+}

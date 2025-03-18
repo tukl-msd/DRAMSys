@@ -64,6 +64,9 @@
 #include "DRAMSys/controller/scheduler/SchedulerFrFcfsGrp.h"
 #include "DRAMSys/controller/scheduler/SchedulerGrpFrFcfs.h"
 #include "DRAMSys/controller/scheduler/SchedulerGrpFrFcfsWm.h"
+#include <cstdint>
+#include <numeric>
+#include <string>
 
 #ifdef DDR5_SIM
 #include "DRAMSys/controller/checker/CheckerDDR5.h"
@@ -89,6 +92,7 @@ Controller::Controller(const sc_module_name& name,
     config(config),
     memSpec(memSpec),
     addressDecoder(addressDecoder),
+    numberOfBeatsServed(memSpec.ranksPerChannel, 0),
     minBytesPerBurst(memSpec.defaultBytesPerBurst),
     maxBytesPerBurst(memSpec.maxBytesPerBurst)
 {
@@ -418,7 +422,7 @@ void Controller::controllerMethod()
                 scheduler->removeRequest(*trans);
                 manageRequests(config.thinkDelayFw);
                 respQueue->insertPayload(trans,
-                                         sc_time_stamp() + config.thinkDelayFw + config.phyDelayFw +
+                                         sc_time_stamp() + config.phyDelayFw +
                                              memSpec.getIntervalOnDataStrobe(command, *trans).end +
                                              config.phyDelayBw + config.thinkDelayBw);
 
@@ -431,7 +435,7 @@ void Controller::controllerMethod()
             if (ranksNumberOfPayloads[rank] == 0)
                 powerDownManagers[rank]->triggerEntry();
 
-            sc_time fwDelay = config.thinkDelayFw + config.phyDelayFw;
+            sc_time fwDelay = config.phyDelayFw;
             tlm_phase phase = command.toPhase();
             iSocket->nb_transport_fw(*trans, phase, fwDelay);
         }
@@ -497,8 +501,8 @@ Controller::nb_transport_fw(tlm_generic_payload& trans, tlm_phase& phase, sc_tim
     if (phase == BEGIN_REQ)
     {
         transToAcquire.payload = &trans;
-        transToAcquire.arrival = sc_time_stamp() + delay;
-        beginReqEvent.notify(delay);
+        transToAcquire.arrival = sc_time_stamp() + delay + config.thinkDelayFw;
+        beginReqEvent.notify(delay + config.thinkDelayFw);
     }
     else if (phase == END_RESP)
     {
@@ -538,10 +542,9 @@ void Controller::manageRequests(const sc_time& delay)
 {
     if (transToAcquire.payload != nullptr && transToAcquire.arrival <= sc_time_stamp())
     {
-        // TODO: here we assume that the scheduler always has space not only for a single burst
-        // transaction
-        //  but for a maximum size transaction
-        if (scheduler->hasBufferSpace())
+        unsigned requiredBufferEntries =
+            transToAcquire.payload->get_data_length() / memSpec.maxBytesPerBurst;
+        if (scheduler->hasBufferSpace(requiredBufferEntries))
         {
             if (totalNumberOfPayloads == 0)
                 idleTimeCollector.end();
@@ -549,21 +552,22 @@ void Controller::manageRequests(const sc_time& delay)
 
             transToAcquire.payload->acquire();
 
-            // Align address to minimum burst length
-            uint64_t alignedAddress =
-                transToAcquire.payload->get_address() & ~(minBytesPerBurst - UINT64_C(1));
-            transToAcquire.payload->set_address(alignedAddress);
+            // The following logic assumes that transactions are naturally aligned
+            const uint64_t address = transToAcquire.payload->get_address();
+            const uint64_t dataLength = transToAcquire.payload->get_data_length();
+            assert((dataLength & (dataLength - 1)) == 0); // Data length must be a power of 2
+            assert(address % dataLength == 0);            // Check if naturally aligned
 
-            // continuous block of data that can be fetched with a single burst
-            if ((alignedAddress / maxBytesPerBurst) ==
-                ((alignedAddress + transToAcquire.payload->get_data_length() - 1) /
-                 maxBytesPerBurst))
+            if ((address / maxBytesPerBurst) ==
+                ((address + transToAcquire.payload->get_data_length() - 1) / maxBytesPerBurst))
             {
+                // continuous block of data that can be fetched with a single burst
                 DecodedAddress decodedAddress =
                     addressDecoder.decodeAddress(transToAcquire.payload->get_address());
                 ControllerExtension::setAutoExtension(*transToAcquire.payload,
                                                       nextChannelPayloadIDToAppend++,
                                                       Rank(decodedAddress.rank),
+                                                      Stack(decodedAddress.stack),
                                                       BankGroup(decodedAddress.bankgroup),
                                                       Bank(decodedAddress.bank),
                                                       Row(decodedAddress.row),
@@ -640,8 +644,14 @@ void Controller::manageResponses()
     if (nextTransInRespQueue != nullptr)
     {
         // Ignore ECC requests
+        // TODO in future, use a tagging mechanism to distinguish between normal, ECC and maybe
+        // masked requests
         if (nextTransInRespQueue->get_extension<EccExtension>() == nullptr)
-            numberOfBeatsServed += ControllerExtension::getBurstLength(*nextTransInRespQueue);
+        {
+            auto rank = ControllerExtension::getRank(*nextTransInRespQueue);
+            numberOfBeatsServed[static_cast<std::size_t>(rank)] +=
+                ControllerExtension::getBurstLength(*nextTransInRespQueue);
+        }
 
         if (ChildExtension::isChildTrans(*nextTransInRespQueue))
         {
@@ -651,12 +661,7 @@ void Controller::manageResponses()
             {
                 transToRelease.payload = &parentTrans;
                 tlm_phase bwPhase = BEGIN_RESP;
-                sc_time bwDelay;
-                if (transToRelease.arrival ==
-                    sc_time_stamp()) // last payload was released in this cycle
-                    bwDelay = memSpec.tCK;
-                else
-                    bwDelay = SC_ZERO_TIME;
+                sc_time bwDelay = SC_ZERO_TIME;
 
                 sendToFrontend(*transToRelease.payload, bwPhase, bwDelay);
                 transToRelease.arrival = scMaxTime;
@@ -672,12 +677,7 @@ void Controller::manageResponses()
         {
             transToRelease.payload = nextTransInRespQueue;
             tlm_phase bwPhase = BEGIN_RESP;
-            sc_time bwDelay;
-            if (transToRelease.arrival ==
-                sc_time_stamp()) // last payload was released in this cycle
-                bwDelay = memSpec.tCK;
-            else
-                bwDelay = SC_ZERO_TIME;
+            sc_time bwDelay = SC_ZERO_TIME;
 
             sendToFrontend(*transToRelease.payload, bwPhase, bwDelay);
             transToRelease.arrival = scMaxTime;
@@ -766,6 +766,7 @@ void Controller::createChildTranses(tlm::tlm_generic_payload& parentTrans)
         ControllerExtension::setAutoExtension(*childTrans,
                                               nextChannelPayloadIDToAppend,
                                               Rank(decodedAddress.rank),
+                                              Stack(decodedAddress.stack),
                                               BankGroup(decodedAddress.bankgroup),
                                               Bank(decodedAddress.bank),
                                               Row(decodedAddress.row),
@@ -780,8 +781,15 @@ void Controller::end_of_simulation()
 {
     idleTimeCollector.end();
 
-    sc_core::sc_time activeTime = static_cast<double>(numberOfBeatsServed) / memSpec.dataRate *
-                                  memSpec.tCK / memSpec.pseudoChannelsPerChannel;
+    std::uint64_t totalNumberOfBeatsServed =
+        std::accumulate(numberOfBeatsServed.begin(), numberOfBeatsServed.end(), 0);
+
+    sc_core::sc_time activeTime =
+        static_cast<double>(totalNumberOfBeatsServed) / memSpec.dataRate * memSpec.tCK;
+
+    // HBM specific, pseudo channels get averaged
+    if (memSpec.pseudoChannelMode())
+        activeTime /= memSpec.ranksPerChannel;
 
     double bandwidth = activeTime / sc_core::sc_time_stamp();
     double bandwidthWoIdle =
@@ -795,23 +803,59 @@ void Controller::end_of_simulation()
         // BusWidth e.g. 8 or 64
         * memSpec.bitWidth
         // Number of devices that form a rank, e.g., 8 on a DDR3 DIMM
-        * memSpec.devicesPerRank
-        // HBM specific, one or two pseudo channels per channel
-        * memSpec.pseudoChannelsPerChannel);
+        * memSpec.devicesPerRank);
 
-    std::cout << name() << std::string("  Total Time:     ") << sc_core::sc_time_stamp().to_string()
-              << std::endl;
-    std::cout << name() << std::string("  AVG BW:         ") << std::fixed << std::setprecision(2)
-              << std::setw(6) << (bandwidth * maxBandwidth) << " Gb/s | " << std::setw(6)
-              << (bandwidth * maxBandwidth / 8) << " GB/s | " << std::setw(6) << (bandwidth * 100)
-              << " %" << std::endl;
-    std::cout << name() << std::string("  AVG BW\\IDLE:    ") << std::fixed << std::setprecision(2)
-              << std::setw(6) << (bandwidthWoIdle * maxBandwidth) << " Gb/s | " << std::setw(6)
+    // HBM specific, one or two pseudo channels per channel
+    if (memSpec.pseudoChannelMode())
+        maxBandwidth *= memSpec.ranksPerChannel;
+
+    std::cout << std::left << std::setw(24) << name() << std::string("  Total Time:     ")
+              << sc_core::sc_time_stamp().to_string() << std::endl;
+    std::cout << std::left << std::setw(24) << name() << std::string("  AVG BW:         ")
+              << std::fixed << std::setprecision(2) << std::setw(6) << (bandwidth * maxBandwidth)
+              << " Gb/s | " << std::setw(6) << (bandwidth * maxBandwidth / 8) << " GB/s | "
+              << std::setw(6) << (bandwidth * 100) << " %" << std::endl;
+
+    if (memSpec.ranksPerChannel > 1)
+    {
+        for (std::size_t i = 0; i < memSpec.ranksPerChannel; i++)
+        {
+            std::string baseName = memSpec.pseudoChannelMode() ? "pc" : "ra";
+            std::string rankName = "." + baseName + std::to_string(i);
+
+            sc_core::sc_time rankActiveTime =
+                numberOfBeatsServed[i] * memSpec.tCK / memSpec.dataRate;
+            double rankBandwidth = rankActiveTime / sc_core::sc_time_stamp();
+
+            double rankMaxBandwidth = (
+                // fCK in GHz e.g. 1 [GHz] (tCK in ps):
+                (1000 / memSpec.tCK.to_double())
+                // DataRate e.g. 2
+                * memSpec.dataRate
+                // BusWidth e.g. 8 or 64
+                * memSpec.bitWidth
+                // Number of devices that form a rank, e.g., 8 on a DDR3 DIMM
+                * memSpec.devicesPerRank);
+
+            std::string componentName = name() + rankName;
+
+            std::cout << std::left << std::setw(24) << componentName
+                      << std::string("  AVG BW:         ") << std::fixed << std::setprecision(2)
+                      << std::setw(6) << (rankBandwidth * rankMaxBandwidth) << " Gb/s | "
+                      << std::setw(6) << (rankBandwidth * rankMaxBandwidth / 8) << " GB/s | "
+                      << std::setw(6) << (rankBandwidth * 100) << " %" << std::endl;
+        }
+    }
+
+    std::cout << std::left << std::setw(24) << name() << std::string("  AVG BW\\IDLE:    ")
+              << std::fixed << std::setprecision(2) << std::setw(6)
+              << (bandwidthWoIdle * maxBandwidth) << " Gb/s | " << std::setw(6)
               << (bandwidthWoIdle * maxBandwidth / 8) << " GB/s | " << std::setw(6)
               << (bandwidthWoIdle * 100) << " %" << std::endl;
-    std::cout << name() << std::string("  MAX BW:         ") << std::fixed << std::setprecision(2)
-              << std::setw(6) << maxBandwidth << " Gb/s | " << std::setw(6) << maxBandwidth / 8
-              << " GB/s | " << std::setw(6) << 100.0 << " %" << std::endl;
+    std::cout << std::left << std::setw(24) << name() << std::string("  MAX BW:         ")
+              << std::fixed << std::setprecision(2) << std::setw(6) << maxBandwidth << " Gb/s | "
+              << std::setw(6) << maxBandwidth / 8 << " GB/s | " << std::setw(6) << 100.0 << " %"
+              << std::endl;
 }
 
 } // namespace DRAMSys

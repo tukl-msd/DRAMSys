@@ -50,6 +50,8 @@ public:
     explicit MemSpecHBM2(const Config::MemSpec& memSpec);
 
     // Memspec Variables:
+    const unsigned stacksPerChannel;
+
     const sc_core::sc_time tDQSCK;
     //    sc_time tDQSQ; // TODO: check actual value of this parameter
     const sc_core::sc_time tRC;
@@ -67,7 +69,7 @@ public:
     const sc_core::sc_time tWR;
     const sc_core::sc_time tCCDL;
     const sc_core::sc_time tCCDS;
-    //    sc_time tCCDR; // TODO: consecutive reads to different stack IDs
+    const sc_core::sc_time tCCDR;
     const sc_core::sc_time tWTRL;
     const sc_core::sc_time tWTRS;
     const sc_core::sc_time tRTW;
@@ -89,6 +91,7 @@ public:
     [[nodiscard]] sc_core::sc_time getRefreshIntervalPB() const override;
 
     [[nodiscard]] bool hasRasAndCasBus() const override;
+    [[nodiscard]] bool pseudoChannelMode() const override;
 
     [[nodiscard]] sc_core::sc_time
     getExecutionTime(Command command, const tlm::tlm_generic_payload& payload) const override;

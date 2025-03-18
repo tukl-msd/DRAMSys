@@ -52,6 +52,7 @@ struct DecodedAddress
 {
     DecodedAddress(unsigned channel,
                    unsigned rank,
+                   unsigned stack,
                    unsigned bankgroup,
                    unsigned bank,
                    unsigned row,
@@ -59,6 +60,7 @@ struct DecodedAddress
                    unsigned bytes) :
         channel(channel),
         rank(rank),
+        stack(stack),
         bankgroup(bankgroup),
         bank(bank),
         row(row),
@@ -71,6 +73,7 @@ struct DecodedAddress
 
     unsigned channel = 0;
     unsigned rank = 0;
+    unsigned stack = 0;
     unsigned bankgroup = 0;
     unsigned bank = 0;
     unsigned row = 0;
@@ -102,6 +105,7 @@ private:
     std::vector<std::vector<unsigned>> vXor;
     std::vector<unsigned> vChannelBits;
     std::vector<unsigned> vRankBits;
+    std::vector<unsigned> vStackBits;
     std::vector<unsigned> vBankGroupBits;
     std::vector<unsigned> vBankBits;
     std::vector<unsigned> vRowBits;

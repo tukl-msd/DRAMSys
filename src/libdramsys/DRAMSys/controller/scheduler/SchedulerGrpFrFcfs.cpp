@@ -60,9 +60,9 @@ SchedulerGrpFrFcfs::SchedulerGrpFrFcfs(const McConfig& config, const MemSpec& me
     SC_REPORT_WARNING("SchedulerGrpFrFcfs", "Hazard detection not yet implemented!");
 }
 
-bool SchedulerGrpFrFcfs::hasBufferSpace() const
+bool SchedulerGrpFrFcfs::hasBufferSpace(unsigned entries) const
 {
-    return bufferCounter->hasBufferSpace();
+    return bufferCounter->hasBufferSpace(entries);
 }
 
 void SchedulerGrpFrFcfs::storeRequest(tlm_generic_payload& payload)

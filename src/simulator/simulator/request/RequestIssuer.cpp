@@ -37,7 +37,7 @@
 
 RequestIssuer::RequestIssuer(sc_core::sc_module_name const& name,
                              MemoryManager& memoryManager,
-                             unsigned int clkMhz,
+                             sc_core::sc_time interfaceClk,
                              std::optional<unsigned int> maxPendingReadRequests,
                              std::optional<unsigned int> maxPendingWriteRequests,
                              std::function<Request()> nextRequest,
@@ -46,7 +46,7 @@ RequestIssuer::RequestIssuer(sc_core::sc_module_name const& name,
     sc_module(name),
     payloadEventQueue(this, &RequestIssuer::peqCallback),
     memoryManager(memoryManager),
-    clkPeriod(sc_core::sc_time(1.0 / static_cast<double>(clkMhz), sc_core::SC_US)),
+    interfaceClk(interfaceClk),
     maxPendingReadRequests(maxPendingReadRequests),
     maxPendingWriteRequests(maxPendingWriteRequests),
     transactionFinished(std::move(transactionFinished)),
@@ -84,18 +84,6 @@ void RequestIssuer::sendNextRequest()
     sc_core::sc_time delay = request.delay;
 
     sc_core::sc_time sendingTime = sc_core::sc_time_stamp() + delay;
-
-    bool needsOffset = (sendingTime % clkPeriod) != sc_core::SC_ZERO_TIME;
-    if (needsOffset)
-    {
-        sendingTime += clkPeriod;
-        sendingTime -= sendingTime % clkPeriod;
-    }
-
-    if (sendingTime == lastEndRequest)
-    {
-        sendingTime += clkPeriod;
-    }
 
     delay = sendingTime - sc_core::sc_time_stamp();
     iSocket->nb_transport_fw(payload, phase, delay);
@@ -136,7 +124,7 @@ void RequestIssuer::peqCallback(tlm::tlm_generic_payload& payload, const tlm::tl
     else if (phase == tlm::BEGIN_RESP)
     {
         tlm::tlm_phase nextPhase = tlm::END_RESP;
-        sc_core::sc_time delay = sc_core::SC_ZERO_TIME;
+        sc_core::sc_time delay = interfaceClk;
         iSocket->nb_transport_fw(payload, nextPhase, delay);
 
         payload.release();

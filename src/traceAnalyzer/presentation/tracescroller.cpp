@@ -43,6 +43,7 @@
 #include <QMouseEvent>
 #include <QWheelEvent>
 #include <qwt_plot_zoneitem.h>
+#include <iostream>
 
 TraceScroller::TraceScroller(QWidget* parent) :
     QwtPlot(parent),
@@ -217,17 +218,26 @@ void TraceScroller::currentTraceTimeChanged()
 
     Timespan spanOnTracePlot = tracePlot->GetCurrentTimespan();
     canvasClip->setInterval(spanOnTracePlot.Begin(), spanOnTracePlot.End());
-    Timespan span = GetCurrentTimespan();
-    transactions = navigator->TraceFile().getTransactionsInTimespan(span, drawDependencies);
+
+    Timespan newTimespan = GetCurrentTimespan();
+
+    if (!loadedTimespan.contains(newTimespan))
+    {
+        loadedTimespan = Timespan{newTimespan.Begin() - newTimespan.timeCovered(),
+                                  newTimespan.End() + newTimespan.timeCovered()};
+
+        transactions =
+            navigator->TraceFile().getTransactionsInTimespan(loadedTimespan, drawDependencies);
 
 #ifdef EXTENSION_ENABLED
-    if (drawDependencies)
-    {
-        navigator->TraceFile().updateDependenciesInTimespan(span);
-    }
+        if (drawDependencies)
+        {
+            navigator->TraceFile().updateDependenciesInTimespan(loadedTimespan);
+        }
 #endif
+    }
 
-    setAxisScale(xBottom, span.Begin(), span.End());
+    setAxisScale(xBottom, newTimespan.Begin(), newTimespan.End());
     replot();
 }
 

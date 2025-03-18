@@ -43,6 +43,7 @@
 
 #include "DRAMSys/common/DebugManager.h"
 
+#include <filesystem>
 #include <fstream>
 #include <sqlite3.h>
 
@@ -183,8 +184,8 @@ void TlmRecorder::recordPhase(tlm_generic_payload& trans,
         if (phaseHasDataStrobe(phase))
         {
             intervalOnDataStrobe = memSpec.getIntervalOnDataStrobe(Command(phase), trans);
-            intervalOnDataStrobe.start = currentTime + intervalOnDataStrobe.start;
-            intervalOnDataStrobe.end = currentTime + intervalOnDataStrobe.end;
+            intervalOnDataStrobe.start = currentTime + delay + intervalOnDataStrobe.start;
+            intervalOnDataStrobe.end = currentTime + delay + intervalOnDataStrobe.end;
         }
 
         currentTransactionsInSystem.at(keyTrans).recordedPhases.emplace_back(
@@ -356,14 +357,7 @@ void TlmRecorder::commitRecordedDataToDB()
 
 void TlmRecorder::openDB(const std::string& dbName)
 {
-    std::ifstream f(dbName.c_str());
-    if (f.good())
-    {
-        if (remove(dbName.c_str()) != 0)
-        {
-            SC_REPORT_FATAL("TlmRecorder", "Error deleting file");
-        }
-    }
+    std::filesystem::remove(dbName.c_str());
 
     if (sqlite3_open(dbName.c_str(), &db) != SQLITE_OK)
     {
@@ -478,18 +472,8 @@ void TlmRecorder::insertGeneralInfo(const std::string& mcConfigString,
     sqlite3_bind_int(insertGeneralInfoStatement, 13, static_cast<int>(mcConfig.requestBufferSize));
     sqlite3_bind_int(insertGeneralInfoStatement, 14, static_cast<int>(memSpec.getPer2BankOffset()));
 
-    const auto memoryType = memSpec.memoryType;
-
-    bool rowColumnCommandBus =
-        (memoryType == Config::MemoryType::HBM2) || (memoryType == Config::MemoryType::HBM3);
-
-    bool pseudoChannelMode = [this, memoryType]() -> bool
-    {
-        if (memoryType != Config::MemoryType::HBM2 && memoryType != Config::MemoryType::HBM3)
-            return false;
-
-        return memSpec.pseudoChannelsPerChannel != 1;
-    }();
+    bool rowColumnCommandBus = memSpec.hasRasAndCasBus();
+    bool pseudoChannelMode = memSpec.pseudoChannelMode();
 
     sqlite3_bind_int(insertGeneralInfoStatement, 15, static_cast<int>(rowColumnCommandBus));
     sqlite3_bind_int(insertGeneralInfoStatement, 16, static_cast<int>(pseudoChannelMode));

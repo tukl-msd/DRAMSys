@@ -57,9 +57,9 @@ SchedulerFifo::SchedulerFifo(const McConfig& config, const MemSpec& memSpec)
         bufferCounter = std::make_unique<BufferCounterShared>(config.requestBufferSize);
 }
 
-bool SchedulerFifo::hasBufferSpace() const
+bool SchedulerFifo::hasBufferSpace(unsigned entries) const
 {
-    return bufferCounter->hasBufferSpace();
+    return bufferCounter->hasBufferSpace(entries);
 }
 
 void SchedulerFifo::storeRequest(tlm_generic_payload& payload)

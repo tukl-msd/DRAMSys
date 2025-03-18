@@ -57,23 +57,14 @@ McConfig::McConfig(const Config::McConfig& config, const MemSpec& memSpec) :
     powerDownPolicy(config.PowerDownPolicy.value_or(DEFAULT_POWER_DOWN_POLICY)),
     maxActiveTransactions(config.MaxActiveTransactions.value_or(DEFAULT_MAX_ACTIVE_TRANSACTIONS)),
     refreshManagement(config.RefreshManagement.value_or(DEFAULT_REFRESH_MANAGEMENT)),
-    arbitrationDelayFw(sc_core::sc_time(
-        config.ArbitrationDelayFw.value_or(DEFAULT_ARBITRATION_DELAY_FW_NS), sc_core::SC_NS)),
-    arbitrationDelayBw(sc_core::sc_time(
-        config.ArbitrationDelayBw.value_or(DEFAULT_ARBITRATION_DELAY_BW_NS), sc_core::SC_NS)),
-    thinkDelayFw(
-        sc_core::sc_time(config.ThinkDelayFw.value_or(DEFAULT_THINK_DELAY_FW_NS), sc_core::SC_NS)),
-    thinkDelayBw(
-        sc_core::sc_time(config.ThinkDelayBw.value_or(DEFAULT_THINK_DELAY_BW_NS), sc_core::SC_NS)),
-    phyDelayFw(
-        sc_core::sc_time(config.PhyDelayFw.value_or(DEFAULT_PHY_DELAY_FW_NS), sc_core::SC_NS)),
-    phyDelayBw(
-        sc_core::sc_time(config.PhyDelayBw.value_or(DEFAULT_PHY_DELAY_BW_NS), sc_core::SC_NS)),
-    blockingReadDelay(sc_core::sc_time(
-        config.BlockingReadDelay.value_or(DEFAULT_BLOCKING_READ_DELAY_NS), sc_core::SC_NS)),
-    blockingWriteDelay(sc_core::sc_time(
-        config.BlockingWriteDelay.value_or(DEFAULT_BLOCKING_WRITE_DELAY_NS), sc_core::SC_NS))
-
+    arbitrationDelayFw(config.ArbitrationDelayFw.value_or(DEFAULT_ARBITRATION_DELAY_FW) * memSpec.tCK),
+    arbitrationDelayBw(config.ArbitrationDelayBw.value_or(DEFAULT_ARBITRATION_DELAY_BW) * memSpec.tCK),
+    thinkDelayFw(config.ThinkDelayFw.value_or(DEFAULT_THINK_DELAY_FW) * memSpec.tCK),
+    thinkDelayBw(config.ThinkDelayBw.value_or(DEFAULT_THINK_DELAY_BW) * memSpec.tCK),
+    phyDelayFw(config.PhyDelayFw.value_or(DEFAULT_PHY_DELAY_FW) * memSpec.tCK),
+    phyDelayBw(config.PhyDelayBw.value_or(DEFAULT_PHY_DELAY_BW) * memSpec.tCK),
+    blockingReadDelay(config.BlockingReadDelay.value_or(DEFAULT_BLOCKING_READ_DELAY) * memSpec.tCK),
+    blockingWriteDelay(config.BlockingWriteDelay.value_or(DEFAULT_BLOCKING_WRITE_DELAY) * memSpec.tCK)
 {
     if (schedulerBuffer == Config::SchedulerBufferType::ReadWrite &&
         config.RequestBufferSize.has_value())
@@ -116,17 +107,8 @@ McConfig::McConfig(const Config::McConfig& config, const MemSpec& memSpec) :
     if (requestBufferSizeWrite < 1)
         SC_REPORT_FATAL("Configuration", "Minimum request buffer size is 1!");
 
-    arbitrationDelayFw = std::round(arbitrationDelayFw / memSpec.tCK) * memSpec.tCK;
-    arbitrationDelayBw = std::round(arbitrationDelayBw / memSpec.tCK) * memSpec.tCK;
-
-    thinkDelayFw = std::round(thinkDelayFw / memSpec.tCK) * memSpec.tCK;
-    thinkDelayBw = std::round(thinkDelayBw / memSpec.tCK) * memSpec.tCK;
-
-    phyDelayFw = std::round(phyDelayFw / memSpec.tCK) * memSpec.tCK;
-    phyDelayBw = std::round(phyDelayBw / memSpec.tCK) * memSpec.tCK;
-
-    blockingReadDelay = std::round(blockingReadDelay / memSpec.tCK) * memSpec.tCK;
-    blockingWriteDelay = std::round(blockingWriteDelay / memSpec.tCK) * memSpec.tCK;
+    if (thinkDelayFw == sc_core::SC_ZERO_TIME)
+        SC_REPORT_WARNING("Configuration", "ThinkDelayFw should at least be 1!");
 }
 
 } // namespace DRAMSys

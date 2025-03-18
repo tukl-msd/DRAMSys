@@ -64,7 +64,6 @@ public:
     virtual ~MemSpec() = default;
 
     const unsigned numberOfChannels;
-    const unsigned pseudoChannelsPerChannel;
     const unsigned ranksPerChannel;
     const unsigned banksPerRank;
     const unsigned groupsPerRank;
@@ -101,6 +100,7 @@ public:
     [[nodiscard]] virtual unsigned getRAADEC() const;
 
     [[nodiscard]] virtual bool hasRasAndCasBus() const;
+    [[nodiscard]] virtual bool pseudoChannelMode() const;
 
     [[nodiscard]] virtual sc_core::sc_time
     getExecutionTime(Command command, const tlm::tlm_generic_payload& payload) const = 0;
@@ -119,7 +119,6 @@ public:
 protected:
     MemSpec(const Config::MemSpec& memSpec,
             unsigned numberOfChannels,
-            unsigned pseudoChannelsPerChannel,
             unsigned ranksPerChannel,
             unsigned banksPerRank,
             unsigned groupsPerRank,

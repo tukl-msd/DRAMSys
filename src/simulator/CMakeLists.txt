@@ -38,24 +38,35 @@
 ###      DRAMSys::simulator          ###
 ########################################
 
-project(DRAMSys_Simulator)
+find_package(Threads)
 
-file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS *.cpp)
-file(GLOB_RECURSE HEADER_FILES CONFIGURE_DEPENDS *.h;*.hpp)
-
-list(FILTER SOURCE_FILES EXCLUDE REGEX "main.cpp")
-
-add_library(${PROJECT_NAME} ${SOURCE_FILES} ${HEADER_FILES})
-
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-target_link_libraries(${PROJECT_NAME}
-    PUBLIC
-        Threads::Threads
-        DRAMSys::libdramsys
+add_library(simulator
+    simulator/Cache.cpp
+    simulator/EccModule.cpp
+    simulator/MemoryManager.cpp
+    simulator/Simulator.cpp
+    simulator/generator/RandomProducer.cpp
+    simulator/generator/SequentialProducer.cpp
+    simulator/generator/TrafficGenerator.cpp
+    simulator/hammer/RowHammer.cpp
+    simulator/player/StlPlayer.cpp
+    simulator/request/RequestIssuer.cpp
+    simulator/util.cpp
 )
 
-add_library(DRAMSys::simulator ALIAS ${PROJECT_NAME})
+target_include_directories(simulator
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+target_link_libraries(simulator
+    PUBLIC
+        DRAMSys::libdramsys
+    PRIVATE
+        Threads::Threads
+)
+
+add_library(DRAMSys::simulator ALIAS simulator)
 
 add_executable(DRAMSys
     main.cpp
@@ -63,7 +74,5 @@ add_executable(DRAMSys
 
 target_link_libraries(DRAMSys
     PRIVATE
-        DRAMSys_Simulator
+        DRAMSys::simulator
 )
-
-build_source_group()

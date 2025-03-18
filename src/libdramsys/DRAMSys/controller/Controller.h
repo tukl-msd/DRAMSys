@@ -101,7 +101,7 @@ protected:
 
     sc_core::sc_time scMaxTime = sc_core::sc_max_time();
 
-    uint64_t numberOfBeatsServed = 0;
+    std::vector<uint64_t> numberOfBeatsServed;
     unsigned totalNumberOfPayloads = 0;
     std::function<void()> idleCallback;
     ControllerVector<Rank, unsigned> ranksNumberOfPayloads;

@@ -53,7 +53,7 @@ class SchedulerFifo final : public SchedulerIF
 {
 public:
     explicit SchedulerFifo(const McConfig& config, const MemSpec& memSpec);
-    [[nodiscard]] bool hasBufferSpace() const override;
+    [[nodiscard]] bool hasBufferSpace(unsigned entries) const override;
     void storeRequest(tlm::tlm_generic_payload& payload) override;
     void removeRequest(tlm::tlm_generic_payload& payload) override;
     [[nodiscard]] tlm::tlm_generic_payload*

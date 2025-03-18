@@ -34,18 +34,17 @@
  *    Derek Christ
  */
 
-#ifndef DRAMSYS_UTIL_JSON_H
-#define DRAMSYS_UTIL_JSON_H
+#ifndef DRAMSYSCONFIGURATION_JSON_H
+#define DRAMSYSCONFIGURATION_JSON_H
 
-#include "nlohmann/json.hpp"
+#include <nlohmann/json.hpp>
 
 #include <optional>
-#include <string>
 #include <variant>
 
 using json_t = nlohmann::json;
 
-namespace DRAMSys::util
+namespace DRAMSys::Config
 {
 // See https://www.kdab.com/jsonify-with-nlohmann-json/
 // Try to set the value of type T into the variant data if it fails, do nothing
@@ -98,7 +97,7 @@ template <typename T> void extended_from_json(const char* key, const nlohmann::j
         j.at(key).get_to(value);
 }
 
-} // namespace DRAMSys::util
+} // namespace DRAMSys::Config
 
 NLOHMANN_JSON_NAMESPACE_BEGIN
 
@@ -112,7 +111,7 @@ template <typename... Ts> struct adl_serializer<std::variant<Ts...>>
     static void from_json(const nlohmann::json& j, std::variant<Ts...>& data)
     {
         // Call variant_from_json for all types, only one will succeed
-        (DRAMSys::util::variant_from_json<Ts>(j, data), ...);
+        (DRAMSys::Config::variant_from_json<Ts>(j, data), ...);
     }
 };
 
@@ -148,9 +147,9 @@ NLOHMANN_JSON_NAMESPACE_END
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
 
 #define EXTEND_JSON_TO(v1)                                                                         \
-    DRAMSys::util::extended_to_json(#v1, nlohmann_json_j, nlohmann_json_t.v1);
+    DRAMSys::Config::extended_to_json(#v1, nlohmann_json_j, nlohmann_json_t.v1);
 #define EXTEND_JSON_FROM(v1)                                                                       \
-    DRAMSys::util::extended_from_json(#v1, nlohmann_json_j, nlohmann_json_t.v1);
+    DRAMSys::Config::extended_from_json(#v1, nlohmann_json_j, nlohmann_json_t.v1);
 
 #define NLOHMANN_JSONIFY_ALL_THINGS(Type, ...)                                                     \
     inline void to_json(nlohmann::json& nlohmann_json_j, const Type& nlohmann_json_t)              \
@@ -164,4 +163,4 @@ NLOHMANN_JSON_NAMESPACE_END
 
 // NOLINTEND(cppcoreguidelines-macro-usage)
 
-#endif // DRAMSYS_UTIL_JSON_H
+#endif // DRAMSYSCONFIGURATION_JSON_H

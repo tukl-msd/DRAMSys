@@ -47,6 +47,7 @@
 #include <QStringList>
 #include <QTextStream>
 #include <iostream>
+#include <filesystem>
 
 // define symbol printqueries if all queries should be printed to the console
 // #define printqueries
@@ -54,6 +55,9 @@
 TraceDB::TraceDB(const QString& path, bool openExisting)
 {
     this->pathToDB = path;
+
+    if (!std::filesystem::exists(path.toStdString()))
+        throw std::runtime_error("Database file does not exist!");
 
     database = QSqlDatabase::database(path);
     if (database.isValid() && database.isOpen())

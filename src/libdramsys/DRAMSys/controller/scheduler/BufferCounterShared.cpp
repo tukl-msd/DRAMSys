@@ -45,9 +45,9 @@ BufferCounterShared::BufferCounterShared(unsigned requestBufferSize) :
     numRequests = std::vector<unsigned>(1);
 }
 
-bool BufferCounterShared::hasBufferSpace() const
+bool BufferCounterShared::hasBufferSpace(unsigned entries) const
 {
-    return (numRequests[0] < requestBufferSize);
+    return (numRequests[0] + entries <= requestBufferSize);
 }
 
 void BufferCounterShared::storeRequest(const tlm_generic_payload& trans)

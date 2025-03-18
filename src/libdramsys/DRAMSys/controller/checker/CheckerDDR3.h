@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2024, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,14 +29,16 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Author: Lukas Steiner
+ * Authors:
+ *    Lukas Steiner
+ *    Derek Christ
  */
 
 #ifndef CHECKERDDR3_H
 #define CHECKERDDR3_H
 
-#include "DRAMSys/configuration/memspec/MemSpecDDR3.h"
 #include "DRAMSys/controller/checker/CheckerIF.h"
+#include "DRAMSys/configuration/memspec/MemSpecDDR3.h"
 
 #include <queue>
 #include <vector>
@@ -47,33 +49,35 @@ namespace DRAMSys
 class CheckerDDR3 final : public CheckerIF
 {
 public:
-    explicit CheckerDDR3(const MemSpecDDR3 &memSpec);
-    [[nodiscard]] sc_core::sc_time
-    timeToSatisfyConstraints(Command command,
-                             const tlm::tlm_generic_payload& payload) const override;
+    explicit CheckerDDR3(const MemSpecDDR3& memSpec);
+    [[nodiscard]] sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const override;
     void insert(Command command, const tlm::tlm_generic_payload& payload) override;
 
 private:
     const MemSpecDDR3& memSpec;
 
-    std::vector<ControllerVector<Bank, sc_core::sc_time>> lastScheduledByCommandAndBank;
-    std::vector<ControllerVector<Rank, sc_core::sc_time>> lastScheduledByCommandAndRank;
-    std::vector<sc_core::sc_time> lastScheduledByCommand;
-    sc_core::sc_time lastCommandOnBus;
-
-    // Four activate window
-    ControllerVector<Rank, std::queue<sc_core::sc_time>> last4Activates;
-
-    const sc_core::sc_time scMaxTime = sc_core::sc_max_time();
     sc_core::sc_time tBURST;
     sc_core::sc_time tRDWR;
     sc_core::sc_time tRDWR_R;
     sc_core::sc_time tWRRD;
-    sc_core::sc_time tWRPRE;
     sc_core::sc_time tWRRD_R;
+    sc_core::sc_time tWRPRE;
     sc_core::sc_time tRDPDEN;
     sc_core::sc_time tWRPDEN;
     sc_core::sc_time tWRAPDEN;
+    template<typename T>
+    using CommandArray = std::array<T, Command::END_ENUM>;
+    template<typename T>
+    using BankVector = ControllerVector<Bank, T>;
+    template<typename T>
+    using RankVector = ControllerVector<Rank, T>;
+
+    
+    CommandArray<BankVector<sc_core::sc_time>> nextCommandByBank;
+    CommandArray<RankVector<sc_core::sc_time>> nextCommandByRank;
+    
+    RankVector<std::queue<sc_core::sc_time>> last4ActivatesOnRank;
+    sc_core::sc_time nextCommandOnBus = sc_core::SC_ZERO_TIME;
 };
 
 } // namespace DRAMSys

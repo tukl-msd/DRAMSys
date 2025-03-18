@@ -55,6 +55,7 @@ public:
     traceTime Middle() const { return (begin + end) / 2; }
     void setEnd(traceTime time) { end = time; }
     bool contains(traceTime time) const;
+    bool contains(const Timespan& other) const;
     bool overlaps(const Timespan& other) const;
     void shift(traceTime offset);
 };

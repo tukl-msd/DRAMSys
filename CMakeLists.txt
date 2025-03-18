@@ -31,156 +31,132 @@
 # Authors:
 #    Thomas Psota
 #    Lukas Steiner
+#    Derek Christ
 
 ###############################################
 ###                 DRAMSys                 ###
 ###############################################
-cmake_minimum_required(VERSION 3.24.0)
+cmake_minimum_required(VERSION 3.21)
 
 set(PROJECT_NAME "DRAMSys")
 
-project(${PROJECT_NAME} VERSION "5.0")
-
-### Compiler settings ###
-set(CMAKE_CXX_STANDARD 17 CACHE STRING "C++ Standard")
-message(STATUS "CMAKE_CXX_STANDARD: ${CMAKE_CXX_STANDARD}")
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
-endif()
-message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
-
-### CMake settings ###
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
-include(build_source_group)
-include(diagnostics_print)
-include(enable_extensions)
-include(FetchContent)
-
-if(ENABLE_COVERAGE)
-    include(coverage)
-endif()
+project(${PROJECT_NAME} VERSION 5.0)
 
 if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
 endif()
 
-# Check if standalone build or being included as submodule
-get_directory_property(DRAMSYS_IS_SUBMODULE PARENT_DIRECTORY)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
+include(enable_extensions)
 
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+if (PROJECT_IS_TOP_LEVEL)
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+endif()
+
+if(DRAMSYS_ENABLE_COVERAGE)
+    include(coverage)
+endif()
 
 ### Project settings ###
-message(STATUS "CMAKE_SOURCE_DIR: ${CMAKE_SOURCE_DIR}")
-message(STATUS "CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}")
-message(STATUS "" )
+option(DRAMSYS_BUILD_TESTS "Build DRAMSys unit tests" OFF)
+option(DRAMSYS_BUILD_BENCHMARKS "Build DRAMSys benchmarks" OFF)
+option(DRAMSYS_BUILD_CLI "Build DRAMSys Command Line Tool" ${PROJECT_IS_TOP_LEVEL})
+option(DRAMSYS_BUILD_TRACE_ANALYZER "Build DRAMSys Trace Analyzer" OFF)
 
-if(NOT DRAMSYS_IS_SUBMODULE)
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+# Use sane defaults for FetchContent:
+# In case we are the top-level project, get everything by default
+# In case we are included in another project, the user might want to provide their own system dependencies
+option(DRAMSYS_USE_FETCH_CONTENT "Enable the FetchContent module" ${PROJECT_IS_TOP_LEVEL})
+option(DRAMSYS_USE_FETCH_CONTENT_INTERNAL "Enable FetchContent to provide internal dependencies" ${DRAMSYS_USE_FETCH_CONTENT})
+option(DRAMSYS_USE_FETCH_CONTENT_SYSTEMC "Enable FetchContent to provide SystemC" ${DRAMSYS_USE_FETCH_CONTENT})
+option(DRAMSYS_USE_FETCH_CONTENT_SQLITE3 "Enable FetchContent to provide SQLite3" ${DRAMSYS_USE_FETCH_CONTENT})
+option(DRAMSYS_USE_FETCH_CONTENT_NLOHMANN_JSON "Enable FetchContent to provide nlohmann_json" ${DRAMSYS_USE_FETCH_CONTENT})
+
+# TODO: Remove as soon as DRAMPower is updated
+set(DRAMSYS_SHARED_LIBS OFF)
+
+if(DEFINED DRAMSYS_SHARED_LIBS)
+    set(BUILD_SHARED_LIBS ${DRAMSYS_SHARED_LIBS})
 endif()
 
 ### DRAMSys directories ###
-set(DRAMSYS_SOURCE_DIR    "${CMAKE_CURRENT_SOURCE_DIR}/src")
-set(DRAMSYS_LIBRARY_DIR   "${CMAKE_CURRENT_SOURCE_DIR}/lib")
-set(DRAMSYS_TESTS_DIR     "${CMAKE_CURRENT_SOURCE_DIR}/tests")
-set(DRAMSYS_RESOURCE_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/configs")
+set(DRAMSYS_SOURCE_DIR      "${CMAKE_CURRENT_SOURCE_DIR}/src")
+set(DRAMSYS_LIBRARY_DIR     "${CMAKE_CURRENT_SOURCE_DIR}/lib")
+set(DRAMSYS_TESTS_DIR       "${CMAKE_CURRENT_SOURCE_DIR}/tests")
+set(DRAMSYS_RESOURCE_DIR    "${CMAKE_CURRENT_SOURCE_DIR}/configs")
 set(DRAMSYS_EXTENSIONS_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/extensions")
-
-### Build options ###
-option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
-
-option(DRAMSYS_VERBOSE_CMAKE_OUTPUT "Show detailed CMake output" OFF)
-option(DRAMSYS_BUILD_TESTS "Build DRAMSys unit tests" OFF)
-option(DRAMSYS_BUILD_BENCHMARKS "Build DRAMSys benchmarks" OFF)
-option(DRAMSYS_BUILD_CLI "Build DRAMSys Command Line Tool" ON)
-option(DRAMSYS_BUILD_TRACE_ANALYZER "Build DRAMSys Trace Analyzer" OFF)
-option(DRAMSYS_WITH_DRAMPOWER "Build with DRAMPower support enabled." OFF)
-option(DRAMSYS_USE_EXTERNAL_SYSTEMC "Use an external SystemC installation." OFF)
 
 ###############################################
 ###           Library Settings              ###
 ###############################################
 
-### Detect OS threading library ###
-find_package(Threads)
+if (DRAMSYS_USE_FETCH_CONTENT)
+    include(FetchContent)
 
-### nlohmann_json ###
-add_subdirectory(${DRAMSYS_LIBRARY_DIR}/nlohmann_json)
+    if (DRAMSYS_USE_FETCH_CONTENT_NLOHMANN_JSON)
+        FetchContent_Declare(nlohmann_json
+            URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
+            OVERRIDE_FIND_PACKAGE
+        )
 
-### sqlite3 ###
-add_subdirectory(${DRAMSYS_LIBRARY_DIR}/sqlite3)
+        FetchContent_MakeAvailable(nlohmann_json)
+    endif()
 
-### GoogleTest ###
-if(DRAMSYS_BUILD_TESTS)
-    FetchContent_Declare(
-        googletest
-        GIT_REPOSITORY https://github.com/google/googletest
-        GIT_TAG release-1.12.1)
+    if (DRAMSYS_USE_FETCH_CONTENT_SQLITE3)
+        add_subdirectory(${DRAMSYS_LIBRARY_DIR}/sqlite3)
+    endif()
 
-    # For Windows: Prevent overriding the parent project's compiler/linker settings
-    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-    FetchContent_MakeAvailable(googletest)
-    set_target_properties(gmock PROPERTIES FOLDER lib/gtest)
-    set_target_properties(gmock_main PROPERTIES FOLDER lib/gtest)
-    set_target_properties(gtest PROPERTIES FOLDER lib/gtest)
-    set_target_properties(gtest_main PROPERTIES FOLDER lib/gtest)
+    if (DRAMSYS_USE_FETCH_CONTENT_SYSTEMC)
+        set(DISABLE_COPYRIGHT_MESSAGE TRUE)
+
+        FetchContent_Declare(
+            SystemCLanguage
+            URL https://github.com/accellera-official/systemc/archive/refs/tags/2.3.4.tar.gz
+            OVERRIDE_FIND_PACKAGE
+        )
+
+        # TODO: remove with SystemC 3.0
+        set(CMAKE_CXX_STANDARD ${CMAKE_CXX_STANDARD} CACHE STRING "")
+
+        FetchContent_MakeAvailable(SystemCLanguage)
+
+        # Set include directories to SYSTEM to suppress warnings
+        set_target_properties(systemc PROPERTIES SYSTEM TRUE)
+    endif()
+
+    if (DRAMSYS_USE_FETCH_CONTENT_INTERNAL)
+        FetchContent_Declare(
+            DRAMPower
+            GIT_REPOSITORY https://github.com/tukl-msd/DRAMPower
+            GIT_TAG ebd9ff7
+            OVERRIDE_FIND_PACKAGE
+        )
+
+        FetchContent_MakeAvailable(DRAMPower)
+    endif()
 endif()
 
-### GoogleBenchmark ###
-if(DRAMSYS_BUILD_BENCHMARKS)
-    set(BENCHMARK_ENABLE_TESTING OFF)
+find_package(SystemCLanguage REQUIRED)
+find_package(SQLite3 REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
-    FetchContent_Declare(
-        benchmark
-        URL https://github.com/google/benchmark/archive/refs/tags/v1.8.3.zip
-    )
+find_package(DRAMPower)
 
-    FetchContent_MakeAvailable(benchmark)
-endif()
-
-### SystemC ###
-if (DRAMSYS_USE_EXTERNAL_SYSTEMC)
-    list(APPEND CMAKE_PREFIX_PATH $ENV{SYSTEMC_HOME} /opt/systemc)
-    find_package(systemc NAMES SystemCLanguage)
-endif()
-
-FetchContent_Declare(
-    systemc
-    GIT_REPOSITORY https://github.com/accellera-official/systemc.git
-    GIT_TAG 2.3.4)
-
-set(DISABLE_COPYRIGHT_MESSAGE True)
-
-# Allow populating of a user-set SystemC package
-if (NOT TARGET SystemC::systemc)
-    FetchContent_MakeAvailable(systemc)
-
-    # Set include directories to SYSTEM to suppress warnings
-    set_target_properties(systemc PROPERTIES SYSTEM TRUE)
+if (DRAMPower_FOUND)
+    message(STATUS "Building with DRAMPower")
 else()
-    # Set include directories to SYSTEM to suppress warnings
-    set_target_properties(SystemC::systemc PROPERTIES SYSTEM TRUE)
+    message(STATUS "Building without DRAMPower")
 endif()
-
-
-### DRAMPower ###
-if (DRAMSYS_WITH_DRAMPOWER)
-    FetchContent_Declare(
-        DRAMPower
-        GIT_REPOSITORY https://github.com/tukl-msd/DRAMPower
-        GIT_TAG 9e64a1b)
-
-    FetchContent_MakeAvailable(DRAMPower)
-    set_target_properties(DRAMPower PROPERTIES FOLDER lib)
-endif ()
 
 ###############################################
 ###           Source Directory              ###
 ###############################################
 
-add_subdirectory(src/util)
 add_subdirectory(src/configuration)
 add_subdirectory(src/libdramsys)
 
@@ -199,8 +175,7 @@ dramsys_enable_extensions()
 ###############################################
 
 if(DRAMSYS_BUILD_TESTS)
-    include(GoogleTest)
-    include(CTest)
+    enable_testing()
     add_subdirectory(tests)
 endif()
 

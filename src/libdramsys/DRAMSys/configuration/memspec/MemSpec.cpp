@@ -44,7 +44,6 @@ namespace DRAMSys
 
 MemSpec::MemSpec(const Config::MemSpec& memSpec,
                  unsigned numberOfChannels,
-                 unsigned pseudoChannelsPerChannel,
                  unsigned ranksPerChannel,
                  unsigned banksPerRank,
                  unsigned groupsPerRank,
@@ -53,7 +52,6 @@ MemSpec::MemSpec(const Config::MemSpec& memSpec,
                  unsigned bankGroupsPerChannel,
                  unsigned devicesPerRank) :
     numberOfChannels(numberOfChannels),
-    pseudoChannelsPerChannel(pseudoChannelsPerChannel),
     ranksPerChannel(ranksPerChannel),
     banksPerRank(banksPerRank),
     groupsPerRank(groupsPerRank),
@@ -146,6 +144,11 @@ unsigned MemSpec::getRAAMMT() const
 }
 
 bool MemSpec::hasRasAndCasBus() const
+{
+    return false;
+}
+
+bool MemSpec::pseudoChannelMode() const
 {
     return false;
 }
