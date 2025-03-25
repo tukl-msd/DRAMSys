@@ -45,7 +45,6 @@
 #include "DRAMSys/common/utils.h"
 
 #include "DRAMSys/simulation/Dram.h"
-
 #include "DRAMSys/config/MemSpec.h"
 
 #include "DRAMSys/configuration/memspec/MemSpecDDR3.h"

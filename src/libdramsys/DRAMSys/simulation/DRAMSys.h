@@ -51,7 +51,6 @@
 #include "DRAMSys/controller/McConfig.h"
 #include "DRAMSys/simulation/AddressDecoder.h"
 #include "DRAMSys/simulation/Arbiter.h"
-#include "DRAMSys/simulation/Dram.h"
 #include "DRAMSys/simulation/SimConfig.h"
 
 #include <DRAMUtils/memspec/MemSpec.h>
