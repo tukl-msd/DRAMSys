@@ -150,6 +150,9 @@ private:
     } transToAcquire, transToRelease;
 
     void manageResponses();
+    void processNextTransInRespQueue(tlm::tlm_generic_payload* nextTransInRespQueue);
+    void processNextChildRespTrans(tlm::tlm_generic_payload* nextTransInRespQueue);
+    void releaseTransaction();
     void manageRequests(const sc_core::sc_time& delay);
 
     sc_core::sc_event beginReqEvent, endRespEvent, controllerEvent, dataResponseEvent;

@@ -674,19 +674,7 @@ void Controller::manageResponses()
         assert(transToRelease.arrival >= sc_time_stamp());
         if (transToRelease.arrival == sc_time_stamp()) // END_RESP completed
         {
-            transToRelease.payload->release();
-            transToRelease.payload = nullptr;
-            totalNumberOfPayloads--;
-
-            if (totalNumberOfPayloads == 0)
-            {
-                idleTimeCollector.start();
-
-                if (idleCallback)
-                {
-                    idleCallback();
-                }
-            }
+            releaseTransaction();
         }
         else
             return; // END_RESP not completed
@@ -695,51 +683,77 @@ void Controller::manageResponses()
     tlm_generic_payload* nextTransInRespQueue = respQueue->nextPayload();
     if (nextTransInRespQueue != nullptr)
     {
-        // Ignore ECC requests
-        // TODO in future, use a tagging mechanism to distinguish between normal, ECC and maybe
-        // masked requests
-        if (nextTransInRespQueue->get_extension<EccExtension>() == nullptr)
-        {
-            auto rank = ControllerExtension::getRank(*nextTransInRespQueue);
-            numberOfBeatsServed[static_cast<std::size_t>(rank)] +=
-                ControllerExtension::getBurstLength(*nextTransInRespQueue);
-        }
-
-        if (ChildExtension::isChildTrans(*nextTransInRespQueue))
-        {
-            tlm_generic_payload& parentTrans =
-                ChildExtension::getParentTrans(*nextTransInRespQueue);
-            if (ParentExtension::notifyChildTransCompletion(parentTrans))
-            {
-                transToRelease.payload = &parentTrans;
-                tlm_phase bwPhase = BEGIN_RESP;
-                sc_time bwDelay = SC_ZERO_TIME;
-
-                sendToFrontend(*transToRelease.payload, bwPhase, bwDelay);
-                transToRelease.arrival = scMaxTime;
-            }
-            else
-            {
-                sc_time triggerTime = respQueue->getTriggerTime();
-                if (triggerTime != scMaxTime)
-                    dataResponseEvent.notify(triggerTime - sc_time_stamp());
-            }
-        }
-        else
-        {
-            transToRelease.payload = nextTransInRespQueue;
-            tlm_phase bwPhase = BEGIN_RESP;
-            sc_time bwDelay = SC_ZERO_TIME;
-
-            sendToFrontend(*transToRelease.payload, bwPhase, bwDelay);
-            transToRelease.arrival = scMaxTime;
-        }
+        processNextTransInRespQueue(nextTransInRespQueue);
     }
     else
     {
         sc_time triggerTime = respQueue->getTriggerTime();
         if (triggerTime != scMaxTime)
             dataResponseEvent.notify(triggerTime - sc_time_stamp());
+    }
+}
+
+void Controller::processNextTransInRespQueue(tlm::tlm_generic_payload* nextTransInRespQueue)
+{
+    // Ignore ECC requests
+    // TODO in future, use a tagging mechanism to distinguish between normal, ECC and maybe
+    // masked requests
+    if (nextTransInRespQueue->get_extension<EccExtension>() == nullptr)
+    {
+        auto rank = ControllerExtension::getRank(*nextTransInRespQueue);
+        numberOfBeatsServed[static_cast<std::size_t>(rank)] +=
+            ControllerExtension::getBurstLength(*nextTransInRespQueue);
+    }
+
+    if (ChildExtension::isChildTrans(*nextTransInRespQueue))
+    {
+        processNextChildRespTrans(nextTransInRespQueue);
+    }
+    else
+    {
+        transToRelease.payload = nextTransInRespQueue;
+        tlm_phase bwPhase = BEGIN_RESP;
+        sc_time bwDelay = SC_ZERO_TIME;
+
+        sendToFrontend(*transToRelease.payload, bwPhase, bwDelay);
+        transToRelease.arrival = scMaxTime;
+    }
+}
+
+void Controller::processNextChildRespTrans(tlm::tlm_generic_payload* nextTransInRespQueue)
+{
+    tlm_generic_payload& parentTrans = ChildExtension::getParentTrans(*nextTransInRespQueue);
+    if (ParentExtension::notifyChildTransCompletion(parentTrans))
+    {
+        transToRelease.payload = &parentTrans;
+        tlm_phase bwPhase = BEGIN_RESP;
+        sc_time bwDelay = SC_ZERO_TIME;
+
+        sendToFrontend(*transToRelease.payload, bwPhase, bwDelay);
+        transToRelease.arrival = scMaxTime;
+    }
+    else
+    {
+        sc_time triggerTime = respQueue->getTriggerTime();
+        if (triggerTime != scMaxTime)
+            dataResponseEvent.notify(triggerTime - sc_time_stamp());
+    }
+}
+
+void Controller::releaseTransaction()
+{
+    transToRelease.payload->release();
+    transToRelease.payload = nullptr;
+    totalNumberOfPayloads--;
+
+    if (totalNumberOfPayloads == 0)
+    {
+        idleTimeCollector.start();
+
+        if (idleCallback)
+        {
+            idleCallback();
+        }
     }
 }
 
