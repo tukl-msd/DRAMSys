@@ -9,7 +9,8 @@
             "nbrOfRows": 32768,
             "width": 8,
             "nbrOfDevices": 8,
-            "nbrOfChannels": 1
+            "nbrOfChannels": 1,
+            "maxBurstLength": 8
         },
         "memoryId": "STT-MRAM-1.5x",
         "memoryType": "STT-MRAM",
@@ -38,7 +39,7 @@
             "ACTPDEN": 2, 
             "PRPDEN": 2, 
             "RTRS": 1,
-            "tCK": 1250
+            "tCK": 1250e-12
         }
     }
 }

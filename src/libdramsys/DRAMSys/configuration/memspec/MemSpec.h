@@ -34,24 +34,23 @@
  *    Matthias Jung
  *    Lukas Steiner
  *    Derek Christ
+ *    Marco Mörz
  */
 
 #ifndef MEMSPEC_H
 #define MEMSPEC_H
 
 #include "DRAMSys/common/utils.h"
-#include "DRAMSys/config/DRAMSysConfiguration.h"
-#include "DRAMSys/config/memspec/MemSpec.h"
 #include "DRAMSys/controller/Command.h"
 
+#include <DRAMPower/command/CmdType.h>
+#include <DRAMPower/dram/dram_base.h>
+
+#include <memory>
 #include <string>
 #include <systemc>
 #include <tlm>
 #include <vector>
-
-#ifdef DRAMPOWER
-#include <LibDRAMPower.h>
-#endif
 
 namespace DRAMSys
 {
@@ -63,30 +62,31 @@ public:
     MemSpec& operator=(MemSpec&&) = delete;
     virtual ~MemSpec() = default;
 
-    const unsigned numberOfChannels;
-    const unsigned ranksPerChannel;
-    const unsigned banksPerRank;
-    const unsigned groupsPerRank;
-    const unsigned banksPerGroup;
-    const unsigned banksPerChannel;
-    const unsigned bankGroupsPerChannel;
-    const unsigned devicesPerRank;
-    const unsigned rowsPerBank;
-    const unsigned columnsPerRow;
-    const unsigned defaultBurstLength;
-    const unsigned maxBurstLength;
-    const unsigned dataRate;
-    const unsigned bitWidth;
-    const unsigned dataBusWidth;
-    const unsigned bytesPerBeat;
-    const unsigned defaultBytesPerBurst;
-    const unsigned maxBytesPerBurst;
+    static constexpr enum sc_core::sc_time_unit TCK_UNIT = sc_core::SC_SEC;
+
+    const uint64_t numberOfChannels;
+    const uint64_t ranksPerChannel;
+    const uint64_t banksPerRank;
+    const uint64_t groupsPerRank;
+    const uint64_t banksPerGroup;
+    const uint64_t banksPerChannel;
+    const uint64_t bankGroupsPerChannel;
+    const uint64_t devicesPerRank;
+    const uint64_t rowsPerBank;
+    const uint64_t columnsPerRow;
+    const uint64_t defaultBurstLength;
+    const uint64_t maxBurstLength;
+    const uint64_t dataRate;
+    const uint64_t bitWidth;
+    const uint64_t dataBusWidth;
+    const uint64_t defaultBytesPerBurst;
+    const uint64_t maxBytesPerBurst;
 
     // Clock
     const sc_core::sc_time tCK;
 
     const std::string memoryId;
-    const Config::MemoryType memoryType;
+    const std::string memoryType;
 
     [[nodiscard]] virtual sc_core::sc_time getRefreshIntervalAB() const;
     [[nodiscard]] virtual sc_core::sc_time getRefreshIntervalPB() const;
@@ -112,22 +112,74 @@ public:
     [[nodiscard]] double getCommandLengthInCycles(Command command) const;
     [[nodiscard]] uint64_t getSimMemSizeInBytes() const;
 
-#ifdef DRAMPOWER
-    [[nodiscard]] virtual DRAMPower::MemorySpecification toDramPowerMemSpec() const;
-#endif
+    /**
+     * @brief Creates the DRAMPower object if the standard is supported by DRAMPower.
+     * If the standard is not supported, a fatal error is reported and the simulation is aborted.
+     * @return unique_ptr to the DRAMPower object.
+     */
+    [[nodiscard]] virtual std::unique_ptr<DRAMPower::dram_base<DRAMPower::CmdType>>
+    toDramPowerObject() const
+    {
+        SC_REPORT_FATAL("MemSpec", "DRAMPower does not support this memory standard");
+        sc_core::sc_abort();
+        // This line is never reached, but it is needed to avoid a compiler warning
+        return nullptr;
+    }
 
 protected:
-    MemSpec(const Config::MemSpec& memSpec,
-            unsigned numberOfChannels,
-            unsigned ranksPerChannel,
-            unsigned banksPerRank,
-            unsigned groupsPerRank,
-            unsigned banksPerGroup,
-            unsigned banksPerChannel,
-            unsigned bankGroupsPerChannel,
-            unsigned devicesPerRank);
+    [[nodiscard]] static bool allBytesEnabled(const tlm::tlm_generic_payload& trans)
+    {
+        if (trans.get_byte_enable_ptr() == nullptr)
+            return true;
 
-    [[nodiscard]] static bool allBytesEnabled(const tlm::tlm_generic_payload& trans);
+        for (std::size_t i = 0; i < trans.get_byte_enable_length(); i++)
+        {
+            if (trans.get_byte_enable_ptr()[i] != TLM_BYTE_ENABLED)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    template <typename MemSpecType>
+    MemSpec(const MemSpecType& memSpec,
+            uint64_t numberOfChannels,
+            uint64_t ranksPerChannel,
+            uint64_t banksPerRank,
+            uint64_t groupsPerRank,
+            uint64_t banksPerGroup,
+            uint64_t banksPerChannel,
+            uint64_t bankGroupsPerChannel,
+            uint64_t devicesPerRank) :
+        numberOfChannels(numberOfChannels),
+        ranksPerChannel(ranksPerChannel),
+        banksPerRank(banksPerRank),
+        groupsPerRank(groupsPerRank),
+        banksPerGroup(banksPerGroup),
+        banksPerChannel(banksPerChannel),
+        bankGroupsPerChannel(bankGroupsPerChannel),
+        devicesPerRank(devicesPerRank),
+        rowsPerBank(memSpec.memarchitecturespec.nbrOfRows),
+        columnsPerRow(memSpec.memarchitecturespec.nbrOfColumns),
+        defaultBurstLength(memSpec.memarchitecturespec.burstLength),
+        maxBurstLength(memSpec.memarchitecturespec.maxBurstLength.has_value()
+                           ? memSpec.memarchitecturespec.maxBurstLength.value()
+                           : defaultBurstLength),
+        dataRate(memSpec.memarchitecturespec.dataRate),
+        bitWidth(memSpec.memarchitecturespec.width),
+        dataBusWidth(bitWidth * devicesPerRank),
+        defaultBytesPerBurst((defaultBurstLength * dataBusWidth) / 8),
+        maxBytesPerBurst((maxBurstLength * dataBusWidth) / 8),
+        tCK(sc_core::sc_time(memSpec.memtimingspec.tCK, TCK_UNIT)),
+        memoryId(memSpec.memoryId),
+        memoryType(memSpec.id),
+        burstDuration(tCK * (static_cast<double>(defaultBurstLength) / dataRate))
+
+    {
+        commandLengthInCycles = std::vector<double>(Command::numberOfCommands(), 1);
+    }
 
     MemSpec(const MemSpec&) = default;
     MemSpec(MemSpec&&) = default;

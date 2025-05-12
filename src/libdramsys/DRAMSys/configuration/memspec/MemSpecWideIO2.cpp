@@ -32,6 +32,7 @@
  * Authors:
  *    Lukas Steiner
  *    Derek Christ
+ *    Marco Mörz
  */
 
 #include "MemSpecWideIO2.h"
@@ -46,44 +47,44 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-MemSpecWideIO2::MemSpecWideIO2(const Config::MemSpec& memSpec) :
+MemSpecWideIO2::MemSpecWideIO2(const DRAMUtils::MemSpec::MemSpecWideIO2& memSpec) :
     MemSpec(memSpec,
-            memSpec.memarchitecturespec.entries.at("nbrOfChannels"),
-            memSpec.memarchitecturespec.entries.at("nbrOfRanks"),
-            memSpec.memarchitecturespec.entries.at("nbrOfBanks"),
+            memSpec.memarchitecturespec.nbrOfChannels,
+            memSpec.memarchitecturespec.nbrOfRanks,
+            memSpec.memarchitecturespec.nbrOfBanks,
             1,
-            memSpec.memarchitecturespec.entries.at("nbrOfBanks"),
-            memSpec.memarchitecturespec.entries.at("nbrOfBanks") *
-                memSpec.memarchitecturespec.entries.at("nbrOfRanks"),
-            memSpec.memarchitecturespec.entries.at("nbrOfRanks"),
-            memSpec.memarchitecturespec.entries.at("nbrOfDevices")),
-    tDQSCK(tCK * memSpec.memtimingspec.entries.at("DQSCK")),
-    tDQSS(tCK * memSpec.memtimingspec.entries.at("DQSS")),
-    tCKE(tCK * memSpec.memtimingspec.entries.at("CKE")),
-    tRL(tCK * memSpec.memtimingspec.entries.at("RL")),
-    tWL(tCK * memSpec.memtimingspec.entries.at("WL")),
-    tRCpb(tCK * memSpec.memtimingspec.entries.at("RCPB")),
-    tRCab(tCK * memSpec.memtimingspec.entries.at("RCAB")),
-    tCKESR(tCK * memSpec.memtimingspec.entries.at("CKESR")),
-    tXSR(tCK * memSpec.memtimingspec.entries.at("XSR")),
-    tXP(tCK * memSpec.memtimingspec.entries.at("XP")),
-    tCCD(tCK * memSpec.memtimingspec.entries.at("CCD")),
-    tRTP(tCK * memSpec.memtimingspec.entries.at("RTP")),
-    tRCD(tCK * memSpec.memtimingspec.entries.at("RCD")),
-    tRPpb(tCK * memSpec.memtimingspec.entries.at("RPPB")),
-    tRPab(tCK * memSpec.memtimingspec.entries.at("RPAB")),
-    tRAS(tCK * memSpec.memtimingspec.entries.at("RAS")),
-    tWR(tCK * memSpec.memtimingspec.entries.at("WR")),
-    tWTR(tCK * memSpec.memtimingspec.entries.at("WTR")),
-    tRRD(tCK * memSpec.memtimingspec.entries.at("RRD")),
-    tFAW(tCK * memSpec.memtimingspec.entries.at("FAW")),
-    tREFI(tCK * static_cast<unsigned>(memSpec.memtimingspec.entries.at("REFI") *
-                                      memSpec.memtimingspec.entries.at("REFM"))),
-    tREFIpb(tCK * static_cast<unsigned>(memSpec.memtimingspec.entries.at("REFIPB") *
-                                        memSpec.memtimingspec.entries.at("REFM"))),
-    tRFCab(tCK * memSpec.memtimingspec.entries.at("RFCAB")),
-    tRFCpb(tCK * memSpec.memtimingspec.entries.at("RFCPB")),
-    tRTRS(tCK * memSpec.memtimingspec.entries.at("RTRS"))
+            memSpec.memarchitecturespec.nbrOfBanks,
+            memSpec.memarchitecturespec.nbrOfBanks *
+                memSpec.memarchitecturespec.nbrOfRanks,
+            memSpec.memarchitecturespec.nbrOfRanks,
+            memSpec.memarchitecturespec.nbrOfDevices),
+    tDQSCK(tCK * memSpec.memtimingspec.DQSCK),
+    tDQSS(tCK * memSpec.memtimingspec.DQSS),
+    tCKE(tCK * memSpec.memtimingspec.CKE),
+    tRL(tCK * memSpec.memtimingspec.RL),
+    tWL(tCK * memSpec.memtimingspec.WL),
+    tRCpb(tCK * memSpec.memtimingspec.RCPB),
+    tRCab(tCK * memSpec.memtimingspec.RCAB),
+    tCKESR(tCK * memSpec.memtimingspec.CKESR),
+    tXSR(tCK * memSpec.memtimingspec.XSR),
+    tXP(tCK * memSpec.memtimingspec.XP),
+    tCCD(tCK * memSpec.memtimingspec.CCD),
+    tRTP(tCK * memSpec.memtimingspec.RTP),
+    tRCD(tCK * memSpec.memtimingspec.RCD),
+    tRPpb(tCK * memSpec.memtimingspec.RPPB),
+    tRPab(tCK * memSpec.memtimingspec.RPAB),
+    tRAS(tCK * memSpec.memtimingspec.RAS),
+    tWR(tCK * memSpec.memtimingspec.WR),
+    tWTR(tCK * memSpec.memtimingspec.WTR),
+    tRRD(tCK * memSpec.memtimingspec.RRD),
+    tFAW(tCK * memSpec.memtimingspec.FAW),
+    tREFI(tCK * static_cast<unsigned>(memSpec.memtimingspec.REFI *
+                                      memSpec.memtimingspec.REFM)),
+    tREFIpb(tCK * static_cast<unsigned>(memSpec.memtimingspec.REFIPB *
+                                        memSpec.memtimingspec.REFM)),
+    tRFCab(tCK * memSpec.memtimingspec.RFCAB),
+    tRFCpb(tCK * memSpec.memtimingspec.RFCPB),
+    tRTRS(tCK * memSpec.memtimingspec.RTRS)
 {
     uint64_t deviceSizeBits =
         static_cast<uint64_t>(banksPerRank) * rowsPerBank * columnsPerRow * bitWidth;

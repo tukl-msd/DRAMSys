@@ -14,17 +14,17 @@
         "memoryId": "MICRON_1Gb_DDR2-800_16bit_H",
         "memoryType": "DDR2",
         "mempowerspec": {
-            "idd0": 80.0,
-            "idd2n": 30.0,
-            "idd2p0": 7.0,
-            "idd2p1": 7.0,
-            "idd3n": 35.0,
-            "idd3p0": 10.0,
-            "idd3p1": 20.0,
-            "idd4r": 150.0,
-            "idd4w": 160.0,
-            "idd5": 150.0,
-            "idd6": 7.0,
+            "idd0": 80.0e-3,
+            "idd2n": 30.0e-3,
+            "idd2p0": 7.0e-3,
+            "idd2p1": 7.0e-3,
+            "idd3n": 35.0e-3,
+            "idd3p0": 10.0e-3,
+            "idd3p1": 20.0e-3,
+            "idd4r": 150.0e-3,
+            "idd4w": 160.0e-3,
+            "idd5": 150.0e-3,
+            "idd6": 7.0e-3,
             "vdd": 1.8
         },
         "memtimingspec": {
@@ -51,7 +51,7 @@
             "XPDLL": 8,
             "XS": 55,
             "XSDLL": 200,
-            "tCK": 2500
+            "tCK": 2500e-12
         }
     }
 }

@@ -9,7 +9,8 @@
             "nbrOfRows": 8192,
             "width": 64,
             "nbrOfDevices": 1,
-            "nbrOfChannels": 4
+            "nbrOfChannels": 4,
+            "maxBurstLength": 4
         },
         "memoryId": "JEDEC_4x64_2Gb_WIDEIO2-400_64bit",
         "memoryType": "WIDEIO2",
@@ -38,7 +39,10 @@
             "XP": 3,
             "XSR": 76,
             "RTRS": 1,
-            "tCK": 2500
+            "tCK": 2500e-12,
+
+            "DQSCK": 0,
+            "DQSS": 0
         }
     }
 }

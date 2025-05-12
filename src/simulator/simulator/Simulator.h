@@ -41,13 +41,10 @@
 #include <DRAMSys/config/DRAMSysConfiguration.h>
 #include <DRAMSys/simulation/DRAMSys.h>
 
-static constexpr std::string_view TRACE_DIRECTORY = "traces";
-
 class Simulator
 {
 public:
-    Simulator(DRAMSys::Config::Configuration configuration,
-              std::filesystem::path resourceDirectory);
+    Simulator(DRAMSys::Config::Configuration configuration, std::filesystem::path baseConfig);
 
     void run();
 
@@ -58,7 +55,6 @@ private:
     MemoryManager memoryManager;
 
     DRAMSys::Config::Configuration configuration;
-    std::filesystem::path resourceDirectory;
 
     std::unique_ptr<DRAMSys::DRAMSys> dramSys;
     std::vector<std::unique_ptr<Initiator>> initiators;
@@ -69,4 +65,6 @@ private:
     unsigned int terminatedInitiators = 0;
     uint64_t totalTransactions{};
     uint64_t transactionsFinished = 0;
+
+    std::filesystem::path baseConfig;
 };

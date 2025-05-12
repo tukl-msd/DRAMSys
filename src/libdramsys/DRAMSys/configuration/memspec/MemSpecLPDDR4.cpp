@@ -32,11 +32,14 @@
  * Authors:
  *    Lukas Steiner
  *    Derek Christ
+ *    Marco Mörz
  */
 
 #include "MemSpecLPDDR4.h"
 
 #include "DRAMSys/common/utils.h"
+
+#include <DRAMPower/standards/lpddr4/LPDDR4.h>
 
 #include <iostream>
 
@@ -46,49 +49,50 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-MemSpecLPDDR4::MemSpecLPDDR4(const Config::MemSpec& memSpec) :
+MemSpecLPDDR4::MemSpecLPDDR4(const DRAMUtils::MemSpec::MemSpecLPDDR4& memSpec) :
     MemSpec(memSpec,
-            memSpec.memarchitecturespec.entries.at("nbrOfChannels"),
-            memSpec.memarchitecturespec.entries.at("nbrOfRanks"),
-            memSpec.memarchitecturespec.entries.at("nbrOfBanks"),
+            memSpec.memarchitecturespec.nbrOfChannels,
+            memSpec.memarchitecturespec.nbrOfRanks,
+            memSpec.memarchitecturespec.nbrOfBanks,
             1,
-            memSpec.memarchitecturespec.entries.at("nbrOfBanks"),
-            memSpec.memarchitecturespec.entries.at("nbrOfBanks") *
-                memSpec.memarchitecturespec.entries.at("nbrOfRanks"),
-            memSpec.memarchitecturespec.entries.at("nbrOfRanks"),
-            memSpec.memarchitecturespec.entries.at("nbrOfDevices")),
-    tREFI(tCK * memSpec.memtimingspec.entries.at("REFI")),
-    tREFIpb(tCK * memSpec.memtimingspec.entries.at("REFIPB")),
-    tRFCab(tCK * memSpec.memtimingspec.entries.at("RFCAB")),
-    tRFCpb(tCK * memSpec.memtimingspec.entries.at("RFCPB")),
-    tRAS(tCK * memSpec.memtimingspec.entries.at("RAS")),
-    tRPab(tCK * memSpec.memtimingspec.entries.at("RPAB")),
-    tRPpb(tCK * memSpec.memtimingspec.entries.at("RPPB")),
-    tRCpb(tCK * memSpec.memtimingspec.entries.at("RCPB")),
-    tRCab(tCK * memSpec.memtimingspec.entries.at("RCAB")),
-    tPPD(tCK * memSpec.memtimingspec.entries.at("PPD")),
-    tRCD(tCK * memSpec.memtimingspec.entries.at("RCD")),
-    tFAW(tCK * memSpec.memtimingspec.entries.at("FAW")),
-    tRRD(tCK * memSpec.memtimingspec.entries.at("RRD")),
-    tCCD(tCK * memSpec.memtimingspec.entries.at("CCD")),
-    tCCDMW(tCK * memSpec.memtimingspec.entries.at("CCDMW")),
-    tRL(tCK * memSpec.memtimingspec.entries.at("RL")),
-    tRPST(tCK * memSpec.memtimingspec.entries.at("RPST")),
-    tDQSCK(tCK * memSpec.memtimingspec.entries.at("DQSCK")),
-    tRTP(tCK * memSpec.memtimingspec.entries.at("RTP")),
-    tWL(tCK * memSpec.memtimingspec.entries.at("WL")),
-    tDQSS(tCK * memSpec.memtimingspec.entries.at("DQSS")),
-    tDQS2DQ(tCK * memSpec.memtimingspec.entries.at("DQS2DQ")),
-    tWR(tCK * memSpec.memtimingspec.entries.at("WR")),
-    tWPRE(tCK * memSpec.memtimingspec.entries.at("WPRE")),
-    tWTR(tCK * memSpec.memtimingspec.entries.at("WTR")),
-    tXP(tCK * memSpec.memtimingspec.entries.at("XP")),
-    tSR(tCK * memSpec.memtimingspec.entries.at("SR")),
-    tXSR(tCK * memSpec.memtimingspec.entries.at("XSR")),
-    tESCKE(tCK * memSpec.memtimingspec.entries.at("ESCKE")),
-    tCKE(tCK * memSpec.memtimingspec.entries.at("CKE")),
-    tCMDCKE(tCK * memSpec.memtimingspec.entries.at("CMDCKE")),
-    tRTRS(tCK * memSpec.memtimingspec.entries.at("RTRS"))
+            memSpec.memarchitecturespec.nbrOfBanks,
+            memSpec.memarchitecturespec.nbrOfBanks *
+                memSpec.memarchitecturespec.nbrOfRanks,
+            memSpec.memarchitecturespec.nbrOfRanks,
+            memSpec.memarchitecturespec.nbrOfDevices),
+    memSpec(memSpec),
+    tREFI(tCK * memSpec.memtimingspec.REFI),
+    tREFIpb(tCK * memSpec.memtimingspec.REFIpb),
+    tRFCab(tCK * memSpec.memtimingspec.RFCab),
+    tRFCpb(tCK * memSpec.memtimingspec.RFCpb),
+    tRAS(tCK * memSpec.memtimingspec.RAS),
+    tRPab(tCK * memSpec.memtimingspec.RPab),
+    tRPpb(tCK * memSpec.memtimingspec.RPpb),
+    tRCpb(tCK * memSpec.memtimingspec.RCpb),
+    tRCab(tCK * memSpec.memtimingspec.RCab),
+    tPPD(tCK * memSpec.memtimingspec.PPD),
+    tRCD(tCK * memSpec.memtimingspec.RCD),
+    tFAW(tCK * memSpec.memtimingspec.FAW),
+    tRRD(tCK * memSpec.memtimingspec.RRD),
+    tCCD(tCK * memSpec.memtimingspec.CCD),
+    tCCDMW(tCK * memSpec.memtimingspec.CCDMW),
+    tRL(tCK * memSpec.memtimingspec.RL),
+    tRPST(tCK * memSpec.memtimingspec.RPST),
+    tDQSCK(tCK * memSpec.memtimingspec.DQSCK),
+    tRTP(tCK * memSpec.memtimingspec.RTP),
+    tWL(tCK * memSpec.memtimingspec.WL),
+    tDQSS(tCK * memSpec.memtimingspec.DQSS),
+    tDQS2DQ(tCK * memSpec.memtimingspec.DQS2DQ),
+    tWR(tCK * memSpec.memtimingspec.WR),
+    tWPRE(tCK * memSpec.memtimingspec.WPRE),
+    tWTR(tCK * memSpec.memtimingspec.WTR),
+    tXP(tCK * memSpec.memtimingspec.XP),
+    tSR(tCK * memSpec.memtimingspec.SR),
+    tXSR(tCK * memSpec.memtimingspec.XSR),
+    tESCKE(tCK * memSpec.memtimingspec.ESCKE),
+    tCKE(tCK * memSpec.memtimingspec.CKE),
+    tCMDCKE(tCK * memSpec.memtimingspec.CMDCKE),
+    tRTRS(tCK * memSpec.memtimingspec.RTRS)
 {
     commandLengthInCycles[Command::ACT] = 4;
     commandLengthInCycles[Command::PREPB] = 2;
@@ -184,6 +188,11 @@ MemSpecLPDDR4::getIntervalOnDataStrobe(Command command,
 
     SC_REPORT_FATAL("MemSpecLPDDR4", "Method was called with invalid argument");
     throw;
+}
+
+std::unique_ptr<DRAMPower::dram_base<DRAMPower::CmdType>> MemSpecLPDDR4::toDramPowerObject() const
+{
+    return std::make_unique<DRAMPower::LPDDR4>(DRAMPower::MemSpecLPDDR4(memSpec));
 }
 
 bool MemSpecLPDDR4::requiresMaskedWrite(const tlm::tlm_generic_payload& payload) const

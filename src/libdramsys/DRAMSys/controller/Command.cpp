@@ -34,6 +34,7 @@
  *    Robert Gernhardt
  *    Matthias Jung
  *    Lukas Steiner
+ *    Marco Mörz
  */
 
 #include "Command.h"
@@ -41,10 +42,6 @@
 #include <array>
 
 using namespace tlm;
-
-#ifdef DRAMPOWER
-using namespace DRAMPower;
-#endif
 
 namespace DRAMSys
 {
@@ -82,7 +79,7 @@ Command::Command(Command::Type type) : type(type)
 
 Command::Command(tlm_phase phase)
 {
-    assert(phase >= BEGIN_NOP && phase <= END_SREF);
+    assert(phase >= BEGIN_NOP && phase <= END_SREF); // TODO < END_ENUM && type >= 0
     static constexpr std::array<Command::Type, Command::Type::END_ENUM> commandOfPhase = {
         Command::NOP,    // 0
         Command::RD,     // 1
@@ -115,7 +112,7 @@ Command::Command(tlm_phase phase)
 
 std::string Command::toString() const
 {
-    assert(type >= Command::NOP && type <= Command::SREFEX);
+    assert(type >= 0 && type < Command::END_ENUM); // TODO < END_ENUM && type >= 0
     static std::array<std::string, Command::Type::END_ENUM> stringOfCommand = {
         "NOP",    // 0
         "RD",     // 1
@@ -153,7 +150,7 @@ unsigned Command::numberOfCommands()
 
 tlm_phase Command::toPhase() const
 {
-    assert(type >= Command::NOP && type <= Command::SREFEX);
+    assert(type >= 0 && type < Command::END_ENUM);
     static std::array<tlm_phase, Command::Type::END_ENUM> phaseOfCommand = {
         BEGIN_NOP,    // 0
         BEGIN_RD,     // 1
@@ -184,41 +181,39 @@ tlm_phase Command::toPhase() const
     return phaseOfCommand[type];
 }
 
-#ifdef DRAMPOWER
-MemCommand::cmds phaseToDRAMPowerCommand(tlm_phase phase)
+DRAMPower::CmdType phaseToDRAMPowerCommand(tlm_phase phase)
 {
-    // TODO: add correct phases when DRAMPower supports DDR5 same bank refresh
+    // TODO missing DSMEN, DSMEX
     assert(phase >= BEGIN_NOP && phase <= END_SREF);
-    static std::array<MemCommand::cmds, Command::Type::END_ENUM> phaseOfCommand = {
-        MemCommand::NOP,       // 0
-        MemCommand::RD,        // 1
-        MemCommand::WR,        // 2
-        MemCommand::NOP,       // 3
-        MemCommand::RDA,       // 4
-        MemCommand::WRA,       // 5
-        MemCommand::NOP,       // 6
-        MemCommand::ACT,       // 7
-        MemCommand::PRE,       // 8, PREPB
-        MemCommand::REFB,      // 9, REFPB
-        MemCommand::NOP,       // 10, RFMPB
-        MemCommand::NOP,       // 11, REFP2B
-        MemCommand::NOP,       // 12, RFMP2B
-        MemCommand::NOP,       // 13, PRESB
-        MemCommand::NOP,       // 14, REFSB
-        MemCommand::NOP,       // 15, RFMSB
-        MemCommand::PREA,      // 16, PREAB
-        MemCommand::REF,       // 17, REFAB
-        MemCommand::NOP,       // 18, RFMAB
-        MemCommand::PDN_S_ACT, // 19
-        MemCommand::PDN_S_PRE, // 20
-        MemCommand::SREN,      // 21
-        MemCommand::PUP_ACT,   // 22
-        MemCommand::PUP_PRE,   // 23
-        MemCommand::SREX       // 24
+    static std::array<DRAMPower::CmdType, Command::Type::END_ENUM> phaseOfCommand = {
+        DRAMPower::CmdType::NOP,    // 0
+        DRAMPower::CmdType::RD,     // 1
+        DRAMPower::CmdType::WR,     // 2
+        DRAMPower::CmdType::NOP,    // 3
+        DRAMPower::CmdType::RDA,    // 4
+        DRAMPower::CmdType::WRA,    // 5
+        DRAMPower::CmdType::NOP,    // 6
+        DRAMPower::CmdType::ACT,    // 7
+        DRAMPower::CmdType::PRE,    // 8, PREPB
+        DRAMPower::CmdType::REFB,   // 9, REFPB
+        DRAMPower::CmdType::NOP,    // 10, RFMPB
+        DRAMPower::CmdType::REFP2B, // 11, REFP2B
+        DRAMPower::CmdType::NOP,    // 12, RFMP2B
+        DRAMPower::CmdType::PRESB,  // 13, PRESB
+        DRAMPower::CmdType::REFSB,  // 14, REFSB
+        DRAMPower::CmdType::NOP,    // 15, RFMSB
+        DRAMPower::CmdType::PREA,   // 16, PREAB
+        DRAMPower::CmdType::REFA,   // 17, REFAB
+        DRAMPower::CmdType::NOP,    // 18, RFMAB
+        DRAMPower::CmdType::PDEA,   // 19
+        DRAMPower::CmdType::PDEP,   // 20
+        DRAMPower::CmdType::SREFEN, // 21
+        DRAMPower::CmdType::PDXA,   // 22
+        DRAMPower::CmdType::PDXP,   // 23
+        DRAMPower::CmdType::SREFEX  // 24
     };
     return phaseOfCommand[phase - BEGIN_NOP];
 }
-#endif
 
 bool Command::isBankCommand() const
 {

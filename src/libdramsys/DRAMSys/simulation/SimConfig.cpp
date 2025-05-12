@@ -31,6 +31,7 @@
  *
  * Authors:
  *    Derek Christ
+ *    Marco Mörz
  */
 
 #include "SimConfig.h"
@@ -53,19 +54,14 @@ SimConfig::SimConfig(const Config::SimConfig& simConfig) :
     checkTLM2Protocol(simConfig.CheckTLM2Protocol.value_or(DEFAULT_CHECK_TLM2_PROTOCOL)),
     useMalloc(simConfig.UseMalloc.value_or(DEFAULT_USE_MALLOC)),
     addressOffset(simConfig.AddressOffset.value_or(DEFAULT_ADDRESS_OFFSET)),
-    storeMode(simConfig.StoreMode.value_or(DEFAULT_STORE_MODE))
+    storeMode(simConfig.StoreMode.value_or(DEFAULT_STORE_MODE)),
+    togglingRate(simConfig.TogglingRate)
 {
     if (storeMode == Config::StoreModeType::Invalid)
         SC_REPORT_FATAL("SimConfig", "Invalid StoreMode");
 
     if (windowSize == 0)
         SC_REPORT_FATAL("SimConfig", "Minimum window size is 1");
-
-#ifndef DRAMPOWER
-    if (powerAnalysis)
-        SC_REPORT_FATAL("SimConfig",
-                        "Power analysis is only supported with included DRAMPower library!");
-#endif
 }
 
 } // namespace DRAMSys

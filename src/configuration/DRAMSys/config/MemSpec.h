@@ -33,25 +33,20 @@
  *    Derek Christ
  */
 
-#ifndef DRAMSYSCONFIGURATION_MEMTIMINGSPEC_H
-#define DRAMSYSCONFIGURATION_MEMTIMINGSPEC_H
+#ifndef DRAMSYSCONFIGURATION_MEMSPEC_H
+#define DRAMSYSCONFIGURATION_MEMSPEC_H
 
-#include "DRAMSys/util/json.h"
-
-#include <unordered_map>
+#include <string_view>
 
 namespace DRAMSys::Config
 {
-using json = nlohmann::json;
 
-struct MemTimingSpecType
+struct MemSpecConstants
 {
-    std::unordered_map<std::string, unsigned int> entries;
+    static constexpr std::string_view KEY = "memspec";
+    static constexpr std::string_view SUB_DIR = "memspec";
 };
-
-void to_json(json& j, const MemTimingSpecType& c);
-void from_json(const json& j, MemTimingSpecType& c);
 
 } // namespace DRAMSys::Config
 
-#endif // DRAMSYSCONFIGURATION_MEMTIMINGSPEC_H
+#endif // DRAMSYSCONFIGURATION_MEMSPEC_H

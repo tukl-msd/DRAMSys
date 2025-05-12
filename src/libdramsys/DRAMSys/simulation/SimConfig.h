@@ -31,14 +31,17 @@
  *
  * Authors:
  *    Derek Christ
+ *    Marco Mörz
  */
 
 #ifndef SIM_CONFIG_H
 #define SIM_CONFIG_H
 
 #include <DRAMSys/config/SimConfig.h>
+#include <DRAMUtils/config/toggling_rate.h>
 
 #include <string>
+#include <optional>
 
 namespace DRAMSys
 {
@@ -58,6 +61,7 @@ struct SimConfig
     bool useMalloc;
     unsigned long long int addressOffset;
     Config::StoreModeType storeMode;
+    std::optional<DRAMUtils::Config::ToggleRateDefinition> togglingRate;
 
     static constexpr std::string_view DEFAULT_SIMULATION_NAME = "default";
     static constexpr bool DEFAULT_DATABASE_RECORDING = false;

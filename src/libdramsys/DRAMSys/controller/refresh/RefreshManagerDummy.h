@@ -29,7 +29,9 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Author: Lukas Steiner
+ * Authors:
+ *    Lukas Steiner
+ *    Derek Christ
  */
 
 #ifndef REFRESHMANAGERDUMMY_H
@@ -49,6 +51,9 @@ public:
     void evaluate() override {}
     void update([[maybe_unused]] Command command) override {}
     sc_core::sc_time getTimeForNextTrigger() override;
+
+    void serialize([[maybe_unused]] std::ostream& stream) const override {}
+    void deserialize([[maybe_unused]] std::istream& stream) override {}
 
 private:
     const sc_core::sc_time scMaxTime = sc_core::sc_max_time();

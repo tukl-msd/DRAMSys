@@ -14,17 +14,17 @@
         "memoryId": "MICRON_1Gb_DDR2-1066_16bit_H",
         "memoryType": "DDR2",
         "mempowerspec": {
-            "idd0": 90.0,
-            "idd2n": 36.0,
-            "idd2p0": 7.0,
-            "idd2p1": 7.0,
-            "idd3n": 42.0,
-            "idd3p0": 10.0,
-            "idd3p1": 23.0,
-            "idd4r": 180.0,
-            "idd4w": 185.0,
-            "idd5": 160.0,
-            "idd6": 7.0,
+            "idd0": 90.0e-3,
+            "idd2n": 36.0e-3,
+            "idd2p0": 7.0e-3,
+            "idd2p1": 7.0e-3,
+            "idd3n": 42.0e-3,
+            "idd3p0": 10.0e-3,
+            "idd3p1": 23.0e-3,
+            "idd4r": 180.0e-3,
+            "idd4w": 185.0e-3,
+            "idd5": 160.0e-3,
+            "idd6": 7.0e-3,
             "vdd": 1.8
         },
         "memtimingspec": {
@@ -51,7 +51,7 @@
             "XPDLL": 10,
             "XS": 74,
             "XSDLL": 200,
-            "tCK": 1876
+            "tCK": 1876e-12
         }
     }
 }

@@ -32,12 +32,15 @@
  * Authors:
  *    Lukas Steiner
  *    Derek Christ
+ *    Marco Mörz
  */
 
 #ifndef MEMSPECGDDR5_H
 #define MEMSPECGDDR5_H
 
 #include "DRAMSys/configuration/memspec/MemSpec.h"
+
+#include <DRAMUtils/memspec/standards/MemSpecGDDR5.h>
 
 #include <systemc>
 
@@ -47,7 +50,7 @@ namespace DRAMSys
 class MemSpecGDDR5 final : public MemSpec
 {
 public:
-    explicit MemSpecGDDR5(const Config::MemSpec& memSpec);
+    explicit MemSpecGDDR5(const DRAMUtils::MemSpec::MemSpecGDDR5& memSpec);
 
     // Memspec Variables:
     const sc_core::sc_time tRP;

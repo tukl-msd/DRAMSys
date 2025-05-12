@@ -31,6 +31,7 @@
 # Authors:
 #   Derek Christ
 #   Thomas Psota
+#   Marco Mörz
 
 ########################################
 ###      DRAMSys::config             ###
@@ -38,21 +39,13 @@
 
 add_library(configuration
     DRAMSys/config/DRAMSysConfiguration.cpp
-    DRAMSys/config/memspec/MemArchitectureSpec.cpp
-    DRAMSys/config/memspec/MemPowerSpec.cpp
-    DRAMSys/config/memspec/MemTimingSpec.cpp
 )
 
 target_include_directories(configuration PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(configuration
     PUBLIC
-        nlohmann_json::nlohmann_json
-)
-
-target_compile_definitions(configuration
-    PUBLIC
-        DRAMSYS_RESOURCE_DIR="${DRAMSYS_RESOURCE_DIR}"
+        DRAMUtils::DRAMUtils
 )
 
 target_compile_features(configuration PUBLIC cxx_std_17)

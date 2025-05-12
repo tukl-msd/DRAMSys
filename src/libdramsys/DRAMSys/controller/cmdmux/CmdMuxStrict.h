@@ -45,7 +45,7 @@ class CmdMuxStrict : public CmdMuxIF
 {
 public:
     explicit CmdMuxStrict(const MemSpec& memSpec);
-    CommandTuple::Type selectCommand(const ReadyCommands& readyCommands) override;
+    std::optional<CommandTuple::Type> selectCommand(const ReadyCommands& readyCommands) override;
 
 private:
     uint64_t nextPayloadID = 1;
@@ -57,7 +57,7 @@ class CmdMuxStrictRasCas : public CmdMuxIF
 {
 public:
     explicit CmdMuxStrictRasCas(const MemSpec& memSpec);
-    CommandTuple::Type selectCommand(const ReadyCommands& readyCommands) override;
+    std::optional<CommandTuple::Type> selectCommand(const ReadyCommands& readyCommands) override;
 
 private:
     uint64_t nextPayloadID = 1;

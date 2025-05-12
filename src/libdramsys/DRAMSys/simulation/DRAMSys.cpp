@@ -36,12 +36,17 @@
  *    Felipe S. Prado
  *    Lukas Steiner
  *    Derek Christ
+ *    Marco Mörz
  */
 
 #include "DRAMSys.h"
 
 #include "DRAMSys/common/DebugManager.h"
 #include "DRAMSys/common/utils.h"
+
+#include "DRAMSys/simulation/Dram.h"
+
+#include "DRAMSys/config/MemSpec.h"
 
 #include "DRAMSys/configuration/memspec/MemSpecDDR3.h"
 #include "DRAMSys/configuration/memspec/MemSpecDDR4.h"
@@ -67,8 +72,9 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
-#include <stdexcept>
 #include <vector>
+#include <variant>
+#include <type_traits>
 
 namespace DRAMSys
 {
@@ -92,7 +98,6 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
     if (simConfig.databaseRecording)
     {
         std::string traceName = simConfig.simulationName;
-
         if (!config.simulationid.empty())
             traceName = config.simulationid + '_' + traceName;
 
@@ -104,31 +109,52 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
         for (std::size_t i = 0; i < memSpec->numberOfChannels; i++)
         {
             controllers.emplace_back(
-                std::make_unique<ControllerRecordable>(("controller" + std::to_string(i)).c_str(),
-                                                       mcConfig,
-                                                       simConfig,
-                                                       *memSpec,
-                                                       *addressDecoder,
-                                                       tlmRecorders[i]));
+                std::make_unique<Controller>(("controller" + std::to_string(i)).c_str(),
+                                             mcConfig,
+                                             *memSpec,
+                                             simConfig,
+                                             *addressDecoder,
+                                             &tlmRecorders[i]));
 
-            drams.emplace_back(std::make_unique<DramRecordable>(
-                ("dram" + std::to_string(i)).c_str(), simConfig, *memSpec, tlmRecorders[i]));
+            drams.emplace_back(std::make_unique<Dram>(
+                ("dram" + std::to_string(i)).c_str(), simConfig, *memSpec, &tlmRecorders[i]));
 
             if (simConfig.checkTLM2Protocol)
                 controllersTlmCheckers.emplace_back(
                     std::make_unique<tlm_utils::tlm2_base_protocol_checker<>>(
                         ("TLMCheckerController" + std::to_string(i)).c_str()));
+
+            // Not recording bandwidth between Arbiter - Controller
+            tlmATRecorders.emplace_back(
+                std::make_unique<TlmATRecorder>(("TlmATRecorder" + std::to_string(i)).c_str(),
+                                                simConfig,
+                                                *memSpec,
+                                                tlmRecorders[i],
+                                                false));
+
+            // Recording bandwidth between Controller - DRAM
+            dramATRecorders.emplace_back(
+                std::make_unique<DramATRecorder>(("DramATRecorder" + std::to_string(i)).c_str(),
+                                                 simConfig,
+                                                 *memSpec,
+                                                 tlmRecorders[i],
+                                                 true));
         }
     }
     else
     {
         for (std::size_t i = 0; i < memSpec->numberOfChannels; i++)
         {
-            controllers.emplace_back(std::make_unique<Controller>(
-                ("controller" + std::to_string(i)).c_str(), mcConfig, *memSpec, *addressDecoder));
+            controllers.emplace_back(
+                std::make_unique<Controller>(("controller" + std::to_string(i)).c_str(),
+                                             mcConfig,
+                                             *memSpec,
+                                             simConfig,
+                                             *addressDecoder,
+                                             nullptr));
 
-            drams.emplace_back(
-                std::make_unique<Dram>(("dram" + std::to_string(i)).c_str(), simConfig, *memSpec));
+            drams.emplace_back(std::make_unique<Dram>(
+                ("dram" + std::to_string(i)).c_str(), simConfig, *memSpec, nullptr));
 
             if (simConfig.checkTLM2Protocol)
             {
@@ -140,23 +166,50 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
     }
 
     // Connect all internal DRAMSys modules:
+    // If database recording is enabled, then the tlmRecorders are placed
+    // on the bus between the modules
     tSocket.bind(arbiter->tSocket);
     for (unsigned i = 0; i < memSpec->numberOfChannels; i++)
     {
-        if (simConfig.checkTLM2Protocol)
+        if (simConfig.checkTLM2Protocol && simConfig.databaseRecording)
         {
             arbiter->iSocket.bind(controllersTlmCheckers[i]->target_socket);
+            controllersTlmCheckers[i]->initiator_socket.bind(tlmATRecorders[i]->tSocket);
+            tlmATRecorders[i]->iSocket.bind(controllers[i]->tSocket);
+        }
+        else if (simConfig.checkTLM2Protocol)
+        {
+            // Arbiter <--> tlmRecorder <--> Controller
+            arbiter->iSocket.bind(controllersTlmCheckers[i]->target_socket);
             controllersTlmCheckers[i]->initiator_socket.bind(controllers[i]->tSocket);
+        }
+        else if (simConfig.databaseRecording)
+        {
+            arbiter->iSocket.bind(tlmATRecorders[i]->tSocket);
+            tlmATRecorders[i]->iSocket.bind(controllers[i]->tSocket);
         }
         else
         {
             arbiter->iSocket.bind(controllers[i]->tSocket);
         }
-        controllers[i]->iSocket.bind(drams[i]->tSocket);
+
+        if (simConfig.databaseRecording)
+        {
+            // Controller <--> tlmRecorder <--> Dram
+            controllers[i]->iSocket.bind(dramATRecorders[i]->tSocket);
+            dramATRecorders[i]->iSocket.bind(drams[i]->tSocket);
+        }
+        else
+        {
+            // Controller <--> Dram
+            controllers[i]->iSocket.bind(drams[i]->tSocket);
+        }
     }
 
     report();
 }
+
+DRAMSys::~DRAMSys() = default;
 
 void DRAMSys::setupTlmRecorders(const std::string& traceName, const Config::Configuration& config)
 {
@@ -174,7 +227,7 @@ void DRAMSys::setupTlmRecorders(const std::string& traceName, const Config::Conf
         nlohmann::json mcconfig;
         nlohmann::json memspec;
         mcconfig[Config::McConfig::KEY] = config.mcconfig;
-        memspec[Config::MemSpec::KEY] = config.memspec;
+        memspec[Config::MemSpecConstants::KEY] = config.memspec;
 
         tlmRecorders.emplace_back(recorderName,
                                   simConfig,
@@ -210,8 +263,11 @@ void DRAMSys::end_of_simulation()
             dram->reportPower();
     }
 
-    for (auto& tlmRecorder : tlmRecorders)
-        tlmRecorder.finalize();
+    if (simConfig.databaseRecording)
+    {
+        for (auto& tlmRecorder : tlmRecorders)
+            tlmRecorder.finalize();
+    }
 }
 
 void DRAMSys::logo()
@@ -254,57 +310,49 @@ void DRAMSys::report()
     std::cout << headline << std::endl;
 }
 
-std::unique_ptr<const MemSpec> DRAMSys::createMemSpec(const Config::MemSpec& memSpec)
+std::unique_ptr<const MemSpec> DRAMSys::createMemSpec(const DRAMUtils::MemSpec::MemSpecVariant& memSpec)
 {
-    auto memoryType = memSpec.memoryType;
-
-    if (memoryType == Config::MemoryType::DDR3)
-        return std::make_unique<const MemSpecDDR3>(memSpec);
-
-    if (memoryType == Config::MemoryType::DDR4)
-        return std::make_unique<const MemSpecDDR4>(memSpec);
-
-    if (memoryType == Config::MemoryType::LPDDR4)
-        return std::make_unique<const MemSpecLPDDR4>(memSpec);
-
-    if (memoryType == Config::MemoryType::WideIO)
-        return std::make_unique<const MemSpecWideIO>(memSpec);
-
-    if (memoryType == Config::MemoryType::WideIO2)
-        return std::make_unique<const MemSpecWideIO2>(memSpec);
-
-    if (memoryType == Config::MemoryType::HBM2)
-        return std::make_unique<const MemSpecHBM2>(memSpec);
-
-    if (memoryType == Config::MemoryType::GDDR5)
-        return std::make_unique<const MemSpecGDDR5>(memSpec);
-
-    if (memoryType == Config::MemoryType::GDDR5X)
-        return std::make_unique<const MemSpecGDDR5X>(memSpec);
-
-    if (memoryType == Config::MemoryType::GDDR6)
-        return std::make_unique<const MemSpecGDDR6>(memSpec);
-
-    if (memoryType == Config::MemoryType::STTMRAM)
-        return std::make_unique<const MemSpecSTTMRAM>(memSpec);
-
+    return std::visit([](const auto& v) -> std::unique_ptr<const MemSpec> {
+        using T = std::decay_t<decltype(v)>;
+        
+        if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecDDR3>)
+            return std::make_unique<const MemSpecDDR3>(v);
+        else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecDDR4>)
+            return std::make_unique<const MemSpecDDR4>(v);
+        else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecLPDDR4>)
+            return std::make_unique<const MemSpecLPDDR4>(v);
+        else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecWideIO>)
+            return std::make_unique<const MemSpecWideIO>(v);
+        else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecWideIO2>)
+            return std::make_unique<const MemSpecWideIO2>(v);
+        else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecHBM2>)
+            return std::make_unique<const MemSpecHBM2>(v);
+        else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecGDDR5>)
+            return std::make_unique<const MemSpecGDDR5>(v);
+        else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecGDDR5X>)
+            return std::make_unique<const MemSpecGDDR5X>(v);
+        else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecGDDR6>)
+            return std::make_unique<const MemSpecGDDR6>(v);
+        else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecSTTMRAM>)
+            return std::make_unique<const MemSpecSTTMRAM>(v);
 #ifdef DDR5_SIM
-    if (memoryType == Config::MemoryType::DDR5)
-        return std::make_unique<const MemSpecDDR5>(memSpec);
+        else if constexpr ((std::is_same_v<T, DRAMUtils::MemSpec::MemSpecDDR5>))
+            return std::make_unique<const MemSpecDDR5>(v);
 #endif
-
 #ifdef LPDDR5_SIM
-    if (memoryType == Config::MemoryType::LPDDR5)
-        return std::make_unique<const MemSpecLPDDR5>(memSpec);
+        else if constexpr ((std::is_same_v<T, DRAMUtils::MemSpec::MemSpecLPDDR5>))
+            return std::make_unique<const MemSpecLPDDR5>(v);
 #endif
-
 #ifdef HBM3_SIM
-    if (memoryType == Config::MemoryType::HBM3)
-        return std::make_unique<const MemSpecHBM3>(memSpec);
+        else if constexpr ((std::is_same_v<T, DRAMUtils::MemSpec::MemSpecHBM3>))
+            return std::make_unique<const MemSpecHBM3>(v);
 #endif
-
-    SC_REPORT_FATAL("Configuration", "Unsupported DRAM type");
-    return {};
+        else
+        {
+            SC_REPORT_FATAL("Configuration", "Unsupported DRAM type");
+            return nullptr;
+        }
+    }, memSpec.getVariant());
 }
 
 std::unique_ptr<Arbiter> DRAMSys::createArbiter(const SimConfig& simConfig,

@@ -10,6 +10,7 @@
             "width": 16,
             "nbrOfChannels": 1,
             "nbrOfDevices": 1,
+            "maxBurstLength": 8
         },
         "memoryId": "SAMSUNG_K4B1G1646E_1Gb_DDR3-1600_16bit",
         "memoryType": "DDR3",
@@ -55,7 +56,7 @@
             "PRPDEN": 1,
             "REFPDEN": 1,
             "RTRS": 1,
-            "tCK": 1250
+            "tCK": 1250e-12
         }
     }
 }

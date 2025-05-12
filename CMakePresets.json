@@ -1,89 +1,122 @@
 {
-    "version": 3,
-    "cmakeMinimumRequired": {
-        "major": 3,
-        "minor": 21,
-        "patch": 0
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "cpp-standard",
+      "hidden": true,
+      "cacheVariables": {
+        "CMAKE_CXX_STANDARD": "17",
+        "CMAKE_CXX_STANDARD_REQUIRED": "ON",
+        "CMAKE_CXX_EXTENSIONS": "OFF"
+      }
     },
-    "configurePresets": [
-        {
-            "name": "cmake-pedantic",
-            "hidden": true,
-            "warnings": {
-                "dev": true,
-                "deprecated": true,
-                "unusedCli": true,
-                "systemVars": false
-            }
-        },
-        {
-            "name": "dev-mode",
-            "hidden": true,
-            "inherits": "cmake-pedantic",
-            "cacheVariables": {
-                "DRAMSYS_BUILD_TESTS": "ON",
-                "DRAMSYS_BUILD_BENCHMARKS": "ON",
-                "DRAMSYS_BUILD_TRACE_ANALYZER": "ON"
-            }
-        },
-        {
-            "name": "std",
-            "description": "This preset makes sure the project actually builds with at least the specified standard",
-            "hidden": true,
-            "cacheVariables": {
-                "CMAKE_CXX_EXTENSIONS": "OFF",
-                "CMAKE_CXX_STANDARD": "17",
-                "CMAKE_CXX_STANDARD_REQUIRED": "ON"
-            }
-        },
-        {
-            "name": "ci-common",
-            "binaryDir": "${sourceDir}/build",
-            "inherits": [
-                "std",
-                "dev-mode"
-            ],
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release"
-            }
-        },
-        {
-            "name": "ci-coverage",
-            "binaryDir": "${sourceDir}/build/coverage",
-            "inherits": "ci-common",
-            "cacheVariables": {
-                "DRAMSYS_ENABLE_COVERAGE": "ON",
-                "CMAKE_BUILD_TYPE": "Coverage",
-                "CMAKE_CXX_FLAGS_COVERAGE": "-Og -g --coverage -fkeep-static-functions",
-                "CMAKE_EXE_LINKER_FLAGS_COVERAGE": "--coverage",
-                "CMAKE_SHARED_LINKER_FLAGS_COVERAGE": "--coverage"
-            }
-        },
-        {
-            "name": "dev",
-            "binaryDir": "${sourceDir}/build",
-            "inherits": [
-                "dev-mode",
-                "std"
-            ],
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
-                "CMAKE_CXX_FLAGS": "-Wall -Wextra -Wpedantic -fdiagnostics-color=always"
-            }
-        },
-        {
-            "name": "dev-local",
-            "binaryDir": "${sourceDir}/build",
-            "inherits": [
-                "dev-mode",
-                "std"
-            ],
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_CXX_FLAGS": "-Wall -Wextra -Wpedantic -fdiagnostics-color=always",
-                "DRAMSYS_USE_FETCH_CONTENT": "OFF"
-            }
-        }
-    ]
+    {
+      "name": "vcpkg",
+      "hidden": true,
+      "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+      "cacheVariables": {
+        "VCPKG_INSTALL_OPTIONS": "--no-print-usage"
+      }
+    },
+    {
+      "name": "dev",
+      "binaryDir": "${sourceDir}/build",
+      "inherits": [
+        "cpp-standard"
+      ],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS": "-Wall -Wextra -Wpedantic -fdiagnostics-color=always",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "DRAMSYS_BUILD_TESTS": "ON",
+        "DRAMSYS_BUILD_BENCHMARKS": "ON",
+        "DRAMSYS_BUILD_TRACE_ANALYZER": "ON"
+      }
+    },
+    {
+      "name": "dev-local",
+      "inherits": [
+        "dev"
+      ],
+      "cacheVariables": {
+        "DRAMSYS_USE_FETCH_CONTENT": "OFF"
+      }
+    },
+    {
+      "name": "dev-vcpkg",
+      "inherits": [
+        "dev",
+        "vcpkg"
+      ],
+      "cacheVariables": {
+        "DRAMSYS_USE_FETCH_CONTENT": "ON",
+        "DRAMSYS_USE_FETCH_CONTENT_INTERNAL": "ON",
+        "DRAMSYS_USE_FETCH_CONTENT_SYSTEMC": "OFF",
+        "DRAMSYS_USE_FETCH_CONTENT_SQLITE3": "OFF",
+        "DRAMSYS_USE_FETCH_CONTENT_NLOHMANN_JSON": "OFF"
+      }
+    },
+    {
+      "name": "coverage",
+      "binaryDir": "${sourceDir}/build/coverage",
+      "inherits": [
+        "cpp-standard",
+        "dev"
+      ],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Coverage",
+        "CMAKE_CXX_FLAGS_COVERAGE": "-Og -g --coverage -fkeep-static-functions",
+        "CMAKE_EXE_LINKER_FLAGS_COVERAGE": "--coverage",
+        "CMAKE_SHARED_LINKER_FLAGS_COVERAGE": "--coverage",
+        "DRAMSYS_ENABLE_COVERAGE": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "build-dev",
+      "configurePreset": "dev",
+      "jobs": 0,
+      "targets": [
+        "all"
+      ]
+    },
+    {
+      "name": "build-coverage",
+      "configurePreset": "coverage",
+      "jobs": 0,
+      "targets": [
+        "all"
+      ]
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "test-dev",
+      "configurePreset": "dev",
+      "configuration": "Debug",
+      "execution": {
+        "jobs": 0
+      },
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "test-coverage",
+      "configurePreset": "coverage",
+      "configuration": "Coverage",
+      "execution": {
+        "jobs": 0
+      },
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
 }

@@ -32,12 +32,15 @@
  * Authors:
  *    Lukas Steiner
  *    Derek Christ
+ *    Marco Mörz
  */
 
 #ifndef MEMSPECWIDEIO2_H
 #define MEMSPECWIDEIO2_H
 
 #include "DRAMSys/configuration/memspec/MemSpec.h"
+
+#include <DRAMUtils/memspec/standards/MemSpecWideIO2.h>
 
 #include <systemc>
 
@@ -47,7 +50,7 @@ namespace DRAMSys
 class MemSpecWideIO2 final : public MemSpec
 {
 public:
-    explicit MemSpecWideIO2(const Config::MemSpec& memSpec);
+    explicit MemSpecWideIO2(const DRAMUtils::MemSpec::MemSpecWideIO2& memSpec);
 
     // Memspec Variables:
     const sc_core::sc_time tDQSCK;

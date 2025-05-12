@@ -41,13 +41,12 @@
 #include "player/StlPlayer.h"
 #include "util.h"
 
-Simulator::Simulator(DRAMSys::Config::Configuration configuration,
-                     std::filesystem::path resourceDirectory) :
+Simulator::Simulator(DRAMSys::Config::Configuration configuration, std::filesystem::path baseConfig) :
     storageEnabled(configuration.simconfig.StoreMode == DRAMSys::Config::StoreModeType::Store),
     memoryManager(storageEnabled),
     configuration(std::move(configuration)),
-    resourceDirectory(std::move(resourceDirectory)),
-    dramSys(std::make_unique<DRAMSys::DRAMSys>("DRAMSys", this->configuration))
+    dramSys(std::make_unique<DRAMSys::DRAMSys>("DRAMSys", this->configuration)),
+    baseConfig(baseConfig)
 {
     terminateInitiator = [this]()
     {
@@ -104,7 +103,7 @@ Simulator::instantiateInitiator(const DRAMSys::Config::Initiator& initiator)
             }
             else if constexpr (std::is_same_v<T, DRAMSys::Config::TracePlayer>)
             {
-                std::filesystem::path tracePath = resourceDirectory / TRACE_DIRECTORY / config.name;
+                std::filesystem::path tracePath = baseConfig.parent_path() / config.name;
 
                 std::optional<StlPlayer::TraceType> traceType;
 
@@ -149,7 +148,7 @@ Simulator::instantiateInitiator(const DRAMSys::Config::Initiator& initiator)
                                                                     std::move(hammer));
             }
         },
-        initiator);
+        initiator.getVariant());
 }
 
 void Simulator::run()

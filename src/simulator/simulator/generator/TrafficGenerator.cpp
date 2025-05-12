@@ -190,7 +190,7 @@ Request TrafficGenerator::nextRequest()
     requestsInState++;
 
     Request request = producers[currentState]->nextRequest();
-    request.delay += generatorPeriod * static_cast<double>(clksToIdle);
+    request.delay += generatorPeriod + generatorPeriod * static_cast<double>(clksToIdle);
     return request;
 }
 

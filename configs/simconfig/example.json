@@ -1,15 +1,23 @@
 {
-    "simconfig": {
-        "AddressOffset": 0,
-        "CheckTLM2Protocol": false,
-        "DatabaseRecording": true,
-        "Debug": false,
-        "EnableWindowing": false,
-        "PowerAnalysis": false,
-        "SimulationName": "example",
-        "SimulationProgressBar": true,
-        "StoreMode": "NoStorage",
-        "UseMalloc": false,
-        "WindowSize": 1000
+  "simconfig": {
+    "AddressOffset": 0,
+    "CheckTLM2Protocol": false,
+    "DatabaseRecording": true,
+    "Debug": false,
+    "EnableWindowing": true,
+    "PowerAnalysis": false,
+    "SimulationName": "example",
+    "SimulationProgressBar": true,
+    "StoreMode": "NoStorage",
+    "UseMalloc": false,
+    "WindowSize": 1000,
+    "TogglingRate": {
+      "togglingRateRead": 0.5,
+      "togglingRateWrite": 0.5,
+      "dutyCycleRead": 0.5,
+      "dutyCycleWrite": 0.5,
+      "idlePatternRead": "L",
+      "idlePatternWrite": "L"
     }
+  }
 }

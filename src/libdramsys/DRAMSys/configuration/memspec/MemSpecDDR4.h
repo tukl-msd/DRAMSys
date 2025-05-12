@@ -32,12 +32,15 @@
  * Authors:
  *    Lukas Steiner
  *    Derek Christ
+ *    Marco Mörz
  */
 
 #ifndef MEMSPECDDR4_H
 #define MEMSPECDDR4_H
 
 #include "DRAMSys/configuration/memspec/MemSpec.h"
+
+#include <DRAMUtils/memspec/standards/MemSpecDDR4.h>
 
 #include <systemc>
 
@@ -47,9 +50,10 @@ namespace DRAMSys
 class MemSpecDDR4 final : public MemSpec
 {
 public:
-    explicit MemSpecDDR4(const Config::MemSpec& memSpec);
+    explicit MemSpecDDR4(const DRAMUtils::MemSpec::MemSpecDDR4& memSpec);
 
     // Memspec Variables:
+    const DRAMUtils::MemSpec::MemSpecDDR4& memSpec;
     const sc_core::sc_time tCKE;
     const sc_core::sc_time tPD;
     const sc_core::sc_time tCKESR;
@@ -83,23 +87,6 @@ public:
     const sc_core::sc_time tREFPDEN;
     const sc_core::sc_time tRTRS;
 
-    // Currents and Voltages:
-    const double iDD0;
-    const double iDD2N;
-    const double iDD3N;
-    const double iDD4R;
-    const double iDD4W;
-    const double iDD5;
-    const double iDD6;
-    const double vDD;
-    const double iDD02;
-    const double iDD2P0;
-    const double iDD2P1;
-    const double iDD3P0;
-    const double iDD3P1;
-    const double iDD62;
-    const double vDD2;
-
     [[nodiscard]] sc_core::sc_time getRefreshIntervalAB() const override;
 
     [[nodiscard]] sc_core::sc_time
@@ -110,9 +97,7 @@ public:
 
     [[nodiscard]] bool requiresMaskedWrite(const tlm::tlm_generic_payload& payload) const override;
 
-#ifdef DRAMPOWER
-    [[nodiscard]] DRAMPower::MemorySpecification toDramPowerMemSpec() const override;
-#endif
+    [[nodiscard]] std::unique_ptr<DRAMPower::dram_base<DRAMPower::CmdType>> toDramPowerObject() const override;
 };
 
 } // namespace DRAMSys

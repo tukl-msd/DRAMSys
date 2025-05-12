@@ -9,22 +9,23 @@
             "nbrOfRows": 32768,
             "width": 8,
        	    "nbrOfDevices": 8,
-            "nbrOfChannels": 1
+            "nbrOfChannels": 1,
+            "maxBurstLength": 8
         },
         "memoryId": "MICRON_2Gb_DDR3-1066_8bit_D",
         "memoryType": "DDR3",
         "mempowerspec": {
-            "idd0": 75.0,
-            "idd2n": 32.0,
-            "idd2p0": 12.0,
-            "idd2p1": 25.0,
-            "idd3n": 35.0,
-            "idd3p0": 30.0,
-            "idd3p1": 30.0,
-            "idd4r": 140.0,
-            "idd4w": 145.0,
-            "idd5": 190.0,
-            "idd6": 12.0,
+            "idd0": 75.0e-3,
+            "idd2n": 32.0e-3,
+            "idd2p0": 12.0e-3,
+            "idd2p1": 25.0e-3,
+            "idd3n": 35.0e-3,
+            "idd3p0": 30.0e-3,
+            "idd3p1": 30.0e-3,
+            "idd4r": 140.0e-3,
+            "idd4w": 145.0e-3,
+            "idd5": 190.0e-3,
+            "idd6": 12.0e-3,
             "vdd": 1.5
         },
         "memtimingspec": {
@@ -55,7 +56,7 @@
             "PRPDEN": 1,
             "REFPDEN": 1,
             "RTRS": 1,
-            "tCK": 1876
+            "tCK": 1876e-12
         }
     }
 }

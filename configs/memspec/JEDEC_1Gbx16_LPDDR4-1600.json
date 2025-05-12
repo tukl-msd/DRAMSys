@@ -9,7 +9,9 @@
             "nbrOfRows": 131072,
             "width": 16,
             "nbrOfDevices": 1,
-            "nbrOfChannels": 1
+            "nbrOfChannels": 1,
+            "nbrOfBankGroups": 1,
+            "maxBurstLength": 16
         },
         "memoryId": "JEDEC_1Gbx16_LPDDR4-1600",
         "memoryType": "LPDDR4",
@@ -26,15 +28,15 @@
             "PPD": 4,
             "RCD": 15,
             "REFI": 3123,
-            "REFIPB": 390,
-            "RFCAB": 304,
-            "RFCPB": 152,
+            "REFIpb": 390,
+            "RFCab": 304,
+            "RFCpb": 152,
             "RL": 14,
             "RAS": 34,
-            "RPAB": 17,
-            "RPPB": 15,
-            "RCAB": 51,
-            "RCPB": 49,
+            "RPab": 17,
+            "RPpb": 15,
+            "RCab": 51,
+            "RCpb": 49,
             "RPST": 0,
             "RRD": 8,
             "RTP": 8,
@@ -46,7 +48,63 @@
             "XP": 6,
             "XSR": 310,
             "RTRS": 1,
-            "tCK": 1250
+            "tCK": 1250e-12
+        },
+        "mempowerspec": {
+            "vdd1": 0.0,
+            "idd01": 0.0,
+            "idd2n1": 0.0,
+            "idd3n1": 0.0,
+            "idd4r1": 0.0,
+            "idd4w1": 0.0,
+            "idd51": 0.0,
+            "idd5pb1": 0.0,
+            "idd61": 0.0,
+            "idd2p1": 0.0,
+            "idd3p1": 0.0,
+            "vdd2": 0.0,
+            "idd02": 0.0,
+            "idd2n2": 0.0,
+            "idd3n2": 0.0,
+            "idd4r2": 0.0,
+            "idd4w2": 0.0,
+            "idd52": 0.0,
+            "idd5pb2": 0.0,
+            "idd62": 0.0,
+            "idd2p2": 0.0,
+            "idd3p2": 0.0,
+            "vddq": 0.0,
+            "iBeta_vdd1": 0.0,
+            "iBeta_vdd2": 0.0
+        },
+        "memimpedancespec": {
+            "ck_termination": true,
+            "ck_R_eq": 1e6,
+            "ck_dyn_E": 1e-12,
+
+            "ca_termination": true,
+            "ca_R_eq": 1e6,
+            "ca_dyn_E": 1e-12,
+
+            "rdq_termination": true,
+            "rdq_R_eq": 1e6,
+            "rdq_dyn_E": 1e-12,
+            "wdq_termination": true,
+            "wdq_R_eq": 1e6,
+            "wdq_dyn_E": 1e-12,
+
+            "wdqs_termination": true,
+            "wdqs_R_eq": 1e6,
+            "wdqs_dyn_E": 1e-12,
+            "rdqs_termination": true,
+            "rdqs_R_eq": 1e6,
+            "rdqs_dyn_E": 1e-12
+        },
+        "bankwisespec": {
+            "factRho": 1,
+            "factSigma": 1,
+            "pasrMode": 0,
+            "hasPASR": false
         }
     }
 }

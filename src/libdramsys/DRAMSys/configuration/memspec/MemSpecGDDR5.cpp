@@ -32,6 +32,7 @@
  * Authors:
  *    Lukas Steiner
  *    Derek Christ
+ *    Marco Mörz
  */
 
 #include "MemSpecGDDR5.h"
@@ -46,53 +47,53 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-MemSpecGDDR5::MemSpecGDDR5(const Config::MemSpec& memSpec) :
+MemSpecGDDR5::MemSpecGDDR5(const DRAMUtils::MemSpec::MemSpecGDDR5& memSpec) :
     MemSpec(memSpec,
-            memSpec.memarchitecturespec.entries.at("nbrOfChannels"),
-            memSpec.memarchitecturespec.entries.at("nbrOfRanks"),
-            memSpec.memarchitecturespec.entries.at("nbrOfBanks"),
-            memSpec.memarchitecturespec.entries.at("nbrOfBankGroups"),
-            memSpec.memarchitecturespec.entries.at("nbrOfBanks") /
-                memSpec.memarchitecturespec.entries.at("nbrOfBankGroups"),
-            memSpec.memarchitecturespec.entries.at("nbrOfBanks") *
-                memSpec.memarchitecturespec.entries.at("nbrOfRanks"),
-            memSpec.memarchitecturespec.entries.at("nbrOfBankGroups") *
-                memSpec.memarchitecturespec.entries.at("nbrOfRanks"),
-            memSpec.memarchitecturespec.entries.at("nbrOfDevices")),
-    tRP(tCK * memSpec.memtimingspec.entries.at("RP")),
-    tRAS(tCK * memSpec.memtimingspec.entries.at("RAS")),
-    tRC(tCK * memSpec.memtimingspec.entries.at("RC")),
-    tRCDRD(tCK * memSpec.memtimingspec.entries.at("RCDRD")),
-    tRCDWR(tCK * memSpec.memtimingspec.entries.at("RCDWR")),
-    tRTP(tCK * memSpec.memtimingspec.entries.at("RTP")),
-    tRRDS(tCK * memSpec.memtimingspec.entries.at("RRDS")),
-    tRRDL(tCK * memSpec.memtimingspec.entries.at("RRDL")),
-    tCCDS(tCK * memSpec.memtimingspec.entries.at("CCDS")),
-    tCCDL(tCK * memSpec.memtimingspec.entries.at("CCDL")),
-    tCL(tCK * memSpec.memtimingspec.entries.at("CL")),
-    tWCK2CKPIN(tCK * memSpec.memtimingspec.entries.at("WCK2CKPIN")),
-    tWCK2CK(tCK * memSpec.memtimingspec.entries.at("WCK2CK")),
-    tWCK2DQO(tCK * memSpec.memtimingspec.entries.at("WCK2DQO")),
-    tRTW(tCK * memSpec.memtimingspec.entries.at("RTW")),
-    tWL(tCK * memSpec.memtimingspec.entries.at("WL")),
-    tWCK2DQI(tCK * memSpec.memtimingspec.entries.at("WCK2DQI")),
-    tWR(tCK * memSpec.memtimingspec.entries.at("WR")),
-    tWTRS(tCK * memSpec.memtimingspec.entries.at("WTRS")),
-    tWTRL(tCK * memSpec.memtimingspec.entries.at("WTRL")),
-    tCKE(tCK * memSpec.memtimingspec.entries.at("CKE")),
-    tPD(tCK * memSpec.memtimingspec.entries.at("PD")),
-    tXPN(tCK * memSpec.memtimingspec.entries.at("XPN")),
-    tREFI(tCK * memSpec.memtimingspec.entries.at("REFI")),
-    tREFIPB(tCK * memSpec.memtimingspec.entries.at("REFIPB")),
-    tRFC(tCK * memSpec.memtimingspec.entries.at("RFC")),
-    tRFCPB(tCK * memSpec.memtimingspec.entries.at("RFCPB")),
-    tRREFD(tCK * memSpec.memtimingspec.entries.at("RREFD")),
-    tXS(tCK * memSpec.memtimingspec.entries.at("XS")),
-    tFAW(tCK * memSpec.memtimingspec.entries.at("FAW")),
-    t32AW(tCK * memSpec.memtimingspec.entries.at("32AW")),
-    tPPD(tCK * memSpec.memtimingspec.entries.at("PPD")),
-    tLK(tCK * memSpec.memtimingspec.entries.at("LK")),
-    tRTRS(tCK * memSpec.memtimingspec.entries.at("RTRS"))
+            memSpec.memarchitecturespec.nbrOfChannels,
+            memSpec.memarchitecturespec.nbrOfRanks,
+            memSpec.memarchitecturespec.nbrOfBanks,
+            memSpec.memarchitecturespec.nbrOfBankGroups,
+            memSpec.memarchitecturespec.nbrOfBanks /
+                memSpec.memarchitecturespec.nbrOfBankGroups,
+            memSpec.memarchitecturespec.nbrOfBanks *
+                memSpec.memarchitecturespec.nbrOfRanks,
+            memSpec.memarchitecturespec.nbrOfBankGroups *
+                memSpec.memarchitecturespec.nbrOfRanks,
+            memSpec.memarchitecturespec.nbrOfDevices),
+    tRP(tCK * memSpec.memtimingspec.RP),
+    tRAS(tCK * memSpec.memtimingspec.RAS),
+    tRC(tCK * memSpec.memtimingspec.RC),
+    tRCDRD(tCK * memSpec.memtimingspec.RCDRD),
+    tRCDWR(tCK * memSpec.memtimingspec.RCDWR),
+    tRTP(tCK * memSpec.memtimingspec.RTP),
+    tRRDS(tCK * memSpec.memtimingspec.RRDS),
+    tRRDL(tCK * memSpec.memtimingspec.RRDL),
+    tCCDS(tCK * memSpec.memtimingspec.CCDS),
+    tCCDL(tCK * memSpec.memtimingspec.CCDL),
+    tCL(tCK * memSpec.memtimingspec.CL),
+    tWCK2CKPIN(tCK * memSpec.memtimingspec.WCK2CKPIN),
+    tWCK2CK(tCK * memSpec.memtimingspec.WCK2CK),
+    tWCK2DQO(tCK * memSpec.memtimingspec.WCK2DQO),
+    tRTW(tCK * memSpec.memtimingspec.RTW),
+    tWL(tCK * memSpec.memtimingspec.WL),
+    tWCK2DQI(tCK * memSpec.memtimingspec.WCK2DQI),
+    tWR(tCK * memSpec.memtimingspec.WR),
+    tWTRS(tCK * memSpec.memtimingspec.WTRS),
+    tWTRL(tCK * memSpec.memtimingspec.WTRL),
+    tCKE(tCK * memSpec.memtimingspec.CKE),
+    tPD(tCK * memSpec.memtimingspec.PD),
+    tXPN(tCK * memSpec.memtimingspec.XPN),
+    tREFI(tCK * memSpec.memtimingspec.REFI),
+    tREFIPB(tCK * memSpec.memtimingspec.REFIPB),
+    tRFC(tCK * memSpec.memtimingspec.RFC),
+    tRFCPB(tCK * memSpec.memtimingspec.RFCPB),
+    tRREFD(tCK * memSpec.memtimingspec.RREFD),
+    tXS(tCK * memSpec.memtimingspec.XS),
+    tFAW(tCK * memSpec.memtimingspec.FAW),
+    t32AW(tCK * memSpec.memtimingspec._32AW), // TODO breaking change
+    tPPD(tCK * memSpec.memtimingspec.PPD),
+    tLK(tCK * memSpec.memtimingspec.LK),
+    tRTRS(tCK * memSpec.memtimingspec.RTRS)
 {
     uint64_t deviceSizeBits =
         static_cast<uint64_t>(banksPerRank) * rowsPerBank * columnsPerRow * bitWidth;

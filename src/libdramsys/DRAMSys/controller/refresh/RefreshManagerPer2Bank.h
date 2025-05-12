@@ -29,7 +29,9 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Author: Lukas Steiner
+ * Authors:
+ *    Lukas Steiner
+ *    Derek Christ
  */
 
 #ifndef REFRESHMANAGERPER2BANK_H
@@ -37,7 +39,6 @@
 
 #include "DRAMSys/configuration/memspec/MemSpec.h"
 #include "DRAMSys/controller/McConfig.h"
-#include "DRAMSys/controller/checker/CheckerIF.h"
 #include "DRAMSys/controller/refresh/RefreshManagerIF.h"
 
 #include <list>
@@ -65,6 +66,9 @@ public:
     void evaluate() override;
     void update(Command command) override;
     sc_core::sc_time getTimeForNextTrigger() override;
+
+    void serialize(std::ostream& stream) const override;
+    void deserialize(std::istream& stream) override;
 
 private:
     enum class State

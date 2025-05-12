@@ -36,7 +36,8 @@
 #ifndef DRAMSYSCONFIGURATION_ADDRESSMAPPING_H
 #define DRAMSYSCONFIGURATION_ADDRESSMAPPING_H
 
-#include "DRAMSys/util/json.h"
+#include <DRAMUtils/util/json_utils.h>
+#include <DRAMUtils/util/collapsingvector.h>
 
 #include <optional>
 
@@ -46,9 +47,8 @@ namespace DRAMSys::Config
 struct AddressMapping
 {
     static constexpr std::string_view KEY = "addressmapping";
-    static constexpr std::string_view SUB_DIR = "addressmapping";
 
-    using BitEntry = std::variant<unsigned int, std::vector<unsigned int>>;
+    using BitEntry = DRAMUtils::util::CollapsingVector<unsigned int>;
 
     std::optional<std::vector<BitEntry>> BYTE_BIT;
     std::optional<std::vector<BitEntry>> COLUMN_BIT;

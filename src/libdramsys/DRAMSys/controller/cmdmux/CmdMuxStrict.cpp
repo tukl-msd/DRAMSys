@@ -45,7 +45,7 @@ CmdMuxStrict::CmdMuxStrict(const MemSpec& memSpec) : memSpec(memSpec)
 {
 }
 
-CommandTuple::Type CmdMuxStrict::selectCommand(const ReadyCommands& readyCommands)
+std::optional<CommandTuple::Type> CmdMuxStrict::selectCommand(const ReadyCommands& readyCommands)
 {
     auto result = readyCommands.cend();
     uint64_t lastPayloadID = UINT64_MAX;
@@ -88,7 +88,8 @@ CommandTuple::Type CmdMuxStrict::selectCommand(const ReadyCommands& readyCommand
             nextPayloadID++;
         return *result;
     }
-    return {Command::NOP, nullptr, scMaxTime};
+
+    return std::nullopt;
 }
 
 CmdMuxStrictRasCas::CmdMuxStrictRasCas(const MemSpec& memSpec) : memSpec(memSpec)
@@ -98,7 +99,7 @@ CmdMuxStrictRasCas::CmdMuxStrictRasCas(const MemSpec& memSpec) : memSpec(memSpec
     readyRasCasCommands.reserve(2);
 }
 
-CommandTuple::Type CmdMuxStrictRasCas::selectCommand(const ReadyCommands& readyCommands)
+std::optional<CommandTuple::Type> CmdMuxStrictRasCas::selectCommand(const ReadyCommands& readyCommands)
 {
     readyRasCommands.clear();
     readyCasCommands.clear();
@@ -188,7 +189,7 @@ CommandTuple::Type CmdMuxStrictRasCas::selectCommand(const ReadyCommands& readyC
             nextPayloadID++;
         return *result;
     }
-    return {Command::NOP, nullptr, scMaxTime};
+    return std::nullopt;
 }
 
 } // namespace DRAMSys

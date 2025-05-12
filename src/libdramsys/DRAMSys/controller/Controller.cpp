@@ -32,6 +32,7 @@
  * Authors:
  *    Lukas Steiner
  *    Derek Christ
+ *    Marco Mörz
  */
 
 #include "Controller.h"
@@ -64,6 +65,7 @@
 #include "DRAMSys/controller/scheduler/SchedulerFrFcfsGrp.h"
 #include "DRAMSys/controller/scheduler/SchedulerGrpFrFcfs.h"
 #include "DRAMSys/controller/scheduler/SchedulerGrpFrFcfsWm.h"
+
 #include <cstdint>
 #include <numeric>
 #include <string>
@@ -87,15 +89,29 @@ namespace DRAMSys
 Controller::Controller(const sc_module_name& name,
                        const McConfig& config,
                        const MemSpec& memSpec,
-                       const AddressDecoder& addressDecoder) :
+                       const SimConfig& simConfig,
+                       const AddressDecoder& addressDecoder,
+                       TlmRecorder* tlmRecorder) :
     sc_module(name),
     config(config),
     memSpec(memSpec),
+    simConfig(simConfig),
     addressDecoder(addressDecoder),
+    tlmRecorder(tlmRecorder),
+    windowSizeTime(simConfig.windowSize * memSpec.tCK),
+    nextWindowEventTime(windowSizeTime),
     numberOfBeatsServed(memSpec.ranksPerChannel, 0),
     minBytesPerBurst(memSpec.defaultBytesPerBurst),
     maxBytesPerBurst(memSpec.maxBytesPerBurst)
 {
+    if (simConfig.databaseRecording && tlmRecorder != nullptr)
+    {
+        SC_METHOD(recordBufferDepth);
+        dont_initialize();
+        sensitive << windowEvent;
+        windowEvent.notify(windowSizeTime);
+    }
+
     SC_METHOD(controllerMethod);
     sensitive << beginReqEvent << endRespEvent << controllerEvent << dataResponseEvent;
 
@@ -114,62 +130,62 @@ Controller::Controller(const sc_module_name& name,
     // instantiate timing checker
     try
     {
-        if (memSpec.memoryType == Config::MemoryType::DDR3)
+        if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecDDR3::id)
         {
             checker = std::make_unique<CheckerDDR3>(dynamic_cast<const MemSpecDDR3&>(memSpec));
         }
-        else if (memSpec.memoryType == Config::MemoryType::DDR4)
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecDDR4::id)
         {
             checker = std::make_unique<CheckerDDR4>(dynamic_cast<const MemSpecDDR4&>(memSpec));
         }
-        else if (memSpec.memoryType == Config::MemoryType::WideIO)
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecWideIO::id)
         {
             checker = std::make_unique<CheckerWideIO>(dynamic_cast<const MemSpecWideIO&>(memSpec));
         }
-        else if (memSpec.memoryType == Config::MemoryType::LPDDR4)
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecLPDDR4::id)
         {
             checker = std::make_unique<CheckerLPDDR4>(dynamic_cast<const MemSpecLPDDR4&>(memSpec));
         }
-        else if (memSpec.memoryType == Config::MemoryType::WideIO2)
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecWideIO2::id)
         {
             checker =
                 std::make_unique<CheckerWideIO2>(dynamic_cast<const MemSpecWideIO2&>(memSpec));
         }
-        else if (memSpec.memoryType == Config::MemoryType::HBM2)
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecHBM2::id)
         {
             checker = std::make_unique<CheckerHBM2>(dynamic_cast<const MemSpecHBM2&>(memSpec));
         }
-        else if (memSpec.memoryType == Config::MemoryType::GDDR5)
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecGDDR5::id)
         {
             checker = std::make_unique<CheckerGDDR5>(dynamic_cast<const MemSpecGDDR5&>(memSpec));
         }
-        else if (memSpec.memoryType == Config::MemoryType::GDDR5X)
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecGDDR5X::id)
         {
             checker = std::make_unique<CheckerGDDR5X>(dynamic_cast<const MemSpecGDDR5X&>(memSpec));
         }
-        else if (memSpec.memoryType == Config::MemoryType::GDDR6)
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecGDDR6::id)
         {
             checker = std::make_unique<CheckerGDDR6>(dynamic_cast<const MemSpecGDDR6&>(memSpec));
         }
-        else if (memSpec.memoryType == Config::MemoryType::STTMRAM)
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecSTTMRAM::id)
         {
             checker =
                 std::make_unique<CheckerSTTMRAM>(dynamic_cast<const MemSpecSTTMRAM&>(memSpec));
         }
 #ifdef DDR5_SIM
-        else if (memSpec.memoryType == Config::MemoryType::DDR5)
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecDDR5::id)
         {
             checker = std::make_unique<CheckerDDR5>(dynamic_cast<const MemSpecDDR5&>(memSpec));
         }
 #endif
 #ifdef LPDDR5_SIM
-        else if (memSpec.memoryType == Config::MemoryType::LPDDR5)
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecLPDDR5::id)
         {
             checker = std::make_unique<CheckerLPDDR5>(dynamic_cast<const MemSpecLPDDR5&>(memSpec));
         }
 #endif
 #ifdef HBM3_SIM
-        else if (memSpec.memoryType == Config::MemoryType::HBM3)
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecHBM3::id)
         {
             checker = std::make_unique<CheckerHBM3>(dynamic_cast<const MemSpecHBM3&>(memSpec));
         }
@@ -320,6 +336,9 @@ Controller::Controller(const sc_module_name& name,
     }
     else
         SC_REPORT_FATAL("Controller", "Selected refresh mode not supported!");
+
+    slidingAverageBufferDepth = std::vector<sc_time>(scheduler->getBufferDepth().size());
+    windowAverageBufferDepth = std::vector<double>(scheduler->getBufferDepth().size());
 }
 
 void Controller::registerIdleCallback(std::function<void()> idleCallback)
@@ -327,8 +346,33 @@ void Controller::registerIdleCallback(std::function<void()> idleCallback)
     this->idleCallback = std::move(idleCallback);
 }
 
+void Controller::recordBufferDepth()
+{
+    windowEvent.notify(windowSizeTime);
+    nextWindowEventTime += windowSizeTime;
+
+    for (std::size_t index = 0; index < slidingAverageBufferDepth.size(); index++)
+    {
+        windowAverageBufferDepth[index] = slidingAverageBufferDepth[index] / windowSizeTime;
+        slidingAverageBufferDepth[index] = SC_ZERO_TIME;
+    }
+
+    tlmRecorder->recordBufferDepth(sc_time_stamp().to_seconds(), windowAverageBufferDepth);
+}
+
 void Controller::controllerMethod()
 {
+    // Compute and report BufferDepth
+    if (simConfig.databaseRecording && simConfig.enableWindowing)
+    {
+        sc_time timeDiff = sc_time_stamp() - lastTimeCalled;
+        lastTimeCalled = sc_time_stamp();
+        const std::vector<unsigned>& bufferDepth = scheduler->getBufferDepth();
+
+        for (std::size_t index = 0; index < slidingAverageBufferDepth.size(); index++)
+            slidingAverageBufferDepth[index] += bufferDepth[index] * timeDiff;
+    }
+
     if (isFullCycle(sc_time_stamp(), memSpec.tCK))
     {
         // (1) Finish last response (END_RESP) and start new response (BEGIN_RESP)
@@ -345,7 +389,7 @@ void Controller::controllerMethod()
         it->evaluate();
 
     // (4) Collect all ready commands from BMs, RMs and PDMs
-    CommandTuple::Type commandTuple;
+
     // clear command buffer
     readyCommands.clear();
 
@@ -353,7 +397,7 @@ void Controller::controllerMethod()
     {
         // (4.1) Check for power-down commands (PDEA/PDEP/SREFEN or PDXA/PDXP/SREFEX)
         Rank rank = Rank(rankID);
-        commandTuple = powerDownManagers[rank]->getNextCommand();
+        auto commandTuple = powerDownManagers[rank]->getNextCommand();
         if (std::get<CommandTuple::Command>(commandTuple) != Command::NOP)
             readyCommands.emplace_back(commandTuple);
         else
@@ -384,11 +428,12 @@ void Controller::controllerMethod()
             std::get<CommandTuple::Timestamp>(it) =
                 checker->timeToSatisfyConstraints(command, *trans);
         }
-        commandTuple = cmdMux->selectCommand(readyCommands);
-        Command command = std::get<CommandTuple::Command>(commandTuple);
-        tlm_generic_payload* trans = std::get<CommandTuple::Payload>(commandTuple);
-        if (command != Command::NOP) // can happen with FIFO strict
+        auto commandTuple = cmdMux->selectCommand(readyCommands);
+        if (commandTuple.has_value()) // can happen with FIFO strict
         {
+            Command command = std::get<CommandTuple::Command>(*commandTuple);
+            tlm_generic_payload* trans = std::get<CommandTuple::Payload>(*commandTuple);
+
             Rank rank = ControllerExtension::getRank(*trans);
             Bank bank = ControllerExtension::getBank(*trans);
 
@@ -450,7 +495,7 @@ void Controller::controllerMethod()
     for (auto& it : bankMachines)
     {
         it->evaluate();
-        commandTuple = it->getNextCommand();
+        auto commandTuple = it->getNextCommand();
         Command command = std::get<CommandTuple::Command>(commandTuple);
         tlm_generic_payload* trans = std::get<CommandTuple::Payload>(commandTuple);
         if (command != Command::NOP)
@@ -463,7 +508,7 @@ void Controller::controllerMethod()
     for (auto& it : refreshManagers)
     {
         it->evaluate();
-        commandTuple = it->getNextCommand();
+        auto commandTuple = it->getNextCommand();
         Command command = std::get<CommandTuple::Command>(commandTuple);
         tlm_generic_payload* trans = std::get<CommandTuple::Payload>(commandTuple);
         if (command != Command::NOP)
@@ -480,7 +525,7 @@ void Controller::controllerMethod()
     for (auto& it : powerDownManagers)
     {
         it->evaluate();
-        commandTuple = it->getNextCommand();
+        auto commandTuple = it->getNextCommand();
         Command command = std::get<CommandTuple::Command>(commandTuple);
         tlm_generic_payload* trans = std::get<CommandTuple::Payload>(commandTuple);
         if (command != Command::NOP)
@@ -564,16 +609,16 @@ void Controller::manageRequests(const sc_time& delay)
                 // continuous block of data that can be fetched with a single burst
                 DecodedAddress decodedAddress =
                     addressDecoder.decodeAddress(transToAcquire.payload->get_address());
-                ControllerExtension::setAutoExtension(*transToAcquire.payload,
-                                                      nextChannelPayloadIDToAppend++,
-                                                      Rank(decodedAddress.rank),
-                                                      Stack(decodedAddress.stack),
-                                                      BankGroup(decodedAddress.bankgroup),
-                                                      Bank(decodedAddress.bank),
-                                                      Row(decodedAddress.row),
-                                                      Column(decodedAddress.column),
-                                                      transToAcquire.payload->get_data_length() /
-                                                          memSpec.bytesPerBeat);
+                ControllerExtension::setAutoExtension(
+                    *transToAcquire.payload,
+                    nextChannelPayloadIDToAppend++,
+                    Rank(decodedAddress.rank),
+                    Stack(decodedAddress.stack),
+                    BankGroup(decodedAddress.bankgroup),
+                    Bank(decodedAddress.bank),
+                    Row(decodedAddress.row),
+                    Column(decodedAddress.column),
+                    (transToAcquire.payload->get_data_length() * 8) / memSpec.dataBusWidth);
 
                 Rank rank = Rank(decodedAddress.rank);
                 if (ranksNumberOfPayloads[rank] == 0)
@@ -771,7 +816,8 @@ void Controller::createChildTranses(tlm::tlm_generic_payload& parentTrans)
                                               Bank(decodedAddress.bank),
                                               Row(decodedAddress.row),
                                               Column(decodedAddress.column),
-                                              childTrans->get_data_length() / memSpec.bytesPerBeat);
+                                              (childTrans->get_data_length() * 8) /
+                                                  memSpec.dataBusWidth);
     }
     nextChannelPayloadIDToAppend++;
     ParentExtension::setExtension(parentTrans, std::move(childTranses));
@@ -856,6 +902,22 @@ void Controller::end_of_simulation()
               << std::fixed << std::setprecision(2) << std::setw(6) << maxBandwidth << " Gb/s | "
               << std::setw(6) << maxBandwidth / 8 << " GB/s | " << std::setw(6) << 100.0 << " %"
               << std::endl;
+}
+
+void Controller::serialize(std::ostream& stream) const
+{
+    for (auto& refreshManager : refreshManagers)
+    {
+        refreshManager->serialize(stream);
+    }
+}
+
+void Controller::deserialize(std::istream& stream)
+{
+    for (auto& refreshManager : refreshManagers)
+    {
+        refreshManager->deserialize(stream);
+    }
 }
 
 } // namespace DRAMSys

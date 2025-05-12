@@ -11,7 +11,8 @@
             "nbrOfRows": 32768,
             "width": 64,
             "nbrOfDevices": 1,
-            "nbrOfChannels": 1
+            "nbrOfChannels": 1,
+            "maxBurstLength": 4
         },
         "memoryId": "https://www.computerbase.de/2019-05/amd-memory-tweak-vram-oc/#bilder",
         "memoryType": "HBM2",
@@ -44,7 +45,7 @@
             "WTRS": 4,
             "XP": 8,
             "XS": 216,
-            "tCK": 1000
+            "tCK": 1000e-12
         }
     }
 }

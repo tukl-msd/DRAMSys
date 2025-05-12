@@ -36,24 +36,26 @@
  *    Felipe S. Prado
  *    Lukas Steiner
  *    Derek Christ
+ *    Marco Mörz
  */
 
 #ifndef DRAMSYS_H
 #define DRAMSYS_H
 
+#include "DRAMSys/common/DramATRecorder.h"
+#include "DRAMSys/common/TlmATRecorder.h"
 #include "DRAMSys/common/TlmRecorder.h"
 #include "DRAMSys/common/tlm2_base_protocol_checker.h"
 #include "DRAMSys/config/DRAMSysConfiguration.h"
 #include "DRAMSys/controller/Controller.h"
-#include "DRAMSys/controller/ControllerRecordable.h"
 #include "DRAMSys/controller/McConfig.h"
 #include "DRAMSys/simulation/AddressDecoder.h"
 #include "DRAMSys/simulation/Arbiter.h"
 #include "DRAMSys/simulation/Dram.h"
-#include "DRAMSys/simulation/DramRecordable.h"
 #include "DRAMSys/simulation/SimConfig.h"
 
-#include <list>
+#include <DRAMUtils/memspec/MemSpec.h>
+
 #include <memory>
 #include <string>
 #include <systemc>
@@ -64,6 +66,8 @@
 namespace DRAMSys
 {
 
+class Dram;
+
 class DRAMSys : public sc_core::sc_module
 {
 public:
@@ -71,6 +75,7 @@ public:
 
     SC_HAS_PROCESS(DRAMSys);
     DRAMSys(const sc_core::sc_module_name& name, const Config::Configuration& config);
+    ~DRAMSys();
 
     const auto& getSimConfig() const { return simConfig; }
     const auto& getMcConfig() const { return mcConfig; }
@@ -90,7 +95,7 @@ public:
 
 private:
     static void logo();
-    static std::unique_ptr<const MemSpec> createMemSpec(const Config::MemSpec& memSpec);
+    static std::unique_ptr<const MemSpec> createMemSpec(const DRAMUtils::MemSpec::MemSpecVariant& memSpec);
     static std::unique_ptr<Arbiter> createArbiter(const SimConfig& simConfig,
                                                   const McConfig& mcConfig,
                                                   const MemSpec& memSpec,
@@ -124,6 +129,9 @@ private:
     // Transaction Recorders (one per channel).
     // They generate the output databases.
     std::vector<TlmRecorder> tlmRecorders;
+
+    std::vector<std::unique_ptr<TlmATRecorder>> tlmATRecorders;
+    std::vector<std::unique_ptr<DramATRecorder>> dramATRecorders;
 };
 
 } // namespace DRAMSys

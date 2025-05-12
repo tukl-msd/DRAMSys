@@ -40,7 +40,9 @@
 #include "DRAMSys/config/McConfig.h"
 #include "DRAMSys/config/SimConfig.h"
 #include "DRAMSys/config/TraceSetup.h"
-#include "DRAMSys/config/memspec/MemSpec.h"
+
+#include <DRAMUtils/memspec/MemSpec.h>
+#include <DRAMUtils/util/json_utils.h>
 
 #include <optional>
 #include <string>
@@ -66,7 +68,7 @@ struct Configuration
 
     AddressMapping addressmapping;
     McConfig mcconfig;
-    MemSpec memspec;
+    DRAMUtils::MemSpec::MemSpecVariant memspec;
     SimConfig simconfig;
     std::string simulationid;
     std::optional<std::vector<Initiator>> tracesetup;
@@ -75,8 +77,7 @@ struct Configuration
 NLOHMANN_JSONIFY_ALL_THINGS(
     Configuration, addressmapping, mcconfig, memspec, simconfig, simulationid, tracesetup)
 
-Configuration from_path(std::string_view path,
-                        std::string_view resourceDirectory = DRAMSYS_RESOURCE_DIR);
+Configuration from_path(std::filesystem::path baseConfig);
 
 } // namespace DRAMSys::Config
 

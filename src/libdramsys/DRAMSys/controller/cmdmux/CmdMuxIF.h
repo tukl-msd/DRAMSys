@@ -37,6 +37,8 @@
 
 #include "DRAMSys/controller/Command.h"
 
+#include <optional>
+
 namespace DRAMSys
 {
 
@@ -52,7 +54,7 @@ public:
     CmdMuxIF() = default;
     virtual ~CmdMuxIF() = default;
 
-    virtual CommandTuple::Type selectCommand(const ReadyCommands& readyCommands) = 0;
+    virtual std::optional<CommandTuple::Type> selectCommand(const ReadyCommands& readyCommands) = 0;
 };
 
 } // namespace DRAMSys

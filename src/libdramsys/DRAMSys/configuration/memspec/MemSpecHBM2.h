@@ -32,12 +32,15 @@
  * Authors:
  *    Lukas Steiner
  *    Derek Christ
+ *    Marco Mörz
  */
 
 #ifndef MEMSPECHBM2_H
 #define MEMSPECHBM2_H
 
 #include "DRAMSys/configuration/memspec/MemSpec.h"
+
+#include <DRAMUtils/memspec/standards/MemSpecHBM2.h>
 
 #include <systemc>
 
@@ -47,7 +50,7 @@ namespace DRAMSys
 class MemSpecHBM2 final : public MemSpec
 {
 public:
-    explicit MemSpecHBM2(const Config::MemSpec& memSpec);
+    explicit MemSpecHBM2(const DRAMUtils::MemSpec::MemSpecHBM2& memSpec);
 
     // Memspec Variables:
     const unsigned stacksPerChannel;

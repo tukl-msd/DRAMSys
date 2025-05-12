@@ -9,22 +9,23 @@
             "nbrOfRows": 16384,
             "width": 64,
        	    "nbrOfDevices": 1,
-            "nbrOfChannels": 1
+            "nbrOfChannels": 1,
+            "maxBurstLength": 8
         },
         "memoryId": "MICRON_2GB_DDR3-1333_64bit_D_SODIMM",
         "memoryType": "DDR3",
         "mempowerspec": {
-            "idd0": 800.0,
-            "idd2n": 440.0,
-            "idd2p0": 80.0,
-            "idd2p1": 200.0,
-            "idd3n": 480.0,
-            "idd3p0": 280.0,
-            "idd3p1": 280.0,
-            "idd4r": 1440.0,
-            "idd4w": 1520.0,
-            "idd5": 1920.0,
-            "idd6": 48.0,
+            "idd0": 800.0e-3,
+            "idd2n": 440.0e-3,
+            "idd2p0": 80.0e-3,
+            "idd2p1": 200.0e-3,
+            "idd3n": 480.0e-3,
+            "idd3p0": 280.0e-3,
+            "idd3p1": 280.0e-3,
+            "idd4r": 1440.0e-3,
+            "idd4w": 1520.0e-3,
+            "idd5": 1920.0e-3,
+            "idd6": 48.0e-3,
             "vdd": 1.5
         },
         "memtimingspec": {
@@ -55,7 +56,7 @@
             "PRPDEN": 1,
             "REFPDEN": 1,
             "RTRS": 1,
-            "tCK": 1502
+            "tCK": 1502e-12
         }
     }
 }

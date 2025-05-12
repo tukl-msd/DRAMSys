@@ -36,7 +36,8 @@
 #ifndef DRAMSYSCONFIGURATION_SIMCONFIG_H
 #define DRAMSYSCONFIGURATION_SIMCONFIG_H
 
-#include "DRAMSys/util/json.h"
+#include <DRAMUtils/util/json_utils.h>
+#include <DRAMUtils/config/toggling_rate.h>
 
 #include <optional>
 
@@ -58,7 +59,6 @@ NLOHMANN_JSON_SERIALIZE_ENUM(StoreModeType,
 struct SimConfig
 {
     static constexpr std::string_view KEY = "simconfig";
-    static constexpr std::string_view SUB_DIR = "simconfig";
 
     std::optional<uint64_t> AddressOffset;
     std::optional<bool> CheckTLM2Protocol;
@@ -73,6 +73,7 @@ struct SimConfig
     std::optional<bool> UseMalloc;
     std::optional<unsigned int> WindowSize;
     std::optional<double> SimulationTime;
+    std::optional<DRAMUtils::Config::ToggleRateDefinition> TogglingRate;
 };
 
 NLOHMANN_JSONIFY_ALL_THINGS(SimConfig,
@@ -88,7 +89,8 @@ NLOHMANN_JSONIFY_ALL_THINGS(SimConfig,
                             ThermalSimulation,
                             UseMalloc,
                             WindowSize,
-                            SimulationTime)
+                            SimulationTime,
+                            TogglingRate)
 
 } // namespace DRAMSys::Config
 

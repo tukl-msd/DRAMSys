@@ -32,6 +32,7 @@
  * Authors:
  *    Lukas Steiner
  *    Derek Christ
+ *    Marco Mörz 
  */
 
 #include "MemSpec.h"
@@ -41,45 +42,6 @@ using namespace tlm;
 
 namespace DRAMSys
 {
-
-MemSpec::MemSpec(const Config::MemSpec& memSpec,
-                 unsigned numberOfChannels,
-                 unsigned ranksPerChannel,
-                 unsigned banksPerRank,
-                 unsigned groupsPerRank,
-                 unsigned banksPerGroup,
-                 unsigned banksPerChannel,
-                 unsigned bankGroupsPerChannel,
-                 unsigned devicesPerRank) :
-    numberOfChannels(numberOfChannels),
-    ranksPerChannel(ranksPerChannel),
-    banksPerRank(banksPerRank),
-    groupsPerRank(groupsPerRank),
-    banksPerGroup(banksPerGroup),
-    banksPerChannel(banksPerChannel),
-    bankGroupsPerChannel(bankGroupsPerChannel),
-    devicesPerRank(devicesPerRank),
-    rowsPerBank(memSpec.memarchitecturespec.entries.at("nbrOfRows")),
-    columnsPerRow(memSpec.memarchitecturespec.entries.at("nbrOfColumns")),
-    defaultBurstLength(memSpec.memarchitecturespec.entries.at("burstLength")),
-    maxBurstLength(memSpec.memarchitecturespec.entries.find("maxBurstLength") !=
-                           memSpec.memarchitecturespec.entries.end()
-                       ? memSpec.memarchitecturespec.entries.at("maxBurstLength")
-                       : defaultBurstLength),
-    dataRate(memSpec.memarchitecturespec.entries.at("dataRate")),
-    bitWidth(memSpec.memarchitecturespec.entries.at("width")),
-    dataBusWidth(bitWidth * devicesPerRank),
-    bytesPerBeat(dataBusWidth / 8),
-    defaultBytesPerBurst((defaultBurstLength * dataBusWidth) / 8),
-    maxBytesPerBurst((maxBurstLength * dataBusWidth) / 8),
-    tCK(sc_time(memSpec.memtimingspec.entries.at("tCK"), SC_PS)),
-    memoryId(memSpec.memoryId),
-    memoryType(memSpec.memoryType),
-    burstDuration(tCK * (static_cast<double>(defaultBurstLength) / dataRate))
-
-{
-    commandLengthInCycles = std::vector<double>(Command::numberOfCommands(), 1);
-}
 
 sc_time MemSpec::getCommandLength(Command command) const
 {
@@ -161,29 +123,5 @@ bool MemSpec::requiresMaskedWrite(const tlm::tlm_generic_payload& payload) const
     SC_REPORT_FATAL("MemSpec", "Standard does not support masked writes!");
     throw;
 }
-
-bool MemSpec::allBytesEnabled(const tlm::tlm_generic_payload& trans)
-{
-    if (trans.get_byte_enable_ptr() == nullptr)
-        return true;
-
-    for (std::size_t i = 0; i < trans.get_byte_enable_length(); i++)
-    {
-        if (trans.get_byte_enable_ptr()[i] != TLM_BYTE_ENABLED)
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-#ifdef DRAMPOWER
-DRAMPower::MemorySpecification MemSpec::toDramPowerMemSpec() const
-{
-    SC_REPORT_FATAL("MemSpec", "DRAMPower does not support this memory standard");
-    return {};
-}
-#endif
 
 } // namespace DRAMSys

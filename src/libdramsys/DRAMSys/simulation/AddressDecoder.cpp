@@ -37,6 +37,7 @@
  */
 
 #include "AddressDecoder.h"
+#include "DRAMSys/config/AddressMapping.h"
 
 #include <bitset>
 #include <cmath>
@@ -50,23 +51,14 @@ static void addMapping(std::vector<Config::AddressMapping::BitEntry> const& mapp
                        std::vector<unsigned>& bitVector,
                        std::vector<std::vector<unsigned>>& xorVector)
 {
-    for (const auto& bitEntry : mappingVector)
+    for (const Config::AddressMapping::BitEntry& bitEntry : mappingVector)
     {
-        std::visit(
-            [&bitVector, &xorVector](auto&& arg)
-            {
-                using T = std::decay_t<decltype(arg)>;
-                if constexpr (std::is_same_v<T, unsigned>)
-                {
-                    bitVector.push_back(arg);
-                }
-                else if constexpr (std::is_same_v<T, std::vector<unsigned>>)
-                {
-                    bitVector.push_back(arg.at(0));
-                    xorVector.push_back(arg);
-                }
-            },
-            bitEntry);
+        if (bitEntry.get_type() == Config::AddressMapping::BitEntry::Type::SINGLE) {
+            bitVector.push_back(bitEntry.at(0));
+        } else {
+            bitVector.push_back(bitEntry.at(0));
+            xorVector.push_back(bitEntry);
+        }
     }
 }
 
@@ -195,7 +187,7 @@ void AddressDecoder::plausibilityCheck(const MemSpec& memSpec)
     if (memSpec.numberOfChannels != channels || memSpec.ranksPerChannel != ranks ||
         memSpec.bankGroupsPerChannel != absoluteBankGroups ||
         memSpec.banksPerChannel != absoluteBanks || memSpec.rowsPerBank != rows ||
-        memSpec.columnsPerRow != columns || memSpec.devicesPerRank * memSpec.bitWidth != bytes * 8)
+        memSpec.columnsPerRow != columns)
         SC_REPORT_FATAL("AddressDecoder", "Memspec and address mapping do not match");
 }
 

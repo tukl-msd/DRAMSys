@@ -45,7 +45,7 @@ CmdMuxOldest::CmdMuxOldest(const MemSpec& memSpec) : memSpec(memSpec)
 {
 }
 
-CommandTuple::Type CmdMuxOldest::selectCommand(const ReadyCommands& readyCommands)
+std::optional<CommandTuple::Type> CmdMuxOldest::selectCommand(const ReadyCommands& readyCommands)
 {
     auto result = readyCommands.cend();
     uint64_t lastPayloadID = UINT64_MAX;
@@ -73,10 +73,12 @@ CommandTuple::Type CmdMuxOldest::selectCommand(const ReadyCommands& readyCommand
         }
     }
 
-    if (result != readyCommands.cend() &&
-        std::get<CommandTuple::Timestamp>(*result) == sc_time_stamp())
-        return *result;
-    return {Command::NOP, nullptr, scMaxTime};
+    assert(result != readyCommands.cend());
+
+    if (std::get<CommandTuple::Timestamp>(*result) != sc_time_stamp())
+        return std::nullopt;
+
+    return *result;
 }
 
 CmdMuxOldestRasCas::CmdMuxOldestRasCas(const MemSpec& memSpec) : memSpec(memSpec)
@@ -86,7 +88,7 @@ CmdMuxOldestRasCas::CmdMuxOldestRasCas(const MemSpec& memSpec) : memSpec(memSpec
     readyRasCasCommands.reserve(2);
 }
 
-CommandTuple::Type CmdMuxOldestRasCas::selectCommand(const ReadyCommands& readyCommands)
+std::optional<CommandTuple::Type> CmdMuxOldestRasCas::selectCommand(const ReadyCommands& readyCommands)
 {
     readyRasCommands.clear();
     readyCasCommands.clear();
@@ -180,10 +182,12 @@ CommandTuple::Type CmdMuxOldestRasCas::selectCommand(const ReadyCommands& readyC
         }
     }
 
-    if (result != readyCommands.cend() &&
-        std::get<CommandTuple::Timestamp>(*result) == sc_time_stamp())
-        return *result;
-    return {Command::NOP, nullptr, scMaxTime};
+    assert(result != readyCommands.cend());
+
+    if (std::get<CommandTuple::Timestamp>(*result) != sc_time_stamp())
+        return std::nullopt;
+
+    return *result;
 }
 
 } // namespace DRAMSys

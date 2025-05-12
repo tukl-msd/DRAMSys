@@ -32,12 +32,15 @@
  * Authors:
  *    Lukas Steiner
  *    Derek Christ
+ *    Marco Mörz
  */
 
 #ifndef MEMSPECLPDDR4_H
 #define MEMSPECLPDDR4_H
 
 #include "DRAMSys/configuration/memspec/MemSpec.h"
+
+#include <DRAMUtils/memspec/standards/MemSpecLPDDR4.h>
 
 #include <systemc>
 
@@ -47,9 +50,10 @@ namespace DRAMSys
 class MemSpecLPDDR4 final : public MemSpec
 {
 public:
-    explicit MemSpecLPDDR4(const Config::MemSpec& memSpec);
+    explicit MemSpecLPDDR4(const DRAMUtils::MemSpec::MemSpecLPDDR4& memSpec);
 
     // Memspec Variables:
+    const DRAMUtils::MemSpec::MemSpecLPDDR4& memSpec;
     const sc_core::sc_time tREFI;
     const sc_core::sc_time tREFIpb;
     const sc_core::sc_time tRFCab;
@@ -96,6 +100,8 @@ public:
                             const tlm::tlm_generic_payload& payload) const override;
 
     [[nodiscard]] bool requiresMaskedWrite(const tlm::tlm_generic_payload& payload) const override;
+
+    [[nodiscard]] std::unique_ptr<DRAMPower::dram_base<DRAMPower::CmdType>> toDramPowerObject() const override;
 };
 
 } // namespace DRAMSys

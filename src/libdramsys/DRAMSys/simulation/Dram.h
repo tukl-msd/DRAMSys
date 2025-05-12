@@ -36,6 +36,7 @@
  *    Eder F. Zulian
  *    Felipe S. Prado
  *    Derek Christ
+ *    Marco Mörz
  */
 
 #ifndef DRAM_H
@@ -43,15 +44,16 @@
 
 #include "DRAMSys/common/Deserialize.h"
 #include "DRAMSys/common/Serialize.h"
+#include "DRAMSys/common/TlmRecorder.h"
 #include "DRAMSys/configuration/memspec/MemSpec.h"
 #include "DRAMSys/simulation/SimConfig.h"
 
-#include <memory>
+#include <DRAMPower/command/CmdType.h>
+#include <DRAMPower/dram/dram_base.h>
+
 #include <systemc>
 #include <tlm>
 #include <tlm_utils/simple_target_socket.h>
-
-class libDRAMPower;
 
 namespace DRAMSys
 {
@@ -63,14 +65,19 @@ protected:
 
     // Data Storage:
     const Config::StoreModeType storeMode;
-    const bool powerAnalysis;
     unsigned char* memory;
     const uint64_t channelSize;
     const bool useMalloc;
 
-#ifdef DRAMPOWER
-    std::unique_ptr<libDRAMPower> DRAMPower;
-#endif
+    TlmRecorder* const tlmRecorder;
+    sc_core::sc_time powerWindowSize;
+
+    std::unique_ptr<DRAMPower::dram_base<DRAMPower::CmdType>> DRAMPower;
+
+    // This Thread is only triggered when Power Simulation is enabled.
+    // It estimates the current average power which will be stored in the trace database for
+    // visualization purposes.
+    void powerWindow();
 
     virtual tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans,
                                                tlm::tlm_phase& phase,
@@ -82,7 +89,10 @@ protected:
     void executeWrite(const tlm::tlm_generic_payload& trans);
 
 public:
-    Dram(const sc_core::sc_module_name& name, const SimConfig& simConfig, const MemSpec& memSpec);
+    Dram(const sc_core::sc_module_name& name,
+         const SimConfig& simConfig,
+         const MemSpec& memSpec,
+         TlmRecorder* tlmRecorder);
     SC_HAS_PROCESS(Dram);
 
     Dram(const Dram&) = delete;

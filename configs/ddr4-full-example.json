@@ -65,34 +65,51 @@
                 "dataRate": 2,
                 "nbrOfBankGroups": 4,
                 "nbrOfBanks": 16,
-                "nbrOfChannels": 1,
                 "nbrOfColumns": 1024,
-                "nbrOfDevices": 8,
                 "nbrOfRanks": 1,
                 "nbrOfRows": 32768,
-                "width": 8
+                "width": 8,
+                "nbrOfDevices": 8,
+                "nbrOfChannels": 1,
+                "RefMode": 1,
+                "maxBurstLength": 8
             },
             "memoryId": "MICRON_4Gb_DDR4-1866_8bit_A",
             "memoryType": "DDR4",
             "mempowerspec": {
-                "idd0": 56.25,
-                "idd02": 4.05,
-                "idd2n": 33.75,
-                "idd2p0": 17.0,
-                "idd2p1": 17.0,
-                "idd3n": 39.5,
-                "idd3p0": 22.5,
-                "idd3p1": 22.5,
-                "idd4r": 157.5,
-                "idd4w": 135.0,
-                "idd5": 118.0,
-                "idd6": 20.25,
-                "idd62": 2.6,
                 "vdd": 1.2,
-                "vdd2": 2.5
+                "idd0": 56.25e-3,
+                "idd2n": 33.75e-3,
+                "idd3n": 39.5e-3,
+                "idd4r": 157.5e-3,
+                "idd4w": 135.0e-3,
+                "idd6n": 20.25e-3,
+                "idd2p": 17.0e-3,
+                "idd3p": 22.5e-3,
+                
+                "vpp": 2.5,
+                "ipp0": 4.05e-3,
+                "ipp2n": 0,
+                "ipp3n": 0,
+                "ipp4r": 0,
+                "ipp4w": 0,
+                "ipp6n": 2.6e-3,
+                "ipp2p": 17.0e-3,
+                "ipp3p": 22.5e-3,
+                
+                "idd5B": 118.0e-3,
+                "ipp5B": 0.0,
+                "idd5F2": 0.0,
+                "ipp5F2": 0.0,
+                "idd5F4": 0.0,
+                "ipp5F4": 0.0,
+                "vddq": 0.0,
+    
+                "iBeta_vdd": 56.25e-3,
+                "iBeta_vpp": 4.05e-3
+    
             },
             "memtimingspec": {
-                "ACTPDEN": 1,
                 "AL": 0,
                 "CCD_L": 5,
                 "CCD_S": 4,
@@ -101,23 +118,20 @@
                 "CL": 13,
                 "DQSCK": 2,
                 "FAW": 22,
-                "PRPDEN": 1,
                 "RAS": 32,
                 "RC": 45,
                 "RCD": 13,
-                "REFI": 7280,
                 "REFM": 1,
-                "REFPDEN": 1,
-                "RFC": 243,
-                "RFC2": 150,
-                "RFC4": 103,
+                "REFI": 3644,
+                "RFC1": 243,
+                "RFC2": 0,
+                "RFC4": 0,
                 "RL": 13,
-                "RP": 13,
                 "RPRE": 1,
+                "RP": 13,
                 "RRD_L": 5,
                 "RRD_S": 4,
                 "RTP": 8,
-                "RTRS": 1,
                 "WL": 12,
                 "WPRE": 1,
                 "WR": 14,
@@ -127,7 +141,49 @@
                 "XPDLL": 255,
                 "XS": 252,
                 "XSDLL": 512,
-                "tCK": 1072
+                "ACTPDEN": 1,
+                "PRPDEN": 1,
+                "REFPDEN": 1,
+                "RTRS": 1,
+                "tCK": 1072e-12
+            },
+            "bankwisespec": {
+                "factRho": 1.0
+            },
+            "memimpedancespec": {
+                "ck_termination": true,
+                "ck_R_eq": 1e6,
+                "ck_dyn_E": 1e-12,
+          
+                "ca_termination": true,
+                "ca_R_eq": 1e6,
+                "ca_dyn_E": 1e-12,
+          
+                "rdq_termination": true,
+                "rdq_R_eq": 1e6,
+                "rdq_dyn_E": 1e-12,
+                "wdq_termination": true,
+                "wdq_R_eq": 1e6,
+                "wdq_dyn_E": 1e-12,
+          
+                "wdqs_termination": true,
+                "wdqs_R_eq": 1e6,
+                "wdqs_dyn_E": 1e-12,
+                "rdqs_termination": true,
+                "rdqs_R_eq": 1e6,
+                "rdqs_dyn_E": 1e-12
+            },
+            "prepostamble": {
+                "read_zeroes": 0.0,
+                "write_zeroes": 0.0,
+                "read_ones": 0.0,
+                "write_ones": 0.0,
+                "read_zeroes_to_ones": 0,
+                "write_zeroes_to_ones": 0,
+                "write_ones_to_zeroes": 0,
+                "read_ones_to_zeroes": 0,
+                "readMinTccd": 0,
+                "writeMinTccd": 0
             }
         },
         "simconfig": {
@@ -136,18 +192,27 @@
             "DatabaseRecording": true,
             "Debug": false,
             "EnableWindowing": false,
-            "PowerAnalysis": false,
+            "PowerAnalysis": true,
             "SimulationName": "example",
             "SimulationProgressBar": true,
             "StoreMode": "NoStorage",
             "UseMalloc": false,
-            "WindowSize": 1000
+            "WindowSize": 1000,
+            "TogglingRate": {
+                "togglingRateRead": 0.5,
+                "togglingRateWrite": 0.5,
+                "dutyCycleRead": 0.5,
+                "dutyCycleWrite": 0.5,
+                "idlePatternRead": "L",
+                "idlePatternWrite": "L"
+            }
         },
         "simulationid": "ddr4-example",
         "tracesetup": [
             {
+                "type": "player",
                 "clkMhz": 200,
-                "name": "example.stl"
+                "name": "traces/example.stl"
             }
         ]
     }

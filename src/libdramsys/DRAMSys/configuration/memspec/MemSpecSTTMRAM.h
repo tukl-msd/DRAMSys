@@ -39,6 +39,8 @@
 
 #include "DRAMSys/configuration/memspec/MemSpec.h"
 
+#include <DRAMUtils/memspec/standards/MemSpecSTTMRAM.h>
+
 #include <systemc>
 
 namespace DRAMSys
@@ -47,7 +49,7 @@ namespace DRAMSys
 class MemSpecSTTMRAM final : public MemSpec
 {
 public:
-    explicit MemSpecSTTMRAM(const Config::MemSpec& memSpec);
+    explicit MemSpecSTTMRAM(const DRAMUtils::MemSpec::MemSpecSTTMRAM& memSpec);
 
     // Memspec Variables:
     const sc_core::sc_time tCKE;

@@ -32,13 +32,15 @@
  * Authors:
  *    Lukas Steiner
  *    Derek Christ
+ *    Marco Mörz
  */
 
 #ifndef MEMSPECDDR3_H
 #define MEMSPECDDR3_H
 
-#include "DRAMSys/config/DRAMSysConfiguration.h"
 #include "DRAMSys/configuration/memspec/MemSpec.h"
+
+#include <DRAMUtils/memspec/standards/MemSpecDDR3.h>
 
 #include <systemc>
 
@@ -48,7 +50,7 @@ namespace DRAMSys
 class MemSpecDDR3 final : public MemSpec
 {
 public:
-    explicit MemSpecDDR3(const Config::MemSpec& memSpec);
+    explicit MemSpecDDR3(const DRAMUtils::MemSpec::MemSpecDDR3& memSpec);
 
     // Memspec Variables:
     const sc_core::sc_time tCKE;
@@ -79,20 +81,6 @@ public:
     const sc_core::sc_time tREFPDEN;
     const sc_core::sc_time tRTRS;
 
-    // Currents and Voltages:
-    const double iDD0;
-    const double iDD2N;
-    const double iDD3N;
-    const double iDD4R;
-    const double iDD4W;
-    const double iDD5;
-    const double iDD6;
-    const double vDD;
-    const double iDD2P0;
-    const double iDD2P1;
-    const double iDD3P0;
-    const double iDD3P1;
-
     [[nodiscard]] sc_core::sc_time getRefreshIntervalAB() const override;
 
     [[nodiscard]] sc_core::sc_time
@@ -103,9 +91,6 @@ public:
 
     [[nodiscard]] bool requiresMaskedWrite(const tlm::tlm_generic_payload& payload) const override;
 
-#ifdef DRAMPOWER
-    [[nodiscard]] DRAMPower::MemorySpecification toDramPowerMemSpec() const override;
-#endif
 };
 
 } // namespace DRAMSys

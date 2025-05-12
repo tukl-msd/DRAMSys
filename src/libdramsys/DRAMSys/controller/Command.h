@@ -33,13 +33,12 @@
  *    Janik Schlemminger
  *    Matthias Jung
  *    Lukas Steiner
+ *    Marco Mörz
  */
 #ifndef COMMAND_H
 #define COMMAND_H
 
-#ifdef DRAMPOWER
-#include "MemCommand.h"
-#endif
+#include <DRAMPower/command/CmdType.h>
 
 #include <string>
 #include <systemc>
@@ -85,9 +84,7 @@ DECLARE_EXTENDED_PHASE(END_PDNA); // 27
 DECLARE_EXTENDED_PHASE(END_PDNP); // 28
 DECLARE_EXTENDED_PHASE(END_SREF); // 29
 
-#ifdef DRAMPOWER
-DRAMPower::MemCommand::cmds phaseToDRAMPowerCommand(tlm::tlm_phase phase);
-#endif
+DRAMPower::CmdType phaseToDRAMPowerCommand(tlm::tlm_phase phase);
 
 bool phaseHasDataStrobe(tlm::tlm_phase phase);
 bool isPowerDownEntryPhase(tlm::tlm_phase phase);

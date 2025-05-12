@@ -14,17 +14,17 @@
         "memoryId": "MICRON_2Gb_LPDDR-333_16bit_A",
         "memoryType": "LPDDR",
         "mempowerspec": {
-            "idd0": 100.0,
-            "idd2n": 15.0,
-            "idd2p0": 0.6,
-            "idd2p1": 0.6,
-            "idd3n": 18.0,
-            "idd3p0": 3.6,
-            "idd3p1": 3.6,
-            "idd4r": 115.0,
-            "idd4w": 115.0,
-            "idd5": 170.0,
-            "idd6": 1.7,
+            "idd0": 100.0e-3,
+            "idd2n": 15.0e-3,
+            "idd2p0": 0.6e-3,
+            "idd2p1": 0.6e-3,
+            "idd3n": 18.0e-3,
+            "idd3p0": 3.6e-3,
+            "idd3p1": 3.6e-3,
+            "idd4r": 115.0e-3,
+            "idd4w": 115.0e-3,
+            "idd5": 170.0e-3,
+            "idd6": 1.7e-3,
             "vdd": 1.8
         },
         "memtimingspec": {
@@ -50,7 +50,7 @@
             "XPDLL": 1,
             "XS": 19,
             "XSDLL": 19,
-            "tCK": 6024
+            "tCK": 6024e-12
         }
     }
 }

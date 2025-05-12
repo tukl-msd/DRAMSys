@@ -36,8 +36,11 @@
 #ifndef DRAMSYSCONFIGURATION_TRACESETUP_H
 #define DRAMSYSCONFIGURATION_TRACESETUP_H
 
-#include "DRAMSys/util/json.h"
+#include <DRAMUtils/util/json_utils.h>
+#include <DRAMUtils/util/id_variant.h>
+#include <DRAMUtils/util/types.h>
 
+#include <string_view>
 #include <optional>
 #include <variant>
 
@@ -72,6 +75,8 @@ NLOHMANN_JSON_SERIALIZE_ENUM(AddressDistribution,
 
 struct TracePlayer
 {
+    static constexpr inline const std::string_view id = "player";
+
     uint64_t clkMhz{};
     std::string name;
     std::optional<unsigned int> maxPendingReadRequests;
@@ -122,6 +127,8 @@ NLOHMANN_JSONIFY_ALL_THINGS(TrafficGeneratorStateTransition, from, to, probabili
 
 struct TrafficGenerator
 {
+    static constexpr inline const std::string_view id = "generator";
+
     uint64_t clkMhz{};
     std::string name;
     std::optional<unsigned int> maxPendingReadRequests;
@@ -158,6 +165,8 @@ NLOHMANN_JSONIFY_ALL_THINGS(TrafficGenerator,
 
 struct TrafficGeneratorStateMachine
 {
+    static constexpr inline const std::string_view id = "statemachine";
+
     uint64_t clkMhz{};
     std::string name;
     std::optional<unsigned int> maxPendingReadRequests;
@@ -185,6 +194,8 @@ NLOHMANN_JSONIFY_ALL_THINGS(TrafficGeneratorStateMachine,
 
 struct RowHammer
 {
+    static constexpr inline const std::string_view id = "rowhammer";
+
     uint64_t clkMhz{};
     std::string name;
     std::optional<unsigned int> maxPendingReadRequests;
@@ -205,11 +216,16 @@ NLOHMANN_JSONIFY_ALL_THINGS(RowHammer,
 struct TraceSetupConstants
 {
     static constexpr std::string_view KEY = "tracesetup";
-    static constexpr std::string_view SUB_DIR = "tracesetup";
 };
 
-using Initiator =
-    std::variant<TracePlayer, TrafficGenerator, TrafficGeneratorStateMachine, RowHammer>;
+using InitiatorTypes = DRAMUtils::util::type_sequence<
+    TracePlayer,
+    TrafficGenerator,
+    TrafficGeneratorStateMachine,
+    RowHammer
+>;
+
+DRAMUTILS_DECLARE_IDVARIANT(Initiator, "type", InitiatorTypes)
 
 } // namespace DRAMSys::Config
 

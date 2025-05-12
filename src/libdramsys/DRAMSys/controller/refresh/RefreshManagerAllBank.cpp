@@ -29,8 +29,10 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Author: Lukas Steiner
- *         Matthias Jung
+ * Authors:
+ *    Lukas Steiner
+ *    Matthias Jung
+ *    Derek Christ
  */
 
 #include "RefreshManagerAllBank.h"
@@ -238,6 +240,16 @@ void RefreshManagerAllBank::update(Command command)
 sc_time RefreshManagerAllBank::getTimeForNextTrigger()
 {
     return timeForNextTrigger;
+}
+
+void RefreshManagerAllBank::serialize(std::ostream& stream) const
+{
+    stream.write(reinterpret_cast<char const*>(&timeForNextTrigger), sizeof(timeForNextTrigger));
+}
+
+void RefreshManagerAllBank::deserialize(std::istream& stream)
+{
+    stream.read(reinterpret_cast<char *>(&timeForNextTrigger), sizeof(timeForNextTrigger));
 }
 
 } // namespace DRAMSys

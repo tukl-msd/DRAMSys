@@ -45,7 +45,11 @@
 #include "powerdown/PowerDownManagerIF.h"
 #include "refresh/RefreshManagerIF.h"
 #include "respqueue/RespQueueIF.h"
+#include "DRAMSys/common/Deserialize.h"
+#include "DRAMSys/common/Serialize.h"
 
+#include "DRAMSys/common/TlmRecorder.h"
+#include "DRAMSys/simulation/SimConfig.h"
 #include <DRAMSys/common/DebugManager.h>
 #include <DRAMSys/simulation/AddressDecoder.h>
 
@@ -55,13 +59,11 @@
 #include <tlm>
 #include <tlm_utils/simple_initiator_socket.h>
 #include <tlm_utils/simple_target_socket.h>
-#include <utility>
-#include <vector>
 
 namespace DRAMSys
 {
 
-class Controller : public sc_core::sc_module
+class Controller : public sc_core::sc_module, public Serialize, public Deserialize
 {
 public:
     tlm_utils::simple_target_socket<Controller> tSocket{"tSocket"};    // Arbiter side
@@ -70,11 +72,16 @@ public:
     Controller(const sc_core::sc_module_name& name,
                const McConfig& config,
                const MemSpec& memSpec,
-               const AddressDecoder& addressDecoder);
+               const SimConfig& simConfig,
+               const AddressDecoder& addressDecoder,
+               TlmRecorder* tlmRecorder);
     SC_HAS_PROCESS(Controller);
 
     [[nodiscard]] bool idle() const { return totalNumberOfPayloads == 0; }
     void registerIdleCallback(std::function<void()> idleCallback);
+
+    void serialize(std::ostream& stream) const override;
+    void deserialize(std::istream& stream) override;
 
 protected:
     void end_of_simulation() override;
@@ -92,14 +99,24 @@ protected:
     sendToFrontend(tlm::tlm_generic_payload& trans, tlm::tlm_phase& phase, sc_core::sc_time& delay);
 
     virtual void controllerMethod();
+    void recordBufferDepth();
 
     const McConfig& config;
     const MemSpec& memSpec;
+    const SimConfig& simConfig;
     const AddressDecoder& addressDecoder;
+    TlmRecorder* const tlmRecorder;
 
     std::unique_ptr<SchedulerIF> scheduler;
 
     sc_core::sc_time scMaxTime = sc_core::sc_max_time();
+
+    sc_core::sc_time lastTimeCalled = sc_core::SC_ZERO_TIME;
+    sc_core::sc_event windowEvent;
+    const sc_core::sc_time windowSizeTime;
+    sc_core::sc_time nextWindowEventTime;
+    std::vector<sc_core::sc_time> slidingAverageBufferDepth;
+    std::vector<double> windowAverageBufferDepth;
 
     std::vector<uint64_t> numberOfBeatsServed;
     unsigned totalNumberOfPayloads = 0;

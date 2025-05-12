@@ -36,7 +36,7 @@
 #ifndef DRAMSYSCONFIGURATION_MCCONFIG_H
 #define DRAMSYSCONFIGURATION_MCCONFIG_H
 
-#include "DRAMSys/util/json.h"
+#include <DRAMUtils/util/json_utils.h>
 
 #include <optional>
 
@@ -170,7 +170,6 @@ NLOHMANN_JSON_SERIALIZE_ENUM(ArbiterType,
 struct McConfig
 {
     static constexpr std::string_view KEY = "mcconfig";
-    static constexpr std::string_view SUB_DIR = "mcconfig";
 
     std::optional<PagePolicyType> PagePolicy;
     std::optional<SchedulerType> Scheduler;

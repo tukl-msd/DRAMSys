@@ -82,11 +82,6 @@ $ cmake -S . -B build
 $ cmake --build build
 ```
 
-To include **DRAMPower** in your build enable the CMake option `DRAMSYS_WITH_DRAMPOWER`:
-```console
-$ cmake -B build -D DRAMSYS_WITH_DRAMPOWER=Y
-```
-
 If you plan to integrate DRAMSys into your own SystemC TLM-2.0 project you can build only the DRAMSys library by disabling the CMake option `DRAMSYS_BUILD_CLI`.
 
 To include the Trace Analyzer in the build process, enable the CMake option `DRAMSYS_BUILD_TRACE_ANALYZER`.

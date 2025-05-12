@@ -39,6 +39,8 @@
 add_library(libdramsys
     DRAMSys/common/DebugManager.cpp
     DRAMSys/common/TlmRecorder.cpp
+    DRAMSys/common/TlmATRecorder.cpp
+    DRAMSys/common/DramATRecorder.cpp
     DRAMSys/common/dramExtensions.cpp
     DRAMSys/common/utils.cpp
     DRAMSys/configuration/memspec/MemSpec.cpp
@@ -55,7 +57,6 @@ add_library(libdramsys
     DRAMSys/controller/BankMachine.cpp
     DRAMSys/controller/Command.cpp
     DRAMSys/controller/Controller.cpp
-    DRAMSys/controller/ControllerRecordable.cpp
     DRAMSys/controller/McConfig.cpp
     DRAMSys/controller/checker/CheckerDDR3.cpp
     DRAMSys/controller/checker/CheckerDDR4.cpp
@@ -90,7 +91,6 @@ add_library(libdramsys
     DRAMSys/simulation/Arbiter.cpp
     DRAMSys/simulation/DRAMSys.cpp
     DRAMSys/simulation/Dram.cpp
-    DRAMSys/simulation/DramRecordable.cpp
     DRAMSys/simulation/SimConfig.cpp
 )
 
@@ -100,14 +100,15 @@ target_compile_features(libdramsys PUBLIC cxx_std_17)
 
 target_compile_definitions(libdramsys
     PUBLIC
-        $<$<BOOL:${DRAMPower_FOUND}>:DRAMPOWER>
+        DRAMSYS_RESOURCE_DIR="${DRAMSYS_RESOURCE_DIR}"
 )
 
 target_link_libraries(libdramsys
     PUBLIC
         SystemC::systemc
         DRAMSys::config
-        $<$<TARGET_EXISTS:DRAMPower::DRAMPower>:DRAMPower::DRAMPower>
+        DRAMUtils::DRAMUtils
+        DRAMPower::DRAMPower
     PRIVATE
         SQLite::SQLite3
 

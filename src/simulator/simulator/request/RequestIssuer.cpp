@@ -85,6 +85,13 @@ void RequestIssuer::sendNextRequest()
 
     sc_core::sc_time sendingTime = sc_core::sc_time_stamp() + delay;
 
+    bool needsOffset = (sendingTime % interfaceClk) != sc_core::SC_ZERO_TIME;
+    if (needsOffset)
+    {
+        sendingTime += interfaceClk;
+        sendingTime -= sendingTime % interfaceClk;
+    }
+
     delay = sendingTime - sc_core::sc_time_stamp();
     iSocket->nb_transport_fw(payload, phase, delay);
 

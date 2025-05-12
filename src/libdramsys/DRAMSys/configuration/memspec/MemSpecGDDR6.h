@@ -32,6 +32,7 @@
  * Authors:
  *    Lukas Steiner
  *    Derek Christ
+ *    Marco Mörz
  */
 
 #ifndef MEMSPECGDDR6_H
@@ -39,14 +40,17 @@
 
 #include "DRAMSys/configuration/memspec/MemSpec.h"
 
+#include <DRAMUtils/memspec/standards/MemSpecGDDR6.h>
+
 #include <systemc>
+
 namespace DRAMSys
 {
 
 struct MemSpecGDDR6 final : public MemSpec
 {
 public:
-    explicit MemSpecGDDR6(const Config::MemSpec& memSpec);
+    explicit MemSpecGDDR6(const DRAMUtils::MemSpec::MemSpecGDDR6& memSpec);
 
     // Memspec Variables:
     const sc_core::sc_time tRP;

@@ -29,14 +29,17 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Author: Lukas Steiner
+ * Authors:
+ *    Lukas Steiner
+ *    Derek Christ
  */
 
 #ifndef REFRESHMANAGERIF_H
 #define REFRESHMANAGERIF_H
 
+#include "DRAMSys/common/Deserialize.h"
+#include "DRAMSys/common/Serialize.h"
 #include "DRAMSys/common/dramExtensions.h"
-#include "DRAMSys/controller/Command.h"
 #include "DRAMSys/controller/ManagerIF.h"
 
 #include <cmath>
@@ -45,7 +48,7 @@
 namespace DRAMSys
 {
 
-class RefreshManagerIF : public ManagerIF
+class RefreshManagerIF : public ManagerIF, public Serialize, public Deserialize
 {
 public:
     virtual sc_core::sc_time getTimeForNextTrigger() = 0;

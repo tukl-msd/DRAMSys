@@ -9,7 +9,8 @@
             "nbrOfRows": 32768,
             "width": 16,
        	    "nbrOfDevices": 1,
-            "nbrOfChannels": 1
+            "nbrOfChannels": 1,
+            "maxBurstLength": 8
         },
         "memoryId": "SAMSUNG_K4B4G1646Q_4Gb_DDR3-1066_16bit",
         "memoryType": "DDR3",
@@ -55,7 +56,7 @@
             "PRPDEN": 1,
             "REFPDEN": 1,
             "RTRS": 1,
-            "tCK": 1876
+            "tCK": 1876e-12
         }
     }
 }

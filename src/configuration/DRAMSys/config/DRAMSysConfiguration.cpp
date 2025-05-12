@@ -35,15 +35,17 @@
 
 #include "DRAMSysConfiguration.h"
 
+#include "DRAMSys/config/MemSpec.h"
+
 #include <fstream>
-#include <iostream>
 
 namespace DRAMSys::Config
 {
 
-Configuration from_path(std::string_view path, std::string_view resourceDirectory)
+Configuration from_path(std::filesystem::path baseConfig)
 {
-    std::ifstream file(path.data());
+    std::ifstream file(baseConfig);
+    std::filesystem::path baseDir = baseConfig.parent_path();
 
     enum class SubConfig
     {
@@ -59,7 +61,7 @@ Configuration from_path(std::string_view path, std::string_view resourceDirector
     // with the actual json data.
     std::function<bool(int depth, nlohmann::detail::parse_event_t event, json_t& parsed)>
         parser_callback;
-    parser_callback = [&parser_callback, &current_sub_config, resourceDirectory](
+    parser_callback = [&parser_callback, &current_sub_config, baseDir](
                           int depth, nlohmann::detail::parse_event_t event, json_t& parsed) -> bool
     {
         using nlohmann::detail::parse_event_t;
@@ -71,7 +73,7 @@ Configuration from_path(std::string_view path, std::string_view resourceDirector
         {
             assert(parsed.is_string());
 
-            if (parsed == MemSpec::KEY)
+            if (parsed == MemSpecConstants::KEY)
                 current_sub_config = SubConfig::MemSpec;
             else if (parsed == AddressMapping::KEY)
                 current_sub_config = SubConfig::AddressMapping;
@@ -90,13 +92,10 @@ Configuration from_path(std::string_view path, std::string_view resourceDirector
         if (event == parse_event_t::value && current_sub_config != SubConfig::Unkown)
         {
             // Replace name of json file with actual json data
-            auto parse_json = [&parser_callback,
-                               resourceDirectory](std::string_view base_dir,
-                                                  std::string_view sub_config_key,
-                                                  const std::string& filename) -> json_t
+            auto parse_json = [&parser_callback, baseDir](std::string_view sub_config_key,
+                                                          const std::string& filename) -> json_t
             {
-                std::filesystem::path path(resourceDirectory);
-                path /= base_dir;
+                std::filesystem::path path{baseDir};
                 path /= filename;
 
                 std::ifstream json_file(path);
@@ -110,15 +109,15 @@ Configuration from_path(std::string_view path, std::string_view resourceDirector
             };
 
             if (current_sub_config == SubConfig::MemSpec)
-                parsed = parse_json(MemSpec::SUB_DIR, MemSpec::KEY, parsed);
+                parsed = parse_json(MemSpecConstants::KEY, parsed);
             else if (current_sub_config == SubConfig::AddressMapping)
-                parsed = parse_json(AddressMapping::SUB_DIR, AddressMapping::KEY, parsed);
+                parsed = parse_json(AddressMapping::KEY, parsed);
             else if (current_sub_config == SubConfig::McConfig)
-                parsed = parse_json(McConfig::SUB_DIR, McConfig::KEY, parsed);
+                parsed = parse_json(McConfig::KEY, parsed);
             else if (current_sub_config == SubConfig::SimConfig)
-                parsed = parse_json(SimConfig::SUB_DIR, SimConfig::KEY, parsed);
+                parsed = parse_json(SimConfig::KEY, parsed);
             else if (current_sub_config == SubConfig::TraceSetup)
-                parsed = parse_json(TraceSetupConstants::SUB_DIR, TraceSetupConstants::KEY, parsed);
+                parsed = parse_json(TraceSetupConstants::KEY, parsed);
         }
 
         return true;
@@ -129,7 +128,7 @@ Configuration from_path(std::string_view path, std::string_view resourceDirector
         json_t simulation = json_t::parse(file, parser_callback, true, true).at(Configuration::KEY);
         return simulation.get<Config::Configuration>();
     }
-    throw std::runtime_error("Failed to open file " + std::string(path));
+    throw std::runtime_error("Failed to open file " + std::string(baseConfig));
 }
 
 } // namespace DRAMSys::Config

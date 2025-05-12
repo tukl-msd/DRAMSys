@@ -9,22 +9,23 @@
             "nbrOfRows": 16384,
             "width": 8,
        	    "nbrOfDevices": 8,
-            "nbrOfChannels": 1
+            "nbrOfChannels": 1,
+            "maxBurstLength": 8
         },
         "memoryId": "MICRON_1Gb_DDR3-1066_8bit_G_mu",
         "memoryType": "DDR3",
         "mempowerspec": {
-            "idd0": 53.63,
-            "idd2n": 28.25,
-            "idd2p0": 7.12,
-            "idd2p1": 14.83,
-            "idd3n": 31.12,
-            "idd3p0": 23.34,
-            "idd3p1": 23.34,
-            "idd4r": 91.47,
-            "idd4w": 96.68,
-            "idd5": 144.41,
-            "idd6": 4.7,
+            "idd0": 53.63e-3,
+            "idd2n": 28.25e-3,
+            "idd2p0": 7.12e-3,
+            "idd2p1": 14.83e-3,
+            "idd3n": 31.12e-3,
+            "idd3p0": 23.34e-3,
+            "idd3p1": 23.34e-3,
+            "idd4r": 91.47e-3,
+            "idd4w": 96.68e-3,
+            "idd5": 144.41e-3,
+            "idd6": 4.7e-3,
             "vdd": 1.5
         },
         "memtimingspec": {
@@ -55,7 +56,7 @@
             "PRPDEN": 1,
             "REFPDEN": 1,
             "RTRS": 1,
-            "tCK": 1876
+            "tCK": 1876e-12
         }
     }
 }

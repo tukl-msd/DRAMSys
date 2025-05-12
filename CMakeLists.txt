@@ -47,7 +47,6 @@ if(POLICY CMP0135)
 endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
-include(enable_extensions)
 
 if (PROJECT_IS_TOP_LEVEL)
     set(CMAKE_CXX_STANDARD 17)
@@ -66,6 +65,7 @@ endif()
 option(DRAMSYS_BUILD_TESTS "Build DRAMSys unit tests" OFF)
 option(DRAMSYS_BUILD_BENCHMARKS "Build DRAMSys benchmarks" OFF)
 option(DRAMSYS_BUILD_CLI "Build DRAMSys Command Line Tool" ${PROJECT_IS_TOP_LEVEL})
+option(DRAMSYS_BUILD_TOOLS "Build DRAMSys Tools" OFF)
 option(DRAMSYS_BUILD_TRACE_ANALYZER "Build DRAMSys Trace Analyzer" OFF)
 
 # Use sane defaults for FetchContent:
@@ -131,9 +131,15 @@ if (DRAMSYS_USE_FETCH_CONTENT)
 
     if (DRAMSYS_USE_FETCH_CONTENT_INTERNAL)
         FetchContent_Declare(
+            DRAMUtils
+            URL "https://github.com/tukl-msd/DRAMUtils/archive/refs/tags/v1.7.0.tar.gz"
+            OVERRIDE_FIND_PACKAGE
+        )
+        FetchContent_MakeAvailable(DRAMUtils)
+        
+        FetchContent_Declare(
             DRAMPower
-            GIT_REPOSITORY https://github.com/tukl-msd/DRAMPower
-            GIT_TAG ebd9ff7
+            URL "https://github.com/tukl-msd/DRAMPower/archive/refs/tags/v5.4.1.tar.gz"
             OVERRIDE_FIND_PACKAGE
         )
 
@@ -143,15 +149,8 @@ endif()
 
 find_package(SystemCLanguage REQUIRED)
 find_package(SQLite3 REQUIRED)
-find_package(nlohmann_json REQUIRED)
-
-find_package(DRAMPower)
-
-if (DRAMPower_FOUND)
-    message(STATUS "Building with DRAMPower")
-else()
-    message(STATUS "Building without DRAMPower")
-endif()
+find_package(DRAMUtils REQUIRED)
+find_package(DRAMPower REQUIRED)
 
 ###############################################
 ###           Source Directory              ###
@@ -159,6 +158,10 @@ endif()
 
 add_subdirectory(src/configuration)
 add_subdirectory(src/libdramsys)
+
+if(DRAMSYS_BUILD_TOOLS)
+    add_subdirectory(tools)
+endif()
 
 if(DRAMSYS_BUILD_CLI)
     add_subdirectory(src/simulator)
@@ -168,7 +171,9 @@ if(DRAMSYS_BUILD_TRACE_ANALYZER)
     add_subdirectory(src/traceAnalyzer)
 endif()
 
-dramsys_enable_extensions()
+if(EXISTS ${DRAMSYS_EXTENSIONS_DIR})
+    add_subdirectory(${DRAMSYS_EXTENSIONS_DIR})
+endif()
 
 ###############################################
 ###           Test Directory                ###
