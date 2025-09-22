@@ -171,6 +171,7 @@ private:
     public:
         DRAMSysStats(DRAMSys& dramsys) : Stats::Group(dramsys.basename()) {}
     } stats;
+
 };
 
 } // namespace DRAMSys

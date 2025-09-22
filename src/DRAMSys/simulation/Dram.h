@@ -46,6 +46,9 @@
 #include <DRAMSys/configuration/memspec/MemSpec.h>
 #include <DRAMSys/controller/Command.h>
 
+#include "DRAMSys/simulation/AddressDecoder.h"
+#include "pim-vm-cxx/lib.h"
+
 #ifdef USE_DRAMPOWER
 #include <DRAMSys/power/DRAMPowerAdapter.h>
 #else
@@ -70,17 +73,22 @@ public:
          bool recording,
          std::vector<std::unique_ptr<DramATRecorder>>* dramATRecorders,
          bool power,
-         std::vector<DRAMPowerAdapter*>* DRAMPowerMappings) :
+         std::vector<DRAMPowerAdapter*>* DRAMPowerMappings,
+         AddressDecoder* addressDecoder) :
         sc_core::sc_module(name),
         backingStore(backingStore),
         memspec(memspec),
         recording(recording),
         dramATRecorders(dramATRecorders),
         power(power),
-        DRAMPowerMappings(DRAMPowerMappings)
+        DRAMPowerMappings(DRAMPowerMappings),
+        addressDecoder(addressDecoder),
+        pimVM(pim_vm::new_pim_vm(memspec->banksPerChannel))
     {
         tSocket.register_b_transport(this, &Dram::b_transport);
         tSocket.register_transport_dbg(this, &Dram::transport_dbg);
+
+        pim_vm::init_logger();
     }
 
 private:
@@ -90,6 +98,9 @@ private:
     void executeRead(tlm::tlm_generic_payload& trans) const;
     void executeWrite(const tlm::tlm_generic_payload& trans);
 
+    std::vector<uint8_t> read(uint64_t address, std::size_t length);
+    void write(uint64_t address, std::vector<uint8_t> const& data);
+
     unsigned char** backingStore;
     MemSpec const* memspec;
 
@@ -98,6 +109,13 @@ private:
 
     bool power;
     std::vector<DRAMPowerAdapter*>* DRAMPowerMappings;
+
+    AddressDecoder* addressDecoder;
+
+    static constexpr unsigned int PIM_CONFIG_ADDR = 0x40000000;
+    static constexpr unsigned int PIM_DATA_ADDR = 0x40004000;
+    std::string message;
+    rust::Box<pim_vm::PimVM> pimVM;
 };
 
 } // namespace DRAMSys

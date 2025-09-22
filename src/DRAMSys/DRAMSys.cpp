@@ -137,7 +137,8 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
                                 simconfig.databaseRecording,
                                 &dramATRecorders,
                                 simconfig.powerAnalysis,
-                                &DRAMPowerMappings)),
+                                &DRAMPowerMappings,
+                                addressDecoder.get())),
     stats(*this)
 {
     printLogo();

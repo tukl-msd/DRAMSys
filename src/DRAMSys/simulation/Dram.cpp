@@ -79,12 +79,122 @@ void Dram::b_transport(int id, tlm_generic_payload& trans, [[maybe_unused]] sc_t
     {
         if (trans.is_read())
         {
-            executeRead(trans);
+            if (pimVM->bank_mode() == pim_vm::BankMode::PimAllBank &&
+                (trans.get_address() >= PIM_DATA_ADDR))
+            {
+                DecodedAddress baseAddress = addressDecoder->decodeAddress(trans.get_address());
+                std::size_t bankStartIndex = 0;
+                std::size_t bankIncrement = 1;
+
+#ifdef SHARED_PIM_UNITS
+                bankStartIndex = (baseAddress.bank % 2) == 0 ? 0 : 1;
+                bankIncrement = 2;
+#endif
+
+                for (std::size_t bank = bankStartIndex; bank < memspec->banksPerChannel;
+                     bank += bankIncrement)
+                {
+                    unsigned rank = bank / memspec->banksPerRank;
+                    unsigned bankGroup = bank / memspec->banksPerGroup;
+
+                    DecodedAddress decodedAddress(baseAddress.channel,
+                                                  static_cast<unsigned>(rank),
+                                                  baseAddress.stack,
+                                                  static_cast<unsigned>(bankGroup),
+                                                  static_cast<unsigned>(bank),
+                                                  baseAddress.row,
+                                                  baseAddress.column);
+
+                    auto pimAddress = addressDecoder->encodeAddress(decodedAddress);
+                    auto data = Dram::read(pimAddress, memspec->defaultBytesPerBurst);
+                    rust::Slice<const uint8_t> data_slice(data.data(), data.size());
+                    pimVM->execute_read(
+                        bank, pimAddress, baseAddress.row, baseAddress.column, data_slice);
+                }
+            }
         }
         else if (trans.is_write())
         {
-            executeWrite(trans);
+            if (trans.get_address() >= PIM_CONFIG_ADDR && trans.get_address() < PIM_DATA_ADDR)
+            {
+                const auto* msg = trans.get_data_ptr();
+                for (std::size_t i = 0; i < trans.get_data_length(); i++)
+                {
+                    if (msg[i] != '\0')
+                    {
+                        message.push_back(msg[i]);
+                    }
+                    else
+                    {
+                        if (!message.empty())
+                        {
+                            pimVM->apply_config(message);
+                        }
+
+                        message.clear();
+                        break;
+                    }
+                }
+            }
+            else if (pimVM->bank_mode() == pim_vm::BankMode::AllBank &&
+                     (trans.get_address() >= PIM_DATA_ADDR))
+            {
+                DecodedAddress baseAddress = addressDecoder->decodeAddress(trans.get_address());
+                for (std::size_t bank = 0; bank < memspec->banksPerChannel; bank++)
+                {
+                    unsigned rank = bank / memspec->banksPerRank;
+                    unsigned bankGroup = bank / memspec->banksPerGroup;
+
+                    DecodedAddress decodedAddress(baseAddress.channel,
+                                                  static_cast<unsigned>(rank),
+                                                  baseAddress.stack,
+                                                  static_cast<unsigned>(bankGroup),
+                                                  static_cast<unsigned>(bank),
+                                                  baseAddress.row,
+                                                  baseAddress.column);
+
+                    trans.set_address(addressDecoder->encodeAddress(decodedAddress));
+                    Dram::executeWrite(trans);
+                }
+            }
+            else if (pimVM->bank_mode() == pim_vm::BankMode::PimAllBank &&
+                     (trans.get_address() >= PIM_DATA_ADDR))
+            {
+                DecodedAddress baseAddress = addressDecoder->decodeAddress(trans.get_address());
+                std::size_t bankStartIndex = 0;
+                std::size_t bankIncrement = 1;
+
+#ifdef SHARED_PIM_UNITS
+                bankStartIndex = (baseAddress.bank % 2) == 0 ? 0 : 1;
+                bankIncrement = 2;
+#endif
+
+                for (std::size_t bank = bankStartIndex; bank < memspec->banksPerChannel;
+                     bank += bankIncrement)
+                {
+                    unsigned rank = bank / memspec->banksPerRank;
+                    unsigned bankGroup = bank / memspec->banksPerGroup;
+
+                    DecodedAddress decodedAddress(baseAddress.channel,
+                                                  static_cast<unsigned>(rank),
+                                                  baseAddress.stack,
+                                                  static_cast<unsigned>(bankGroup),
+                                                  static_cast<unsigned>(bank),
+                                                  baseAddress.row,
+                                                  baseAddress.column);
+
+                    auto pimAddress = addressDecoder->encodeAddress(decodedAddress);
+                    auto data = pimVM->execute_write(bank);
+                    std::vector<uint8_t> data_vector{data.cbegin(), data.cend()};
+                    Dram::write(pimAddress, data_vector);
+                }
+            }
         }
+
+        if (trans.is_read())
+            Dram::executeRead(trans);
+        else
+            Dram::executeWrite(trans);
     }
 
     trans.set_response_status(TLM_OK_RESPONSE);
@@ -146,6 +256,23 @@ void Dram::executeWrite(const tlm::tlm_generic_payload& trans)
             }
         }
     }
+}
+
+std::vector<uint8_t> Dram::read(uint64_t address, std::size_t length)
+{
+    unsigned char const* phyAddr = *backingStore + address;
+
+    std::vector<uint8_t> data;
+    data.resize(length);
+
+    std::memcpy(data.data(), phyAddr, length);
+    return data;
+}
+
+void Dram::write(uint64_t address, std::vector<uint8_t> const& data)
+{
+    unsigned char* phyAddr = *backingStore + address;
+    std::memcpy(phyAddr, data.data(), data.size());
 }
 
 } // namespace DRAMSys

@@ -188,6 +188,53 @@ find_package(fmt REQUIRED)
 find_package(DRAMUtils REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
+FetchContent_Declare(
+    Corrosion
+    URL https://github.com/corrosion-rs/corrosion/archive/refs/tags/v0.6.1.tar.gz
+)
+
+FetchContent_MakeAvailable(Corrosion)
+
+FetchContent_Declare(
+    pimsys
+    GIT_REPOSITORY git@github.com:CEJMU/PIMSys.git
+    GIT_TAG        main
+)
+FetchContent_MakeAvailable(pimsys)
+
+corrosion_import_crate(MANIFEST_PATH ${pimsys_SOURCE_DIR}/pim-vm/Cargo.toml)
+corrosion_add_cxxbridge(pim-vm-cxx CRATE pim_vm FILES lib.rs)
+
+if (DRAMSYS_INSTALL)
+    include(GNUInstallDirs)
+    set_target_properties(pim-vm-cxx PROPERTIES
+        INTERFACE_SOURCES ""
+    )
+    target_include_directories(pim-vm-cxx
+        INTERFACE
+            $<INSTALL_INTERFACE:include>
+    )
+    corrosion_install(TARGETS pim_vm EXPORT DRAMSysTargets)
+    install(
+        TARGETS pim-vm-cxx
+        EXPORT DRAMSysTargets
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBRARYDIR}
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBRARYDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+    install(
+        DIRECTORY
+            ${CMAKE_CURRENT_BINARY_DIR}/corrosion_generated/cxxbridge/pim-vm-cxx/include/
+        DESTINATION
+            ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+endif()
+
+option(DRAMSYS_SHARED_PIM_UNITS ON)
+if(DRAMSYS_SHARED_PIM_UNITS)
+    corrosion_set_features(pim_vm FEATURES shared_pim_units)
+endif()
+
 ###############################################
 ###           Source Directory              ###
 ###############################################

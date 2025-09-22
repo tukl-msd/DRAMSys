@@ -140,6 +140,10 @@ target_include_directories(dramsys PUBLIC
     $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
 )
 
+if (DRAMSYS_SHARED_PIM_UNITS)
+    target_compile_definitions(dramsys PRIVATE SHARED_PIM_UNITS)
+endif ()
+
 target_compile_features(dramsys PUBLIC cxx_std_17)
 
 string(TIMESTAMP CURRENT_YEAR "%Y")
@@ -152,6 +156,7 @@ target_link_libraries(dramsys
     PUBLIC
         SystemC::systemc
         DRAMUtils::DRAMUtils
+        pim-vm-cxx
     PRIVATE
         SQLite3::SQLite3
         fmt::fmt-header-only
