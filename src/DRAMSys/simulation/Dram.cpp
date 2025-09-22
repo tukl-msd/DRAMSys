@@ -43,6 +43,9 @@
 
 #include "DRAMSys/common/DebugManager.h"
 #include "DRAMSys/common/TlmRecorder.h"
+#include "DRAMSys/simulation/SimConfig.h"
+#include "DRAMSys/simulation/AddressDecoder.h"
+#include "pim-vm-cxx/lib.h"
 
 #include <cassert>
 #include <cstdlib>
@@ -66,14 +69,18 @@ namespace DRAMSys
 Dram::Dram(const sc_module_name& name,
            const SimConfig& simConfig,
            const MemSpec& memSpec,
+           const AddressDecoder& addressDecoder,
            TlmRecorder* tlmRecorder) :
     sc_module(name),
     memSpec(memSpec),
+    addressDecoder(addressDecoder),
     storeMode(simConfig.storeMode),
     channelSize(memSpec.getSimMemSizeInBytes() / memSpec.numberOfChannels),
+    powerWindowSize(memSpec.tCK * simConfig.windowSize),
     useMalloc(simConfig.useMalloc),
+    pimVM(pim_vm::new_pim_vm(memSpec.banksPerChannel)),
     tlmRecorder(tlmRecorder),
-    powerWindowSize(memSpec.tCK * simConfig.windowSize)
+    tSocket("socket")
 {
     if (storeMode == Config::StoreModeType::Store)
     {
@@ -208,15 +215,120 @@ Dram::nb_transport_fw(tlm_generic_payload& trans, tlm_phase& phase, [[maybe_unus
     {
         if (phase == BEGIN_RD || phase == BEGIN_RDA)
         {
-            executeRead(trans);
+            if (pimVM->bank_mode() == pim_vm::BankMode::PimAllBank &&
+                (trans.get_address() >= PIM_DATA_ADDR))
+            {
+                DecodedAddress baseAddress = addressDecoder.decodeAddress(trans.get_address());
+                std::size_t bankStartIndex = 0;
+                std::size_t bankIncrement = 1;
+
+#ifdef SHARED_PIM_UNITS
+                bankStartIndex = (baseAddress.bank % 2) == 0 ? 0 : 1;
+                bankIncrement = 2;
+#endif
+
+                for (std::size_t bank = bankStartIndex; bank < memSpec.banksPerChannel; bank += bankIncrement)
+                {
+                    unsigned rank = bank / memSpec.banksPerRank;
+                    unsigned bankGroup = bank / memSpec.banksPerGroup;
+
+                    DecodedAddress decodedAddress(baseAddress.channel,
+                                                  static_cast<unsigned>(rank),
+                                                  baseAddress.stack,
+                                                  static_cast<unsigned>(bankGroup),
+                                                  static_cast<unsigned>(bank),
+                                                  baseAddress.row,
+                                                  baseAddress.column);
+
+                    auto pimAddress = addressDecoder.encodeAddress(decodedAddress);
+                    auto data = read(pimAddress);
+                    rust::Slice<const uint8_t> data_slice(data.data(), data.size());
+                    pimVM->execute_read(bank, pimAddress, baseAddress.row, baseAddress.column, data_slice);
+                }
+            }
+            else
+            {
+                executeRead(trans);
+            }
         }
         else if (phase == BEGIN_WR || phase == BEGIN_WRA || phase == BEGIN_MWR ||
                  phase == BEGIN_MWRA)
         {
             executeWrite(trans);
+
+            if (trans.get_address() >= PIM_CONFIG_ADDR && trans.get_address() < PIM_DATA_ADDR)
+            {
+                const auto* msg = trans.get_data_ptr();
+                for (std::size_t i = 0; i < trans.get_data_length(); i++)
+                {
+                    if (msg[i] != '\0')
+                    {
+                        message.push_back(msg[i]);
+                    }
+                    else
+                    {
+                        if (!message.empty())
+                        {
+                            pimVM->apply_config(message);
+                        }
+
+                        message.clear();
+                        break;
+                    }
+                }
+            }
+            else if (pimVM->bank_mode() == pim_vm::BankMode::AllBank && (trans.get_address() >= PIM_DATA_ADDR))
+            {
+                DecodedAddress baseAddress = addressDecoder.decodeAddress(trans.get_address());
+                for (std::size_t bank = 0; bank < memSpec.banksPerChannel; bank++)
+                {
+                    unsigned rank = bank / memSpec.banksPerRank;
+                    unsigned bankGroup = bank / memSpec.banksPerGroup;
+
+                    DecodedAddress decodedAddress(baseAddress.channel,
+                                                  static_cast<unsigned>(rank),
+                                                  baseAddress.stack,
+                                                  static_cast<unsigned>(bankGroup),
+                                                  static_cast<unsigned>(bank),
+                                                  baseAddress.row,
+                                                  baseAddress.column);
+
+                    trans.set_address(addressDecoder.encodeAddress(decodedAddress));
+                    executeWrite(trans);
+                }
+            }
+            else if (pimVM->bank_mode() == pim_vm::BankMode::PimAllBank && (trans.get_address() >= PIM_DATA_ADDR))
+            {
+                DecodedAddress baseAddress = addressDecoder.decodeAddress(trans.get_address());
+                std::size_t bankStartIndex = 0;
+                std::size_t bankIncrement = 1;
+
+#ifdef SHARED_PIM_UNITS
+                bankStartIndex = (baseAddress.bank % 2) == 0 ? 0 : 1;
+                bankIncrement = 2;
+#endif
+
+                for (std::size_t bank = bankStartIndex; bank < memSpec.banksPerChannel; bank += bankIncrement)
+                {
+                    unsigned rank = bank / memSpec.banksPerRank;
+                    unsigned bankGroup = bank / memSpec.banksPerGroup;
+
+                    DecodedAddress decodedAddress(baseAddress.channel,
+                                                  static_cast<unsigned>(rank),
+                                                  baseAddress.stack,
+                                                  static_cast<unsigned>(bankGroup),
+                                                  static_cast<unsigned>(bank),
+                                                  baseAddress.row,
+                                                  baseAddress.column);
+
+                    auto pimAddress = addressDecoder.encodeAddress(decodedAddress);
+                    auto data = pimVM->execute_write(bank);
+                    std::vector<uint8_t> data_vector{data.cbegin(), data.cend()};
+                    write(pimAddress, data_vector);
+                }
+            }
         }
     }
-
     return TLM_ACCEPTED;
 }
 
@@ -274,7 +386,6 @@ void Dram::b_transport(tlm_generic_payload& trans, [[maybe_unused]] sc_time& del
 void Dram::executeRead(tlm::tlm_generic_payload& trans) const
 {
     unsigned char* phyAddr = memory + trans.get_address();
-
     if (trans.get_byte_enable_ptr() == nullptr)
     {
         memcpy(trans.get_data_ptr(), phyAddr, trans.get_data_length());
@@ -295,7 +406,6 @@ void Dram::executeRead(tlm::tlm_generic_payload& trans) const
 void Dram::executeWrite(const tlm::tlm_generic_payload& trans)
 {
     unsigned char* phyAddr = memory + trans.get_address();
-
     if (trans.get_byte_enable_ptr() == nullptr)
     {
         memcpy(phyAddr, trans.get_data_ptr(), trans.get_data_length());
@@ -311,6 +421,23 @@ void Dram::executeWrite(const tlm::tlm_generic_payload& trans)
             }
         }
     }
+}
+
+std::vector<uint8_t> Dram::read(uint64_t address) const
+{
+    unsigned char* phyAddr = memory + address;
+
+    std::vector<uint8_t> data;
+    data.resize(memSpec.defaultBytesPerBurst);
+
+    std::memcpy(data.data(), phyAddr, memSpec.defaultBytesPerBurst);
+    return data;
+}
+
+void Dram::write(uint64_t address, const std::vector<uint8_t>& data)
+{
+    unsigned char* phyAddr = memory + address;
+    std::memcpy(phyAddr, data.data(), memSpec.defaultBytesPerBurst);
 }
 
 void Dram::serialize(std::ostream& stream) const

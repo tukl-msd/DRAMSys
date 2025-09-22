@@ -115,6 +115,10 @@ FILES
     DRAMSys/configuration/json/TraceSetup.h
 )
 
+if (DRAMSYS_SHARED_PIM_UNITS)
+    target_compile_definitions(dramsys PRIVATE SHARED_PIM_UNITS)
+endif ()
+
 install(TARGETS dramsys FILE_SET api)
 
 target_include_directories(dramsys PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -132,6 +136,7 @@ target_link_libraries(dramsys
         DRAMUtils::DRAMUtils
         $<$<TARGET_EXISTS:DRAMPower::DRAMPower>:DRAMPower::DRAMPower>
     PRIVATE
+        pim-vm-cxx
         SQLite::SQLite3
 
 )
