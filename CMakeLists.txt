@@ -168,6 +168,28 @@ if (DRAMSYS_USE_DRAMPOWER)
     find_package(DRAMPower REQUIRED)
 endif()
 
+FetchContent_Declare(
+    Corrosion
+    URL https://github.com/corrosion-rs/corrosion/archive/refs/tags/v0.5.1.tar.gz
+)
+
+FetchContent_MakeAvailable(Corrosion)
+
+FetchContent_Declare(
+    pimsys
+    GIT_REPOSITORY git@github.com:CEJMU/PIMSys.git
+    GIT_TAG        main
+)
+FetchContent_MakeAvailable(pimsys)
+
+corrosion_import_crate(MANIFEST_PATH ${pimsys_SOURCE_DIR}/pim-vm/Cargo.toml)
+corrosion_add_cxxbridge(pim-vm-cxx CRATE pim_vm FILES lib.rs)
+
+option(DRAMSYS_SHARED_PIM_UNITS ON)
+if(DRAMSYS_SHARED_PIM_UNITS)
+    corrosion_set_features(pim_vm FEATURES shared_pim_units)
+endif()
+
 ###############################################
 ###           Source Directory              ###
 ###############################################

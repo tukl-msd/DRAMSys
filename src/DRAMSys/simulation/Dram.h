@@ -46,7 +46,9 @@
 #include "DRAMSys/common/Serialize.h"
 #include "DRAMSys/common/TlmRecorder.h"
 #include "DRAMSys/configuration/memspec/MemSpec.h"
+#include "DRAMSys/simulation/AddressDecoder.h"
 #include "DRAMSys/simulation/SimConfig.h"
+#include "pim-vm-cxx/lib.h"
 
 #include <DRAMPower/command/CmdType.h>
 #include <DRAMPower/dram/dram_base.h>
@@ -62,6 +64,7 @@ class Dram : public sc_core::sc_module, public Serialize, public Deserialize
 {
 private:
     const MemSpec& memSpec;
+    const AddressDecoder& addressDecoder;
 
     // Data Storage:
     const Config::StoreModeType storeMode;
@@ -79,6 +82,15 @@ private:
     // visualization purposes.
     void powerWindow();
 
+    static constexpr unsigned int PIM_CONFIG_ADDR = 0x40000000;
+    static constexpr unsigned int PIM_DATA_ADDR = 0x40004000;
+    std::string message;
+    rust::Box<pim_vm::PimVM> pimVM;
+
+ #ifdef DRAMPOWER
+     std::unique_ptr<libDRAMPower> DRAMPower;
+ #endif
+
     virtual tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans,
                                                tlm::tlm_phase& phase,
                                                sc_core::sc_time& delay);
@@ -88,11 +100,15 @@ private:
     void executeRead(tlm::tlm_generic_payload& trans) const;
     void executeWrite(const tlm::tlm_generic_payload& trans);
 
+    std::vector<uint8_t> read(uint64_t address) const;
+    void write(uint64_t address, const std::vector<uint8_t>& data);
+
 public:
     SC_HAS_PROCESS(Dram);
     Dram(const sc_core::sc_module_name& name,
          const SimConfig& simConfig,
          const MemSpec& memSpec,
+         const AddressDecoder& addressDecoder,
          TlmRecorder* tlmRecorder);
 
     Dram(const Dram&) = delete;
