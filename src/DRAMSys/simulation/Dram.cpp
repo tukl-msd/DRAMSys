@@ -91,4 +91,21 @@ void executeWrite(unsigned char* backingStore, const tlm::tlm_generic_payload& t
     }
 }
 
+std::vector<uint8_t> read(unsigned char const* backingStore, uint64_t address, std::size_t length)
+{
+    unsigned char const* phyAddr = backingStore + address;
+
+    std::vector<uint8_t> data;
+    data.resize(length);
+
+    std::memcpy(data.data(), phyAddr, length);
+    return data;
+}
+
+void write(unsigned char* backingStore, uint64_t address, std::vector<uint8_t> const& data)
+{
+    unsigned char* phyAddr = backingStore + address;
+    std::memcpy(phyAddr, data.data(), data.size());
+}
+
 } // namespace DRAMSys::Dram

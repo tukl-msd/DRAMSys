@@ -46,6 +46,8 @@
 #include "DRAMSys/statistics/Group.h"
 #include "DRAMSys/statistics/StatsProvider.h"
 
+#include "pim-vm-cxx/lib.h"
+
 #include <memory>
 #include <string>
 #include <systemc>
@@ -156,11 +158,17 @@ private:
     std::vector<std::unique_ptr<TlmATRecorder>> tlmATRecorders;
     std::vector<std::unique_ptr<DramATRecorder>> dramATRecorders;
 
+    static constexpr unsigned int PIM_CONFIG_ADDR = 0x40000000;
+    static constexpr unsigned int PIM_DATA_ADDR = 0x40004000;
+    std::string message;
+    rust::Box<pim_vm::PimVM> pimVM;
+
     class DRAMSysStats : public Stats::Group
     {
     public:
         DRAMSysStats(DRAMSys& dramsys) : Stats::Group(dramsys.basename()) {}
     } stats;
+
 };
 
 } // namespace DRAMSys

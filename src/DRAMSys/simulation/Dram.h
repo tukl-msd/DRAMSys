@@ -50,6 +50,9 @@ namespace DRAMSys::Dram
 void executeRead(unsigned char const* backingStore, tlm::tlm_generic_payload& trans);
 void executeWrite(unsigned char* backingStore, const tlm::tlm_generic_payload& trans);
 
+std::vector<uint8_t> read(unsigned char const* backingStore, uint64_t address, std::size_t length);
+void write(unsigned char* backingStore, uint64_t address, std::vector<uint8_t> const& data);
+
 } // namespace DRAMSys::Dram
 
 #endif // DRAM_H
