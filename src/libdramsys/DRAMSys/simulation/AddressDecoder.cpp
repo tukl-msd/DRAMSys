@@ -216,7 +216,7 @@ DecodedAddress AddressDecoder::decodeAddress(uint64_t encAddr) const
         encAddr |= xoredBit << it[0];
     }
 
-    DecodedAddress decAddr;
+    DecodedAddress decAddr{};
 
     for (unsigned it = 0; it < vChannelBits.size(); it++)
         decAddr.channel |= ((encAddr >> vChannelBits[it]) & UINT64_C(1)) << it;

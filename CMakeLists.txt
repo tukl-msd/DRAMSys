@@ -152,6 +152,28 @@ find_package(SQLite3 REQUIRED)
 find_package(DRAMUtils REQUIRED)
 find_package(DRAMPower REQUIRED)
 
+FetchContent_Declare(
+    Corrosion
+    URL https://github.com/corrosion-rs/corrosion/archive/refs/tags/v0.5.1.tar.gz
+)
+
+FetchContent_MakeAvailable(Corrosion)
+
+FetchContent_Declare(
+    pimsys
+    GIT_REPOSITORY git@github.com:CEJMU/PIMSys.git
+    GIT_TAG        trunk
+)
+FetchContent_MakeAvailable(pimsys)
+
+corrosion_import_crate(MANIFEST_PATH ${pimsys_SOURCE_DIR}/pim-vm/Cargo.toml)
+corrosion_add_cxxbridge(pim-vm-cxx CRATE pim_vm FILES lib.rs)
+
+option(DRAMSYS_SHARED_PIM_UNITS ON)
+if(DRAMSYS_SHARED_PIM_UNITS)
+    corrosion_set_features(pim_vm FEATURES shared_pim_units)
+endif()
+
 ###############################################
 ###           Source Directory              ###
 ###############################################

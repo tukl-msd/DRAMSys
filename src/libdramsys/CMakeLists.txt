@@ -98,6 +98,10 @@ target_include_directories(libdramsys PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_compile_features(libdramsys PUBLIC cxx_std_17)
 
+if (DRAMSYS_SHARED_PIM_UNITS)
+    target_compile_definitions(libdramsys PRIVATE SHARED_PIM_UNITS)
+endif ()
+
 target_compile_definitions(libdramsys
     PUBLIC
         DRAMSYS_RESOURCE_DIR="${DRAMSYS_RESOURCE_DIR}"
@@ -109,6 +113,7 @@ target_link_libraries(libdramsys
         DRAMSys::config
         DRAMUtils::DRAMUtils
         DRAMPower::DRAMPower
+        pim-vm-cxx
     PRIVATE
         SQLite::SQLite3
 
