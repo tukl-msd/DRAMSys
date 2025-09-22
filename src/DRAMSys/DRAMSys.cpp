@@ -96,6 +96,7 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
     addressDecoder(std::make_unique<AddressDecoder>(config.addressmapping)),
     arbiter(createArbiter(*simConfig, *mcConfig, *memSpec, *addressDecoder))
 {
+    pim_vm::init_logger();
     logo();
     addressDecoder->plausibilityCheck(*memSpec);
     addressDecoder->print();
@@ -126,7 +127,7 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
                                              &tlmRecorders[i]));
 
             drams.emplace_back(std::make_unique<Dram>(
-                ("dram" + std::to_string(i)).c_str(), *simConfig, *memSpec, &tlmRecorders[i]));
+                ("dram" + std::to_string(i)).c_str(), *simConfig, *memSpec, *addressDecoder, &tlmRecorders[i]));
 
             // Not recording bandwidth between Arbiter - Controller
             tlmATRecorders.emplace_back(
@@ -158,7 +159,7 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
                                              nullptr));
 
             drams.emplace_back(std::make_unique<Dram>(
-                ("dram" + std::to_string(i)).c_str(), *simConfig, *memSpec, nullptr));
+                ("dram" + std::to_string(i)).c_str(), *simConfig, *memSpec, *addressDecoder, nullptr));
         }
     }
 
