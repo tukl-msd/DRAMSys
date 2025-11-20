@@ -7,10 +7,10 @@ Filter DRAMSys experiment matrix to keep only *valid* combinations of:
 - addressmapping (BANK/ROW/COLUMN/RANK/CHANNEL bits)
 
 Input:
-  /Users/m.akhtari/JLR/dram-explore/DRAMSys/experiments/unfiltered_experiment_matrix.csv
+  /Users/m.akhtari/JLR/DRAMSys/experiments/unfiltered_experiment_matrix.csv
 
 Outputs (in same experiments folder):
-  tier2_valid_experiment_matrix.csv
+  valid_experiment_matrix.csv
   invalid_experiment_matrix_with_reason.csv
 """
 
@@ -29,7 +29,7 @@ EXPERIMENTS_DIR = SCRIPT_DIR.parent            # .../DRAMSys/experiments
 DRAMSYS_ROOT = EXPERIMENTS_DIR.parent          # .../DRAMSys
 
 INPUT_CSV = EXPERIMENTS_DIR / "unfiltered_experiment_matrix.csv"
-OUTPUT_VALID_CSV = EXPERIMENTS_DIR / "tier2_valid_experiment_matrix.csv"
+OUTPUT_VALID_CSV = EXPERIMENTS_DIR / "valid_experiment_matrix.csv"
 OUTPUT_INVALID_CSV = EXPERIMENTS_DIR / "invalid_experiment_matrix_with_reason.csv"
 
 MEMSPEC_DIR = DRAMSYS_ROOT / "configs" / "memspec"
@@ -374,7 +374,7 @@ def validate_geometry_vs_mapping(geom: Dict[str, Any],
                 )
 
     # ------------------------------------------------------------------
-    # Sanity limits (optional)
+    # Sanity limits
     # ------------------------------------------------------------------
     if row_bits > 32:
         reasons.append(f"ROW_BIT count {row_bits} seems unrealistically large (>32)")

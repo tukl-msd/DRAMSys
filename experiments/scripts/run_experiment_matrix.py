@@ -88,8 +88,7 @@ def parse_int_or_default(value, default=None):
 
 def run_single_job(job_row: dict, paths: dict):
     """
-    Run one job from the jobs CSV using the same logic
-    your old script used, but driven by CSV instead of argparse.
+    Run one job from the jobs CSV driven by CSV.
     """
     experiments_dir = paths["experiments_dir"]
     dramsys_root = paths["dramsys_root"]

@@ -4,7 +4,13 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-csv_path = Path("invalid_experiment_matrix_with_reason2.csv")
+"""
+    Run this from DRAMSys/experiments:
+    cd /Users/m.akhtari/JLR/DRAMSys/experiments
+    python3 summarize_invalid_reasons.py
+"""
+
+csv_path = Path("invalid_experiment_matrix_with_reason.csv")
 
 counts = Counter()
 

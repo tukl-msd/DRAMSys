@@ -4,7 +4,7 @@ Split the valid experiment matrix into separate CSV files,
 one per DRAM family (DDR3, DDR4, LPDDR4, LPDDR5, HBM2, etc.)
 
 Input:
-    valid_experiment_matrix2.csv
+    valid_experiment_matrix.csv
 
 Output folder:
     tier_matrices_csvs/
@@ -22,8 +22,8 @@ from collections import defaultdict
 # Paths
 # ------------------------------------------------------
 
-EXPERIMENTS_DIR = Path("/Users/m.akhtari/JLR/dram-explore/DRAMSys/experiments")
-INPUT_CSV = EXPERIMENTS_DIR / "valid_experiment_matrix2.csv"
+EXPERIMENTS_DIR = Path("/Users/m.akhtari/JLR/DRAMSys/experiments")
+INPUT_CSV = EXPERIMENTS_DIR / "valid_experiment_matrix.csv"
 OUTPUT_DIR = EXPERIMENTS_DIR / "tier_matrices_csvs"
 
 OUTPUT_DIR.mkdir(exist_ok=True)
@@ -85,7 +85,7 @@ def main():
         header = reader.fieldnames
 
         if header is None:
-            raise SystemExit("ERROR: valid_experiment_matrix2.csv has no header row")
+            raise SystemExit("ERROR: valid_experiment_matrix.csv has no header row")
 
         for row in reader:
             memspec = row["memspec"]
