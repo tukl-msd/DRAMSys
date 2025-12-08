@@ -162,7 +162,7 @@ FetchContent_MakeAvailable(Corrosion)
 FetchContent_Declare(
     pimsys
     GIT_REPOSITORY git@github.com:CEJMU/PIMSys.git
-    GIT_TAG        trunk
+    GIT_TAG        main
 )
 FetchContent_MakeAvailable(pimsys)
 

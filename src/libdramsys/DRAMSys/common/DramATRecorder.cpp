@@ -2,9 +2,6 @@
 #include "DRAMSys/configuration/memspec/MemSpec.h"
 #include "DRAMSys/controller/Command.h"
 #include "DRAMSys/simulation/SimConfig.h"
-#include <sysc/kernel/sc_module.h>
-#include <sysc/kernel/sc_simcontext.h>
-#include <tlm_core/tlm_2/tlm_generic_payload/tlm_phase.h>
 
 namespace DRAMSys
 {
