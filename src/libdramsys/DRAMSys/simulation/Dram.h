@@ -60,7 +60,7 @@ namespace DRAMSys
 
 class Dram : public sc_core::sc_module, public Serialize, public Deserialize
 {
-protected:
+private:
     const MemSpec& memSpec;
 
     // Data Storage:
@@ -93,7 +93,6 @@ public:
          const SimConfig& simConfig,
          const MemSpec& memSpec,
          TlmRecorder* tlmRecorder);
-    SC_HAS_PROCESS(Dram);
 
     Dram(const Dram&) = delete;
     Dram(Dram&&) = delete;

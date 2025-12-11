@@ -33,22 +33,47 @@
  *    Derek Christ
  */
 
-#pragma once
+#include "addressdecoder.h"
 
-#include <tlm_utils/multi_socket_bases.h>
+#include <DRAMSys/config/AddressMapping.h>
+#include <DRAMSys/simulation/AddressDecoder.h>
 
-class Initiator
+#include <benchmark/benchmark.h>
+
+static DRAMSys::AddressDecoder addressDecoder()
 {
-protected:
-    Initiator(const Initiator&) = default;
-    Initiator(Initiator&&) = default;
-    Initiator& operator=(const Initiator&) = default;
-    Initiator& operator=(Initiator&&) = default;
+    auto addressMapping = nlohmann::json::parse(addressMappingJsonString)
+                              .at("addressmapping")
+                              .get<DRAMSys::Config::AddressMapping>();
+    DRAMSys::AddressDecoder decoder(addressMapping);
+    return decoder;
+}
 
-public:
-    Initiator() = default;
-    virtual ~Initiator() = default;
+static void addressdecoder_decode(benchmark::State& state)
+{
+    auto decoder = addressDecoder();
+    for (auto _ : state)
+    {
+        // Actual address has no significant impact on performance
+        auto decodedAddress = decoder.decodeAddress(0x0);
+        benchmark::DoNotOptimize(decodedAddress);
+    }
+}
 
-    virtual void bind(tlm_utils::multi_target_base<>& target) = 0;
-    virtual uint64_t totalRequests() = 0;
-};
+BENCHMARK(addressdecoder_decode);
+
+static void addressdecoder_encode(benchmark::State& state)
+{
+    auto decoder = addressDecoder();
+
+    // Actual address has no significant impact on performance
+    DRAMSys::DecodedAddress decodedAddress;
+
+    for (auto _ : state)
+    {
+        auto encodedAddress = decoder.encodeAddress(decodedAddress);
+        benchmark::DoNotOptimize(encodedAddress);
+    }
+}
+
+BENCHMARK(addressdecoder_encode);

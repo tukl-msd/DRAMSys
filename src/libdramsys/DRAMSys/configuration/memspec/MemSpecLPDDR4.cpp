@@ -39,7 +39,9 @@
 
 #include "DRAMSys/common/utils.h"
 
+#ifdef USE_DRAMPOWER
 #include <DRAMPower/standards/lpddr4/LPDDR4.h>
+#endif
 
 #include <iostream>
 
@@ -111,7 +113,7 @@ MemSpecLPDDR4::MemSpecLPDDR4(const DRAMUtils::MemSpec::MemSpecLPDDR4& memSpec) :
     uint64_t deviceSizeBits =
         static_cast<uint64_t>(banksPerRank) * rowsPerBank * columnsPerRow * bitWidth;
     uint64_t deviceSizeBytes = deviceSizeBits / 8;
-    memorySizeBytes = deviceSizeBytes * ranksPerChannel * numberOfChannels;
+    memorySizeBytes = deviceSizeBytes * devicesPerRank * ranksPerChannel * numberOfChannels;
 
     std::cout << headline << std::endl;
     std::cout << "Memory Configuration:" << std::endl << std::endl;
@@ -190,14 +192,16 @@ MemSpecLPDDR4::getIntervalOnDataStrobe(Command command,
     throw;
 }
 
-std::unique_ptr<DRAMPower::dram_base<DRAMPower::CmdType>> MemSpecLPDDR4::toDramPowerObject() const
-{
-    return std::make_unique<DRAMPower::LPDDR4>(DRAMPower::MemSpecLPDDR4(memSpec));
-}
-
 bool MemSpecLPDDR4::requiresMaskedWrite(const tlm::tlm_generic_payload& payload) const
 {
     return !allBytesEnabled(payload);
 }
+
+#ifdef USE_DRAMPOWER
+std::unique_ptr<DRAMPower::dram_base<DRAMPower::CmdType>> MemSpecLPDDR4::toDramPowerObject() const
+{
+    return std::make_unique<DRAMPower::LPDDR4>(DRAMPower::MemSpecLPDDR4(memSpec));
+}
+#endif
 
 } // namespace DRAMSys

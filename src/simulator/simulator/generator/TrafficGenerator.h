@@ -35,52 +35,41 @@
 
 #pragma once
 
-#include "simulator/Initiator.h"
-#include "simulator/MemoryManager.h"
-#include "simulator/request/RequestIssuer.h"
+#include "GeneratorState.h"
+#include "simulator/request/RequestProducer.h"
 
 #include <DRAMSys/config/DRAMSysConfiguration.h>
+
 #include <random>
 
 class RequestProducer;
 
-class TrafficGenerator : public Initiator
+class TrafficGenerator : public RequestProducer
 {
 public:
-    TrafficGenerator(DRAMSys::Config::TrafficGenerator const& config,
-                     sc_core::sc_time interfaceClk,
-                     uint64_t memorySize,
-                     unsigned int defaultDataLength,
-                     MemoryManager& memoryManager,
-                     std::function<void()> transactionFinished,
-                     std::function<void()> terminateInitiator);
+    TrafficGenerator(DRAMSys::Config::TrafficGenerator const& config, uint64_t memorySize);
 
     TrafficGenerator(DRAMSys::Config::TrafficGeneratorStateMachine const& config,
-                     sc_core::sc_time interfaceClk,
-                     uint64_t memorySize,
-                     unsigned int defaultDataLength,
-                     MemoryManager& memoryManager,
-                     std::function<void()> transactionFinished,
-                     std::function<void()> terminateInitiator);
-
-    void bind(tlm_utils::multi_target_base<>& target) override { issuer.iSocket.bind(target); }
+                     uint64_t memorySize);
 
     uint64_t totalRequests() override;
-    Request nextRequest();
+    Request nextRequest() override;
+    sc_core::sc_time nextTrigger() override { return nextTriggerTime; }
 
-    std::optional<unsigned int> stateTransition(unsigned int from);
+    unsigned int stateTransition(unsigned int from);
 
 private:
+    static constexpr unsigned int STOP_STATE = UINT_MAX;
+
     uint64_t requestsInState = 0;
     unsigned int currentState = 0;
-    const std::vector<DRAMSys::Config::TrafficGeneratorStateTransition> stateTransistions;
+    sc_core::sc_time nextTriggerTime = sc_core::SC_ZERO_TIME;
+    std::vector<DRAMSys::Config::TrafficGeneratorStateTransition> stateTransistions;
 
-    using IdleClks = uint64_t;
-    std::unordered_map<unsigned int, IdleClks> idleStateClks;
-    const sc_core::sc_time generatorPeriod;
+    std::unordered_map<unsigned int, unsigned int> idleStateClks;
+    sc_core::sc_time generatorPeriod;
 
     std::default_random_engine randomGenerator;
 
-    std::unordered_map<unsigned int, std::unique_ptr<RequestProducer>> producers;
-    RequestIssuer issuer;
+    std::unordered_map<unsigned int, std::unique_ptr<GeneratorState>> producers;
 };

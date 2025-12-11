@@ -35,18 +35,19 @@
 
 #include "Simulator.h"
 
-#include "SimpleInitiator.h"
 #include "generator/TrafficGenerator.h"
 #include "hammer/RowHammer.h"
 #include "player/StlPlayer.h"
+#include "simulator/request/RequestIssuer.h"
 #include "util.h"
 
-Simulator::Simulator(DRAMSys::Config::Configuration configuration, std::filesystem::path baseConfig) :
+Simulator::Simulator(DRAMSys::Config::Configuration configuration,
+                     std::filesystem::path baseConfig) :
     storageEnabled(configuration.simconfig.StoreMode == DRAMSys::Config::StoreModeType::Store),
     memoryManager(storageEnabled),
     configuration(std::move(configuration)),
     dramSys(std::make_unique<DRAMSys::DRAMSys>("DRAMSys", this->configuration)),
-    baseConfig(baseConfig)
+    baseConfig(std::move(baseConfig))
 {
     terminateInitiator = [this]()
     {
@@ -74,32 +75,34 @@ Simulator::Simulator(DRAMSys::Config::Configuration configuration, std::filesyst
     {
         auto initiator = instantiateInitiator(initiatorConfig);
         totalTransactions += initiator->totalRequests();
-        initiator->bind(dramSys->tSocket);
+        initiator->iSocket.bind(dramSys->tSocket);
         initiators.push_back(std::move(initiator));
     }
 }
 
-std::unique_ptr<Initiator>
+std::unique_ptr<RequestIssuer>
 Simulator::instantiateInitiator(const DRAMSys::Config::Initiator& initiator)
 {
     uint64_t memorySize = dramSys->getMemSpec().getSimMemSizeInBytes();
     sc_core::sc_time interfaceClk = dramSys->getMemSpec().tCK;
-    unsigned int defaultDataLength = dramSys->getMemSpec().defaultBytesPerBurst;
 
     return std::visit(
-        [=](auto&& config) -> std::unique_ptr<Initiator>
+        [this, memorySize, interfaceClk](auto&& config) -> std::unique_ptr<RequestIssuer>
         {
             using T = std::decay_t<decltype(config)>;
             if constexpr (std::is_same_v<T, DRAMSys::Config::TrafficGenerator> ||
                           std::is_same_v<T, DRAMSys::Config::TrafficGeneratorStateMachine>)
             {
-                return std::make_unique<TrafficGenerator>(config,
-                                                          interfaceClk,
-                                                          memorySize,
-                                                          defaultDataLength,
-                                                          memoryManager,
-                                                          finishTransaction,
-                                                          terminateInitiator);
+                auto generator = std::make_unique<TrafficGenerator>(config, memorySize);
+
+                return std::make_unique<RequestIssuer>(config.name.c_str(),
+                                                       std::move(generator),
+                                                       memoryManager,
+                                                       interfaceClk,
+                                                       config.maxPendingReadRequests,
+                                                       config.maxPendingWriteRequests,
+                                                       finishTransaction,
+                                                       terminateInitiator);
             }
             else if constexpr (std::is_same_v<T, DRAMSys::Config::TracePlayer>)
             {
@@ -119,33 +122,30 @@ Simulator::instantiateInitiator(const DRAMSys::Config::Initiator& initiator)
                     SC_REPORT_FATAL("Simulator", report.c_str());
                 }
 
-                StlPlayer player(tracePath.c_str(),
-                                 config.clkMhz,
-                                 defaultDataLength,
-                                 *traceType,
-                                 storageEnabled);
+                auto player = std::make_unique<StlPlayer>(
+                    config, tracePath.c_str(), *traceType, storageEnabled);
 
-                return std::make_unique<SimpleInitiator<StlPlayer>>(config.name.c_str(),
-                                                                    memoryManager,
-                                                                    interfaceClk,
-                                                                    std::nullopt,
-                                                                    std::nullopt,
-                                                                    finishTransaction,
-                                                                    terminateInitiator,
-                                                                    std::move(player));
+                return std::make_unique<RequestIssuer>(tracePath.stem().c_str(),
+                                                       std::move(player),
+                                                       memoryManager,
+                                                       interfaceClk,
+                                                       std::nullopt,
+                                                       std::nullopt,
+                                                       finishTransaction,
+                                                       terminateInitiator);
             }
             else if constexpr (std::is_same_v<T, DRAMSys::Config::RowHammer>)
             {
-                RowHammer hammer(config.numRequests, config.rowIncrement, defaultDataLength);
+                auto hammer = std::make_unique<RowHammer>(config);
 
-                return std::make_unique<SimpleInitiator<RowHammer>>(config.name.c_str(),
-                                                                    memoryManager,
-                                                                    interfaceClk,
-                                                                    1,
-                                                                    1,
-                                                                    finishTransaction,
-                                                                    terminateInitiator,
-                                                                    std::move(hammer));
+                return std::make_unique<RequestIssuer>(config.name.c_str(),
+                                                       std::move(hammer),
+                                                       memoryManager,
+                                                       interfaceClk,
+                                                       1,
+                                                       1,
+                                                       finishTransaction,
+                                                       terminateInitiator);
             }
         },
         initiator.getVariant());
@@ -175,5 +175,5 @@ void Simulator::run()
 
     auto finish = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = finish - start;
-    std::cout << "Simulation took " + std::to_string(elapsed.count()) + " seconds." << std::endl;
+    std::cout << "Simulation took " + std::to_string(elapsed.count()) + " seconds.\n";
 }

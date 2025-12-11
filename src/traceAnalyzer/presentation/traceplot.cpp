@@ -119,7 +119,6 @@ void TracePlot::init(TraceNavigator* navigator,
 
     updateScrollbar();
     recreateCollapseButtons();
-    dependenciesSubMenu->setEnabled(navigator->TraceFile().checkDependencyTableExists());
     replot();
 }
 
@@ -226,72 +225,6 @@ void TracePlot::setUpActions()
         toggleCollapsedState, SIGNAL(triggered()), this, SLOT(on_toggleCollapsedState()));
     toggleCollapsedState->setShortcut(Qt::CTRL + Qt::Key_X);
 
-    disabledDependencies = new QAction("Disabled", this);
-    selectedDependencies = new QAction("Selected transactions", this);
-    allDependencies = new QAction("All transactions", this);
-    switchDrawDependencyTextsOption = new QAction("Draw Texts", this);
-
-    disabledDependencies->setCheckable(true);
-    selectedDependencies->setCheckable(true);
-    allDependencies->setCheckable(true);
-    switchDrawDependencyTextsOption->setCheckable(true);
-
-    switchDrawDependencyTextsOption->setChecked(true);
-    disabledDependencies->setChecked(true);
-
-    QObject::connect(disabledDependencies,
-                     &QAction::triggered,
-                     this,
-                     [&]()
-                     {
-                         drawingProperties.drawDependenciesOption.draw = DependencyOption::Disabled;
-                         currentTraceTimeChanged();
-                     });
-    QObject::connect(selectedDependencies,
-                     &QAction::triggered,
-                     this,
-                     [&]()
-                     {
-                         drawingProperties.drawDependenciesOption.draw = DependencyOption::Selected;
-                         currentTraceTimeChanged();
-                     });
-    QObject::connect(allDependencies,
-                     &QAction::triggered,
-                     this,
-                     [&]()
-                     {
-                         drawingProperties.drawDependenciesOption.draw = DependencyOption::All;
-                         currentTraceTimeChanged();
-                     });
-    QObject::connect(
-        switchDrawDependencyTextsOption,
-        &QAction::triggered,
-        this,
-        [&]()
-        {
-            if (drawingProperties.drawDependenciesOption.text == DependencyTextOption::Disabled)
-            {
-                drawingProperties.drawDependenciesOption.text = DependencyTextOption::Enabled;
-                switchDrawDependencyTextsOption->setChecked(true);
-            }
-            else
-            {
-                drawingProperties.drawDependenciesOption.text = DependencyTextOption::Disabled;
-                switchDrawDependencyTextsOption->setChecked(false);
-            }
-            currentTraceTimeChanged();
-        });
-
-    QActionGroup* dependenciesGroup = new QActionGroup(this);
-    dependenciesGroup->addAction(disabledDependencies);
-    dependenciesGroup->addAction(selectedDependencies);
-    dependenciesGroup->addAction(allDependencies);
-    dependenciesGroup->addAction(switchDrawDependencyTextsOption);
-
-#ifndef EXTENSION_ENABLED
-    dependenciesGroup->setEnabled(false);
-#endif
-
     setUpContextMenu();
 }
 
@@ -306,13 +239,6 @@ void TracePlot::setUpContextMenu()
                                       setColorGroupingRainbowTransaction,
                                       setColorGroupingThread});
     contextMenu->addMenu(colorGroupingSubMenu);
-
-    dependenciesSubMenu = new QMenu("Show dependencies", contextMenu);
-    dependenciesSubMenu->addActions({disabledDependencies,
-                                     selectedDependencies,
-                                     allDependencies,
-                                     switchDrawDependencyTextsOption});
-    contextMenu->addMenu(dependenciesSubMenu);
 
     QMenu* goToSubMenu = new QMenu("Go to", contextMenu);
     goToSubMenu->addActions({goToPhase, goToTransaction, goToTime});
@@ -382,6 +308,8 @@ void TracePlot::setUpGrid()
 {
     unsigned int clk = navigator->GeneralTraceInfo().clkPeriod;
     QwtPlotGrid* grid = new ClkGrid(clk, GridVisiblityClks * clk);
+    grid->setMajorPen(palette().text().color(), 1.0);
+    grid->setMinorPen(palette().text().color(), 1.0);
     grid->setZ(0);
     grid->attach(this);
 }
@@ -628,30 +556,16 @@ void TracePlot::recreateCollapseButtons()
 
 void TracePlot::currentTraceTimeChanged()
 {
-    bool drawDependencies =
-        getDrawingProperties().drawDependenciesOption.draw != DependencyOption::Disabled;
-
     Timespan newTimespan = GetCurrentTimespan();
 
     if (!loadedTimespan.contains(newTimespan))
     {
         loadedTimespan = Timespan{newTimespan.Begin() - newTimespan.timeCovered(), newTimespan.End() + newTimespan.timeCovered()};
 
-        transactions = navigator->TraceFile().getTransactionsInTimespan(loadedTimespan,
-                                                                        drawDependencies);
-
-#ifdef EXTENSION_ENABLED
-        if (drawDependencies)
-        {
-            navigator->TraceFile().updateDependenciesInTimespan(loadedTimespan);
-        }
-#endif
+        transactions = navigator->TraceFile().getTransactionsInTimespan(loadedTimespan);
     }
 
     setAxisScale(xBottom, newTimespan.Begin(), newTimespan.End());
-
-    dependenciesSubMenu->setEnabled(navigator->TraceFile().checkDependencyTableExists());
-
     replot();
 }
 

@@ -43,9 +43,6 @@
 #include "ui_tracefiletab.h"
 
 #include "businessObjects/configmodels.h"
-#ifdef EXTENSION_ENABLED
-#include "businessObjects/dependencymodels.h"
-#endif
 #include "businessObjects/traceplotlinemodel.h"
 #include "presentation/tracenavigator.h"
 #include "presentation/traceplot.h"
@@ -76,10 +73,6 @@ public:
     void setUpCommentView();
     void setUpTraceSelector();
     void addDisclaimer();
-
-#ifdef EXTENSION_ENABLED
-    void setUpPossiblePhases();
-#endif
 
     void initNavigatorAndItsDependentWidgets();
     QString getPathToTraceFile() { return traceFilePath.data(); }
@@ -138,7 +131,6 @@ Q_SIGNALS:
 private Q_SLOTS:
 #ifdef EXTENSION_ENABLED
     void on_latencyTreeView_doubleClicked(const QModelIndex& index);
-    void on_calculateDependencies_clicked();
     void on_startLatencyAnalysis_clicked();
     void on_startPowerAnalysis_clicked();
 #endif

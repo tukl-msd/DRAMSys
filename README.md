@@ -53,7 +53,6 @@ A basic version of Trace Analyzer is included in the open source release of DRAM
 However, the full version of the Trace Analyzer includes many additional analysis features:
 - Detailed transaction-level latency analysis
 - Power, bandwidth, and buffer utilization analysis over simulation time intervals
-- Timing dependency analysis at the DRAM command level
 - Calculation of numerous predefined and user-defined metrics
 - VCD export of generated trace
 
@@ -166,6 +165,7 @@ Doris Gulai        \
 Matthias Jung      \
 Frederik Lauer     \
 Ana Mativi         \
+Marco Mörz         \
 Felipe S. Prado    \
 Iron Prando        \
 Tran Anh Quoc      \
@@ -174,6 +174,7 @@ Lukas Steiner      \
 Thanh C. Tran      \
 Norbert Wehn       \
 Christian Weis     \
+Thomas Zimmermann  \
 Éder F. Zulian
 
 ## References

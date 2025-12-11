@@ -60,7 +60,6 @@ Arbiter::Arbiter(const sc_module_name& name,
     tCK(memSpec.tCK),
     arbitrationDelayFw(mcConfig.arbitrationDelayFw),
     arbitrationDelayBw(mcConfig.arbitrationDelayBw),
-    bytesPerBeat(memSpec.dataBusWidth / 8),
     addressOffset(simConfig.addressOffset)
 {
     iSocket.register_nb_transport_bw(this, &Arbiter::nb_transport_bw);

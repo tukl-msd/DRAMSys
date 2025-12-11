@@ -35,7 +35,6 @@
  */
 
 #include "Cache.h"
-#include "MemoryManager.h"
 
 #include <cstring>
 
@@ -55,7 +54,7 @@ Cache::Cache(const sc_module_name& name,
              bool storageEnabled,
              sc_core::sc_time cycleTime,
              std::size_t hitCycles,
-             MemoryManager& memoryManager) :
+             DRAMSys::MemoryManager& memoryManager) :
     sc_module(name),
     payloadEventQueue(this, &Cache::peqCallback),
     storageEnabled(storageEnabled),
@@ -432,17 +431,17 @@ Cache::CacheLine* Cache::evictLine(Cache::index_t index)
 
     if (oldestLine.valid && oldestLine.dirty)
     {
-        auto& wbTrans = memoryManager.allocate(lineSize);
-        wbTrans.acquire();
-        wbTrans.set_address(encodeAddress(index, oldestLine.tag));
-        wbTrans.set_write();
-        wbTrans.set_data_length(lineSize);
-        wbTrans.set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
+        auto* wbTrans = memoryManager.allocate(lineSize);
+        wbTrans->acquire();
+        wbTrans->set_address(encodeAddress(index, oldestLine.tag));
+        wbTrans->set_write();
+        wbTrans->set_data_length(lineSize);
+        wbTrans->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
 
         if (storageEnabled)
-            std::copy(oldestLine.dataPtr, oldestLine.dataPtr + lineSize, wbTrans.get_data_ptr());
+            std::copy(oldestLine.dataPtr, oldestLine.dataPtr + lineSize, wbTrans->get_data_ptr());
 
-        writeBuffer.emplace_back(index, oldestLine.tag, &wbTrans);
+        writeBuffer.emplace_back(index, oldestLine.tag, wbTrans);
     }
 
     oldestLine.allocated = false;
@@ -500,13 +499,13 @@ void Cache::processMshrQueue()
         // Prevents that the cache line will get fetched multiple times from the target
         mshrIt->issued = true;
 
-        auto& fetchTrans = memoryManager.allocate(lineSize);
-        fetchTrans.acquire();
-        fetchTrans.set_read();
-        fetchTrans.set_data_length(lineSize);
-        fetchTrans.set_streaming_width(lineSize);
-        fetchTrans.set_address(alignedAddress);
-        fetchTrans.set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
+        auto* fetchTrans = memoryManager.allocate(lineSize);
+        fetchTrans->acquire();
+        fetchTrans->set_read();
+        fetchTrans->set_data_length(lineSize);
+        fetchTrans->set_streaming_width(lineSize);
+        fetchTrans->set_address(alignedAddress);
+        fetchTrans->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
 
         tlm_phase fwPhase = BEGIN_REQ;
 
@@ -514,22 +513,22 @@ void Cache::processMshrQueue()
         // or we cleared the backpressure from another END_REQ.
         sc_time fwDelay = cycleTime;
 
-        requestInProgress = &fetchTrans;
-        tlm_sync_enum returnValue = iSocket->nb_transport_fw(fetchTrans, fwPhase, fwDelay);
+        requestInProgress = fetchTrans;
+        tlm_sync_enum returnValue = iSocket->nb_transport_fw(*fetchTrans, fwPhase, fwDelay);
 
         if (returnValue == tlm::TLM_UPDATED)
         {
             // END_REQ or BEGIN_RESP
-            payloadEventQueue.notify(fetchTrans, fwPhase, fwDelay);
+            payloadEventQueue.notify(*fetchTrans, fwPhase, fwDelay);
         }
         else if (returnValue == tlm::TLM_COMPLETED)
         {
             clearInitiatorBackpressureAndProcessBuffers();
 
-            fillLine(fetchTrans);
+            fillLine(*fetchTrans);
             processMshrResponse();
 
-            fetchTrans.release();
+            fetchTrans->release();
         }
 
         if (endRequestPending != nullptr && hasBufferSpace())

@@ -52,9 +52,6 @@ class MemSpecHBM2 final : public MemSpec
 public:
     explicit MemSpecHBM2(const DRAMUtils::MemSpec::MemSpecHBM2& memSpec);
 
-    // Memspec Variables:
-    const unsigned stacksPerChannel;
-
     const sc_core::sc_time tDQSCK;
     //    sc_time tDQSQ; // TODO: check actual value of this parameter
     const sc_core::sc_time tRC;

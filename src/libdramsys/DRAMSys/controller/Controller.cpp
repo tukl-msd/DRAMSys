@@ -33,6 +33,7 @@
  *    Lukas Steiner
  *    Derek Christ
  *    Marco Mörz
+ *    Thomas Zimmermann
  */
 
 #include "Controller.h"
@@ -101,8 +102,7 @@ Controller::Controller(const sc_module_name& name,
     windowSizeTime(simConfig.windowSize * memSpec.tCK),
     nextWindowEventTime(windowSizeTime),
     numberOfBeatsServed(memSpec.ranksPerChannel, 0),
-    minBytesPerBurst(memSpec.defaultBytesPerBurst),
-    maxBytesPerBurst(memSpec.maxBytesPerBurst)
+    memoryManager(simConfig.storeMode == Config::StoreModeType::Store)
 {
     if (simConfig.databaseRecording && tlmRecorder != nullptr)
     {
@@ -603,12 +603,33 @@ void Controller::manageRequests(const sc_time& delay)
             assert((dataLength & (dataLength - 1)) == 0); // Data length must be a power of 2
             assert(address % dataLength == 0);            // Check if naturally aligned
 
-            if ((address / maxBytesPerBurst) ==
-                ((address + transToAcquire.payload->get_data_length() - 1) / maxBytesPerBurst))
+            // When to use which burstlength:
+            // - If the default BL is enough to serve the request, use the default BL
+            // - If the maximum BL is enough to serve the request, but not the default BL, use the
+            // maximum BL
+            // - If the maximum BL is not enough to to serve the request, split the transaction up
+            // and use the maximum BL
+
+            bool splitTransactions = dataLength > memSpec.maxBytesPerBurst;
+            if (!splitTransactions)
             {
+                const unsigned burstLength = dataLength == memSpec.maxDataBytesPerBurst
+                                                 ? memSpec.maxBurstLength
+                                                 : memSpec.defaultBurstLength;
+
                 // continuous block of data that can be fetched with a single burst
                 DecodedAddress decodedAddress =
                     addressDecoder.decodeAddress(transToAcquire.payload->get_address());
+
+                if (!addressDecoder.isAddressValid(memSpec, decodedAddress))
+                {
+                    SC_REPORT_WARNING("Controller",
+                                      ("Address " +
+                                       std::to_string(transToAcquire.payload->get_address()) +
+                                       " invalid")
+                                          .c_str());
+                }
+
                 ControllerExtension::setAutoExtension(
                     *transToAcquire.payload,
                     nextChannelPayloadIDToAppend++,
@@ -618,7 +639,7 @@ void Controller::manageRequests(const sc_time& delay)
                     Bank(decodedAddress.bank),
                     Row(decodedAddress.row),
                     Column(decodedAddress.column),
-                    (transToAcquire.payload->get_data_length() * 8) / memSpec.dataBusWidth);
+                    burstLength);
 
                 Rank rank = Rank(decodedAddress.rank);
                 if (ranksNumberOfPayloads[rank] == 0)
@@ -741,73 +762,44 @@ void Controller::sendToFrontend(tlm_generic_payload& trans, tlm_phase& phase, sc
     tSocket->nb_transport_bw(trans, phase, delay);
 }
 
-Controller::MemoryManager::~MemoryManager()
-{
-    while (!freePayloads.empty())
-    {
-        tlm_generic_payload* trans = freePayloads.top();
-        freePayloads.pop();
-        trans->reset();
-        delete trans;
-    }
-}
-
-tlm::tlm_generic_payload& Controller::MemoryManager::allocate()
-{
-    if (freePayloads.empty())
-    {
-        return *new tlm_generic_payload(this);
-    }
-
-    tlm_generic_payload* result = freePayloads.top();
-    freePayloads.pop();
-    return *result;
-}
-
-void Controller::MemoryManager::free(tlm::tlm_generic_payload* trans)
-{
-    freePayloads.push(trans);
-}
-
 void Controller::createChildTranses(tlm::tlm_generic_payload& parentTrans)
 {
     std::vector<tlm_generic_payload*> childTranses;
 
-    uint64_t startAddress = parentTrans.get_address() & ~(maxBytesPerBurst - UINT64_C(1));
-    unsigned char* startDataPtr = parentTrans.get_data_ptr();
-    unsigned numChildTranses = parentTrans.get_data_length() / maxBytesPerBurst;
+    const uint64_t startAddress = parentTrans.get_address();
+    unsigned char* const startDataPtr = parentTrans.get_data_ptr();
+
+    const unsigned numChildTranses = parentTrans.get_data_length() / memSpec.maxDataBytesPerBurst;
 
     for (unsigned childId = 0; childId < numChildTranses; childId++)
     {
-        tlm_generic_payload& childTrans = memoryManager.allocate();
-        childTrans.acquire();
-        childTrans.set_command(parentTrans.get_command());
-        childTrans.set_address(startAddress + childId * maxBytesPerBurst);
-        childTrans.set_data_length(maxBytesPerBurst);
-        childTrans.set_data_ptr(startDataPtr + childId * maxBytesPerBurst);
-        ChildExtension::setExtension(childTrans, parentTrans);
-        childTranses.push_back(&childTrans);
-    }
+        tlm_generic_payload* childTrans = memoryManager.allocate();
+        childTrans->acquire();
 
-    if (startAddress != parentTrans.get_address())
-    {
-        tlm_generic_payload& firstChildTrans = *childTranses.front();
-        firstChildTrans.set_address(firstChildTrans.get_address() + minBytesPerBurst);
-        firstChildTrans.set_data_ptr(firstChildTrans.get_data_ptr() + minBytesPerBurst);
-        firstChildTrans.set_data_length(minBytesPerBurst);
-        tlm_generic_payload& lastChildTrans = memoryManager.allocate();
-        lastChildTrans.acquire();
-        lastChildTrans.set_command(parentTrans.get_command());
-        lastChildTrans.set_address(startAddress + numChildTranses * maxBytesPerBurst);
-        lastChildTrans.set_data_length(minBytesPerBurst);
-        lastChildTrans.set_data_ptr(startDataPtr + numChildTranses * maxBytesPerBurst);
-        ChildExtension::setExtension(lastChildTrans, parentTrans);
-        childTranses.push_back(&lastChildTrans);
+        // TODO:
+        // The generated child transcations here are not naturally aligned.
+        // Actually you would need to take into account the gaps introduced by the in-line metadata.
+        // But this is not trivial.
+        // This problem solves itself when the transaction splitting is moved out of the controller.
+        childTrans->set_command(parentTrans.get_command());
+        childTrans->set_address(startAddress + childId * memSpec.maxBytesPerBurst);
+        childTrans->set_data_length(memSpec.maxDataBytesPerBurst);
+        childTrans->set_data_ptr(startDataPtr + childId * memSpec.maxBytesPerBurst);
+
+        ChildExtension::setExtension(*childTrans, parentTrans);
+        childTranses.push_back(childTrans);
     }
 
     for (auto* childTrans : childTranses)
     {
         DecodedAddress decodedAddress = addressDecoder.decodeAddress(childTrans->get_address());
+        if (!addressDecoder.isAddressValid(memSpec, decodedAddress))
+        {
+            SC_REPORT_WARNING(
+                "Controller",
+                ("Address " + std::to_string(transToAcquire.payload->get_address()) + " invalid)")
+                    .c_str());
+        }
         ControllerExtension::setAutoExtension(*childTrans,
                                               nextChannelPayloadIDToAppend,
                                               Rank(decodedAddress.rank),
@@ -816,9 +808,9 @@ void Controller::createChildTranses(tlm::tlm_generic_payload& parentTrans)
                                               Bank(decodedAddress.bank),
                                               Row(decodedAddress.row),
                                               Column(decodedAddress.column),
-                                              (childTrans->get_data_length() * 8) /
-                                                  memSpec.dataBusWidth);
+                                              memSpec.maxBurstLength);
     }
+
     nextChannelPayloadIDToAppend++;
     ParentExtension::setExtension(parentTrans, std::move(childTranses));
 }

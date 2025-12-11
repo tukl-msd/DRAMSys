@@ -28,7 +28,7 @@
 # NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# Authors: 
+# Authors:
 #    Matthias Jung
 #    Lukas Steiner
 #    Derek Christ
@@ -43,10 +43,9 @@ find_package(Threads)
 add_library(simulator
     simulator/Cache.cpp
     simulator/EccModule.cpp
-    simulator/MemoryManager.cpp
     simulator/Simulator.cpp
-    simulator/generator/RandomProducer.cpp
-    simulator/generator/SequentialProducer.cpp
+    simulator/generator/RandomState.cpp
+    simulator/generator/SequentialState.cpp
     simulator/generator/TrafficGenerator.cpp
     simulator/hammer/RowHammer.cpp
     simulator/player/StlPlayer.cpp

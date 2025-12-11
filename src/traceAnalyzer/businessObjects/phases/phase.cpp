@@ -83,14 +83,6 @@ void Phase::draw(QPainter* painter,
                         xMap,
                         yMap,
                         drawingProperties.textColor);
-
-        DependencyOptions drawDependenciesOptions = drawingProperties.drawDependenciesOption;
-        if (drawDependenciesOptions.draw == DependencyOption::All ||
-            (drawDependenciesOptions.draw == DependencyOption::Selected && highlight))
-        {
-            drawPhaseDependencies(
-                span.Begin(), span.End(), yVal, drawingProperties, painter, xMap, yMap);
-        }
     }
 
     for (Timespan spanOnCommandBus : spansOnCommandBus)
@@ -190,62 +182,6 @@ void Phase::drawPhaseSymbol(traceTime begin,
                         static_cast<int>(yVal + symbolHeight / 2)),
                  TextPositioning::bottomRight,
                  textColor);
-}
-
-void Phase::drawPhaseDependencies(traceTime begin,
-                                  traceTime end,
-                                  double y,
-                                  const TraceDrawingProperties& drawingProperties,
-                                  QPainter* painter,
-                                  const QwtScaleMap& xMap,
-                                  const QwtScaleMap& yMap) const
-{
-    QPen pen;
-    pen.setWidth(2);
-
-    painter->save();
-    painter->setPen(pen);
-    painter->setRenderHint(QPainter::Antialiasing);
-
-    double yVal = yMap.transform(y);
-    double symbolHeight = yMap.transform(0) - yMap.transform(hexagonHeight);
-
-    traceTime offset = (begin == end) ? static_cast<traceTime>(0.05 * clk) : 0;
-
-    size_t invisibleDeps = 0;
-
-    QPoint depLineTo(static_cast<int>(xMap.transform(begin /* + (end + offset - begin)/4*/)),
-                     static_cast<int>(yVal));
-
-#ifdef EXTENSION_ENABLED
-    for (const auto& dep : mDependencies)
-    {
-        if (dep->isVisible())
-        {
-            if (!dep->draw(depLineTo, drawingProperties, painter, xMap, yMap))
-            {
-                invisibleDeps += 1;
-            }
-        }
-        else
-        {
-            invisibleDeps += 1;
-        }
-    }
-#endif
-
-    if (invisibleDeps > 0)
-    {
-        QPoint invisibleDepsPoint(
-            static_cast<int>(xMap.transform(begin + (end + offset - begin) / 2)),
-            static_cast<int>(yVal + 0.1 * symbolHeight));
-        drawText(painter,
-                 QString::number(invisibleDeps),
-                 invisibleDepsPoint,
-                 TextPositioning::centerCenter);
-    }
-
-    painter->restore();
 }
 
 std::vector<int> Phase::getYVals(const TraceDrawingProperties& drawingProperties) const
@@ -419,10 +355,3 @@ Phase::PhaseSymbol Phase::getPhaseSymbol() const
 {
     return PhaseSymbol::Hexagon;
 }
-
-#ifdef EXTENSION_ENABLED
-void Phase::addDependency(const std::shared_ptr<PhaseDependency>& dependency)
-{
-    mDependencies.push_back(dependency);
-}
-#endif

@@ -37,18 +37,21 @@
  *    Derek Christ
  */
 
-#include "pythoncaller.h"
-#include <exception>
-#include <iostream>
+// Has to come first.
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+ 
+#include "pythoncaller.h"
+
+#include <exception>
+#include <iostream>
 #include <string>
 
 std::string PythonCaller::generatePlots(std::string_view pathToTrace)
 {
     try
     {
-        pybind11::module_ metricsModule = pybind11::module_::import("plots");
+        pybind11::module_ metricsModule = pybind11::module_::import("dramsys.analysis.plots");
         auto result = metricsModule.attr("generatePlots")(pathToTrace).cast<std::string>();
         return result;
     }
@@ -64,7 +67,7 @@ std::vector<std::string> PythonCaller::availableMetrics(std::string_view pathToT
 {
     try
     {
-        pybind11::module_ metricsModule = pybind11::module_::import("metrics");
+        pybind11::module_ metricsModule = pybind11::module_::import("dramsys.analysis.metrics");
         pybind11::list result = metricsModule.attr("getMetrics")(pathToTrace);
         return result.cast<std::vector<std::string>>();
     }
@@ -83,7 +86,7 @@ TraceCalculatedMetrics PythonCaller::evaluateMetrics(std::string_view pathToTrac
 
     try
     {
-        pybind11::module_ metricsModule = pybind11::module_::import("metrics");
+        pybind11::module_ metricsModule = pybind11::module_::import("dramsys.analysis.metrics");
         pybind11::list result =
             metricsModule.attr("calculateMetrics")(pathToTrace, selectedMetrics);
         auto metricList = result.cast<std::vector<pybind11::tuple>>();
@@ -107,7 +110,7 @@ std::string PythonCaller::dumpVcd(std::string_view pathToTrace)
 {
     try
     {
-        pybind11::module_ vcdModule = pybind11::module_::import("vcdExport");
+        pybind11::module_ vcdModule = pybind11::module_::import("dramsys.tools.vcdExport");
         pybind11::str result = vcdModule.attr("dumpVcd")(pathToTrace);
         return result.cast<std::string>();
     }

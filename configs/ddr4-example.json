@@ -9,6 +9,7 @@
             {
                 "type": "player",
                 "clkMhz": 200,
+                "dataLength": 64,
                 "name": "traces/example.stl"
             }
         ]

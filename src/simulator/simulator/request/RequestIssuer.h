@@ -35,9 +35,11 @@
 
 #pragma once
 
-#include "Request.h"
-#include "simulator/MemoryManager.h"
+#include "RequestProducer.h"
 
+#include <DRAMSys/common/MemoryManager.h>
+
+#include <memory>
 #include <systemc>
 #include <tlm>
 #include <tlm_utils/peq_with_cb_and_phase.h>
@@ -51,21 +53,42 @@ public:
     tlm_utils::simple_initiator_socket<RequestIssuer> iSocket;
 
     RequestIssuer(sc_core::sc_module_name const& name,
-                  MemoryManager& memoryManager,
+                  std::unique_ptr<RequestProducer> producer,
+                  DRAMSys::MemoryManager& memoryManager,
                   sc_core::sc_time interfaceClk,
                   std::optional<unsigned int> maxPendingReadRequests,
                   std::optional<unsigned int> maxPendingWriteRequests,
-                  std::function<Request()> nextRequest,
                   std::function<void()> transactionFinished,
                   std::function<void()> terminate);
-    SC_HAS_PROCESS(RequestIssuer);
+
+    uint64_t totalRequests() { return producer->totalRequests(); };
 
 private:
+    void sendNextRequest();
+    bool nextRequestSendable() const;
+
+    sc_core::sc_event nextTrigger;
+    sc_core::sc_event endReq;
+    sc_core::sc_event beginResp;
+
+    tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload& payload,
+                                       tlm::tlm_phase& phase,
+                                       sc_core::sc_time& bwDelay)
+    {
+        payloadEventQueue.notify(payload, phase, bwDelay);
+        return tlm::TLM_ACCEPTED;
+    }
+
+    void peqCallback(tlm::tlm_generic_payload& payload, const tlm::tlm_phase& phase);
+
+    std::unique_ptr<RequestProducer> producer;
+
     tlm_utils::peq_with_cb_and_phase<RequestIssuer> payloadEventQueue;
-    MemoryManager& memoryManager;
+    DRAMSys::MemoryManager& memoryManager;
 
     sc_core::sc_time interfaceClk;
 
+    bool requestInProgress = false;
     bool transactionPostponed = false;
     bool finished = false;
 
@@ -80,18 +103,4 @@ private:
 
     std::function<void()> transactionFinished;
     std::function<void()> terminate;
-    std::function<Request()> nextRequest;
-
-    void sendNextRequest();
-    bool nextRequestSendable() const;
-
-    tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload& payload,
-                                       tlm::tlm_phase& phase,
-                                       sc_core::sc_time& bwDelay)
-    {
-        payloadEventQueue.notify(payload, phase, bwDelay);
-        return tlm::TLM_ACCEPTED;
-    }
-
-    void peqCallback(tlm::tlm_generic_payload& payload, const tlm::tlm_phase& phase);
 };

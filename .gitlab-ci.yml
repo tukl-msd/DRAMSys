@@ -1,0 +1,51 @@
+# vim: set ts=4 sw=4 expandtab:
+image: ubuntu-dramsys
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: always
+    - when: never
+
+stages:
+    - build
+    - test
+    - coverage
+
+build:
+    stage: build
+    script:
+        - cmake --preset coverage
+        - cmake --build --preset build-coverage
+    after_script:
+        - find . -name "*.o" -type f -delete
+        - find . -name "*.a" -type f -delete
+        - rm -r build/coverage/_deps
+    artifacts:
+        paths:
+            - build/coverage
+        expire_in: 1 hour
+
+test:
+    stage: test
+    needs:
+        - build
+    script:
+        - ctest --preset test-coverage
+    after_script:
+        - find . -name "*.tdb" -type f -delete
+    artifacts:
+        paths:
+            - build/coverage
+        expire_in: 1 hour
+
+coverage:
+    stage: coverage
+    needs:
+        - test
+    script:
+        - cmake --build --preset build-coverage --target coverage
+    artifacts:
+        paths:
+            - build/coverage/coverage_html
+        expire_in: 1 hour

@@ -38,10 +38,6 @@
 
 #include "data/tracedb.h"
 
-#ifdef EXTENSION_ENABLED
-#include "businessObjects/phases/dependencyinfos.h"
-#endif
-
 #include <QAbstractTableModel>
 #include <utility>
 #include <vector>

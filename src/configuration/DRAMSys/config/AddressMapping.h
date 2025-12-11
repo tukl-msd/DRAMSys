@@ -31,6 +31,7 @@
  *
  * Authors:
  *    Derek Christ
+ *    Thomas Zimmermann
  */
 
 #ifndef DRAMSYSCONFIGURATION_ADDRESSMAPPING_H
@@ -51,6 +52,7 @@ struct AddressMapping
     using BitEntry = DRAMUtils::util::CollapsingVector<unsigned int>;
 
     std::optional<std::vector<BitEntry>> BYTE_BIT;
+    std::optional<std::vector<BitEntry>> BURST_BIT;
     std::optional<std::vector<BitEntry>> COLUMN_BIT;
     std::optional<std::vector<BitEntry>> ROW_BIT;
     std::optional<std::vector<BitEntry>> BANK_BIT;
@@ -63,6 +65,7 @@ struct AddressMapping
 
 NLOHMANN_JSONIFY_ALL_THINGS(AddressMapping,
                             BYTE_BIT,
+                            BURST_BIT,
                             COLUMN_BIT,
                             ROW_BIT,
                             BANK_BIT,

@@ -40,57 +40,78 @@
 
 #pragma once
 
-#include "simulator/request/Request.h"
 #include "simulator/request/RequestProducer.h"
+
+#include <DRAMSys/config/TraceSetup.h>
 
 #include <systemc>
 #include <tlm>
 
 #include <array>
+#include <filesystem>
 #include <fstream>
-#include <memory>
+#include <optional>
 #include <thread>
 #include <vector>
 
 class StlPlayer : public RequestProducer
 {
 public:
-    enum class TraceType
+    enum class TraceType : uint8_t
     {
         Absolute,
         Relative,
     };
 
-    StlPlayer(std::string_view tracePath,
-              unsigned int clkMhz,
-              unsigned int defaultDataLength,
+    StlPlayer(DRAMSys::Config::TracePlayer const& config,
+              std::filesystem::path const& trace,
               TraceType traceType,
               bool storageEnabled);
 
-    Request nextRequest() override;
+    //TODO temporary fix
+    ~StlPlayer() {
+        if (parserThread.joinable())
+            parserThread.join();
+    }
 
+    Request nextRequest() override;
+    sc_core::sc_time nextTrigger() override;
     uint64_t totalRequests() override { return numberOfLines; }
 
 private:
+    struct LineContent
+    {
+        unsigned cycle{};
+        enum class Command : uint8_t
+        {
+            Read,
+            Write
+        } command{};
+        uint64_t address{};
+        std::optional<unsigned> dataLength;
+        std::vector<uint8_t> data;
+    };
+
+    std::optional<LineContent> currentLine() const;
+
     void parseTraceFile();
-    std::vector<Request>::const_iterator swapBuffers();
+    void swapBuffers();
+    void incrementLine();
 
-    static constexpr std::size_t LINE_BUFFER_SIZE = 10000;
-
-    const TraceType traceType;
-    const bool storageEnabled;
-    const sc_core::sc_time playerPeriod;
-    const unsigned int defaultDataLength;
+    TraceType traceType;
+    bool storageEnabled;
+    sc_core::sc_time playerPeriod;
+    unsigned int defaultDataLength;
 
     std::ifstream traceFile;
-    uint64_t currentLine = 0;
+    uint64_t currentParsedLine = 0;
     uint64_t numberOfLines = 0;
 
-    std::array<std::shared_ptr<std::vector<Request>>, 2> lineBuffers;
-    std::shared_ptr<std::vector<Request>> parseBuffer;
-    std::shared_ptr<std::vector<Request>> readoutBuffer;
+    std::array<std::vector<LineContent>, 2> lineBuffers;
+    std::size_t parseIndex = 0;
+    std::size_t consumeIndex = 1;
 
-    std::vector<Request>::const_iterator readoutIt;
+    std::vector<LineContent>::const_iterator readoutIt;
 
     std::thread parserThread;
 };

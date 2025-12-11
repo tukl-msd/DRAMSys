@@ -5,7 +5,7 @@
             "dataRate": 2,
             "nbrOfBankGroups": 4,
             "nbrOfBanks": 16,
-            "nbrOfColumns": 128,
+            "nbrOfColumns": 32,
             "nbrOfStacks": 2,
             "nbrOfPseudoChannels": 2,
             "nbrOfRows": 32768,
@@ -45,7 +45,7 @@
             "WTRS": 4,
             "XP": 8,
             "XS": 216,
-            "tCK": 1000e-12
+            "tCK": 1e-09
         }
     }
 }

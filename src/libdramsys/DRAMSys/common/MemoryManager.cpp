@@ -1,5 +1,6 @@
+
 /*
- * Copyright (c) 2023, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2024, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,12 +31,69 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
+ *    Robert Gernhardt
+ *    Matthias Jung
+ *    Lukas Steiner
  *    Derek Christ
+ *    Thomas Zimmermann
  */
 
-#pragma once
+#include "MemoryManager.h"
 
-#include <cstdint>
+namespace DRAMSys
+{
 
-inline constexpr uint64_t DEFAULT_SEED = 0;
-inline constexpr uint64_t DEFAULT_MIN_ADDRESS = 0;
+MemoryManager::MemoryManager(bool storageEnabled) : storageEnabled(storageEnabled) {};
+
+MemoryManager::~MemoryManager()
+{
+    for (auto& [size, stack] : freePayloads)
+    {
+        while (!stack.empty())
+        {
+            tlm::tlm_generic_payload* payload = stack.top();
+            if (storageEnabled)
+            {
+                unsigned char* ptr = payload->get_data_ptr();
+                if (ptr != nullptr) {
+                    delete[] ptr;
+                }
+            }
+
+            payload->reset();
+            delete payload;
+
+            stack.pop();
+        }
+    }
+}
+
+tlm::tlm_generic_payload* MemoryManager::allocate(std::size_t dataLength)
+{
+    if (freePayloads[dataLength].empty())
+    {
+        auto* payload = new tlm::tlm_generic_payload(this);
+
+        if (storageEnabled)
+        {
+            // Allocate a data buffer and initialize it with zeroes:
+            auto* data = new unsigned char[dataLength];
+            std::fill(data, data + dataLength, 0);
+            payload->set_data_ptr(data);
+        }
+
+        return payload;
+    }
+
+    tlm::tlm_generic_payload* result = freePayloads[dataLength].top();
+    freePayloads[dataLength].pop();
+    return result;
+}
+
+void MemoryManager::free(tlm::tlm_generic_payload* trans)
+{
+    unsigned dataLength = trans->get_data_length();
+    freePayloads[dataLength].push(trans);
+}
+
+} // namespace DRAMSys

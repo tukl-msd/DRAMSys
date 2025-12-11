@@ -50,7 +50,6 @@ TraceScroller::TraceScroller(QWidget* parent) :
     isInitialized(false),
     drawingProperties(false,
                       false,
-                      {DependencyOption::Disabled, DependencyTextOption::Disabled},
                       ColorGrouping::PhaseType)
 {
     setAxisScaleDraw(xBottom, new EngineeringScaleDraw);
@@ -213,9 +212,6 @@ void TraceScroller::colorGroupingChanged(ColorGrouping colorGrouping)
 
 void TraceScroller::currentTraceTimeChanged()
 {
-    bool drawDependencies =
-        drawingProperties.drawDependenciesOption.draw != DependencyOption::Disabled;
-
     Timespan spanOnTracePlot = tracePlot->GetCurrentTimespan();
     canvasClip->setInterval(spanOnTracePlot.Begin(), spanOnTracePlot.End());
 
@@ -227,14 +223,7 @@ void TraceScroller::currentTraceTimeChanged()
                                   newTimespan.End() + newTimespan.timeCovered()};
 
         transactions =
-            navigator->TraceFile().getTransactionsInTimespan(loadedTimespan, drawDependencies);
-
-#ifdef EXTENSION_ENABLED
-        if (drawDependencies)
-        {
-            navigator->TraceFile().updateDependenciesInTimespan(loadedTimespan);
-        }
-#endif
+            navigator->TraceFile().getTransactionsInTimespan(loadedTimespan);
     }
 
     setAxisScale(xBottom, newTimespan.Begin(), newTimespan.End());

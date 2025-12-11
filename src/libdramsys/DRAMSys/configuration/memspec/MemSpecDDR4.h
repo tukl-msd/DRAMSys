@@ -97,7 +97,9 @@ public:
 
     [[nodiscard]] bool requiresMaskedWrite(const tlm::tlm_generic_payload& payload) const override;
 
+#ifdef USE_DRAMPOWER
     [[nodiscard]] std::unique_ptr<DRAMPower::dram_base<DRAMPower::CmdType>> toDramPowerObject() const override;
+#endif
 };
 
 } // namespace DRAMSys

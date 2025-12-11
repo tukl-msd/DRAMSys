@@ -33,11 +33,12 @@
  *    Derek Christ
  */
 
-#include "RandomProducer.h"
-#include "definitions.h"
+#include "RandomState.h"
 
-RandomProducer::RandomProducer(uint64_t numRequests,
-                               std::optional<uint64_t> seed,
+#include <systemc>
+
+RandomState::RandomState(uint64_t numRequests,
+                               uint64_t seed,
                                double rwRatio,
                                std::optional<uint64_t> minAddress,
                                std::optional<uint64_t> maxAddress,
@@ -45,13 +46,12 @@ RandomProducer::RandomProducer(uint64_t numRequests,
                                unsigned int dataLength,
                                unsigned int dataAlignment) :
     numberOfRequests(numRequests),
-    seed(seed.value_or(DEFAULT_SEED)),
+    seed(seed),
     rwRatio(rwRatio),
     dataLength(dataLength),
     dataAlignment(dataAlignment),
     randomGenerator(this->seed),
-    randomAddressDistribution(minAddress.value_or(DEFAULT_MIN_ADDRESS),
-                              maxAddress.value_or((memorySize)-dataLength))
+    randomAddressDistribution(minAddress.value_or(0), maxAddress.value_or((memorySize)-dataLength))
 {
     if (minAddress > memorySize - 1)
         SC_REPORT_FATAL("TrafficGenerator", "minAddress is out of range.");
@@ -65,7 +65,7 @@ RandomProducer::RandomProducer(uint64_t numRequests,
     rwRatio = std::clamp(rwRatio, 0.0, 1.0);
 }
 
-Request RandomProducer::nextRequest()
+Request RandomState::nextRequest()
 {
     Request request;
     request.address = randomAddressDistribution(randomGenerator);
@@ -76,7 +76,6 @@ Request RandomProducer::nextRequest()
     request.command = readWriteDistribution(randomGenerator) < rwRatio ? Request::Command::Read
                                                                        : Request::Command::Write;
     request.length = dataLength;
-    request.delay = sc_core::SC_ZERO_TIME;
 
     return request;
 }

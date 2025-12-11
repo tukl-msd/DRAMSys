@@ -36,6 +36,9 @@
  *    Derek Christ
  */
 
+// Has to come first.
+#include <pybind11/embed.h>
+
 #include "traceanalyzer.h"
 
 #include <QApplication>
@@ -43,28 +46,35 @@
 #include <QFileInfo>
 #include <QSet>
 #include <QString>
+#include <csignal>
 #include <filesystem>
 #include <iostream>
-#include <pybind11/embed.h>
 
 int main(int argc, char* argv[])
 {
     QApplication a(argc, argv);
+
+    // Make CTRL-C work again
+    std::signal(SIGINT, [](int) { QApplication::quit(); });
 
     QIcon icon(QStringLiteral(":/icon"));
     QApplication::setWindowIcon(icon);
     QApplication::setApplicationName(QStringLiteral("TraceAnalyzer"));
     QApplication::setApplicationDisplayName(QStringLiteral("Trace Analyzer"));
 
-    std::filesystem::path extensionDir = DRAMSYS_TRACE_ANALYZER_EXTENSION_DIR;
-    std::filesystem::path modulesDir = extensionDir / "scripts";
-
     pybind11::scoped_interpreter guard;
 
-    // Add scripts directory to local module search path
-    pybind11::module_ sys = pybind11::module_::import("sys");
-    pybind11::list path = sys.attr("path");
-    path.append(modulesDir.c_str());
+    // Check if dramsys Python module is available
+    try
+    {
+        pybind11::module_::import("dramsys");
+    }
+    catch (pybind11::error_already_set const& err)
+    {
+        std::cout << "Warning: No dramsys Python module found. Metrics, plots and exports will not "
+                     "work. Set up a virutal environment and install the dramsys package with its "
+                     "dependencies into it.\n";
+    }
 
     if (argc > 1)
     {

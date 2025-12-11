@@ -42,16 +42,12 @@
 #ifndef DRAMSYS_H
 #define DRAMSYS_H
 
-#include "DRAMSys/common/DramATRecorder.h"
-#include "DRAMSys/common/TlmATRecorder.h"
-#include "DRAMSys/common/TlmRecorder.h"
 #include "DRAMSys/common/tlm2_base_protocol_checker.h"
 #include "DRAMSys/config/DRAMSysConfiguration.h"
 #include "DRAMSys/controller/Controller.h"
 #include "DRAMSys/controller/McConfig.h"
 #include "DRAMSys/simulation/AddressDecoder.h"
 #include "DRAMSys/simulation/Arbiter.h"
-#include "DRAMSys/simulation/Dram.h"
 #include "DRAMSys/simulation/SimConfig.h"
 
 #include <DRAMUtils/memspec/MemSpec.h>
@@ -67,15 +63,21 @@ namespace DRAMSys
 {
 
 class Dram;
+class TlmATRecorder;
+class DramATRecorder;
 
 class DRAMSys : public sc_core::sc_module
 {
 public:
     tlm_utils::multi_passthrough_target_socket<DRAMSys> tSocket{"DRAMSys_tSocket"};
 
-    SC_HAS_PROCESS(DRAMSys);
     DRAMSys(const sc_core::sc_module_name& name, const Config::Configuration& config);
-    ~DRAMSys();
+
+    ~DRAMSys() override;
+    DRAMSys(const DRAMSys&) = delete;
+    DRAMSys(DRAMSys&&) = delete;
+    DRAMSys& operator=(const DRAMSys&) = delete;
+    DRAMSys& operator=(DRAMSys&&) = delete;
 
     const auto& getSimConfig() const { return simConfig; }
     const auto& getMcConfig() const { return mcConfig; }
@@ -95,7 +97,8 @@ public:
 
 private:
     static void logo();
-    static std::unique_ptr<const MemSpec> createMemSpec(const DRAMUtils::MemSpec::MemSpecVariant& memSpec);
+    static std::unique_ptr<const MemSpec>
+    createMemSpec(const DRAMUtils::MemSpec::MemSpecVariant& memSpec);
     static std::unique_ptr<Arbiter> createArbiter(const SimConfig& simConfig,
                                                   const McConfig& mcConfig,
                                                   const MemSpec& memSpec,

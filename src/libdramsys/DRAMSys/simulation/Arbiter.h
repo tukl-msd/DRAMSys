@@ -73,7 +73,6 @@ protected:
             const McConfig& mcConfig,
             const MemSpec& memSpec,
             const AddressDecoder& addressDecoder);
-    SC_HAS_PROCESS(Arbiter);
 
     void end_of_elaboration() override;
 
@@ -105,7 +104,6 @@ protected:
     const sc_core::sc_time arbitrationDelayFw;
     const sc_core::sc_time arbitrationDelayBw;
 
-    const unsigned bytesPerBeat;
     const uint64_t addressOffset;
 };
 
@@ -117,7 +115,6 @@ public:
                   const McConfig& mcConfig,
                   const MemSpec& memSpec,
                   const AddressDecoder& addressDecoder);
-    SC_HAS_PROCESS(ArbiterSimple);
 
 private:
     void end_of_elaboration() override;
@@ -134,7 +131,6 @@ public:
                 const McConfig& mcConfig,
                 const MemSpec& memSpec,
                 const AddressDecoder& addressDecoder);
-    SC_HAS_PROCESS(ArbiterFifo);
 
 private:
     void end_of_elaboration() override;
@@ -158,7 +154,6 @@ public:
                    const McConfig& mcConfig,
                    const MemSpec& memSpec,
                    const AddressDecoder& addressDecoder);
-    SC_HAS_PROCESS(ArbiterReorder);
 
 private:
     void end_of_elaboration() override;

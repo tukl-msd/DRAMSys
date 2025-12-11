@@ -1,24 +1,23 @@
 {
   "name": "dramsys",
-  "version": "5.0",
+  "version": "5.2.0",
   "dependencies": [
-    "benchmark",
-    "gtest",
-    "pybind11",
-    "python3",
+    "systemc",
     {
       "name": "sqlite3",
       "features": [
         "rtree"
       ]
-    },
-    "systemc"
-  ],
-  "overrides": [
-    {
-      "name": "systemc",
-      "version": "2.3.4"
     }
   ],
-  "builtin-baseline": "ce613c41372b23b1f51333815feb3edd87ef8a8b"
+  "features": {
+    "dev": {
+      "description": "Development dependencies",
+      "dependencies": [
+        "benchmark",
+        "gtest"
+      ]
+    }
+  },
+  "builtin-baseline": "c59b04f668d20c7dd83f478835e8266a3cc51270"
 }

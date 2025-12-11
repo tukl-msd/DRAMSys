@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2025, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,34 +35,21 @@
 
 #pragma once
 
-#include "simulator/request/RequestProducer.h"
+#include "simulator/request/Request.h"
 
-#include <optional>
-#include <random>
-
-class RandomProducer : public RequestProducer
+class GeneratorState
 {
+protected:
+    GeneratorState(const GeneratorState&) = default;
+    GeneratorState(GeneratorState&&) = default;
+    GeneratorState& operator=(const GeneratorState&) = default;
+    GeneratorState& operator=(GeneratorState&&) = default;
+
 public:
-    RandomProducer(uint64_t numRequests,
-                   std::optional<uint64_t> seed,
-                   double rwRatio,
-                   std::optional<uint64_t> minAddress,
-                   std::optional<uint64_t> maxAddress,
-                   uint64_t memorySize,
-                   unsigned int dataLength,
-                   unsigned int dataAlignment);
+    GeneratorState() = default;
+    virtual ~GeneratorState() = default;
 
-    Request nextRequest() override;
-
-    uint64_t totalRequests() override { return numberOfRequests; }
-
-    const uint64_t numberOfRequests;
-    const uint64_t seed;
-    const double rwRatio;
-    const unsigned int dataLength;
-    const unsigned int dataAlignment;
-
-    std::default_random_engine randomGenerator;
-    std::uniform_real_distribution<double> readWriteDistribution{0.0, 1.0};
-    std::uniform_int_distribution<uint64_t> randomAddressDistribution;
+    virtual Request nextRequest() = 0;
+    virtual uint64_t totalRequests() = 0;
+    virtual void reset() {}
 };

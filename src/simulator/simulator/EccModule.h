@@ -37,8 +37,7 @@
 #ifndef ECCMODULE_H
 #define ECCMODULE_H
 
-#include "simulator/MemoryManager.h"
-
+#include <DRAMSys/common/MemoryManager.h>
 #include <DRAMSys/simulation/AddressDecoder.h>
 
 #include <deque>
@@ -55,8 +54,7 @@ public:
     tlm_utils::simple_initiator_socket<EccModule> iSocket;
     tlm_utils::simple_target_socket<EccModule> tSocket;
 
-    EccModule(sc_core::sc_module_name name, DRAMSys::AddressDecoder const& addressDecoder);
-    SC_HAS_PROCESS(EccModule);
+    EccModule(sc_core::sc_module_name const& name, DRAMSys::AddressDecoder const& addressDecoder);
 
 private:
     using Block = uint64_t;
@@ -91,7 +89,7 @@ private:
     bool targetBusy = false;
 
     const sc_core::sc_time tCK;
-    MemoryManager memoryManager;
+    DRAMSys::MemoryManager memoryManager;
     DRAMSys::AddressDecoder const& addressDecoder;
 
     std::unordered_map<Bank, EccQueue> activeEccBlocks;

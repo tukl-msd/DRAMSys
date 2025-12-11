@@ -40,11 +40,9 @@
 
 TraceDrawingProperties::TraceDrawingProperties(bool drawText,
                                                bool drawBorder,
-                                               DependencyOptions drawDependenciesOption,
                                                ColorGrouping colorGrouping) :
     drawText(drawText),
     drawBorder(drawBorder),
-    drawDependenciesOption(drawDependenciesOption),
     colorGrouping(colorGrouping)
 {
 }

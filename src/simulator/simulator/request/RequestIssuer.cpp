@@ -36,22 +36,22 @@
 #include "RequestIssuer.h"
 
 RequestIssuer::RequestIssuer(sc_core::sc_module_name const& name,
-                             MemoryManager& memoryManager,
+                             std::unique_ptr<RequestProducer> producer,
+                             DRAMSys::MemoryManager& memoryManager,
                              sc_core::sc_time interfaceClk,
                              std::optional<unsigned int> maxPendingReadRequests,
                              std::optional<unsigned int> maxPendingWriteRequests,
-                             std::function<Request()> nextRequest,
                              std::function<void()> transactionFinished,
                              std::function<void()> terminate) :
     sc_module(name),
+    producer(std::move(producer)),
     payloadEventQueue(this, &RequestIssuer::peqCallback),
     memoryManager(memoryManager),
     interfaceClk(interfaceClk),
     maxPendingReadRequests(maxPendingReadRequests),
     maxPendingWriteRequests(maxPendingWriteRequests),
     transactionFinished(std::move(transactionFinished)),
-    terminate(std::move(terminate)),
-    nextRequest(std::move(nextRequest))
+    terminate(std::move(terminate))
 {
     SC_THREAD(sendNextRequest);
     iSocket.register_nb_transport_bw(this, &RequestIssuer::nb_transport_bw);
@@ -59,48 +59,55 @@ RequestIssuer::RequestIssuer(sc_core::sc_module_name const& name,
 
 void RequestIssuer::sendNextRequest()
 {
-    Request request = nextRequest();
-
-    if (request.command == Request::Command::Stop)
+    while (true)
     {
-        finished = true;
-        return;
+        Request request = producer->nextRequest();
+
+        if (request.command == Request::Command::Stop)
+        {
+            finished = true;
+            return;
+        }
+
+        if (requestInProgress)
+        {
+            wait(endReq);
+        }
+
+        while (!nextRequestSendable())
+        {
+            wait(beginResp);
+        }
+
+        tlm::tlm_generic_payload* payload = memoryManager.allocate(request.length);
+        payload->acquire();
+        payload->set_address(request.address);
+        payload->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
+        payload->set_dmi_allowed(false);
+        payload->set_byte_enable_length(0);
+        payload->set_data_length(request.length);
+        payload->set_streaming_width(request.length);
+        payload->set_command(request.command == Request::Command::Read ? tlm::TLM_READ_COMMAND
+                                                                      : tlm::TLM_WRITE_COMMAND);
+
+        std::copy(request.data.cbegin(), request.data.cend(), payload->get_data_ptr());
+
+        tlm::tlm_phase phase = tlm::BEGIN_REQ;
+        sc_core::sc_time delay = sc_core::SC_ZERO_TIME;
+
+        iSocket->nb_transport_fw(*payload, phase, delay);
+        requestInProgress = true;
+
+        if (request.command == Request::Command::Read)
+            pendingReadRequests++;
+        else if (request.command == Request::Command::Write)
+            pendingWriteRequests++;
+
+        transactionsSent++;
+
+        nextTrigger.notify(producer->nextTrigger());
+        wait(nextTrigger);
     }
-
-    tlm::tlm_generic_payload& payload = memoryManager.allocate(request.length);
-    payload.acquire();
-    payload.set_address(request.address);
-    payload.set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
-    payload.set_dmi_allowed(false);
-    payload.set_byte_enable_length(0);
-    payload.set_data_length(request.length);
-    payload.set_streaming_width(request.length);
-    payload.set_command(request.command == Request::Command::Read ? tlm::TLM_READ_COMMAND
-                                                                  : tlm::TLM_WRITE_COMMAND);
-
-    std::copy(request.data.cbegin(), request.data.cend(), payload.get_data_ptr());
-
-    tlm::tlm_phase phase = tlm::BEGIN_REQ;
-    sc_core::sc_time delay = request.delay;
-
-    sc_core::sc_time sendingTime = sc_core::sc_time_stamp() + delay;
-
-    bool needsOffset = (sendingTime % interfaceClk) != sc_core::SC_ZERO_TIME;
-    if (needsOffset)
-    {
-        sendingTime += interfaceClk;
-        sendingTime -= sendingTime % interfaceClk;
-    }
-
-    delay = sendingTime - sc_core::sc_time_stamp();
-    iSocket->nb_transport_fw(payload, phase, delay);
-
-    if (request.command == Request::Command::Read)
-        pendingReadRequests++;
-    else if (request.command == Request::Command::Write)
-        pendingWriteRequests++;
-
-    transactionsSent++;
 }
 
 bool RequestIssuer::nextRequestSendable() const
@@ -121,37 +128,31 @@ void RequestIssuer::peqCallback(tlm::tlm_generic_payload& payload, const tlm::tl
 {
     if (phase == tlm::END_REQ)
     {
+        requestInProgress = false;
+        endReq.notify(sc_core::SC_ZERO_TIME);
+
         lastEndRequest = sc_core::sc_time_stamp();
 
-        if (nextRequestSendable())
-            sendNextRequest();
-        else
+        if (!nextRequestSendable())
             transactionPostponed = true;
     }
     else if (phase == tlm::BEGIN_RESP)
     {
-        tlm::tlm_phase nextPhase = tlm::END_RESP;
-        sc_core::sc_time delay = interfaceClk;
-        iSocket->nb_transport_fw(payload, nextPhase, delay);
-
-        payload.release();
-
-        transactionFinished();
-
         transactionsReceived++;
+        transactionFinished();
 
         if (payload.get_command() == tlm::TLM_READ_COMMAND)
             pendingReadRequests--;
         else if (payload.get_command() == tlm::TLM_WRITE_COMMAND)
             pendingWriteRequests--;
 
-        // If the initiator wasn't able to send the next payload in the END_REQ phase, do it
-        // now.
-        if (transactionPostponed && nextRequestSendable())
-        {
-            sendNextRequest();
-            transactionPostponed = false;
-        }
+        beginResp.notify(sc_core::SC_ZERO_TIME);
+
+        // Send END_RESP
+        tlm::tlm_phase nextPhase = tlm::END_RESP;
+        sc_core::sc_time delay = interfaceClk;
+        iSocket->nb_transport_fw(payload, nextPhase, delay);
+        payload.release();
 
         // If all answers were received:
         if (finished && transactionsSent == transactionsReceived)

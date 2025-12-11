@@ -14,5 +14,4 @@ Checks: >
   -readability-function-cognitive-complexity
 WarningsAsErrors: ''
 HeaderFilterRegex: ''
-AnalyzeTemporaryDtors: false
 FormatStyle: file

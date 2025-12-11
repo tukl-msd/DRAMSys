@@ -101,7 +101,7 @@ Configuration from_path(std::filesystem::path baseConfig)
                 std::ifstream json_file(path);
 
                 if (!json_file.is_open())
-                    throw std::runtime_error("Failed to open file " + std::string(path));
+                    throw std::runtime_error("Failed to open file " + path.string());
 
                 json_t json =
                     json_t::parse(json_file, parser_callback, true, true).at(sub_config_key);
@@ -128,7 +128,7 @@ Configuration from_path(std::filesystem::path baseConfig)
         json_t simulation = json_t::parse(file, parser_callback, true, true).at(Configuration::KEY);
         return simulation.get<Config::Configuration>();
     }
-    throw std::runtime_error("Failed to open file " + std::string(baseConfig));
+    throw std::runtime_error("Failed to open file " + baseConfig.string());
 }
 
 } // namespace DRAMSys::Config

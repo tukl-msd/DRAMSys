@@ -36,11 +36,11 @@
 ###############################################
 ###                 DRAMSys                 ###
 ###############################################
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.25)
 
 set(PROJECT_NAME "DRAMSys")
 
-project(${PROJECT_NAME} VERSION 5.0)
+project(${PROJECT_NAME} VERSION 5.2.0)
 
 if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
@@ -67,6 +67,8 @@ option(DRAMSYS_BUILD_BENCHMARKS "Build DRAMSys benchmarks" OFF)
 option(DRAMSYS_BUILD_CLI "Build DRAMSys Command Line Tool" ${PROJECT_IS_TOP_LEVEL})
 option(DRAMSYS_BUILD_TOOLS "Build DRAMSys Tools" OFF)
 option(DRAMSYS_BUILD_TRACE_ANALYZER "Build DRAMSys Trace Analyzer" OFF)
+option(DRAMSYS_USE_DRAMPOWER "Enable DRAMPower integration" ON)
+option(DRAMSYS_USE_LEGACY_SYSTEMC_INSTALLATION "Use SystemC installed with autotools (set SYSTEMC_HOME)" OFF)
 
 # Use sane defaults for FetchContent:
 # In case we are the top-level project, get everything by default
@@ -85,11 +87,11 @@ if(DEFINED DRAMSYS_SHARED_LIBS)
 endif()
 
 ### DRAMSys directories ###
-set(DRAMSYS_SOURCE_DIR      "${CMAKE_CURRENT_SOURCE_DIR}/src")
-set(DRAMSYS_LIBRARY_DIR     "${CMAKE_CURRENT_SOURCE_DIR}/lib")
-set(DRAMSYS_TESTS_DIR       "${CMAKE_CURRENT_SOURCE_DIR}/tests")
-set(DRAMSYS_RESOURCE_DIR    "${CMAKE_CURRENT_SOURCE_DIR}/configs")
-set(DRAMSYS_EXTENSIONS_DIR  "${CMAKE_CURRENT_SOURCE_DIR}/extensions")
+set(DRAMSYS_SOURCE_DIR      "${PROJECT_SOURCE_DIR}/src")
+set(DRAMSYS_LIBRARY_DIR     "${PROJECT_SOURCE_DIR}/lib")
+set(DRAMSYS_TESTS_DIR       "${PROJECT_SOURCE_DIR}/tests")
+set(DRAMSYS_RESOURCE_DIR    "${PROJECT_SOURCE_DIR}/configs")
+set(DRAMSYS_EXTENSIONS_DIR  "${PROJECT_SOURCE_DIR}/extensions")
 
 ###############################################
 ###           Library Settings              ###
@@ -116,12 +118,9 @@ if (DRAMSYS_USE_FETCH_CONTENT)
 
         FetchContent_Declare(
             SystemCLanguage
-            URL https://github.com/accellera-official/systemc/archive/refs/tags/2.3.4.tar.gz
+            URL https://github.com/accellera-official/systemc/archive/refs/tags/3.0.1.tar.gz
             OVERRIDE_FIND_PACKAGE
         )
-
-        # TODO: remove with SystemC 3.0
-        set(CMAKE_CXX_STANDARD ${CMAKE_CXX_STANDARD} CACHE STRING "")
 
         FetchContent_MakeAvailable(SystemCLanguage)
 
@@ -132,7 +131,7 @@ if (DRAMSYS_USE_FETCH_CONTENT)
     if (DRAMSYS_USE_FETCH_CONTENT_INTERNAL)
         FetchContent_Declare(
             DRAMUtils
-            URL "https://github.com/tukl-msd/DRAMUtils/archive/refs/tags/v1.7.0.tar.gz"
+            URL "https://github.com/tukl-msd/DRAMUtils/archive/refs/tags/v1.11.0.tar.gz"
             OVERRIDE_FIND_PACKAGE
         )
         FetchContent_MakeAvailable(DRAMUtils)
@@ -147,10 +146,23 @@ if (DRAMSYS_USE_FETCH_CONTENT)
     endif()
 endif()
 
-find_package(SystemCLanguage REQUIRED)
+# Special handling of SystemC:
+# Normally, we require the user to have SystemC installed by CMake
+# However, there are some cases where SystemC is still installed by autotools
+# In this case, try to find SystemC using FindSystemC and SYSTEMC_HOME
+if (DRAMSYS_USE_LEGACY_SYSTEMC_INSTALLATION)
+    message(STATUS "Using legacy SystemC installed with autotools")
+    find_package(SystemC MODULE REQUIRED)
+else()
+    find_package(SystemCLanguage REQUIRED)
+endif()
+
 find_package(SQLite3 REQUIRED)
 find_package(DRAMUtils REQUIRED)
-find_package(DRAMPower REQUIRED)
+
+if (DRAMSYS_USE_DRAMPOWER)
+    find_package(DRAMPower REQUIRED)
+endif()
 
 ###############################################
 ###           Source Directory              ###

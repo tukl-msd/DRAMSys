@@ -194,12 +194,6 @@ private:
     QAction* exportToPdf;
     ToggleCollapsedAction* toggleCollapsedState;
 
-    QMenu* dependenciesSubMenu;
-    QAction* disabledDependencies;
-    QAction* selectedDependencies;
-    QAction* allDependencies;
-    QAction* switchDrawDependencyTextsOption;
-
     TracePlotMouseLabel* mouseLabel;
 
     void openContextMenu(const QPoint& pos, const QPoint& mouseDown);

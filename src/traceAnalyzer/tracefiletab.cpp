@@ -63,9 +63,6 @@ TraceFileTab::TraceFileTab(std::string_view traceFilePath,
     availableRowsModel(new AvailableTracePlotLineModel(navigator->GeneralTraceInfo(), this)),
     selectedRowsModel(new SelectedTracePlotLineModel(navigator->GeneralTraceInfo(), this)),
     tracePlotLineDataSource(new TracePlotLineDataSource(selectedRowsModel, this)),
-#ifdef EXTENSION_ENABLED
-    depInfosView(new DependencyInfosModel(navigator->TraceFile(), this)),
-#endif
     pythonCaller(pythonCaller),
     savingChangesToDB(false)
 {
@@ -79,20 +76,13 @@ TraceFileTab::TraceFileTab(std::string_view traceFilePath,
     ui->memSpecView->setModel(memSpecModel);
     ui->memSpecView->header()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
-#ifdef EXTENSION_ENABLED
-    ui->depInfosView->setModel(depInfosView);
-    ui->depInfosView->header()->setSectionResizeMode(QHeaderView::ResizeToContents);
-#endif
-
     setUpTraceSelector();
     initNavigatorAndItsDependentWidgets();
     setUpFileWatcher(traceFilePath.data());
     setUpTraceplotScrollbar();
     setUpCommentView();
 
-#ifdef EXTENSION_ENABLED
-        setUpPossiblePhases();
-#else
+#ifndef EXTENSION_ENABLED
         addDisclaimer();
 #endif
 
@@ -238,15 +228,6 @@ void TraceFileTab::addDisclaimer()
     ui->powerBox->setEnabled(false);
     ui->bandwidthBox->setEnabled(false);
     ui->bufferBox->setEnabled(false);
-
-    // Dependencies
-    auto* dependenciesDisclaimerLabel = disclaimerLabel();
-    ui->verticalLayout_depInfos->insertWidget(0, dependenciesDisclaimerLabel);
-
-    ui->depInfoLabel->setEnabled(false);
-    ui->depInfosView->setEnabled(false);
-    ui->depTabPossiblePhases->setEnabled(false);
-    ui->calculateDependencies->setEnabled(false);
 }
 
 void TraceFileTab::tracefileChanged()

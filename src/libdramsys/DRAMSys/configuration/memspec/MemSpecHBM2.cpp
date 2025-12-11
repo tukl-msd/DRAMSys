@@ -60,7 +60,6 @@ MemSpecHBM2::MemSpecHBM2(const DRAMUtils::MemSpec::MemSpecHBM2& memSpec) :
             memSpec.memarchitecturespec.nbrOfBankGroups *
                 memSpec.memarchitecturespec.nbrOfPseudoChannels,
             memSpec.memarchitecturespec.nbrOfDevices),
-    stacksPerChannel(memSpec.memarchitecturespec.nbrOfStacks),
     tDQSCK(tCK * memSpec.memtimingspec.DQSCK),
     tRC(tCK * memSpec.memtimingspec.RC),
     tRAS(tCK * memSpec.memtimingspec.RAS),
@@ -92,12 +91,14 @@ MemSpecHBM2::MemSpecHBM2(const DRAMUtils::MemSpec::MemSpecHBM2& memSpec) :
     tREFI(tCK * memSpec.memtimingspec.REFI),
     tREFISB(tCK * memSpec.memtimingspec.REFISB)
 {
+    stacksPerChannel = memSpec.memarchitecturespec.nbrOfStacks;
+
     commandLengthInCycles[Command::ACT] = 2;
 
-    uint64_t deviceSizeBits =
-        static_cast<uint64_t>(banksPerRank) * rowsPerBank * columnsPerRow * bitWidth;
-    uint64_t deviceSizeBytes = deviceSizeBits / 8;
-    memorySizeBytes = deviceSizeBytes * ranksPerChannel * numberOfChannels;
+    uint64_t deviceSizeBytes =
+        static_cast<uint64_t>(banksPerRank) * rowsPerBank * columnsPerRow * defaultDataBytesPerBurst;
+    uint64_t deviceSizeBits = deviceSizeBytes * 8;
+    memorySizeBytes = deviceSizeBytes * ranksPerChannel * stacksPerChannel * numberOfChannels;
 
     std::cout << headline << std::endl;
     std::cout << "Memory Configuration:" << std::endl << std::endl;

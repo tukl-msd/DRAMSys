@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2023, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,36 +30,42 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Robert Gernhardt
- *    Matthias Jung
  *    Derek Christ
  */
 
-#ifndef MEMORYMANAGER_H
-#define MEMORYMANAGER_H
+#pragma once
 
-#include <stack>
-#include <tlm>
-#include <unordered_map>
+#include "simulator/generator/GeneratorState.h"
 
-class MemoryManager : public tlm::tlm_mm_interface
+#include <optional>
+#include <random>
+
+class SequentialState : public GeneratorState
 {
 public:
-    explicit MemoryManager(bool storageEnabled);
-    MemoryManager(const MemoryManager&) = delete;
-    MemoryManager(MemoryManager&&) = delete;
-    MemoryManager& operator=(const MemoryManager&) = delete;
-    MemoryManager& operator=(MemoryManager&&) = delete;
-    ~MemoryManager() override;
+    SequentialState(uint64_t numRequests,
+                       uint64_t seed,
+                       double rwRatio,
+                       std::optional<uint64_t> addressIncrement,
+                       std::optional<uint64_t> minAddress,
+                       std::optional<uint64_t> maxAddress,
+                       uint64_t memorySize,
+                       unsigned int dataLength);
 
-    tlm::tlm_generic_payload& allocate(unsigned dataLength);
-    void free(tlm::tlm_generic_payload* payload) override;
+    Request nextRequest() override;
+    uint64_t totalRequests() override { return numberOfRequests; }
+    void reset() override { generatedRequests = 0; }
 
-private:
-    uint64_t numberOfAllocations = 0;
-    uint64_t numberOfFrees = 0;
-    std::unordered_map<unsigned, std::stack<tlm::tlm_generic_payload*>> freePayloads;
-    bool storageEnabled = false;
+    uint64_t numberOfRequests;
+    uint64_t addressIncrement;
+    uint64_t minAddress;
+    uint64_t maxAddress;
+    uint64_t seed;
+    double rwRatio;
+    unsigned int dataLength;
+
+    std::default_random_engine randomGenerator;
+    std::uniform_real_distribution<double> readWriteDistribution{0.0, 1.0};
+
+    uint64_t generatedRequests = 0;
 };
-
-#endif // MEMORYMANAGER_H

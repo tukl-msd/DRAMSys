@@ -79,12 +79,13 @@ struct TracePlayer
 
     uint64_t clkMhz{};
     std::string name;
+    unsigned dataLength;
     std::optional<unsigned int> maxPendingReadRequests;
     std::optional<unsigned int> maxPendingWriteRequests;
 };
 
 NLOHMANN_JSONIFY_ALL_THINGS(
-    TracePlayer, clkMhz, name, maxPendingReadRequests, maxPendingWriteRequests)
+    TracePlayer, clkMhz, name, dataLength, maxPendingReadRequests, maxPendingWriteRequests)
 
 struct TrafficGeneratorActiveState
 {
@@ -136,7 +137,7 @@ struct TrafficGenerator
 
     std::optional<uint64_t> seed;
     std::optional<uint64_t> maxTransactions;
-    std::optional<unsigned> dataLength;
+    unsigned dataLength;
     std::optional<unsigned> dataAlignment;
 
     uint64_t numRequests{};
@@ -174,7 +175,7 @@ struct TrafficGeneratorStateMachine
 
     std::optional<uint64_t> seed;
     std::optional<uint64_t> maxTransactions;
-    std::optional<unsigned> dataLength;
+    unsigned dataLength;
     std::optional<unsigned> dataAlignment;
     std::vector<std::variant<TrafficGeneratorActiveState, TrafficGeneratorIdleState>> states;
     std::vector<TrafficGeneratorStateTransition> transitions;
@@ -200,7 +201,8 @@ struct RowHammer
     std::string name;
     std::optional<unsigned int> maxPendingReadRequests;
     std::optional<unsigned int> maxPendingWriteRequests;
-
+    
+    unsigned dataLength;
     uint64_t numRequests{};
     uint64_t rowIncrement{};
 };
@@ -210,6 +212,7 @@ NLOHMANN_JSONIFY_ALL_THINGS(RowHammer,
                             name,
                             maxPendingReadRequests,
                             maxPendingWriteRequests,
+                            dataLength,
                             numRequests,
                             rowIncrement)
 

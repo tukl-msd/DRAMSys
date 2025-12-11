@@ -35,9 +35,9 @@
 
 #pragma once
 
-#include "Initiator.h"
-#include "MemoryManager.h"
+#include "simulator/request/RequestIssuer.h"
 
+#include <DRAMSys/common/MemoryManager.h>
 #include <DRAMSys/config/DRAMSysConfiguration.h>
 #include <DRAMSys/simulation/DRAMSys.h>
 
@@ -49,15 +49,15 @@ public:
     void run();
 
 private:
-    std::unique_ptr<Initiator> instantiateInitiator(const DRAMSys::Config::Initiator& initiator);
+    std::unique_ptr<RequestIssuer> instantiateInitiator(const DRAMSys::Config::Initiator& initiator);
 
-    const bool storageEnabled;
-    MemoryManager memoryManager;
+    bool storageEnabled;
+    DRAMSys::MemoryManager memoryManager;
 
     DRAMSys::Config::Configuration configuration;
 
     std::unique_ptr<DRAMSys::DRAMSys> dramSys;
-    std::vector<std::unique_ptr<Initiator>> initiators;
+    std::vector<std::unique_ptr<RequestIssuer>> initiators;
 
     std::function<void()> terminateInitiator;
     std::function<void()> finishTransaction;

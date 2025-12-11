@@ -47,7 +47,7 @@ if (DRAMSYS_USE_FETCH_CONTENT)
             URL https://github.com/pybind/pybind11/archive/refs/tags/v2.13.6.tar.gz
             OVERRIDE_FIND_PACKAGE
         )
-        
+
         FetchContent_MakeAvailable(pybind11)
     endif()
 endif()
@@ -115,11 +115,4 @@ target_link_libraries(TraceAnalyzer
         Qt5::Widgets
         Qt5::Sql
         Qwt::Qwt
-)
-
-set(DRAMSYS_TRACE_ANALYZER_EXTENSION_DIR "${CMAKE_SOURCE_DIR}/extensions/apps/traceAnalyzer")
-
-target_compile_definitions(TraceAnalyzer
-    PRIVATE
-        DRAMSYS_TRACE_ANALYZER_EXTENSION_DIR="${DRAMSYS_TRACE_ANALYZER_EXTENSION_DIR}"
 )

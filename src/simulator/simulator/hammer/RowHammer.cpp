@@ -35,17 +35,18 @@
 
 #include "RowHammer.h"
 
-RowHammer::RowHammer(uint64_t numRequests, uint64_t rowIncrement, unsigned int dataLength) :
-    numberOfRequests(numRequests),
-    dataLength(dataLength),
-    rowIncrement(rowIncrement)
+RowHammer::RowHammer(DRAMSys::Config::RowHammer const& config) :
+    generatorPeriod(sc_core::sc_time(1.0 / static_cast<double>(config.clkMhz), sc_core::SC_US)),
+    numberOfRequests(config.numRequests),
+    rowIncrement(config.rowIncrement),
+    dataLength(config.dataLength)
 {
 }
 
 Request RowHammer::nextRequest()
 {
     if (generatedRequests >= numberOfRequests)
-        return Request{Request::Command::Stop};
+        return Request{Request::Command::Stop, 0, 0, {}};
 
     generatedRequests++;
 
@@ -58,6 +59,5 @@ Request RowHammer::nextRequest()
     request.address = currentAddress;
     request.command = Request::Command::Read;
     request.length = dataLength;
-    request.delay = sc_core::SC_ZERO_TIME;
     return request;
 }

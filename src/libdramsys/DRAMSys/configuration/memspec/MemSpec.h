@@ -35,6 +35,7 @@
  *    Lukas Steiner
  *    Derek Christ
  *    Marco Mörz
+ *    Thomas Zimmermann
  */
 
 #ifndef MEMSPEC_H
@@ -43,10 +44,12 @@
 #include "DRAMSys/common/utils.h"
 #include "DRAMSys/controller/Command.h"
 
+#ifdef USE_DRAMPOWER
 #include <DRAMPower/command/CmdType.h>
 #include <DRAMPower/dram/dram_base.h>
-
 #include <memory>
+#endif
+
 #include <string>
 #include <systemc>
 #include <tlm>
@@ -64,29 +67,34 @@ public:
 
     static constexpr enum sc_core::sc_time_unit TCK_UNIT = sc_core::SC_SEC;
 
-    const uint64_t numberOfChannels;
-    const uint64_t ranksPerChannel;
-    const uint64_t banksPerRank;
-    const uint64_t groupsPerRank;
-    const uint64_t banksPerGroup;
-    const uint64_t banksPerChannel;
-    const uint64_t bankGroupsPerChannel;
-    const uint64_t devicesPerRank;
-    const uint64_t rowsPerBank;
-    const uint64_t columnsPerRow;
-    const uint64_t defaultBurstLength;
-    const uint64_t maxBurstLength;
-    const uint64_t dataRate;
-    const uint64_t bitWidth;
-    const uint64_t dataBusWidth;
-    const uint64_t defaultBytesPerBurst;
-    const uint64_t maxBytesPerBurst;
+    uint64_t numberOfChannels;
+    uint64_t stacksPerChannel;
+    uint64_t ranksPerChannel;
+    uint64_t banksPerRank;
+    uint64_t groupsPerRank;
+    uint64_t banksPerGroup;
+    uint64_t banksPerChannel;
+    uint64_t bankGroupsPerChannel;
+    uint64_t devicesPerRank;
+    uint64_t rowsPerBank;
+    uint64_t columnsPerRow;
+    uint64_t dataRate;
+    uint64_t bitWidth;
+    uint64_t dataBusWidth;
+    
+    // Bursts
+    uint64_t defaultBurstLength;
+    uint64_t defaultBytesPerBurst;
+    uint64_t defaultDataBytesPerBurst;
+    uint64_t maxBurstLength;
+    uint64_t maxBytesPerBurst;
+    uint64_t maxDataBytesPerBurst;
 
     // Clock
-    const sc_core::sc_time tCK;
+    sc_core::sc_time tCK;
 
-    const std::string memoryId;
-    const std::string memoryType;
+    std::string memoryId;
+    std::string memoryType;
 
     [[nodiscard]] virtual sc_core::sc_time getRefreshIntervalAB() const;
     [[nodiscard]] virtual sc_core::sc_time getRefreshIntervalPB() const;
@@ -112,6 +120,7 @@ public:
     [[nodiscard]] double getCommandLengthInCycles(Command command) const;
     [[nodiscard]] uint64_t getSimMemSizeInBytes() const;
 
+#ifdef USE_DRAMPOWER
     /**
      * @brief Creates the DRAMPower object if the standard is supported by DRAMPower.
      * If the standard is not supported, a fatal error is reported and the simulation is aborted.
@@ -125,6 +134,7 @@ public:
         // This line is never reached, but it is needed to avoid a compiler warning
         return nullptr;
     }
+#endif
 
 protected:
     [[nodiscard]] static bool allBytesEnabled(const tlm::tlm_generic_payload& trans)
@@ -143,6 +153,16 @@ protected:
         return true;
     }
 
+    /**
+     * @brief Construct a new MemSpec object.
+     *
+     * @details Some standards like LPDDR6 include metadata (e.g. for ECC) in the bursts.
+     * Because of this, the bursts transfer a non-power-of-two amount of data (e.g. 12 bits/beat *
+     * 24 beats = 288 bits). On the frontend, the metadata is not known/relevant and the
+     * non-power-of-two amounts complicate things. For this reason, we split up defaultBytesPerBurst
+     * and maxBytesPerBurst variables to additional defaultDataBytesPerBurst and
+     * maxDataBytesPerBurst variables.
+     */
     template <typename MemSpecType>
     MemSpec(const MemSpecType& memSpec,
             uint64_t numberOfChannels,
@@ -154,6 +174,7 @@ protected:
             uint64_t bankGroupsPerChannel,
             uint64_t devicesPerRank) :
         numberOfChannels(numberOfChannels),
+        stacksPerChannel(1),
         ranksPerChannel(ranksPerChannel),
         banksPerRank(banksPerRank),
         groupsPerRank(groupsPerRank),
@@ -163,15 +184,17 @@ protected:
         devicesPerRank(devicesPerRank),
         rowsPerBank(memSpec.memarchitecturespec.nbrOfRows),
         columnsPerRow(memSpec.memarchitecturespec.nbrOfColumns),
-        defaultBurstLength(memSpec.memarchitecturespec.burstLength),
-        maxBurstLength(memSpec.memarchitecturespec.maxBurstLength.has_value()
-                           ? memSpec.memarchitecturespec.maxBurstLength.value()
-                           : defaultBurstLength),
         dataRate(memSpec.memarchitecturespec.dataRate),
         bitWidth(memSpec.memarchitecturespec.width),
         dataBusWidth(bitWidth * devicesPerRank),
+        defaultBurstLength(memSpec.memarchitecturespec.burstLength),
         defaultBytesPerBurst((defaultBurstLength * dataBusWidth) / 8),
+        defaultDataBytesPerBurst(defaultBytesPerBurst),
+        maxBurstLength(memSpec.memarchitecturespec.maxBurstLength.has_value()
+                           ? memSpec.memarchitecturespec.maxBurstLength.value()
+                           : defaultBurstLength),
         maxBytesPerBurst((maxBurstLength * dataBusWidth) / 8),
+        maxDataBytesPerBurst(maxBytesPerBurst),
         tCK(sc_core::sc_time(memSpec.memtimingspec.tCK, TCK_UNIT)),
         memoryId(memSpec.memoryId),
         memoryType(memSpec.id),

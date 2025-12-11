@@ -40,11 +40,6 @@
 #ifndef PYTHONCALLER_H
 #define PYTHONCALLER_H
 
-// Workaround for CMAKE and Python
-#ifdef slots
-#undef slots
-#endif
-
 #include "businessObjects/tracecalculatedmetrics.h"
 #include <string>
 

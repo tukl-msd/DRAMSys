@@ -38,12 +38,10 @@
 
 #include "DRAMSys/common/dramExtensions.h"
 
-#include <fstream>
-
 using namespace sc_core;
 using namespace tlm;
 
-EccModule::EccModule(sc_module_name name, DRAMSys::AddressDecoder const& addressDecoder) :
+EccModule::EccModule(sc_module_name const& name, DRAMSys::AddressDecoder const& addressDecoder) :
     sc_core::sc_module(name),
     payloadEventQueue(this, &EccModule::peqCallback),
     memoryManager(false),
@@ -252,18 +250,18 @@ tlm::tlm_generic_payload* EccModule::generateEccPayload(DRAMSys::DecodedAddress 
     decodedAddress.column = eccColumn;
     uint64_t eccAddress = addressDecoder.encodeAddress(decodedAddress);
 
-    tlm_generic_payload& payload = memoryManager.allocate(32);
-    payload.acquire();
-    payload.set_address(eccAddress);
-    payload.set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
-    payload.set_dmi_allowed(false);
-    payload.set_byte_enable_length(0);
-    payload.set_data_length(32);
-    payload.set_streaming_width(32);
-    payload.set_command(tlm::TLM_READ_COMMAND);
-    payload.set_extension<DRAMSys::EccExtension>(new DRAMSys::EccExtension);
+    tlm_generic_payload *payload = memoryManager.allocate(32);
+    payload->acquire();
+    payload->set_address(eccAddress);
+    payload->set_response_status(tlm::TLM_INCOMPLETE_RESPONSE);
+    payload->set_dmi_allowed(false);
+    payload->set_byte_enable_length(0);
+    payload->set_data_length(32);
+    payload->set_streaming_width(32);
+    payload->set_command(tlm::TLM_READ_COMMAND);
+    payload->set_extension<DRAMSys::EccExtension>(new DRAMSys::EccExtension);
 
-    return &payload;
+    return payload;
 }
 
 unsigned int EccModule::alignToBlock(unsigned column)

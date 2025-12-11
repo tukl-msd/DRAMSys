@@ -36,11 +36,10 @@
 
 #pragma once
 
-#include "MemoryManager.h"
+#include <DRAMSys/common/MemoryManager.h>
 
 #include <cstdint>
 #include <list>
-#include <queue>
 #include <systemc>
 #include <tlm>
 #include <tlm_utils/peq_with_cb_and_phase.h>
@@ -63,8 +62,7 @@ public:
           bool storageEnabled,
           sc_core::sc_time cycleTime,
           std::size_t hitCycles,
-          MemoryManager& memoryManager);
-    SC_HAS_PROCESS(Cache);
+          DRAMSys::MemoryManager& memoryManager);
 
 private:
     void peqCallback(tlm::tlm_generic_payload& trans, const tlm::tlm_phase& phase);
@@ -217,5 +215,5 @@ private:
     sc_core::sc_time ceilTime(const sc_core::sc_time& inTime) const;
     sc_core::sc_time ceilDelay(const sc_core::sc_time& inDelay) const;
 
-    MemoryManager& memoryManager;
+    DRAMSys::MemoryManager& memoryManager;
 };

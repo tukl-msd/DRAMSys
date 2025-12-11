@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2024, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,42 +30,40 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
+ *    Robert Gernhardt
+ *    Matthias Jung
+ *    Lukas Steiner
  *    Derek Christ
  */
 
-#pragma once
+#ifndef MEMORYMANAGER_H
+#define MEMORYMANAGER_H
 
-#include "Initiator.h"
-#include "request/RequestIssuer.h"
+#include <stack>
+#include <tlm>
+#include <unordered_map>
 
-template <typename Producer> class SimpleInitiator : public Initiator
+namespace DRAMSys
+{
+
+class MemoryManager : public tlm::tlm_mm_interface
 {
 public:
-    SimpleInitiator(sc_core::sc_module_name const& name,
-                    MemoryManager& memoryManager,
-                    sc_core::sc_time interfaceClk,
-                    std::optional<unsigned int> maxPendingReadRequests,
-                    std::optional<unsigned int> maxPendingWriteRequests,
-                    std::function<void()> transactionFinished,
-                    std::function<void()> terminate,
-                    Producer&& producer) :
-        producer(std::forward<Producer>(producer)),
-        issuer(
-            name,
-            memoryManager,
-            interfaceClk,
-            maxPendingReadRequests,
-            maxPendingWriteRequests,
-            [this] { return this->producer.nextRequest(); },
-            std::move(transactionFinished),
-            std::move(terminate))
-    {
-    }
+    MemoryManager(bool storageEnabled);
+    MemoryManager(const MemoryManager&) = delete;
+    MemoryManager(MemoryManager&&) = delete;
+    MemoryManager& operator=(const MemoryManager&) = delete;
+    MemoryManager& operator=(MemoryManager&&) = delete;
+    ~MemoryManager() override;
 
-    void bind(tlm_utils::multi_target_base<>& target) override { issuer.iSocket.bind(target); }
-    uint64_t totalRequests() override { return producer.totalRequests(); };
+    tlm::tlm_generic_payload* allocate(std::size_t dataLength = 0);
+    void free(tlm::tlm_generic_payload* trans) override;
 
 private:
-    Producer producer;
-    RequestIssuer issuer;
+    std::unordered_map<std::size_t, std::stack<tlm::tlm_generic_payload*>> freePayloads;
+    bool storageEnabled;
 };
+
+} // namespace DRAMSys
+
+#endif // MEMORYMANAGER_H

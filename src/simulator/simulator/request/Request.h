@@ -36,18 +36,17 @@
 #pragma once
 
 #include <cstdint>
-#include <systemc>
+#include <vector>
 
 struct Request
 {
-    enum class Command
+    enum class Command : uint8_t
     {
         Read,
         Write,
         Stop
     } command;
-    uint64_t address{};
-    std::size_t length{};
-    sc_core::sc_time delay{};
-    std::vector<unsigned char> data{};
+    uint64_t address = 0;
+    std::size_t length = 0;
+    std::vector<unsigned char> data;
 };

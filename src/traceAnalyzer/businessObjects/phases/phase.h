@@ -40,10 +40,6 @@
 #ifndef BANKPHASE_H
 #define BANKPHASE_H
 
-#ifdef EXTENSION_ENABLED
-#include "businessObjects/phases/phasedependency.h"
-#endif
-
 #include "businessObjects/timespan.h"
 #include "presentation/tracedrawingproperties.h"
 #include "presentation/util/colorgenerator.h"
@@ -145,10 +141,6 @@ public:
 
     virtual QString Name() const = 0;
 
-#ifdef EXTENSION_ENABLED
-    void addDependency(const std::shared_ptr<PhaseDependency>& dependency);
-#endif
-
 protected:
     ID id;
     Timespan span;
@@ -158,9 +150,6 @@ protected:
     traceTime clk;
     std::weak_ptr<Transaction> transaction;
     std::vector<Timespan> spansOnCommandBus;
-#ifdef EXTENSION_ENABLED
-    std::vector<std::shared_ptr<PhaseDependency>> mDependencies;
-#endif
 
     double hexagonHeight;
     TextPositioning captionPosition;
@@ -185,13 +174,6 @@ protected:
                                  const QwtScaleMap& xMap,
                                  const QwtScaleMap& yMap,
                                  const QColor& textColor) const;
-    virtual void drawPhaseDependencies(traceTime begin,
-                                       traceTime end,
-                                       double y,
-                                       const TraceDrawingProperties& drawingProperties,
-                                       QPainter* painter,
-                                       const QwtScaleMap& xMap,
-                                       const QwtScaleMap& yMap) const;
 
     enum class Granularity
     {
@@ -202,8 +184,6 @@ protected:
     };
 
     virtual Granularity getGranularity() const { return Granularity::Bankwise; }
-
-    friend class PhaseDependency;
 };
 
 class REQ final : public Phase

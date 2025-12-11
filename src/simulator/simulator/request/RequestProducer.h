@@ -37,6 +37,8 @@
 
 #include "Request.h"
 
+#include <systemc>
+
 class RequestProducer
 {
 protected:
@@ -50,6 +52,7 @@ public:
     virtual ~RequestProducer() = default;
 
     virtual Request nextRequest() = 0;
+    virtual sc_core::sc_time nextTrigger() = 0;
     virtual uint64_t totalRequests() = 0;
-    virtual void reset(){};
+    virtual void reset() {};
 };

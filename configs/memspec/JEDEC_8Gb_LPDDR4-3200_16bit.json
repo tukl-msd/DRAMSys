@@ -123,7 +123,14 @@
             "wdqs_dyn_E": 1e-12,
             "rdqs_termination": true,
             "rdqs_R_eq": 1e6,
-            "rdqs_dyn_E": 1e-12
+            "rdqs_dyn_E": 1e-12,
+
+            "rdbi_termination": true,
+            "rdbi_R_eq": 1e6,
+            "rdbi_dyn_E": 1e-12,
+            "wdbi_termination": true,
+            "wdbi_R_eq": 1e6,
+            "wdbi_dyn_E": 1e-12
         },
         "bankwisespec": {
             "factRho": 1,

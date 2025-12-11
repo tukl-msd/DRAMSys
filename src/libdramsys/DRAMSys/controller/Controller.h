@@ -32,6 +32,7 @@
  * Authors:
  *    Lukas Steiner
  *    Derek Christ
+ *    Thomas Zimmermann
  */
 
 #ifndef CONTROLLER_H
@@ -51,6 +52,7 @@
 #include "DRAMSys/common/TlmRecorder.h"
 #include "DRAMSys/simulation/SimConfig.h"
 #include <DRAMSys/common/DebugManager.h>
+#include <DRAMSys/common/MemoryManager.h>
 #include <DRAMSys/simulation/AddressDecoder.h>
 
 #include <functional>
@@ -75,7 +77,6 @@ public:
                const SimConfig& simConfig,
                const AddressDecoder& addressDecoder,
                TlmRecorder* tlmRecorder);
-    SC_HAS_PROCESS(Controller);
 
     [[nodiscard]] bool idle() const { return totalNumberOfPayloads == 0; }
     void registerIdleCallback(std::function<void()> idleCallback);
@@ -83,7 +84,7 @@ public:
     void serialize(std::ostream& stream) const override;
     void deserialize(std::istream& stream) override;
 
-protected:
+private:
     void end_of_simulation() override;
 
     virtual tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans,
@@ -145,27 +146,9 @@ protected:
 
     sc_core::sc_event beginReqEvent, endRespEvent, controllerEvent, dataResponseEvent;
 
-    const unsigned minBytesPerBurst;
-    const unsigned maxBytesPerBurst;
+    MemoryManager memoryManager;
 
     void createChildTranses(tlm::tlm_generic_payload& parentTrans);
-
-    class MemoryManager : public tlm::tlm_mm_interface
-    {
-    public:
-        MemoryManager() = default;
-        MemoryManager(const MemoryManager&) = delete;
-        MemoryManager(MemoryManager&&) = delete;
-        MemoryManager& operator=(const MemoryManager&) = delete;
-        MemoryManager& operator=(MemoryManager&&) = delete;
-        ~MemoryManager() override;
-
-        tlm::tlm_generic_payload& allocate();
-        void free(tlm::tlm_generic_payload* trans) override;
-
-    private:
-        std::stack<tlm::tlm_generic_payload*> freePayloads;
-    } memoryManager;
 
     class IdleTimeCollector
     {

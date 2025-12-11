@@ -100,14 +100,6 @@ void TraceDB::prepareQueries()
             "SELECT time, Message FROM DebugMessages WHERE :begin <= time AND time <= :end LIMIT "
             ":limit"))
         qDebug() << database.lastError().text();
-
-    checkDependenciesExist = QSqlQuery(database);
-    if (!checkDependenciesExist.prepare(queryTexts.checkDependenciesExist))
-        qDebug() << database.lastError().text();
-
-    selectDependenciesByTimespan = QSqlQuery(database);
-    if (!selectDependenciesByTimespan.prepare(queryTexts.selectDependenciesByTimespan))
-        qDebug() << database.lastError().text();
 }
 
 void TraceDB::updateComments(const std::vector<CommentModel::Comment>& comments)
@@ -159,30 +151,6 @@ TraceDB::getTransactionsInTimespan(const Timespan& span, bool updateVisiblePhase
     executeQuery(selectTransactionsByTimespan);
     return parseTransactionsFromQuery(selectTransactionsByTimespan, updateVisiblePhases);
 }
-
-bool TraceDB::checkDependencyTableExists()
-{
-    executeQuery(checkDependenciesExist);
-
-    bool exists = checkDependenciesExist.next() && checkDependenciesExist.value(0).toInt() == 1;
-
-    checkDependenciesExist.finish();
-
-    return exists;
-}
-
-#ifdef EXTENSION_ENABLED
-void TraceDB::updateDependenciesInTimespan(const Timespan& span)
-{
-    if (checkDependencyTableExists())
-    {
-        selectDependenciesByTimespan.bindValue(":begin", span.Begin());
-        selectDependenciesByTimespan.bindValue(":end", span.End());
-        executeQuery(selectDependenciesByTimespan);
-        mUpdateDependenciesFromQuery(selectDependenciesByTimespan);
-    }
-}
-#endif
 
 // TODO Remove exception
 std::shared_ptr<Transaction> TraceDB::getTransactionByID(ID id)
@@ -504,62 +472,6 @@ std::vector<CommentModel::Comment> TraceDB::getDebugMessagesInTimespan(const Tim
     return parseCommentsFromQuery(selectDebugMessagesByTimespanWithLimit);
 }
 
-#ifdef EXTENSION_ENABLED
-DependencyInfos TraceDB::getDependencyInfos(DependencyInfos::Type infoType)
-{
-    DependencyInfos dummy;
-    if (!checkDependencyTableExists())
-    {
-        return dummy;
-    }
-
-    switch (infoType)
-    {
-    case DependencyInfos::Type::DependencyType:
-    {
-        selectDependencyTypePercentages = QSqlQuery(database);
-        if (!selectDependencyTypePercentages.prepare(queryTexts.selectDependencyTypePercentages))
-            qDebug() << database.lastError().text();
-
-        executeQuery(selectDependencyTypePercentages);
-        return parseDependencyInfos(selectDependencyTypePercentages, infoType);
-    }
-
-    case DependencyInfos::Type::TimeDependency:
-    {
-        selectTimeDependencyPercentages = QSqlQuery(database);
-        if (!selectTimeDependencyPercentages.prepare(queryTexts.selectTimeDependencyPercentages))
-            qDebug() << database.lastError().text();
-
-        executeQuery(selectTimeDependencyPercentages);
-        return parseDependencyInfos(selectTimeDependencyPercentages, infoType);
-    }
-
-    case DependencyInfos::Type::DelayedPhase:
-    {
-        selectDelayedPhasePercentages = QSqlQuery(database);
-        if (!selectDelayedPhasePercentages.prepare(queryTexts.selectDelayedPhasePercentages))
-            qDebug() << database.lastError().text();
-
-        executeQuery(selectDelayedPhasePercentages);
-        return parseDependencyInfos(selectDelayedPhasePercentages, infoType);
-    }
-
-    case DependencyInfos::Type::DependencyPhase:
-    {
-        selectDependencyPhasePercentages = QSqlQuery(database);
-        if (!selectDependencyPhasePercentages.prepare(queryTexts.selectDependencyPhasePercentages))
-            qDebug() << database.lastError().text();
-
-        executeQuery(selectDependencyPhasePercentages);
-        return parseDependencyInfos(selectDependencyPhasePercentages, infoType);
-    }
-    }
-
-    return dummy;
-}
-#endif
-
 QSqlDatabase TraceDB::getDatabase() const
 {
     return database;
@@ -651,55 +563,6 @@ TraceDB::parseTransactionsFromQuery(QSqlQuery& query, bool updateVisiblePhases)
     return result;
 }
 
-#ifdef EXTENSION_ENABLED
-void TraceDB::mUpdateDependenciesFromQuery(QSqlQuery& query)
-{
-    DependencyType type;
-    while (query.next())
-    {
-        ID delayedID = query.value(0).toInt();
-        ID dependencyID = query.value(4).toInt();
-
-        QString dependencyTypeStr = query.value(2).toString();
-        if (dependencyTypeStr == "bank")
-        {
-            type = DependencyType::IntraBank;
-        }
-        else if (dependencyTypeStr == "rank")
-        {
-            type = DependencyType::IntraRank;
-        }
-        else if (dependencyTypeStr == "interRank")
-        {
-            type = DependencyType::InterRank;
-        }
-
-        QString timeDependencyStr = query.value(3).toString();
-
-        if (_visiblePhases.count(delayedID) > 0)
-        {
-
-            if (_visiblePhases.count(dependencyID) > 0)
-            {
-
-                _visiblePhases[delayedID]->addDependency(std::make_shared<PhaseDependency>(
-                    PhaseDependency(type, timeDependencyStr, _visiblePhases[dependencyID])));
-            }
-            else
-            {
-
-                _visiblePhases[delayedID]->addDependency(
-                    std::make_shared<PhaseDependency>(PhaseDependency(type, timeDependencyStr)));
-            }
-        }
-        else
-        {
-            // TODO delayed phase not visible?
-        }
-    }
-}
-#endif
-
 std::vector<CommentModel::Comment> TraceDB::parseCommentsFromQuery(QSqlQuery& query)
 {
     std::vector<CommentModel::Comment> result;
@@ -710,23 +573,6 @@ std::vector<CommentModel::Comment> TraceDB::parseCommentsFromQuery(QSqlQuery& qu
     }
     return result;
 }
-
-#ifdef EXTENSION_ENABLED
-DependencyInfos TraceDB::parseDependencyInfos(QSqlQuery& query,
-                                              const DependencyInfos::Type infoType)
-{
-    DependencyInfos infos(infoType);
-
-    while (query.next())
-    {
-        infos.addInfo({query.value(0).toString(), query.value(1).toFloat()});
-    }
-
-    query.finish();
-
-    return infos;
-}
-#endif
 
 void TraceDB::executeQuery(QSqlQuery query)
 {

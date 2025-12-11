@@ -42,10 +42,6 @@
 
 #include "QueryTexts.h"
 
-#ifdef EXTENSION_ENABLED
-#include "businessObjects/phases/dependencyinfos.h"
-#endif
-
 #include "businessObjects/commandlengths.h"
 #include "businessObjects/commentmodel.h"
 #include "businessObjects/generalinfo.h"
@@ -75,10 +71,6 @@ public:
     void updateFileDescription(const QString& description);
     void refreshData();
 
-#ifdef EXTENSION_ENABLED
-    void updateDependenciesInTimespan(const Timespan& span);
-#endif
-
     const GeneralInfo& getGeneralInfo() const { return generalInfo; }
     const CommandLengths& getCommandLengths() const { return commandLengths; }
 
@@ -102,10 +94,6 @@ public:
     std::vector<CommentModel::Comment> getDebugMessagesInTimespan(const Timespan& span,
                                                                   unsigned int limit);
 
-    bool checkDependencyTableExists();
-#ifdef EXTENSION_ENABLED
-    DependencyInfos getDependencyInfos(DependencyInfos::Type infoType);
-#endif
     QSqlDatabase getDatabase() const;
 
 private:
@@ -120,12 +108,6 @@ private:
     QSqlQuery selectTransactionById;
     QSqlQuery selectDebugMessagesByTimespan;
     QSqlQuery selectDebugMessagesByTimespanWithLimit;
-    QSqlQuery checkDependenciesExist;
-    QSqlQuery selectDependenciesByTimespan;
-    QSqlQuery selectDependencyTypePercentages;
-    QSqlQuery selectTimeDependencyPercentages;
-    QSqlQuery selectDelayedPhasePercentages;
-    QSqlQuery selectDependencyPhasePercentages;
 
     TransactionQueryTexts queryTexts;
     void prepareQueries();
@@ -135,12 +117,6 @@ private:
     std::vector<std::shared_ptr<Transaction>>
     parseTransactionsFromQuery(QSqlQuery& query, bool updateVisiblePhases = false);
     static std::vector<CommentModel::Comment> parseCommentsFromQuery(QSqlQuery& query);
-
-#ifdef EXTENSION_ENABLED
-    void mUpdateDependenciesFromQuery(QSqlQuery& query);
-    static DependencyInfos parseDependencyInfos(QSqlQuery& query,
-                                                const DependencyInfos::Type infoType);
-#endif
 
     void executeScriptFile(const QString& fileName);
     void dropAndCreateTables();
@@ -154,9 +130,6 @@ private:
 
     std::map<unsigned int, std::shared_ptr<Phase>>
         _visiblePhases; // Updated at parseTransactionsFromQuery
-
-    // At businessObjects/phasedependenciestracker.h
-    friend class PhaseDependenciesTracker;
 };
 
 class sqlException : public std::exception

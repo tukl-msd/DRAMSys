@@ -58,25 +58,6 @@ enum class ColorGrouping
 
 class TracePlotLineDataSource;
 
-enum class DependencyOption
-{
-    Disabled,
-    Selected,
-    All
-};
-
-enum class DependencyTextOption
-{
-    Enabled,
-    Disabled
-};
-
-struct DependencyOptions
-{
-    DependencyOption draw;
-    DependencyTextOption text;
-};
-
 class TraceDrawingProperties : public QObject
 {
     Q_OBJECT
@@ -84,7 +65,6 @@ class TraceDrawingProperties : public QObject
 public:
     bool drawText;
     bool drawBorder;
-    DependencyOptions drawDependenciesOption;
     ColorGrouping colorGrouping;
     QColor textColor;
 
@@ -98,8 +78,6 @@ public:
 
     TraceDrawingProperties(bool drawText = true,
                            bool drawBorder = true,
-                           DependencyOptions drawDependenciesOption =
-                               {DependencyOption::Disabled, DependencyTextOption::Enabled},
                            ColorGrouping colorGrouping = ColorGrouping::PhaseType);
 
     void init(TracePlotLineDataSource* tracePlotLineDataSource);

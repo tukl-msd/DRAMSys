@@ -63,6 +63,7 @@ public:
         clkPeriod(clkPeriod),
         timeDifferenceSpan(timeDifferenceSpan)
     {
+        setTrackerPen(traceplot->palette().text().color());
     }
 
     void setMode(MouseLabelMode mode);

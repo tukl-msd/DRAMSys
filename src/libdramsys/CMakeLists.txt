@@ -36,6 +36,14 @@
 ###      DRAMSys::libdramsys         ###
 ########################################
 
+# Add AVX-512 flag
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    message("Enabling GFNI support")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+elseif(MSVC)
+    # Für MSVC können Sie entsprechende Optionen hinzufügen, falls erforderlich
+endif()
+
 add_library(libdramsys
     DRAMSys/common/DebugManager.cpp
     DRAMSys/common/TlmRecorder.cpp
@@ -43,6 +51,7 @@ add_library(libdramsys
     DRAMSys/common/DramATRecorder.cpp
     DRAMSys/common/dramExtensions.cpp
     DRAMSys/common/utils.cpp
+    DRAMSys/common/MemoryManager.cpp
     DRAMSys/configuration/memspec/MemSpec.cpp
     DRAMSys/configuration/memspec/MemSpecDDR3.cpp
     DRAMSys/configuration/memspec/MemSpecDDR4.cpp
@@ -101,6 +110,7 @@ target_compile_features(libdramsys PUBLIC cxx_std_17)
 target_compile_definitions(libdramsys
     PUBLIC
         DRAMSYS_RESOURCE_DIR="${DRAMSYS_RESOURCE_DIR}"
+        $<$<BOOL:${DRAMPower_FOUND}>:USE_DRAMPOWER>
 )
 
 target_link_libraries(libdramsys
@@ -108,7 +118,7 @@ target_link_libraries(libdramsys
         SystemC::systemc
         DRAMSys::config
         DRAMUtils::DRAMUtils
-        DRAMPower::DRAMPower
+        $<$<TARGET_EXISTS:DRAMPower::DRAMPower>:DRAMPower::DRAMPower>
     PRIVATE
         SQLite::SQLite3
 

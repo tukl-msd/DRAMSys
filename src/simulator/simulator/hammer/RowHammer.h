@@ -37,19 +37,23 @@
 
 #include "simulator/request/RequestProducer.h"
 
+#include <DRAMSys/config/TraceSetup.h>
+
 #include <systemc>
 
 class RowHammer : public RequestProducer
 {
 public:
-    RowHammer(uint64_t numRequests, uint64_t rowIncrement, unsigned int dataLength);
+    RowHammer(DRAMSys::Config::RowHammer const& config);
 
     Request nextRequest() override;
+    sc_core::sc_time nextTrigger() override { return generatorPeriod; }
     uint64_t totalRequests() override { return numberOfRequests; }
 
-    const uint64_t numberOfRequests;
-    const unsigned int dataLength;
-    const uint64_t rowIncrement;
+    sc_core::sc_time generatorPeriod;
+    uint64_t numberOfRequests;
+    uint64_t rowIncrement;
+    unsigned int dataLength;
 
     uint64_t generatedRequests = 0;
     uint64_t currentAddress = 0x00;
