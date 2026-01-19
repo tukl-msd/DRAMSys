@@ -33,47 +33,28 @@
  *    Derek Christ
  */
 
-#include "addressdecoder.h"
+#pragma once
 
-#include <DRAMSys/configuration/json/AddressMapping.h>
-#include <DRAMSys/simulation/AddressDecoder.h>
+#include "simulator/request/RequestProducer.h"
 
-#include <benchmark/benchmark.h>
+#include <DRAMSys/configuration/json/TraceSetup.h>
 
-static DRAMSys::AddressDecoder addressDecoder()
+#include <systemc>
+
+class RowHammer : public RequestProducer
 {
-    auto addressMapping = nlohmann::json::parse(addressMappingJsonString)
-                              .at("addressmapping")
-                              .get<DRAMSys::Config::AddressMapping>();
-    DRAMSys::AddressDecoder decoder(addressMapping);
-    return decoder;
-}
+public:
+    RowHammer(DRAMSys::Config::RowHammer const& config);
 
-static void addressdecoder_decode(benchmark::State& state)
-{
-    auto decoder = addressDecoder();
-    for (auto _ : state)
-    {
-        // Actual address has no significant impact on performance
-        auto decodedAddress = decoder.decodeAddress(0x0);
-        benchmark::DoNotOptimize(decodedAddress);
-    }
-}
+    Request nextRequest() override;
+    sc_core::sc_time nextTrigger() override { return generatorPeriod; }
+    uint64_t totalRequests() override { return numberOfRequests; }
 
-BENCHMARK(addressdecoder_decode);
+    sc_core::sc_time generatorPeriod;
+    uint64_t numberOfRequests;
+    uint64_t rowIncrement;
+    unsigned int dataLength;
 
-static void addressdecoder_encode(benchmark::State& state)
-{
-    auto decoder = addressDecoder();
-
-    // Actual address has no significant impact on performance
-    DRAMSys::DecodedAddress decodedAddress;
-
-    for (auto _ : state)
-    {
-        auto encodedAddress = decoder.encodeAddress(decodedAddress);
-        benchmark::DoNotOptimize(encodedAddress);
-    }
-}
-
-BENCHMARK(addressdecoder_encode);
+    uint64_t generatedRequests = 0;
+    uint64_t currentAddress = 0x00;
+};

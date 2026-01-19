@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2024, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,49 +31,49 @@
  *
  * Authors:
  *    Derek Christ
+ *    Marco Mörz
  */
 
-#include "addressdecoder.h"
+#ifndef SIM_CONFIG_H
+#define SIM_CONFIG_H
 
-#include <DRAMSys/configuration/json/AddressMapping.h>
-#include <DRAMSys/simulation/AddressDecoder.h>
+#include <DRAMSys/configuration/json/SimConfig.h>
+#include <DRAMUtils/config/toggling_rate.h>
 
-#include <benchmark/benchmark.h>
+#include <string>
+#include <optional>
 
-static DRAMSys::AddressDecoder addressDecoder()
+namespace DRAMSys
 {
-    auto addressMapping = nlohmann::json::parse(addressMappingJsonString)
-                              .at("addressmapping")
-                              .get<DRAMSys::Config::AddressMapping>();
-    DRAMSys::AddressDecoder decoder(addressMapping);
-    return decoder;
-}
 
-static void addressdecoder_decode(benchmark::State& state)
+struct SimConfig
 {
-    auto decoder = addressDecoder();
-    for (auto _ : state)
-    {
-        // Actual address has no significant impact on performance
-        auto decodedAddress = decoder.decodeAddress(0x0);
-        benchmark::DoNotOptimize(decodedAddress);
-    }
-}
+    SimConfig(const Config::SimConfig& simConfig);
 
-BENCHMARK(addressdecoder_decode);
+    std::string simulationName;
+    bool databaseRecording;
+    bool powerAnalysis;
+    bool enableWindowing;
+    unsigned int windowSize;
+    bool debug;
+    bool simulationProgressBar;
+    bool useMalloc;
+    unsigned long long int addressOffset;
+    Config::StoreModeType storeMode;
+    std::optional<DRAMUtils::Config::ToggleRateDefinition> togglingRate;
 
-static void addressdecoder_encode(benchmark::State& state)
-{
-    auto decoder = addressDecoder();
+    static constexpr std::string_view DEFAULT_SIMULATION_NAME = "default";
+    static constexpr bool DEFAULT_DATABASE_RECORDING = false;
+    static constexpr bool DEFAULT_POWER_ANALYSIS = false;
+    static constexpr bool DEFAULT_ENABLE_WINDOWING = false;
+    static constexpr unsigned int DEFAULT_WINDOW_SIZE = 1000;
+    static constexpr bool DEFAULT_DEBUG = false;
+    static constexpr bool DEFAULT_SIMULATION_PROGRESS_BAR = false;
+    static constexpr bool DEFAULT_USE_MALLOC = false;
+    static constexpr unsigned long long int DEFAULT_ADDRESS_OFFSET = 0;
+    static constexpr Config::StoreModeType DEFAULT_STORE_MODE = Config::StoreModeType::NoStorage;
+};
 
-    // Actual address has no significant impact on performance
-    DRAMSys::DecodedAddress decodedAddress;
+} // namespace DRAMSys
 
-    for (auto _ : state)
-    {
-        auto encodedAddress = decoder.encodeAddress(decodedAddress);
-        benchmark::DoNotOptimize(encodedAddress);
-    }
-}
-
-BENCHMARK(addressdecoder_encode);
+#endif

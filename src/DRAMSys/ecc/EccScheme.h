@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2024, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,51 +29,37 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Authors:
- *    Derek Christ
+ * Author: Derek Christ
  */
 
-#include "addressdecoder.h"
+#ifndef ECCSCHEME_H
+#define ECCSCHEME_H
 
-#include <DRAMSys/configuration/json/AddressMapping.h>
-#include <DRAMSys/simulation/AddressDecoder.h>
+#include <tlm>
 
-#include <benchmark/benchmark.h>
-
-static DRAMSys::AddressDecoder addressDecoder()
+namespace DRAMSys
 {
-    auto addressMapping = nlohmann::json::parse(addressMappingJsonString)
-                              .at("addressmapping")
-                              .get<DRAMSys::Config::AddressMapping>();
-    DRAMSys::AddressDecoder decoder(addressMapping);
-    return decoder;
-}
 
-static void addressdecoder_decode(benchmark::State& state)
+class EccScheme
 {
-    auto decoder = addressDecoder();
-    for (auto _ : state)
-    {
-        // Actual address has no significant impact on performance
-        auto decodedAddress = decoder.decodeAddress(0x0);
-        benchmark::DoNotOptimize(decodedAddress);
-    }
-}
+public:
+    EccScheme() = default;
+    EccScheme(const EccScheme&) = delete;
+    EccScheme(EccScheme&&) = delete;
+    EccScheme& operator=(const EccScheme&) = delete;
+    EccScheme& operator=(EccScheme&&) = delete;
+    virtual ~EccScheme() = default;
 
-BENCHMARK(addressdecoder_decode);
+    // Returns whether transaction could be registered
+    [[nodiscard]] virtual bool registerRequest(tlm::tlm_generic_payload& payload) = 0;
 
-static void addressdecoder_encode(benchmark::State& state)
-{
-    auto decoder = addressDecoder();
+    // Whether response should be forwarded to initiator
+    [[nodiscard]] virtual bool registerResponse(tlm::tlm_generic_payload* payload) = 0;
 
-    // Actual address has no significant impact on performance
-    DRAMSys::DecodedAddress decodedAddress;
+    [[nodiscard]] virtual tlm::tlm_generic_payload* getNextRequest() = 0;
+    [[nodiscard]] virtual tlm::tlm_generic_payload* getNextResponse() = 0;
+};
 
-    for (auto _ : state)
-    {
-        auto encodedAddress = decoder.encodeAddress(decodedAddress);
-        benchmark::DoNotOptimize(encodedAddress);
-    }
-}
+} // namespace DRAMSys
 
-BENCHMARK(addressdecoder_encode);
+#endif // ECCSCHEME_H

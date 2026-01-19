@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2021, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,47 +33,17 @@
  *    Derek Christ
  */
 
-#include "addressdecoder.h"
+#pragma once
 
-#include <DRAMSys/configuration/json/AddressMapping.h>
-#include <DRAMSys/simulation/AddressDecoder.h>
+#include <string_view>
 
-#include <benchmark/benchmark.h>
-
-static DRAMSys::AddressDecoder addressDecoder()
+namespace DRAMSys::Config
 {
-    auto addressMapping = nlohmann::json::parse(addressMappingJsonString)
-                              .at("addressmapping")
-                              .get<DRAMSys::Config::AddressMapping>();
-    DRAMSys::AddressDecoder decoder(addressMapping);
-    return decoder;
-}
 
-static void addressdecoder_decode(benchmark::State& state)
+struct MemSpecConstants
 {
-    auto decoder = addressDecoder();
-    for (auto _ : state)
-    {
-        // Actual address has no significant impact on performance
-        auto decodedAddress = decoder.decodeAddress(0x0);
-        benchmark::DoNotOptimize(decodedAddress);
-    }
-}
+    static constexpr std::string_view KEY = "memspec";
+    static constexpr std::string_view SUB_DIR = "memspec";
+};
 
-BENCHMARK(addressdecoder_decode);
-
-static void addressdecoder_encode(benchmark::State& state)
-{
-    auto decoder = addressDecoder();
-
-    // Actual address has no significant impact on performance
-    DRAMSys::DecodedAddress decodedAddress;
-
-    for (auto _ : state)
-    {
-        auto encodedAddress = decoder.encodeAddress(decodedAddress);
-        benchmark::DoNotOptimize(encodedAddress);
-    }
-}
-
-BENCHMARK(addressdecoder_encode);
+} // namespace DRAMSys::Config

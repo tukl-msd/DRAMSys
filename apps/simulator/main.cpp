@@ -33,47 +33,25 @@
  *    Derek Christ
  */
 
-#include "addressdecoder.h"
+#include "simulator/Simulator.h"
 
-#include <DRAMSys/configuration/json/AddressMapping.h>
-#include <DRAMSys/simulation/AddressDecoder.h>
+#include <DRAMSys/configuration/json/DRAMSysConfiguration.h>
 
-#include <benchmark/benchmark.h>
+#include <filesystem>
 
-static DRAMSys::AddressDecoder addressDecoder()
+int sc_main(int argc, char* argv[])
 {
-    auto addressMapping = nlohmann::json::parse(addressMappingJsonString)
-                              .at("addressmapping")
-                              .get<DRAMSys::Config::AddressMapping>();
-    DRAMSys::AddressDecoder decoder(addressMapping);
-    return decoder;
-}
-
-static void addressdecoder_decode(benchmark::State& state)
-{
-    auto decoder = addressDecoder();
-    for (auto _ : state)
+    std::filesystem::path resourceDirectory = DRAMSYS_RESOURCE_DIR;
+    std::filesystem::path baseConfig = resourceDirectory / "ddr4-example.json";
+    if (argc >= 2)
     {
-        // Actual address has no significant impact on performance
-        auto decodedAddress = decoder.decodeAddress(0x0);
-        benchmark::DoNotOptimize(decodedAddress);
+        baseConfig = argv[1];
     }
+
+    DRAMSys::Config::Configuration configuration = DRAMSys::Config::from_path(baseConfig.c_str());
+
+    Simulator simulator(configuration, baseConfig);
+    simulator.run();
+
+    return 0;
 }
-
-BENCHMARK(addressdecoder_decode);
-
-static void addressdecoder_encode(benchmark::State& state)
-{
-    auto decoder = addressDecoder();
-
-    // Actual address has no significant impact on performance
-    DRAMSys::DecodedAddress decodedAddress;
-
-    for (auto _ : state)
-    {
-        auto encodedAddress = decoder.encodeAddress(decodedAddress);
-        benchmark::DoNotOptimize(encodedAddress);
-    }
-}
-
-BENCHMARK(addressdecoder_encode);

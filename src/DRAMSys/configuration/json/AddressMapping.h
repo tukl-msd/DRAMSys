@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2021, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,49 +31,47 @@
  *
  * Authors:
  *    Derek Christ
+ *    Thomas Zimmermann
  */
 
-#include "addressdecoder.h"
+#pragma once
 
-#include <DRAMSys/configuration/json/AddressMapping.h>
-#include <DRAMSys/simulation/AddressDecoder.h>
+#include <DRAMUtils/util/json_utils.h>
+#include <DRAMUtils/util/collapsingvector.h>
 
-#include <benchmark/benchmark.h>
+#include <optional>
 
-static DRAMSys::AddressDecoder addressDecoder()
+namespace DRAMSys::Config
 {
-    auto addressMapping = nlohmann::json::parse(addressMappingJsonString)
-                              .at("addressmapping")
-                              .get<DRAMSys::Config::AddressMapping>();
-    DRAMSys::AddressDecoder decoder(addressMapping);
-    return decoder;
-}
 
-static void addressdecoder_decode(benchmark::State& state)
+struct AddressMapping
 {
-    auto decoder = addressDecoder();
-    for (auto _ : state)
-    {
-        // Actual address has no significant impact on performance
-        auto decodedAddress = decoder.decodeAddress(0x0);
-        benchmark::DoNotOptimize(decodedAddress);
-    }
-}
+    static constexpr std::string_view KEY = "addressmapping";
 
-BENCHMARK(addressdecoder_decode);
+    using BitEntry = DRAMUtils::util::CollapsingVector<unsigned int>;
 
-static void addressdecoder_encode(benchmark::State& state)
-{
-    auto decoder = addressDecoder();
+    std::optional<std::vector<BitEntry>> BYTE_BIT;
+    std::optional<std::vector<BitEntry>> BURST_BIT;
+    std::optional<std::vector<BitEntry>> COLUMN_BIT;
+    std::optional<std::vector<BitEntry>> ROW_BIT;
+    std::optional<std::vector<BitEntry>> BANK_BIT;
+    std::optional<std::vector<BitEntry>> BANKGROUP_BIT;
+    std::optional<std::vector<BitEntry>> RANK_BIT;
+    std::optional<std::vector<BitEntry>> STACK_BIT;
+    std::optional<std::vector<BitEntry>> PSEUDOCHANNEL_BIT;
+    std::optional<std::vector<BitEntry>> CHANNEL_BIT;
+};
 
-    // Actual address has no significant impact on performance
-    DRAMSys::DecodedAddress decodedAddress;
+NLOHMANN_JSONIFY_ALL_THINGS(AddressMapping,
+                            BYTE_BIT,
+                            BURST_BIT,
+                            COLUMN_BIT,
+                            ROW_BIT,
+                            BANK_BIT,
+                            BANKGROUP_BIT,
+                            RANK_BIT,
+                            STACK_BIT,
+                            PSEUDOCHANNEL_BIT,
+                            CHANNEL_BIT)
 
-    for (auto _ : state)
-    {
-        auto encodedAddress = decoder.encodeAddress(decodedAddress);
-        benchmark::DoNotOptimize(encodedAddress);
-    }
-}
-
-BENCHMARK(addressdecoder_encode);
+} // namespace DRAMSys::Config

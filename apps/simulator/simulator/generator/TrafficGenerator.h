@@ -33,47 +33,43 @@
  *    Derek Christ
  */
 
-#include "addressdecoder.h"
+#pragma once
 
-#include <DRAMSys/configuration/json/AddressMapping.h>
-#include <DRAMSys/simulation/AddressDecoder.h>
+#include "GeneratorState.h"
+#include "simulator/request/RequestProducer.h"
 
-#include <benchmark/benchmark.h>
+#include <DRAMSys/configuration/json/DRAMSysConfiguration.h>
 
-static DRAMSys::AddressDecoder addressDecoder()
+#include <random>
+
+class RequestProducer;
+
+class TrafficGenerator : public RequestProducer
 {
-    auto addressMapping = nlohmann::json::parse(addressMappingJsonString)
-                              .at("addressmapping")
-                              .get<DRAMSys::Config::AddressMapping>();
-    DRAMSys::AddressDecoder decoder(addressMapping);
-    return decoder;
-}
+public:
+    TrafficGenerator(DRAMSys::Config::TrafficGenerator const& config, uint64_t memorySize);
 
-static void addressdecoder_decode(benchmark::State& state)
-{
-    auto decoder = addressDecoder();
-    for (auto _ : state)
-    {
-        // Actual address has no significant impact on performance
-        auto decodedAddress = decoder.decodeAddress(0x0);
-        benchmark::DoNotOptimize(decodedAddress);
-    }
-}
+    TrafficGenerator(DRAMSys::Config::TrafficGeneratorStateMachine const& config,
+                     uint64_t memorySize);
 
-BENCHMARK(addressdecoder_decode);
+    uint64_t totalRequests() override;
+    Request nextRequest() override;
+    sc_core::sc_time nextTrigger() override { return nextTriggerTime; }
 
-static void addressdecoder_encode(benchmark::State& state)
-{
-    auto decoder = addressDecoder();
+    unsigned int stateTransition(unsigned int from);
 
-    // Actual address has no significant impact on performance
-    DRAMSys::DecodedAddress decodedAddress;
+private:
+    static constexpr unsigned int STOP_STATE = UINT_MAX;
 
-    for (auto _ : state)
-    {
-        auto encodedAddress = decoder.encodeAddress(decodedAddress);
-        benchmark::DoNotOptimize(encodedAddress);
-    }
-}
+    uint64_t requestsInState = 0;
+    unsigned int currentState = 0;
+    sc_core::sc_time nextTriggerTime = sc_core::SC_ZERO_TIME;
+    std::vector<DRAMSys::Config::TrafficGeneratorStateTransition> stateTransistions;
 
-BENCHMARK(addressdecoder_encode);
+    std::unordered_map<unsigned int, unsigned int> idleStateClks;
+    sc_core::sc_time generatorPeriod;
+
+    std::default_random_engine randomGenerator;
+
+    std::unordered_map<unsigned int, std::unique_ptr<GeneratorState>> producers;
+};

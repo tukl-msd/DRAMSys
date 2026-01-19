@@ -1,3 +1,56 @@
+## [5.3.0] - 2026-01-16
+
+### 🚀 Features
+
+- Remove TraceAnalyzer timing dependencies
+- *(traceanalyzer)* Show SID for HBM
+- *(ecc)* Add support for write back for InlineEcc
+- *(ecc)* Implement two-tevel ECC scheme
+- *(python)* Introduce new simulation script
+- HBM MemSpec output print is now more detailed
+- *(cmake)* Add support for installing DRAMSys
+
+### 🐛 Bug Fixes
+
+- Fix segv when using data with child transacts
+- Correctly instantiate banks when SID is used
+- Remove undefined behavior in simulator
+- *(ecc)* Handle multiple backpressure in InlineEcc
+- Interpret nbrOfBanks as banks per pCH
+- Apply correctly absolute numbering to stacks
+- Correct bank count in exemplary HBM configs
+- *(HBM3)* Add missing timing for HBM3
+
+### 🚜 Refactor
+
+- *(addressdecoder)* Simplify checking logic
+- Use better example configs for HBM2/3
+- *(ecc)* Move InlineEcc module into library
+- *(ecc)* Make InlineEcc module generic
+- *(ecc)* Remove memSpec from ECC modules
+- *(ecc)* Decouple ECC modules from internals
+- *(ecc)* Clean up ECC module code
+- Show more DRAMPower stats in stdout
+- *(python)* Remove old simulation script
+- *(ecc)* Clean up ecc logic
+- Move extension base configs location
+- *(ta)* Remove configuration lib dependency
+- Merge config lib sources with DRAMSys
+- Move simulator and trace analyzer to apps
+- Move DRAMSys sources to top-level src/
+- *(cmake)* Rename the DRAMSys library target
+- Remove tlm_protocol_checker config
+- Clean up public API with forward declares
+
+### ⚙️ Miscellaneous Tasks
+
+- Add python script to remove standards
+- Add our new contributors to acks
+- Add scripts to mkpkg python script
+
+### ◀️ Revert
+
+- *(traceanalyzer)* Show SID for HBM
 ## [5.2.0] - 2025-12-10
 ## 🚨 Breaking Changes
 

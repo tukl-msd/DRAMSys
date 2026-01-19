@@ -32,8 +32,7 @@
  * Authors:
  *    Derek Christ
  */
-
-#include <DRAMSys/config/DRAMSysConfiguration.h>
+#include <DRAMSys/configuration/json/DRAMSysConfiguration.h>
 
 #include <fstream>
 #include <iostream>

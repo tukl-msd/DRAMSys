@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2021, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,47 +33,48 @@
  *    Derek Christ
  */
 
-#include "addressdecoder.h"
+#pragma once
 
-#include <DRAMSys/configuration/json/AddressMapping.h>
-#include <DRAMSys/simulation/AddressDecoder.h>
+#include "DRAMSys/configuration/json/AddressMapping.h"
+#include "DRAMSys/configuration/json/McConfig.h"
+#include "DRAMSys/configuration/json/SimConfig.h"
+#include "DRAMSys/configuration/json/TraceSetup.h"
 
-#include <benchmark/benchmark.h>
+#include <DRAMUtils/memspec/MemSpec.h>
+#include <DRAMUtils/util/json_utils.h>
 
-static DRAMSys::AddressDecoder addressDecoder()
+#include <string>
+
+/**
+ * To support optional values, std::optional is used. The default
+ * values will be provided by DRAMSys itself.
+ *
+ * To achieve static polymorphism, std::variant is used. The concrete
+ * type is determined by the provided fields automatically.
+ *
+ * To achieve backwards compatibility, this library manipulates the json
+ * data type as it is parsed in to substitute paths to sub-configurations
+ * with the actual json object that is stored at this path.
+ */
+
+namespace DRAMSys::Config
 {
-    auto addressMapping = nlohmann::json::parse(addressMappingJsonString)
-                              .at("addressmapping")
-                              .get<DRAMSys::Config::AddressMapping>();
-    DRAMSys::AddressDecoder decoder(addressMapping);
-    return decoder;
-}
 
-static void addressdecoder_decode(benchmark::State& state)
+struct Configuration
 {
-    auto decoder = addressDecoder();
-    for (auto _ : state)
-    {
-        // Actual address has no significant impact on performance
-        auto decodedAddress = decoder.decodeAddress(0x0);
-        benchmark::DoNotOptimize(decodedAddress);
-    }
-}
+    static constexpr std::string_view KEY = "simulation";
 
-BENCHMARK(addressdecoder_decode);
+    AddressMapping addressmapping;
+    McConfig mcconfig;
+    DRAMUtils::MemSpec::MemSpecVariant memspec;
+    SimConfig simconfig;
+    std::string simulationid;
+    std::optional<std::vector<Initiator>> tracesetup;
+};
 
-static void addressdecoder_encode(benchmark::State& state)
-{
-    auto decoder = addressDecoder();
+NLOHMANN_JSONIFY_ALL_THINGS(
+    Configuration, addressmapping, mcconfig, memspec, simconfig, simulationid, tracesetup)
 
-    // Actual address has no significant impact on performance
-    DRAMSys::DecodedAddress decodedAddress;
+Configuration from_path(std::filesystem::path baseConfig);
 
-    for (auto _ : state)
-    {
-        auto encodedAddress = decoder.encodeAddress(decodedAddress);
-        benchmark::DoNotOptimize(encodedAddress);
-    }
-}
-
-BENCHMARK(addressdecoder_encode);
+} // namespace DRAMSys::Config

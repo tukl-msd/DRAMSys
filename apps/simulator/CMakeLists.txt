@@ -1,4 +1,4 @@
-# Copyright (c) 2023, RPTU Kaiserslautern-Landau
+# Copyright (c) 2020, RPTU Kaiserslautern-Landau
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -29,41 +29,57 @@
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 # Authors:
+#    Matthias Jung
+#    Lukas Steiner
 #    Derek Christ
+#    Thomas Psota
 
-###############################################
-###             benches_dramsys             ###
-###############################################
+########################################
+###      DRAMSys::simulator          ###
+########################################
 
-option(DRAMSYS_USE_FETCH_CONTENT_GOOGLE_BENCHMARK "Enable FetchContent to provide Google Benchmark" ${DRAMSYS_USE_FETCH_CONTENT})
+find_package(Threads)
 
-if (DRAMSYS_USE_FETCH_CONTENT)
-    if (DRAMSYS_USE_FETCH_CONTENT_GOOGLE_BENCHMARK)
-        set(BENCHMARK_ENABLE_TESTING OFF)
-
-        FetchContent_Declare(
-            benchmark
-            URL https://github.com/google/benchmark/archive/refs/tags/v1.9.0.tar.gz
-            OVERRIDE_FIND_PACKAGE
-        )
-
-        FetchContent_MakeAvailable(benchmark)
-    endif()
-endif()
-
-find_package(benchmark REQUIRED)
-
-add_executable(benches_dramsys
-		main.cpp
-		simulation.cpp
-		addressdecoder.cpp
+add_library(simulator OBJECT
+    simulator/Cache.cpp
+    simulator/Simulator.cpp
+    simulator/generator/RandomState.cpp
+    simulator/generator/SequentialState.cpp
+    simulator/generator/TrafficGenerator.cpp
+    simulator/hammer/RowHammer.cpp
+    simulator/player/StlPlayer.cpp
+    simulator/request/RequestIssuer.cpp
+    simulator/util.cpp
 )
 
-target_include_directories(benches_dramsys PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-target_link_libraries(benches_dramsys
-    DRAMSys::DRAMSys
-    DRAMSys::simulator
-    SystemC::systemc
-    benchmark::benchmark
+target_include_directories(simulator
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+target_link_libraries(simulator
+    PUBLIC
+        DRAMSys::DRAMSys
+    PRIVATE
+        Threads::Threads
+)
+
+target_compile_definitions(simulator
+    PUBLIC
+        DRAMSYS_RESOURCE_DIR="${DRAMSYS_RESOURCE_DIR}"
+)
+
+add_library(DRAMSys::simulator ALIAS simulator)
+
+add_executable(dramsys_bin
+    main.cpp
+)
+
+set_target_properties(dramsys_bin PROPERTIES OUTPUT_NAME "DRAMSys")
+
+target_link_libraries(dramsys_bin
+    PRIVATE
+        DRAMSys::simulator
+)
+
+install(TARGETS dramsys_bin)

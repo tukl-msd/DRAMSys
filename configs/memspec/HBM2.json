@@ -2,17 +2,17 @@
     "memspec": {
         "memarchitecturespec": {
             "burstLength": 4,
+            "maxBurstLength": 4,
             "dataRate": 2,
-            "nbrOfBankGroups": 4,
-            "nbrOfBanks": 16,
+            "nbrOfBankGroups": 8,
+            "nbrOfBanks": 32,
             "nbrOfColumns": 32,
             "nbrOfStacks": 2,
             "nbrOfPseudoChannels": 2,
             "nbrOfRows": 32768,
             "width": 64,
             "nbrOfDevices": 1,
-            "nbrOfChannels": 1,
-            "maxBurstLength": 4
+            "nbrOfChannels": 1
         },
         "memoryId": "https://www.computerbase.de/2019-05/amd-memory-tweak-vram-oc/#bilder",
         "memoryType": "HBM2",

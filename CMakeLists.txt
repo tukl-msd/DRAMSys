@@ -40,7 +40,7 @@ cmake_minimum_required(VERSION 3.25)
 
 set(PROJECT_NAME "DRAMSys")
 
-project(${PROJECT_NAME} VERSION 5.2.0)
+project(${PROJECT_NAME} VERSION 5.3.0)
 
 if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
@@ -51,6 +51,10 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 if (PROJECT_IS_TOP_LEVEL)
     set(CMAKE_CXX_STANDARD 17)
     set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
+    endif()
 
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
@@ -131,7 +135,7 @@ if (DRAMSYS_USE_FETCH_CONTENT)
     if (DRAMSYS_USE_FETCH_CONTENT_INTERNAL)
         FetchContent_Declare(
             DRAMUtils
-            URL "https://github.com/tukl-msd/DRAMUtils/archive/refs/tags/v1.11.0.tar.gz"
+            URL "https://github.com/tukl-msd/DRAMUtils/archive/refs/tags/v1.12.1.tar.gz"
             OVERRIDE_FIND_PACKAGE
         )
         FetchContent_MakeAvailable(DRAMUtils)
@@ -168,19 +172,18 @@ endif()
 ###           Source Directory              ###
 ###############################################
 
-add_subdirectory(src/configuration)
-add_subdirectory(src/libdramsys)
+add_subdirectory(src)
 
 if(DRAMSYS_BUILD_TOOLS)
     add_subdirectory(tools)
 endif()
 
 if(DRAMSYS_BUILD_CLI)
-    add_subdirectory(src/simulator)
+    add_subdirectory(apps/simulator)
 endif()
 
 if(DRAMSYS_BUILD_TRACE_ANALYZER)
-    add_subdirectory(src/traceAnalyzer)
+    add_subdirectory(apps/traceAnalyzer)
 endif()
 
 if(EXISTS ${DRAMSYS_EXTENSIONS_DIR})

@@ -1,16 +1,19 @@
 {
     "simulation": {
-        "addressmapping": "addressmapping/am_hbm2_8Gb_pc_brc.json",
+        "addressmapping": "addressmapping/am_hbm2_16Gb-8H_pc_brc.json",
         "mcconfig": "mcconfig/fr_fcfs.json",
         "memspec": "memspec/HBM2.json",
         "simconfig": "simconfig/example.json",
         "simulationid": "hbm2-example",
         "tracesetup": [
             {
-                "type": "player",
-                "clkMhz": 1000,
+                "clkMhz": 2000,
                 "dataLength": 32,
-                "name": "traces/example.stl"
+                "type": "generator",
+                "name": "gen0",
+                "numRequests": 2000,
+                "rwRatio": 0.85,
+                "addressDistribution": "sequential"
             }
         ]
     }

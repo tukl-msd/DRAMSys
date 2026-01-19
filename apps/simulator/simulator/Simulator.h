@@ -33,47 +33,38 @@
  *    Derek Christ
  */
 
-#include "addressdecoder.h"
+#pragma once
 
-#include <DRAMSys/configuration/json/AddressMapping.h>
-#include <DRAMSys/simulation/AddressDecoder.h>
+#include "simulator/request/RequestIssuer.h"
 
-#include <benchmark/benchmark.h>
+#include <DRAMSys/common/MemoryManager.h>
+#include <DRAMSys/configuration/json/DRAMSysConfiguration.h>
+#include <DRAMSys/DRAMSys.h>
 
-static DRAMSys::AddressDecoder addressDecoder()
+class Simulator
 {
-    auto addressMapping = nlohmann::json::parse(addressMappingJsonString)
-                              .at("addressmapping")
-                              .get<DRAMSys::Config::AddressMapping>();
-    DRAMSys::AddressDecoder decoder(addressMapping);
-    return decoder;
-}
+public:
+    Simulator(DRAMSys::Config::Configuration configuration, std::filesystem::path baseConfig);
 
-static void addressdecoder_decode(benchmark::State& state)
-{
-    auto decoder = addressDecoder();
-    for (auto _ : state)
-    {
-        // Actual address has no significant impact on performance
-        auto decodedAddress = decoder.decodeAddress(0x0);
-        benchmark::DoNotOptimize(decodedAddress);
-    }
-}
+    void run();
 
-BENCHMARK(addressdecoder_decode);
+private:
+    std::unique_ptr<RequestIssuer> instantiateInitiator(const DRAMSys::Config::Initiator& initiator);
 
-static void addressdecoder_encode(benchmark::State& state)
-{
-    auto decoder = addressDecoder();
+    bool storageEnabled;
+    DRAMSys::MemoryManager memoryManager;
 
-    // Actual address has no significant impact on performance
-    DRAMSys::DecodedAddress decodedAddress;
+    DRAMSys::Config::Configuration configuration;
 
-    for (auto _ : state)
-    {
-        auto encodedAddress = decoder.encodeAddress(decodedAddress);
-        benchmark::DoNotOptimize(encodedAddress);
-    }
-}
+    std::unique_ptr<DRAMSys::DRAMSys> dramSys;
+    std::vector<std::unique_ptr<RequestIssuer>> initiators;
 
-BENCHMARK(addressdecoder_encode);
+    std::function<void()> terminateInitiator;
+    std::function<void()> finishTransaction;
+
+    unsigned int terminatedInitiators = 0;
+    uint64_t totalTransactions{};
+    uint64_t transactionsFinished = 0;
+
+    std::filesystem::path baseConfig;
+};

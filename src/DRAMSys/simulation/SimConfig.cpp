@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2024, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,49 +31,36 @@
  *
  * Authors:
  *    Derek Christ
+ *    Marco Mörz
  */
 
-#include "addressdecoder.h"
+#include "SimConfig.h"
+#include "DRAMSys/configuration/json/SimConfig.h"
 
-#include <DRAMSys/configuration/json/AddressMapping.h>
-#include <DRAMSys/simulation/AddressDecoder.h>
+#include <systemc>
 
-#include <benchmark/benchmark.h>
-
-static DRAMSys::AddressDecoder addressDecoder()
+namespace DRAMSys
 {
-    auto addressMapping = nlohmann::json::parse(addressMappingJsonString)
-                              .at("addressmapping")
-                              .get<DRAMSys::Config::AddressMapping>();
-    DRAMSys::AddressDecoder decoder(addressMapping);
-    return decoder;
+
+SimConfig::SimConfig(const Config::SimConfig& simConfig) :
+    simulationName(simConfig.SimulationName.value_or(DEFAULT_SIMULATION_NAME.data())),
+    databaseRecording(simConfig.DatabaseRecording.value_or(DEFAULT_DATABASE_RECORDING)),
+    powerAnalysis(simConfig.PowerAnalysis.value_or(DEFAULT_POWER_ANALYSIS)),
+    enableWindowing(simConfig.EnableWindowing.value_or(DEFAULT_ENABLE_WINDOWING)),
+    windowSize(simConfig.WindowSize.value_or(DEFAULT_WINDOW_SIZE)),
+    debug(simConfig.Debug.value_or(DEFAULT_DEBUG)),
+    simulationProgressBar(
+        simConfig.SimulationProgressBar.value_or(DEFAULT_SIMULATION_PROGRESS_BAR)),
+    useMalloc(simConfig.UseMalloc.value_or(DEFAULT_USE_MALLOC)),
+    addressOffset(simConfig.AddressOffset.value_or(DEFAULT_ADDRESS_OFFSET)),
+    storeMode(simConfig.StoreMode.value_or(DEFAULT_STORE_MODE)),
+    togglingRate(simConfig.TogglingRate)
+{
+    if (storeMode == Config::StoreModeType::Invalid)
+        SC_REPORT_FATAL("SimConfig", "Invalid StoreMode");
+
+    if (windowSize == 0)
+        SC_REPORT_FATAL("SimConfig", "Minimum window size is 1");
 }
 
-static void addressdecoder_decode(benchmark::State& state)
-{
-    auto decoder = addressDecoder();
-    for (auto _ : state)
-    {
-        // Actual address has no significant impact on performance
-        auto decodedAddress = decoder.decodeAddress(0x0);
-        benchmark::DoNotOptimize(decodedAddress);
-    }
-}
-
-BENCHMARK(addressdecoder_decode);
-
-static void addressdecoder_encode(benchmark::State& state)
-{
-    auto decoder = addressDecoder();
-
-    // Actual address has no significant impact on performance
-    DRAMSys::DecodedAddress decodedAddress;
-
-    for (auto _ : state)
-    {
-        auto encodedAddress = decoder.encodeAddress(decodedAddress);
-        benchmark::DoNotOptimize(encodedAddress);
-    }
-}
-
-BENCHMARK(addressdecoder_encode);
+} // namespace DRAMSys

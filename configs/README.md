@@ -164,7 +164,6 @@ The content of [ddr3.json](simconfig/example.json) is presented below as an exam
         "EnableWindowing": false,
         "WindowSize": 1000,
         "SimulationProgressBar": true,
-        "CheckTLM2Protocol": false,
         "UseMalloc": false,
         "AddressOffset": 0,
         "StoreMode": "NoStorage"
@@ -194,9 +193,6 @@ The content of [ddr3.json](simconfig/example.json) is presented below as an exam
 - *SimulationProgressBar* (boolean)
     - true: enables the simulation progress bar
     - false: disables the simulation progress bar
-- *CheckTLM2Protocol* (boolean)
-    - true: enables the TLM-2.0 Protocol Checking
-    - false: disables the TLM-2.0 Protocol Checking
 - *UseMalloc* (boolean)
     - false: model storage using mmap() (DEFAULT)
     - true: allocate memory for modeling storage using malloc()
