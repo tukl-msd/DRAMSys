@@ -1,3 +1,8 @@
+## [5.3.1] - 2026-01-19
+
+### 🐛 Bug Fixes
+
+- Re-add SC_HAS_PROCESS for SC 2.3.1 compat
 ## [5.3.0] - 2026-01-16
 
 ### 🚀 Features

@@ -56,7 +56,6 @@
 #include <DRAMSys/simulation/AddressDecoder.h>
 
 #include <functional>
-#include <stack>
 #include <systemc>
 #include <tlm>
 #include <tlm_utils/simple_initiator_socket.h>
@@ -71,6 +70,7 @@ public:
     tlm_utils::simple_target_socket<Controller> tSocket{"tSocket"};    // Arbiter side
     tlm_utils::simple_initiator_socket<Controller> iSocket{"iSocket"}; // DRAM side
 
+    SC_HAS_PROCESS(Controller);
     Controller(const sc_core::sc_module_name& name,
                const McConfig& config,
                const MemSpec& memSpec,

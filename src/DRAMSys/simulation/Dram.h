@@ -89,6 +89,7 @@ private:
     void executeWrite(const tlm::tlm_generic_payload& trans);
 
 public:
+    SC_HAS_PROCESS(Dram);
     Dram(const sc_core::sc_module_name& name,
          const SimConfig& simConfig,
          const MemSpec& memSpec,
