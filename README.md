@@ -4,9 +4,6 @@
 
 \>> [Official Website](http://dramsys.de) <<
 
-Pipeline Status: [![pipeline status](https://git.eit.uni-kl.de/ems/astdm/dram.sys/badges/master/pipeline.svg)](https://git.eit.uni-kl.de/ems/astdm/dram.sys/commits/master)
-[![Coverage report](https://git.eit.uni-kl.de/ems/astdm/dram.sys/badges/master/coverage.svg?job=coverage)](https://git.eit.uni-kl.de/ems/astdm/dram.sys/commits/master)
-
 ## Disclaimer
 
 This is the public read-only mirror of an internal DRAMSys repository. Pull requests will not be merged but the changes might be added internally and published with a future commit. Both repositories are synchronized from time to time.
