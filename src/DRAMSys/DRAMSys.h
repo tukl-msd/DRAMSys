@@ -140,10 +140,7 @@ private:
     static std::unique_ptr<CheckerIF>
     createChecker(MemSpec const& memSpec);
 
-    void end_of_simulation() override;
-
     void setupDebugManager(const std::string& traceName) const;
-    void setupTlmRecorders(const std::string& traceName);
 
     std::unique_ptr<const MemSpec> memSpec;
     std::unique_ptr<SimConfig> simConfig;
@@ -164,14 +161,6 @@ private:
 
     std::vector<std::unique_ptr<DRAMPowerAdapter>> DRAMPowers;
     std::vector<DRAMPowerAdapter*> DRAMPowerMappings;
-
-    // Transaction Recorders (one per channel).
-    // They generate the output databases.
-    std::vector<TlmRecorder> tlmRecorders;
-
-    std::vector<std::unique_ptr<TlmATRecorder>> tlmATRecorders;
-    std::vector<std::unique_ptr<DramATRecorder>> phyATRecorders;
-    std::vector<std::unique_ptr<DramATRecorder>> dramATRecorders;
 
     class DRAMSysStats : public Stats::Group
     {

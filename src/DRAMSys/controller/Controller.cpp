@@ -102,15 +102,13 @@ Controller::Controller(const sc_module_name& name,
                        const MemSpec& memSpec,
                        const SimConfig& simConfig,
                        const AddressDecoder& addressDecoder,
-                       CheckerIF& checker,
-                       TlmRecorder* tlmRecorder) :
+                       CheckerIF& checker) :
     sc_module(name),
     config(config),
     memSpec(memSpec),
     simConfig(simConfig),
     addressDecoder(addressDecoder),
     checker(checker),
-    tlmRecorder(tlmRecorder),
     controllerID(controllerID),
     gearing(config.gearing),
     windowSizeTime(simConfig.windowSize * memSpec.tCK),
@@ -118,7 +116,7 @@ Controller::Controller(const sc_module_name& name,
     memoryManager(false),
     stats(*this)
 {
-    if (simConfig.databaseRecording && tlmRecorder != nullptr)
+    if (simConfig.databaseRecording)
     {
         SC_THREAD(recordBufferDepth);
     }
@@ -308,8 +306,6 @@ void Controller::recordBufferDepth()
             windowAverageBufferDepth[index] = slidingAverageBufferDepth[index] / windowSizeTime;
             slidingAverageBufferDepth[index] = SC_ZERO_TIME;
         }
-
-        tlmRecorder->recordBufferDepth(sc_time_stamp().to_seconds(), windowAverageBufferDepth);
     }
 }
 

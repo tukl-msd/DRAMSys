@@ -39,9 +39,6 @@
 add_library(dramsys
     DRAMSys/DRAMSys.cpp
     DRAMSys/common/DebugManager.cpp
-    DRAMSys/common/TlmRecorder.cpp
-    DRAMSys/common/TlmATRecorder.cpp
-    DRAMSys/common/DramATRecorder.cpp
     DRAMSys/common/dramExtensions.cpp
     DRAMSys/common/PhysicalStorage.cpp
     DRAMSys/common/utils.cpp

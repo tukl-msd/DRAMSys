@@ -43,9 +43,7 @@
 #include "DRAMSys.h"
 
 #include "DRAMSys/common/DebugManager.h"
-#include "DRAMSys/common/DramATRecorder.h"
 #include "DRAMSys/common/StandardMapping.h"
-#include "DRAMSys/common/TlmATRecorder.h"
 #include "DRAMSys/common/utils.h"
 #include "DRAMSys/controller/Controller.h"
 #include "DRAMSys/controller/McConfig.h"
@@ -126,15 +124,15 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
             config.memspec,
             config.addressmapping)
 {
-    for (auto& recorder : tlmRecorders)
-    {
-        nlohmann::json mcconfig_json;
-        nlohmann::json memspec_json;
-        mcconfig_json["mcconfig"] = config.mcconfig;
-        memspec_json["memspec"] = config.memspec;
-        recorder.insertGeneralInfo(
-            this->simConfig->simulationName, mcconfig_json.dump(), memspec_json.dump());
-    }
+    // for (auto& recorder : tlmRecorders)
+    // {
+    //     nlohmann::json mcconfig_json;
+    //     nlohmann::json memspec_json;
+    //     mcconfig_json["mcconfig"] = config.mcconfig;
+    //     memspec_json["memspec"] = config.memspec;
+    //     recorder.insertGeneralInfo(
+    //         this->simConfig->simulationName, mcconfig_json.dump(), memspec_json.dump());
+    // }
 }
 
 DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
@@ -152,12 +150,10 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
     dram(std::make_unique<Dram>("Dram",
                                 &backingStore,
                                 memSpec.get(),
-                                simconfig.databaseRecording,
-                                &dramATRecorders,
                                 simconfig.powerAnalysis,
                                 &DRAMPowerMappings)),
     checker(createChecker(*memSpec)),
-    phy(std::make_unique<Phy>("Phy", &phyATRecorders, simconfig.databaseRecording, simconfig.efficiencyMode)),
+    phy(std::make_unique<Phy>("Phy", simconfig.efficiencyMode)),
     stats(*this)
 {
     printLogo();
@@ -182,70 +178,16 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
     // Prepare TimingChecker for controllers
 
     // Instantiate all internal DRAMSys modules:
-    if (simConfig->databaseRecording)
+    for (std::size_t i = 0; i < memSpec->numberOfChannels; i++)
     {
-        std::string traceName = simConfig->simulationName;
-        traceName = simid + '_' + traceName;
-
-        // Create and properly initialize TLM recorders.
-        // They need to be ready before creating some modules.
-        setupTlmRecorders(traceName);
-
-        // Create controllers and DRAM
-        for (std::size_t i = 0; i < memSpec->numberOfChannels; i++)
-        {
-            controllers.emplace_back(
-                std::make_unique<Controller>(("controller" + std::to_string(i)).c_str(),
-                                             static_cast<int>(i),
-                                             *mcConfig,
-                                             *memSpec,
-                                             *simConfig,
-                                             *addressDecoder,
-                                             *checker,
-                                             &tlmRecorders[i])
-            );
-
-            // Not recording bandwidth between Arbiter - Controller
-            tlmATRecorders.emplace_back(
-                std::make_unique<TlmATRecorder>(("TlmATRecorder" + std::to_string(i)).c_str(),
-                                                *simConfig,
-                                                *memSpec,
-                                                tlmRecorders[i],
-                                                false));
-
-            // Recording bandwidth between Controller - PHY
-            phyATRecorders.emplace_back(
-                std::make_unique<DramATRecorder>(("phyATRecorder" + std::to_string(i)).c_str(),
-                                                 *simConfig,
-                                                 *memSpec,
-                                                 tlmRecorders[i],
-                                                 true,
-                                                 false));
-
-            // Recording bandwidth between PHY - DRAM
-            dramATRecorders.emplace_back(
-                std::make_unique<DramATRecorder>(("DramATRecorder" + std::to_string(i)).c_str(),
-                                                 *simConfig,
-                                                 *memSpec,
-                                                 tlmRecorders[i],
-                                                 true));
-        }
-    }
-    else
-    {
-        for (std::size_t i = 0; i < memSpec->numberOfChannels; i++)
-        {
-            controllers.emplace_back(
-                std::make_unique<Controller>(("controller" + std::to_string(i)).c_str(),
-                                             static_cast<int>(i),
-                                             *mcConfig,
-                                             *memSpec,
-                                             *simConfig,
-                                             *addressDecoder,
-                                             *checker,
-                                             nullptr)
-            );
-        }
+        controllers.emplace_back(
+            std::make_unique<Controller>(("controller" + std::to_string(i)).c_str(),
+                                         i,
+                                         *mcConfig,
+                                         *memSpec,
+                                         *simConfig,
+                                         *addressDecoder,
+                                         *checker));
     }
 
     // Create DRAMPowerAdapters
@@ -256,48 +198,18 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
     }
 #endif
 
-    // Connect all internal DRAMSys modules:
-    // If database recording is enabled, then the tlmRecorders are placed
-    // on the bus between the modules
+    // Connect all internal DRAMSys modules
     tSocket.bind(arbiter->tSocket);
     for (unsigned i = 0; i < memSpec->numberOfChannels; i++)
     {
-        if (simConfig->databaseRecording)
-        {
-            arbiter->iSocket.bind(tlmATRecorders[i]->tSocket);
-            tlmATRecorders[i]->iSocket.bind(controllers[i]->tSocket);
-        }
-        else
-        {
-            arbiter->iSocket.bind(controllers[i]->tSocket);
-        }
-
+        // Arbiter <--> Controller
+        arbiter->iSocket.bind(controllers[i]->tSocket);
         controllers[i]->iSocket.bind(phy->tSocket);
         phy->iSocket.bind(dram->tSocket);
-        
     }
 }
 
 DRAMSys::~DRAMSys() = default;
-
-void DRAMSys::setupTlmRecorders(const std::string& traceName)
-{
-    // Create TLM Recorders, one per channel.
-    // Reserve is required because the recorders use double buffers that are accessed with pointers.
-    // Without a reserve, the vector reallocates storage before inserting a second
-    // element and the pointers are not valid anymore.
-    tlmRecorders.reserve(memSpec->numberOfChannels);
-    for (std::size_t i = 0; i < memSpec->numberOfChannels; i++)
-    {
-        std::string dbName =
-            std::string("DRAMSys") + "_" + traceName + "_ch" + std::to_string(i) + ".tdb";
-        std::string recorderName = "tlmRecorder" + std::to_string(i);
-
-        auto& recorder =
-            tlmRecorders.emplace_back(recorderName, *simConfig, *mcConfig, *memSpec, dbName);
-        recorder.insertGeneralInfo(this->simConfig->simulationName);
-    }
-}
 
 void DRAMSys::setBackingStore(unsigned char* backingStore)
 {
@@ -324,23 +236,6 @@ void DRAMSys::registerIdleCallback(const std::function<void()>& idleCallback)
     }
 }
 
-void DRAMSys::end_of_simulation()
-{
-#ifdef USE_DRAMPOWER
-    if (simConfig->powerAnalysis)
-    {
-        for (auto& DRAMPower : DRAMPowers)
-            DRAMPower->reportPower();
-    }
-#endif
-
-    if (simConfig->databaseRecording)
-    {
-        for (auto& tlmRecorder : tlmRecorders)
-            tlmRecorder.finalize();
-    }
-}
-
 void DRAMSys::setupDebugManager([[maybe_unused]] const std::string& traceName) const
 {
 #ifndef NDEBUG
@@ -361,11 +256,13 @@ DRAMSys::createMemSpec(const DRAMUtils::MemSpec::MemSpecVariant& memSpec)
         [](const auto& v) -> std::unique_ptr<const MemSpec>
         {
             using T = std::decay_t<decltype(v)>;
-            if constexpr (StandardMapping::has_MemSpecType_v<T>) {
+            if constexpr (StandardMapping::has_MemSpecType_v<T>)
+            {
                 using Impl = typename StandardMapping::Mapping<T>::MemSpecType;
                 return std::make_unique<const Impl>(v);
             }
-            SC_REPORT_FATAL("Configuration", ("Unsupported DRAM type: " + std::string(T::id)).c_str());
+            SC_REPORT_FATAL("Configuration",
+                            ("Unsupported DRAM type: " + std::string(T::id)).c_str());
             return nullptr;
         },
         memSpec.getVariant());
@@ -382,11 +279,10 @@ void DRAMSys::createDRAMPowers(
 
     // DRAMPowerAdapter generator
     auto generator = [this, &memSpecVar, &drampowerSimConfig](
-                         std::size_t channel,
-                         TlmRecorder* recorder) -> std::unique_ptr<DRAMPowerAdapter>
+                         std::size_t channel) -> std::unique_ptr<DRAMPowerAdapter>
     {
         std::unique_ptr<DRAMPowerAdapter> adapter = std::visit(
-            [this, &drampowerSimConfig, recorder, channel](
+            [this, &drampowerSimConfig, channel](
                 const auto& var) -> std::unique_ptr<DRAMPowerAdapter>
             {
                 using T = std::decay_t<decltype(var)>;
@@ -398,8 +294,7 @@ void DRAMSys::createDRAMPowers(
                         ("drampoweradapter" + std::to_string(channel)).c_str(),
                         Impl(var, drampowerSimConfig),
                         *simConfig,
-                        *memSpec,
-                        recorder);
+                        *memSpec);
                 }
                 SC_REPORT_FATAL("DRAMSys", "Standard does not support the power analysis");
                 return nullptr;
@@ -409,15 +304,16 @@ void DRAMSys::createDRAMPowers(
     };
 
     // Create DRAMPowerAdapters
-    DRAMPowerAdapter *lastDRAMPower = nullptr;
+    DRAMPowerAdapter* lastDRAMPower = nullptr;
     for (std::size_t i = 0; i < memSpec->numberOfChannels; ++i)
     {
-        auto* recorder = simConfig->databaseRecording ? &tlmRecorders[i] : nullptr;
-        if (auto drampower = generator(i, recorder)) {
+        if (auto drampower = generator(i))
+        {
             lastDRAMPower = drampower.get();
             DRAMPowers.emplace_back(std::move(drampower));
         }
-        assert((!(0 == i) || nullptr != lastDRAMPower) && "The first channel must produce a DRAMPowerAdapter object");
+        assert((!(0 == i) || nullptr != lastDRAMPower) &&
+               "The first channel must produce a DRAMPowerAdapter object");
         DRAMPowerMappings.emplace_back(lastDRAMPower);
     }
 #endif

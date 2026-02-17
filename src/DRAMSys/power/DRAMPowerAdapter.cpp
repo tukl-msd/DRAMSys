@@ -37,7 +37,6 @@
 
 #include "DRAMSys/power/DRAMPowerAdapter.h"
 #include "DRAMSys/common/DebugManager.h"
-#include "DRAMSys/common/TlmRecorder.h"
 #include "DRAMSys/power/DRAMPowerVariant.h"
 
 #include <DRAMPower/command/Command.h>
@@ -53,11 +52,9 @@ namespace DRAMSys
 DRAMPowerAdapter::DRAMPowerAdapter(const sc_core::sc_module_name& name,
                                    DRAMPowerVariant DRAMPower,
                                    const SimConfig& simConfig,
-                                   const MemSpec& memSpec,
-                                   TlmRecorder* tlmRecorder) :
+                                   const MemSpec& memSpec) :
     sc_module(name),
     tCK(memSpec.tCK),
-    tlmRecorder(tlmRecorder),
     powerWindowSize(memSpec.tCK * simConfig.windowSize),
     DRAMPower(std::move(DRAMPower)),
     stats(*this)
@@ -66,16 +63,6 @@ DRAMPowerAdapter::DRAMPowerAdapter(const sc_core::sc_module_name& name,
 
     if (simConfig.powerAnalysis && simConfig.enableWindowing)
         SC_THREAD(powerWindow);
-}
-
-void DRAMPowerAdapter::reportPower()
-{
-    // Record the final average power of the whole simulation into the trace database:
-    if (tlmRecorder != nullptr)
-    {
-        tlmRecorder->recordPower(sc_core::sc_time_stamp().to_seconds(),
-                                 computePowerData().averagePower);
-    }
 }
 
 DRAMPowerAdapter::PowerData DRAMPowerAdapter::computePowerData()
@@ -161,13 +148,6 @@ void DRAMPowerAdapter::powerWindow()
 
         // During operation the energy should never be zero since the device is always consuming
         assert(!(windowEnergy < MINENERGYPERWINDOW));
-
-        if (nullptr != tlmRecorder)
-        {
-            // Store the time (in seconds) and the current average power (in mW) into the database
-            tlmRecorder->recordPower(sc_core::sc_time_stamp().to_seconds(),
-                                     windowEnergy / powerWindowSizeSeconds);
-        }
 
         // Here considering that DRAMPower provides the energy in J and the power in W
         PRINTDEBUGMESSAGE(this->name(),

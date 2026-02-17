@@ -42,13 +42,9 @@ namespace DRAMSys
 {
 
 Phy::Phy(sc_core::sc_module_name const& name,
-         std::vector<std::unique_ptr<DramATRecorder>>* dramATRecorders,
-         bool databaseRecording,
          bool channelMappingActive,
          std::function<int(int)> idMappingFunc) :
     sc_core::sc_module(name),
-    databaseRecording(databaseRecording),
-    dramATRecorders(dramATRecorders),
     channelMappingActive(channelMappingActive),
     idMappingFunc(std::move(idMappingFunc))
 {
@@ -58,12 +54,6 @@ Phy::Phy(sc_core::sc_module_name const& name,
 
 void Phy::b_transport(int id, tlm::tlm_generic_payload& trans, sc_core::sc_time& delay)
 {
-    if (databaseRecording)
-    {
-        auto* ext = trans.get_extension<CommandExtension>();
-        dramATRecorders->at(id)->record(trans, ext->command.toPhase(), delay);
-    }
-
     if (channelMappingActive)
     {
         iSocket[idMappingFunc(id)]->b_transport(trans, delay);

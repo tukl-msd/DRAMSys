@@ -38,7 +38,6 @@
 
 #include "DRAMSys/common/Deserialize.h"
 #include "DRAMSys/common/Serialize.h"
-#include "DRAMSys/common/TlmRecorder.h"
 #include "DRAMSys/configuration/memspec/MemSpec.h"
 #include "DRAMSys/power/DRAMPowerVariant.h"
 #include "DRAMSys/simulation/SimConfig.h"
@@ -67,7 +66,6 @@ private:
     sc_core::sc_time tCK;
 
     // Data Storage:
-    TlmRecorder* const tlmRecorder;
     sc_core::sc_time powerWindowSize;
 
     DRAMPowerVariant DRAMPower;
@@ -108,16 +106,13 @@ public:
     DRAMPowerAdapter(const sc_core::sc_module_name& name,
                      DRAMPowerVariant DRAMPower,
                      const SimConfig& simConfig,
-                     const MemSpec& memSpec,
-                     TlmRecorder* tlmRecorder);
+                     const MemSpec& memSpec);
 
     DRAMPowerAdapter(const DRAMPowerAdapter&) = delete;
     DRAMPowerAdapter(DRAMPowerAdapter&&) = delete;
     DRAMPowerAdapter& operator=(const DRAMPowerAdapter&) = delete;
     DRAMPowerAdapter& operator=(DRAMPowerAdapter&&) = delete;
     ~DRAMPowerAdapter() override = default;
-
-    void reportPower();
 
     void updateStats() override;
     Stats::Group const& getStatGroup() const override { return stats; }

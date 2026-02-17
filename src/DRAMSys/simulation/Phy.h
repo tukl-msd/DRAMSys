@@ -36,7 +36,6 @@
 #ifndef PHY_H
 #define PHY_H
 
-#include <DRAMSys/common/DramATRecorder.h>
 #include <DRAMSys/configuration/memspec/MemSpec.h>
 #include <DRAMSys/controller/Command.h>
 
@@ -56,8 +55,6 @@ public:
 
     Phy(
         sc_core::sc_module_name const& name,
-        std::vector<std::unique_ptr<DramATRecorder>>* dramATRecorders,
-        bool databaseRecording,
         bool channelMappingActive = false,
         std::function<int(int)> idMappingFunc = [](int id) { return id % 2; });
 
@@ -66,9 +63,6 @@ public:
 private:
     void b_transport(int id, tlm::tlm_generic_payload& trans, sc_core::sc_time& delay);
     unsigned int transport_dbg(int id, tlm::tlm_generic_payload& trans);
-
-    bool databaseRecording;
-    std::vector<std::unique_ptr<DramATRecorder>>* dramATRecorders;
 
     bool channelMappingActive;
     std::function<int(int)> idMappingFunc;

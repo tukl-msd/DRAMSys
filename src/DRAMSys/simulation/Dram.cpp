@@ -58,11 +58,6 @@ void Dram::b_transport(int id, tlm_generic_payload& trans, [[maybe_unused]] sc_t
 
     auto* ext = trans.get_extension<CommandExtension>();
 
-    if (recording)
-    {
-        (*dramATRecorders)[id]->record(trans, ext->command.toPhase(), delay);
-    }
-
 #ifdef USE_DRAMPOWER
     if (power)
     {

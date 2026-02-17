@@ -41,7 +41,6 @@
 #include "DRAMSys/common/Deserialize.h"
 #include "DRAMSys/common/MemoryManager.h"
 #include "DRAMSys/common/Serialize.h"
-#include "DRAMSys/common/TlmRecorder.h"
 #include "DRAMSys/controller/BankMachine.h"
 #include "DRAMSys/controller/McConfig.h"
 #include "DRAMSys/controller/checker/CheckerIF.h"
@@ -81,8 +80,7 @@ public:
                const MemSpec& memSpec,
                const SimConfig& simConfig,
                const AddressDecoder& addressDecoder,
-               CheckerIF& checker,
-               TlmRecorder* tlmRecorder);
+               CheckerIF& checker);
 
     [[nodiscard]] bool idle() const { return totalNumberOfPayloads == 0; }
 
@@ -119,7 +117,6 @@ private:
     const AddressDecoder& addressDecoder;
 
     CheckerIF& checker;
-    TlmRecorder* const tlmRecorder;
     const int controllerID;
 
     std::unique_ptr<SchedulerIF> scheduler;
