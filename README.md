@@ -28,7 +28,7 @@ If you decide to use DRAMSys in your research please cite the paper [2] or [3]. 
 
 ## Additional Features
 
-- Cycle-accurate **DDR5**, **LPDDR5** and **HBM3** modelling
+- Cycle-accurate **DDR5**, **LPDDR5/6** and **HBM3** modelling
 - Extended analysis features for the **Trace Analyzer**
 - **Free academic** or **commercial** licenses available (please contact [DRAMSys@iese.fraunhofer.de](mailto:DRAMSys@iese.fraunhofer.de) for more information)
 

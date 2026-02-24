@@ -71,6 +71,9 @@
 #ifdef LPDDR5_SIM
 #include "DRAMSys/configuration/memspec/MemSpecLPDDR5.h"
 #endif
+#ifdef LPDDR6_SIM
+#include "DRAMSys/configuration/memspec/MemSpecLPDDR6.h"
+#endif
 #ifdef HBM3_SIM
 #include "DRAMSys/configuration/memspec/MemSpecHBM3.h"
 #endif
@@ -331,7 +334,15 @@ DRAMSys::createMemSpec(const DRAMUtils::MemSpec::MemSpecVariant& memSpec)
 #endif
 #ifdef LPDDR5_SIM
             else if constexpr ((std::is_same_v<T, DRAMUtils::MemSpec::MemSpecLPDDR5>))
+            {
                 return std::make_unique<const MemSpecLPDDR5>(v);
+            }
+#endif
+#ifdef LPDDR6_SIM
+            else if constexpr ((std::is_same_v<T, DRAMUtils::MemSpec::MemSpecLPDDR6>))
+            {
+                return std::make_unique<const MemSpecLPDDR6>(v);
+            }
 #endif
 #ifdef HBM3_SIM
             else if constexpr ((std::is_same_v<T, DRAMUtils::MemSpec::MemSpecHBM3>))
