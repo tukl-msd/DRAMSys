@@ -229,6 +229,11 @@ bool DRAMSys::idle() const
                        [](auto const& controller) { return controller->idle(); });
 }
 
+std::uint64_t DRAMSys::memorySize() const
+{
+    return memSpec->getSimMemSizeInBytes();
+}
+
 void DRAMSys::registerIdleCallback(const std::function<void()>& idleCallback)
 {
     for (auto& controller : controllers)

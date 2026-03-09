@@ -325,10 +325,9 @@ DecodedAddress AddressDecoder::decodeAddress(uint64_t address) const
     decAddr.row = get_component(rowBits);
     decAddr.column= get_component(columnBits);
 
-    // Convert stack, bankgroup and bank to absolute numbering
+    // Convert bankgroup and bank to absolute numbering
     // To form the unique bank number, merge the address for stack, bank group and bank by shifting and adding
-    decAddr.stack = decAddr.stack + (decAddr.rank << stackBits.length);
-    decAddr.bankgroup = decAddr.bankgroup + (decAddr.stack << bankGroupBits.length);
+    decAddr.bankgroup = decAddr.bankgroup + ((decAddr.stack + (decAddr.rank << stackBits.length)) << bankGroupBits.length);
     decAddr.bank = decAddr.bank + (decAddr.bankgroup << bankBits.length);
 
     return decAddr;
@@ -373,8 +372,7 @@ unsigned AddressDecoder::decodeChannel(uint64_t encAddr) const
 
 uint64_t AddressDecoder::encodeAddress(DecodedAddress decAddr) const
 {
-    // Convert absolute addressing for bank, bankgroup and stack to relative
-    decAddr.stack = decAddr.stack & ((1 << stackBits.length) - 1);
+    // Convert absolute addressing for bank and bankgroup to relative
     decAddr.bankgroup = decAddr.bankgroup & ((1 << bankGroupBits.length) - 1);
     decAddr.bank = decAddr.bank & ((1 << bankBits.length) - 1);;
 

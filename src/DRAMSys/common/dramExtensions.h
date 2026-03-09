@@ -194,7 +194,8 @@ public:
 
     [[nodiscard]] tlm::tlm_extension_base* clone() const override;
     void copy_from(const tlm::tlm_extension_base& ext) override;
-    tlm::tlm_generic_payload& getParentTrans();
+    [[nodiscard]] tlm::tlm_generic_payload& getParentTrans();
+    [[nodiscard]] const tlm::tlm_generic_payload& getParentTrans() const;
     static tlm::tlm_generic_payload& getParentTrans(tlm::tlm_generic_payload& childTrans);
     static void setExtension(tlm::tlm_generic_payload& childTrans,
                              tlm::tlm_generic_payload& parentTrans);

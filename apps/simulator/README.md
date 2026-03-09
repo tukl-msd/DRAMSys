@@ -10,5 +10,8 @@ The **RequestIssuer** is the SystemC module that connect to DRAMSys. The Issuer 
 
 **Requests** are an abstraction over the TLM payloads the issuer generates. A request describes whether it is a read or a write access or an internal `Stop` request that tells the initiator to terminate.
 
+**StlPlayer** The StlPlayer reads an STL file and issues read and write commands accordingly. 
+A detailed description on how to configure the simulation and the use of STL files can be found [here](../../configs/README.md#stl-traces-stl)
+
 ## Configuration
 A detailed description on how to configure the traffic generators of the simulator can be found [here](../../configs/README.md).

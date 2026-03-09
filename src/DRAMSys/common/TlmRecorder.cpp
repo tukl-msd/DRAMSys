@@ -132,7 +132,7 @@ void TlmRecorder::recordBandwidth(double timeInSeconds, double averageBandwidth)
     executeSqlStatement(insertBandwidthStatement);
 }
 
-void TlmRecorder::recordPhase(tlm_generic_payload& trans,
+void TlmRecorder::recordPhase(const tlm_generic_payload& trans,
                               const tlm_phase& phase,
                               const sc_time& delay)
 {
@@ -166,17 +166,18 @@ void TlmRecorder::recordPhase(tlm_generic_payload& trans,
     }
     else if (isFixedCommandPhase(phase))
     {
-        tlm_generic_payload* keyTrans = nullptr;
-        if (ChildExtension::isChildTrans(trans))
-        {
-            keyTrans = &ChildExtension::getParentTrans(trans);
-        }
-        else
-        {
-            if (currentTransactionsInSystem.find(&trans) == currentTransactionsInSystem.end())
-                introduceTransactionToSystem(trans);
-            keyTrans = &trans;
-        }
+        const tlm_generic_payload* keyTrans = [&trans, this]() -> const tlm_generic_payload* {
+            if (ChildExtension::isChildTrans(trans))
+            {
+                return &trans.get_extension<ChildExtension>()->getParentTrans();
+            }
+            else
+            {
+                if (currentTransactionsInSystem.find(&trans) == currentTransactionsInSystem.end())
+                    introduceTransactionToSystem(trans);
+                return &trans;
+            }
+        }();
 
         std::string phaseName = getPhaseName(phase).substr(6); // remove "BEGIN_"
         const ControllerExtension& extension = ControllerExtension::getExtension(trans);
@@ -237,7 +238,7 @@ void TlmRecorder::recordDebugMessage(const std::string& message, const sc_time& 
 
 // ------------- internal -----------------------
 
-void TlmRecorder::introduceTransactionToSystem(tlm_generic_payload& trans)
+void TlmRecorder::introduceTransactionToSystem(const tlm_generic_payload& trans)
 {
     totalNumTransactions++;
 
@@ -267,7 +268,7 @@ void TlmRecorder::introduceTransactionToSystem(tlm_generic_payload& trans)
                           currentTransactionsInSystem.at(&trans).timeOfGeneration.to_string());
 }
 
-void TlmRecorder::removeTransactionFromSystem(tlm_generic_payload& trans)
+void TlmRecorder::removeTransactionFromSystem(const tlm_generic_payload& trans)
 {
     assert(currentTransactionsInSystem.count(&trans) != 0);
 
@@ -361,8 +362,8 @@ void TlmRecorder::openDB(const std::string& dbName)
 
     if (sqlite3_open(dbName.c_str(), &db) != SQLITE_OK)
     {
-        SC_REPORT_FATAL("Error in TraceRecorder", "Error cannot open database");
         sqlite3_close(db);
+        SC_REPORT_FATAL("Error in TraceRecorder", "Error cannot open database");
     }
 }
 

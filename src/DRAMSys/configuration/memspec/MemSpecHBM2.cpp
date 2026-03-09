@@ -89,7 +89,7 @@ MemSpecHBM2::MemSpecHBM2(const DRAMUtils::MemSpec::MemSpecHBM2& memSpec) :
     tREFI(tCK * memSpec.memtimingspec.REFI),
     tREFISB(tCK * memSpec.memtimingspec.REFISB)
 {
-    stacksPerChannel = memSpec.memarchitecturespec.nbrOfStacks * memSpec.memarchitecturespec.nbrOfPseudoChannels;
+    stacksPerChannel = memSpec.memarchitecturespec.nbrOfStacks;
 
     commandLengthInCycles[Command::ACT] = 2;
 
@@ -106,8 +106,7 @@ MemSpecHBM2::MemSpecHBM2(const DRAMUtils::MemSpec::MemSpecHBM2& memSpec) :
     std::cout << " Channels:                       " << numberOfChannels << std::endl;
     std::cout << " Total bank groups per channel:  " << bankGroupsPerChannel << std::endl;
     std::cout << " Total banks per channel:        " << banksPerChannel << std::endl;
-    std::cout << " Total stacks per channel:       " << stacksPerChannel << std::endl;
-    std::cout << " Stacks per pseudo channel:      " << memSpec.memarchitecturespec.nbrOfStacks << std::endl;
+    std::cout << " Stacks per channel:             " << stacksPerChannel << std::endl;
     std::cout << " Bank groups per pseudo channel: " << groupsPerRank << std::endl;
     std::cout << " Banks per pseudo channel:       " << banksPerRank << std::endl;
     std::cout << " Rows per bank:                  " << rowsPerBank << std::endl;

@@ -182,7 +182,7 @@ std::optional<CommandTuple::Type> CmdMuxOldestRasCas::selectCommand(const ReadyC
         }
     }
 
-    assert(result != readyCommands.cend());
+    assert(result != readyRasCasCommands.cend());
 
     if (std::get<CommandTuple::Timestamp>(*result) != sc_time_stamp())
         return std::nullopt;

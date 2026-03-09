@@ -107,7 +107,7 @@ Most configuration fields reference other JSON files which contain more speciali
 
 ## Trace Files
 
-A **trace file** is a prerecorded file containing memory transactions. Each memory transaction has a time stamp that tells the simulator when it shall happen, a transaction type (*read* or *write*) and a hexadecimal memory address. The optional length parameter (in bytes) allows sending transactions with a custom length that does not match the length of a single DRAM burst access. In this case a length converter has to be added. Write transactions also have to specify a data field when storage is enabled in DRAMSys.
+A **trace file** is a prerecorded file containing memory transactions. Each line describes one memory transaction of the structure `cycle: [(length)] command hex-address [hex-data]`, where `cycle` is a time stamp that tells the simulator when it shall happen, `command` beeing the transaction type (*read* or *write*) and `hex-address` as hexadecimal memory address. The optional `(length)` parameter (in bytes) allows sending transactions with a custom length that does not match the length of a single DRAM burst access. In this case a length converter has to be added. Write transactions also have to specify a data field when storage is enabled in DRAMSys (see *StoreMode* in [Simulator Configuration](#simulator-configuration)). The value of `hex-data` is interpreted as hex-value and internally processed using the little-endian (LE) format, resulting in a reversed byte order (LSB at the lowest address) in the memory. 
 
 There are two different kinds of trace files. They differ in their timing behavior and are distinguished by their file extension.
 
@@ -209,10 +209,12 @@ The fields inside "mempowerspec" can be written directly as a **double** type, "
 
 ### Address Mapping
 
-DRAMSys uses the **ConGen** [7] format for address mappings. It provides bit-wise granularity. It also provides the possibility to XOR address bits in order to map page misses to different banks and reduce latencies.
+DRAMSys uses the **ConGen** [7] format for address mappings.
+It provides bit-wise granularity.
+It also provides the possibility to XOR address bits in order to map page misses to different banks and reduce latencies.
+To XOR multiple bits, list them as an array at the desired position in the mapping.
 
 Used fields:
-- "XOR": Defines an XOR connection of a "FIRST" and a "SECOND" bit
 - "BYTE_BIT": Address bits that are connected to the byte bits in ascending order
 - "COLUMN_BIT": Address bits that are connected to the column bits in ascending order
 - "ROW_BIT": Address bits that are connected to the row bits in ascending order
@@ -224,15 +226,9 @@ Used fields:
 ```json
 {
     "addressmapping": {
-        "XOR": [
-            {
-                "FIRST": 13,
-                "SECOND": 16
-            }
-        ],
         "BYTE_BIT": [0,1,2],
         "COLUMN_BIT": [3,4,5,6,7,8,9,10,11,12],
-        "BANK_BIT": [13,14,15],
+        "BANK_BIT": [[13, 16],14,15],
         "ROW_BIT": [16,17,18,19,20,21,22,23,24,25,26,27,28,29]
     }	
 }

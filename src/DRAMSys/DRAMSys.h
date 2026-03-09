@@ -89,6 +89,11 @@ public:
     [[nodiscard]] bool idle() const;
 
     /**
+     * Returns the total size of the memory in bytes.
+     */
+    [[nodiscard]] std::uint64_t memorySize() const;
+
+    /**
      * Registers a callback that is called whenever a memory controller switches to the idle state.
      * Check afterwards with idle() if all memory controllers are now idle.
      */

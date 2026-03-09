@@ -27,12 +27,7 @@ DramATRecorder::DramATRecorder(const sc_core::sc_module_name& name,
 
     if (enableBandwidth && enableWindowing)
     {
-        SC_METHOD(recordBandwidth);
-        dont_initialize();
-        sensitive << windowEvent;
-
-        windowEvent.notify(windowSizeTime);
-        nextWindowEventTime = windowSizeTime;
+        SC_THREAD(recordBandwidth);
     }
 }
 
@@ -75,23 +70,25 @@ unsigned int DramATRecorder::transport_dbg(tlm::tlm_generic_payload& trans)
 
 void DramATRecorder::recordBandwidth()
 {
-    windowEvent.notify(windowSizeTime);
-    nextWindowEventTime += windowSizeTime;
+    while (true) 
+    {
+        wait(windowSizeTime);
 
-    std::uint64_t totalNumberOfBeatsServed =
-        std::accumulate(numberOfBeatsServed.begin(), numberOfBeatsServed.end(), 0);
+        std::uint64_t totalNumberOfBeatsServed =
+            std::accumulate(numberOfBeatsServed.begin(), numberOfBeatsServed.end(), 0);
 
-    uint64_t windowNumberOfBeatsServed = totalNumberOfBeatsServed - lastNumberOfBeatsServed;
-    lastNumberOfBeatsServed = totalNumberOfBeatsServed;
+        uint64_t windowNumberOfBeatsServed = totalNumberOfBeatsServed - lastNumberOfBeatsServed;
+        lastNumberOfBeatsServed = totalNumberOfBeatsServed;
 
-    // HBM specific, pseudo channels get averaged
-    if (pseudoChannelMode)
-        windowNumberOfBeatsServed /= ranksPerChannel;
+        // HBM specific, pseudo channels get averaged
+        if (pseudoChannelMode)
+            windowNumberOfBeatsServed /= ranksPerChannel;
 
-    sc_core::sc_time windowActiveTime =
-        activeTimeMultiplier * static_cast<double>(windowNumberOfBeatsServed);
-    double windowAverageBandwidth = windowActiveTime / windowSizeTime;
-    tlmRecorder.recordBandwidth(sc_core::sc_time_stamp().to_seconds(), windowAverageBandwidth);
+        sc_core::sc_time windowActiveTime =
+            activeTimeMultiplier * static_cast<double>(windowNumberOfBeatsServed);
+        double windowAverageBandwidth = windowActiveTime / windowSizeTime;
+        tlmRecorder.recordBandwidth(sc_core::sc_time_stamp().to_seconds(), windowAverageBandwidth);
+    }
 }
 
 } // namespace DRAMSys

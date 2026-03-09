@@ -73,15 +73,17 @@ Configuration from_path(std::filesystem::path baseConfig)
         {
             assert(parsed.is_string());
 
-            if (parsed == MemSpecConstants::KEY)
+            const auto& parsedStr = parsed.get_ref<const std::string&>();
+
+            if (parsedStr == MemSpecConstants::KEY)
                 current_sub_config = SubConfig::MemSpec;
-            else if (parsed == AddressMapping::KEY)
+            else if (parsedStr == AddressMapping::KEY)
                 current_sub_config = SubConfig::AddressMapping;
-            else if (parsed == McConfig::KEY)
+            else if (parsedStr == McConfig::KEY)
                 current_sub_config = SubConfig::McConfig;
-            else if (parsed == SimConfig::KEY)
+            else if (parsedStr == SimConfig::KEY)
                 current_sub_config = SubConfig::SimConfig;
-            else if (parsed == TraceSetupConstants::KEY)
+            else if (parsedStr == TraceSetupConstants::KEY)
                 current_sub_config = SubConfig::TraceSetup;
             else
                 current_sub_config = SubConfig::Unkown;

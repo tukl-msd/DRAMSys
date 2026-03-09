@@ -5,6 +5,7 @@ BinPackArguments: 'false'
 BinPackParameters: 'false'
 BreakBeforeBraces: Allman
 BreakConstructorInitializers: AfterColon
+BreakTemplateDeclarations: Yes
 ColumnLimit: '100'
 IndentWidth: '4'
 PackConstructorInitializers: CurrentLine

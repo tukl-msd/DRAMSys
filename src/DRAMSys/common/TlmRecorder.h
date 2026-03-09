@@ -78,7 +78,7 @@ public:
     TlmRecorder& operator=(TlmRecorder&&) = delete;
     ~TlmRecorder() = default;
 
-    void recordPhase(tlm::tlm_generic_payload& trans,
+    void recordPhase(const tlm::tlm_generic_payload& trans,
                      const tlm::tlm_phase& phase,
                      const sc_core::sc_time& delay);
     void recordPower(double timeInSeconds, double averagePower);
@@ -168,8 +168,8 @@ private:
     void openDB(const std::string& dbName);
     void closeConnection();
 
-    void introduceTransactionToSystem(tlm::tlm_generic_payload& trans);
-    void removeTransactionFromSystem(tlm::tlm_generic_payload& trans);
+    void introduceTransactionToSystem(const tlm::tlm_generic_payload& trans);
+    void removeTransactionFromSystem(const tlm::tlm_generic_payload& trans);
 
     void terminateRemainingTransactions();
     void commitRecordedDataToDB();
@@ -188,7 +188,7 @@ private:
     std::vector<Transaction>* storageDataBuffer;
     std::thread storageThread;
 
-    std::unordered_map<tlm::tlm_generic_payload*, Transaction> currentTransactionsInSystem;
+    std::unordered_map<const tlm::tlm_generic_payload*, Transaction> currentTransactionsInSystem;
 
     uint64_t totalNumTransactions = 0;
     sc_core::sc_time simulationTimeCoveredByRecording;

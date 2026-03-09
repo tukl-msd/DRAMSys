@@ -101,16 +101,12 @@ Controller::Controller(const sc_module_name& name,
     addressDecoder(addressDecoder),
     tlmRecorder(tlmRecorder),
     windowSizeTime(simConfig.windowSize * memSpec.tCK),
-    nextWindowEventTime(windowSizeTime),
     numberOfBeatsServed(memSpec.ranksPerChannel, 0),
     memoryManager(simConfig.storeMode == Config::StoreModeType::Store)
 {
     if (simConfig.databaseRecording && tlmRecorder != nullptr)
     {
-        SC_METHOD(recordBufferDepth);
-        dont_initialize();
-        sensitive << windowEvent;
-        windowEvent.notify(windowSizeTime);
+        SC_THREAD(recordBufferDepth);
     }
 
     SC_METHOD(controllerMethod);
@@ -349,16 +345,18 @@ void Controller::registerIdleCallback(std::function<void()> idleCallback)
 
 void Controller::recordBufferDepth()
 {
-    windowEvent.notify(windowSizeTime);
-    nextWindowEventTime += windowSizeTime;
-
-    for (std::size_t index = 0; index < slidingAverageBufferDepth.size(); index++)
+    while(true)
     {
-        windowAverageBufferDepth[index] = slidingAverageBufferDepth[index] / windowSizeTime;
-        slidingAverageBufferDepth[index] = SC_ZERO_TIME;
+        wait(windowSizeTime);
+    
+        for (std::size_t index = 0; index < slidingAverageBufferDepth.size(); index++)
+        {
+            windowAverageBufferDepth[index] = slidingAverageBufferDepth[index] / windowSizeTime;
+            slidingAverageBufferDepth[index] = SC_ZERO_TIME;
+        }
+    
+        tlmRecorder->recordBufferDepth(sc_time_stamp().to_seconds(), windowAverageBufferDepth);
     }
-
-    tlmRecorder->recordBufferDepth(sc_time_stamp().to_seconds(), windowAverageBufferDepth);
 }
 
 void Controller::controllerMethod()

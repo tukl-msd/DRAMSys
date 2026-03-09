@@ -40,7 +40,7 @@ cmake_minimum_required(VERSION 3.25)
 
 set(PROJECT_NAME "DRAMSys")
 
-project(${PROJECT_NAME} VERSION 5.3.0)
+project(${PROJECT_NAME} VERSION 5.4.0)
 
 if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
@@ -135,7 +135,7 @@ if (DRAMSYS_USE_FETCH_CONTENT)
     if (DRAMSYS_USE_FETCH_CONTENT_INTERNAL)
         FetchContent_Declare(
             DRAMUtils
-            URL "https://github.com/tukl-msd/DRAMUtils/archive/refs/tags/v1.12.1.tar.gz"
+            URL "https://github.com/tukl-msd/DRAMUtils/archive/refs/tags/v1.13.1.tar.gz"
             OVERRIDE_FIND_PACKAGE
         )
         FetchContent_MakeAvailable(DRAMUtils)

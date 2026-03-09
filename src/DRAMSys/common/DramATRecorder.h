@@ -26,7 +26,6 @@ public:
                     const MemSpec& memspec,
                     TlmRecorder& tlmRecorder,
                     bool enableBandwidth);
-    ~DramATRecorder() = default;
 
     tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans,
                                        tlm::tlm_phase& phase,
@@ -43,8 +42,6 @@ private:
     const bool pseudoChannelMode;
     const unsigned int ranksPerChannel;
     const sc_core::sc_time windowSizeTime;
-    sc_core::sc_event windowEvent;
-    sc_core::sc_time nextWindowEventTime;
     std::vector<uint64_t> numberOfBeatsServed;
     uint64_t lastNumberOfBeatsServed = 0;
     const sc_core::sc_time activeTimeMultiplier;

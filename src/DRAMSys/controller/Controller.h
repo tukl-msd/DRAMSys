@@ -113,9 +113,7 @@ private:
     sc_core::sc_time scMaxTime = sc_core::sc_max_time();
 
     sc_core::sc_time lastTimeCalled = sc_core::SC_ZERO_TIME;
-    sc_core::sc_event windowEvent;
     const sc_core::sc_time windowSizeTime;
-    sc_core::sc_time nextWindowEventTime;
     std::vector<sc_core::sc_time> slidingAverageBufferDepth;
     std::vector<double> windowAverageBufferDepth;
 

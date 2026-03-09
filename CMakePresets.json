@@ -39,6 +39,30 @@
       }
     },
     {
+      "name": "dev-msvc",
+      "binaryDir": "${sourceDir}/build/msvc",
+      "inherits": [
+        "cpp-standard",
+        "vcpkg"
+      ],
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_CXX_FLAGS": "/W4 /permissive-",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "DRAMSYS_BUILD_BENCHMARKS": "ON",
+        "DRAMSYS_BUILD_TESTS": "ON",
+        "DRAMSYS_BUILD_TRACE_ANALYZER": "OFF"
+      }
+    },
+    {
+      "name": "dev-macos",
+      "inherits": "dev",
+      "cacheVariables": {
+        "QWT_INCLUDE_DIR": "/opt/homebrew/opt/qwt-qt5/lib/qwt.framework/Headers",
+        "QWT_LIBRARY": "/opt/homebrew/opt/qwt-qt5/lib/qwt.framework"
+      }
+    },
+    {
       "name": "dev-local",
       "inherits": [
         "dev"

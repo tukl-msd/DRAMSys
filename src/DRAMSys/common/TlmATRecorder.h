@@ -25,7 +25,6 @@ public:
                        const MemSpec& memspec,
                        TlmRecorder& tlmRecorder,
                        bool enableBandwidth);
-    ~TlmATRecorder() = default;
 
     tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans,
                                        tlm::tlm_phase& phase,
@@ -43,8 +42,6 @@ private:
     const bool pseudoChannelMode;
     const unsigned int ranksPerChannel;
     const sc_core::sc_time windowSizeTime;
-    sc_core::sc_event windowEvent;
-    sc_core::sc_time nextWindowEventTime;
     uint64_t numberOfBytesServed;
     uint64_t lastNumberOfBytesServed = 0;
     const sc_core::sc_time activeTimeMultiplier;

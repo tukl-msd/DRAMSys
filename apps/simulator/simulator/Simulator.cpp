@@ -57,7 +57,10 @@ Simulator::Simulator(DRAMSys::Config::Configuration configuration,
         terminatedInitiators++;
 
         if (terminatedInitiators == initiators.size())
-            sc_core::sc_stop();
+        {
+            // Stop simulation as soon as DRAMSys is idle
+            dramSys->registerIdleCallback([]() { sc_core::sc_stop(); });
+        }
     };
 
     finishTransaction = [this]()
@@ -87,7 +90,7 @@ Simulator::Simulator(DRAMSys::Config::Configuration configuration,
 std::unique_ptr<RequestIssuer>
 Simulator::instantiateInitiator(const DRAMSys::Config::Initiator& initiator)
 {
-    uint64_t memorySize = dramSys->getMemSpec().getSimMemSizeInBytes();
+    uint64_t memorySize = dramSys->memorySize();
     sc_core::sc_time interfaceClk = dramSys->getMemSpec().tCK;
 
     return std::visit(
@@ -129,7 +132,7 @@ Simulator::instantiateInitiator(const DRAMSys::Config::Initiator& initiator)
                 auto player = std::make_unique<StlPlayer>(
                     config, tracePath.c_str(), *traceType, storageEnabled);
 
-                return std::make_unique<RequestIssuer>(tracePath.stem().c_str(),
+                return std::make_unique<RequestIssuer>(tracePath.stem().string().c_str(),
                                                        std::move(player),
                                                        memoryManager,
                                                        interfaceClk,

@@ -1,3 +1,48 @@
+## [5.4.0] - 2026-03-09
+## 🚨 Breaking Changes
+
+- **Interpret STL data as little-endian words**\
+The data given in an STL file will no longer be
+interpret as a byte array, but as a hex value. Internally, little-endian
+arrangement is used, resulting in a reversed byte order in the memory
+compared to previous versions.
+
+### 🚀 Features
+
+- *(LPDDR5)* Add read-to-write timings (tRTW) to LPDDR5
+- Add API to return total memory size
+
+### 🐛 Bug Fixes
+
+- Resolve compilation issues with MSVC compiler
+- Fix UB in CmdMuxOldest with HBM
+- *(databaseRecording)* Use SC_THREAD instead of SC_METHOD
+- *(TlmRecorder)* Ensure constness of referenced transactions
+- Update hbm2 regression tests
+- Apply tCCDR only in same pseudo-channel
+- [**breaking**] Interpret STL data as little-endian words
+- *(TlmRecorder)* Fix a bug where a fatal error was thrown before the database was closed
+- Stop simulation only when DRAMSys is idle
+- *(tests)* Fix incomplete type in b_transport test
+
+### 💼 Other
+
+- Update DRAMUtils version to 1.13.0
+- Add CMake preset for also for Mac
+
+### 🚜 Refactor
+
+- Remove redundant destructors
+
+### 📚 Documentation
+
+- Update config readme to new XOR format
+- Remove broken pipeline status from readme
+
+### ⚙️ Miscellaneous Tasks
+
+- Update DRAMUtils version
+- Add template line breaks to clang-format
 ## [5.3.1] - 2026-01-19
 
 ### 🐛 Bug Fixes

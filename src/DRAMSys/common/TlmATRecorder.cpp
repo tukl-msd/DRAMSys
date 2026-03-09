@@ -28,12 +28,7 @@ TlmATRecorder::TlmATRecorder(const sc_core::sc_module_name& name,
 
     if (enableBandwidth && enableWindowing)
     {
-        SC_METHOD(recordBandwidth);
-        dont_initialize();
-        sensitive << windowEvent;
-
-        windowEvent.notify(windowSizeTime);
-        nextWindowEventTime = windowSizeTime;
+        SC_THREAD(recordBandwidth);
     }
 }
 
@@ -77,19 +72,21 @@ unsigned int TlmATRecorder::transport_dbg(tlm::tlm_generic_payload& trans)
 
 void TlmATRecorder::recordBandwidth()
 {
-    windowEvent.notify(windowSizeTime);
-    nextWindowEventTime += windowSizeTime;
+    while (true) 
+    {
+        wait(windowSizeTime);
 
-    uint64_t windowNumberOfBytesServed = numberOfBytesServed - lastNumberOfBytesServed;
-    lastNumberOfBytesServed = numberOfBytesServed;
+        uint64_t windowNumberOfBytesServed = numberOfBytesServed - lastNumberOfBytesServed;
+        lastNumberOfBytesServed = numberOfBytesServed;
 
-    // HBM specific, pseudo channels get averaged
-    if (pseudoChannelMode)
-        windowNumberOfBytesServed /= ranksPerChannel;
+        // HBM specific, pseudo channels get averaged
+        if (pseudoChannelMode)
+            windowNumberOfBytesServed /= ranksPerChannel;
 
-    double windowBandwidth =
-        static_cast<double>(windowNumberOfBytesServed) / (windowSizeTime.to_seconds());
-    tlmRecorder.recordBandwidth(sc_core::sc_time_stamp().to_seconds(), windowBandwidth);
+        double windowBandwidth =
+            static_cast<double>(windowNumberOfBytesServed) / (windowSizeTime.to_seconds());
+        tlmRecorder.recordBandwidth(sc_core::sc_time_stamp().to_seconds(), windowBandwidth);
+    }
 }
 
 } // namespace DRAMSys

@@ -212,8 +212,8 @@ void StlPlayer::parseTraceFile()
                 iss >> element;
 
                 // We need two characters to represent 1 byte in hexadecimal.
-                // Offset for 0x prefix.
-                for (std::size_t i = 2; i < element.length(); i += 2)
+                // Start at the last byte (LSB), end with offset for 0x prefix.
+                for (std::size_t i = element.length() - 2; i >= 2; i -= 2)
                 {
                     uint8_t byte = std::stoi(element.substr(i, 2), nullptr, HEX);
                     content.data.push_back(byte);

@@ -342,6 +342,11 @@ tlm::tlm_generic_payload& ChildExtension::getParentTrans()
     return *parentTrans;
 }
 
+const tlm::tlm_generic_payload& ChildExtension::getParentTrans() const
+{
+    return *parentTrans;
+}
+
 tlm::tlm_generic_payload& ChildExtension::getParentTrans(tlm::tlm_generic_payload& childTrans)
 {
     return childTrans.get_extension<ChildExtension>()->getParentTrans();
