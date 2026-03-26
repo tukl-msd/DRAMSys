@@ -54,6 +54,7 @@
 #endif
 
 #ifdef USE_DRAMPOWER
+#include <DRAMPower/simconfig/simconfig.h>
 #include <DRAMPower/command/Command.h>
 #include <DRAMPower/command/CmdType.h>
 #include <DRAMPower/dram/dram_base.h>
@@ -77,6 +78,12 @@ Dram::Dram(const sc_module_name& name,
     useMalloc(simConfig.useMalloc),
     tlmRecorder(tlmRecorder),
     powerWindowSize(memSpec.tCK * simConfig.windowSize)
+#ifdef USE_DRAMPOWER
+    , DRAMPower(simConfig.powerAnalysis
+        ? memSpec.toDramPowerObject(createDRAMPowerSimConfig(simConfig.storeMode, simConfig))
+        : nullptr
+    )
+#endif
 {
     if (storeMode == Config::StoreModeType::Store)
     {
@@ -107,25 +114,12 @@ Dram::Dram(const sc_module_name& name,
     tSocket.register_b_transport(this, &Dram::b_transport);
     tSocket.register_transport_dbg(this, &Dram::transport_dbg);
 
+#ifndef USE_DRAMPOWER
     if (powerAnalysis)
     {
-#ifdef USE_DRAMPOWER
-        DRAMPower = memSpec.toDramPowerObject();
-        if (storeMode == Config::StoreModeType::NoStorage) {
-            if (simConfig.togglingRate) {
-                DRAMPower->setToggleRate(0, simConfig.togglingRate);
-            }
-            else
-            {
-                SC_REPORT_FATAL(
-                    "DRAM",
-                    "Toggling rates for power estimation must be provided for storeMode NoStorage");
-            }
-        }
-#else
         SC_REPORT_FATAL("DRAM", "Power Analysis only supported when building with DRAMPower!");
-#endif
     }
+#endif
 
     if (powerAnalysis && simConfig.enableWindowing)
         SC_THREAD(powerWindow);
@@ -140,12 +134,17 @@ Dram::~Dram()
 void Dram::reportPower()
 {
 #ifdef USE_DRAMPOWER
-    double coreEnergy = DRAMPower->calcCoreEnergy(DRAMPower->getLastCommandTime()).total();
-    double interfaceEnergy =
-        DRAMPower->calcInterfaceEnergy(DRAMPower->getLastCommandTime()).total();
-
-    double energy = DRAMPower->getTotalEnergy(DRAMPower->getLastCommandTime());
-    double time = DRAMPower->getLastCommandTime() * memSpec.tCK.to_seconds();
+    double coreEnergy = 0;
+    double interfaceEnergy = 0;
+    double energy = 0;
+    double time = 0;
+    std::visit([&coreEnergy, &interfaceEnergy, &energy, &time](auto& var){
+        coreEnergy = var.calcCoreEnergy(var.getLastCommandTime()).total();
+        interfaceEnergy = var.calcInterfaceEnergy(var.getLastCommandTime()).total();
+        energy = coreEnergy + interfaceEnergy;
+        time = var.getLastCommandTime();
+    }, *DRAMPower);
+    time *= memSpec.tCK.to_seconds();
 
     // Print the final total energy and the average power for
     // the simulation:
@@ -199,7 +198,9 @@ Dram::nb_transport_fw(tlm_generic_payload& trans, tlm_phase& phase, [[maybe_unus
         std::size_t datasize = trans.get_data_length() * 8; // Is always set
 
         DRAMPower::Command command(cycle, phaseToDRAMPowerCommand(phase), target, data, datasize);
-        DRAMPower->doCoreInterfaceCommand(command);
+        std::visit([&command](auto& var){
+            var.doCommand(command);
+        }, *DRAMPower);
     }
 #endif
 
@@ -343,7 +344,9 @@ void Dram::powerWindow()
 
         clkCycles = std::lround(sc_time_stamp() / this->memSpec.tCK);
 
-        currentEnergy = this->DRAMPower->getTotalEnergy(clkCycles);
+        std::visit([&currentEnergy, &clkCycles](auto& var){
+            currentEnergy = var.getTotalEnergy(clkCycles);
+        }, *DRAMPower);
         windowEnergy = currentEnergy - previousEnergy;
         previousEnergy = currentEnergy;
 
@@ -368,5 +371,19 @@ void Dram::powerWindow()
     }
 #endif
 }
+
+#ifdef USE_DRAMPOWER
+DRAMPower::config::SimConfig Dram::createDRAMPowerSimConfig(Config::StoreModeType storeMode, const SimConfig& simConfig)
+{
+    if ( (storeMode == Config::StoreModeType::NoStorage) && (!simConfig.togglingRate) ) {
+        SC_REPORT_FATAL(
+            "DRAM",
+            "Toggling rates for power estimation must be provided for storeMode NoStorage");
+    }
+    return DRAMPower::config::SimConfig {
+        storeMode == Config::StoreModeType::NoStorage ? simConfig.togglingRate : std::nullopt
+    };
+}
+#endif
 
 } // namespace DRAMSys

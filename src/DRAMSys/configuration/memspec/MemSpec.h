@@ -45,11 +45,14 @@
 #include "DRAMSys/controller/Command.h"
 
 #ifdef USE_DRAMPOWER
+#include "DRAMSys/power/DRAMPowerVariant.h"
 #include <DRAMPower/command/CmdType.h>
 #include <DRAMPower/dram/dram_base.h>
+#include <DRAMPower/simconfig/simconfig.h>
 #include <memory>
 #endif
 
+#include <cstddef>
 #include <string>
 #include <systemc>
 #include <tlm>
@@ -126,8 +129,8 @@ public:
      * If the standard is not supported, a fatal error is reported and the simulation is aborted.
      * @return unique_ptr to the DRAMPower object.
      */
-    [[nodiscard]] virtual std::unique_ptr<DRAMPower::dram_base<DRAMPower::CmdType>>
-    toDramPowerObject() const
+    [[nodiscard]] virtual std::unique_ptr<DRAMPowerVariant>
+    toDramPowerObject(const DRAMPower::config::SimConfig&) const
     {
         SC_REPORT_FATAL("MemSpec", "DRAMPower does not support this memory standard");
         sc_core::sc_abort();

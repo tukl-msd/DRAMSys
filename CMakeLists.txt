@@ -132,7 +132,7 @@ FetchContent_MakeAvailable(DRAMUtils)
 if (DRAMSYS_USE_FETCH_CONTENT_DRAMPOWER)
     FetchContent_Declare(
         DRAMPower
-        URL "https://github.com/tukl-msd/DRAMPower/archive/refs/tags/v5.4.1.tar.gz"
+        URL "https://github.com/tukl-msd/DRAMPower/archive/refs/tags/v6.0.0.tar.gz"
         OVERRIDE_FIND_PACKAGE
     )
     FetchContent_MakeAvailable(DRAMPower)
@@ -235,7 +235,7 @@ if (DRAMSYS_USE_EXTENSIONS)
         endif()
         FetchContent_Declare(DRAMSysExtensions
             GIT_REPOSITORY "https://${EXTENSIONS_AUTH}erbenschell.iese.fraunhofer.de/dramsys/dramsys-extensions.git"
-            GIT_TAG 0adacfae0791f7fbd3056c97dd74d98c4407f554
+            GIT_TAG 61cef118da42385050b08b0c643823b506b06da0
         )
         FetchContent_MakeAvailable(DRAMSysExtensions)
     endif()

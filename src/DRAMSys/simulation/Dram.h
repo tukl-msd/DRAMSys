@@ -52,6 +52,11 @@
 #include <tlm>
 #include <tlm_utils/simple_target_socket.h>
 
+#ifdef USE_DRAMPOWER
+#include "DRAMSys/power/DRAMPowerVariant.h"
+#include <memory>
+#endif
+
 namespace DRAMSys
 {
 
@@ -72,7 +77,7 @@ private:
     sc_core::sc_time powerWindowSize;
 
 #ifdef USE_DRAMPOWER
-    std::unique_ptr<DRAMPower::dram_base<DRAMPower::CmdType>> DRAMPower;
+    std::unique_ptr<DRAMPowerVariant> DRAMPower;
 #endif
 
     // This Thread is only triggered when Power Simulation is enabled.
@@ -88,6 +93,10 @@ private:
 
     void executeRead(tlm::tlm_generic_payload& trans) const;
     void executeWrite(const tlm::tlm_generic_payload& trans);
+
+#ifdef USE_DRAMPOWER
+    static DRAMPower::config::SimConfig createDRAMPowerSimConfig(Config::StoreModeType storeMode, const SimConfig& simConfig);
+#endif
 
 public:
     SC_HAS_PROCESS(Dram);

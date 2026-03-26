@@ -39,11 +39,9 @@
 
 #include "DRAMSys/common/utils.h"
 
-#ifdef USE_DRAMPOWER
-#include <DRAMPower/standards/ddr4/DDR4.h>
-#endif
 
 #include <iostream>
+#include <utility>
 
 using namespace sc_core;
 using namespace tlm;
@@ -194,9 +192,13 @@ bool MemSpecDDR4::requiresMaskedWrite(const tlm::tlm_generic_payload& payload) c
 }
 
 #ifdef USE_DRAMPOWER
-std::unique_ptr<DRAMPower::dram_base<DRAMPower::CmdType>> MemSpecDDR4::toDramPowerObject() const
+[[nodiscard]] std::unique_ptr<DRAMPowerVariant> MemSpecDDR4::toDramPowerObject(const DRAMPower::config::SimConfig& config) const
 {
-    return std::make_unique<DRAMPower::DDR4>(DRAMPower::MemSpecDDR4(memSpec));
+    return std::make_unique<DRAMPowerVariant>(
+        std::in_place_type<DRAMPowerDDR4>,
+        memSpec,
+        config
+    );
 }
 #endif
 

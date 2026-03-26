@@ -40,6 +40,10 @@
 
 #include "DRAMSys/configuration/memspec/MemSpec.h"
 
+#ifdef USE_DRAMPOWER
+#include "DRAMSys/power/DRAMPowerVariant.h"
+#endif
+
 #include <DRAMUtils/memspec/standards/MemSpecLPDDR4.h>
 
 #include <systemc>
@@ -102,7 +106,7 @@ public:
     [[nodiscard]] bool requiresMaskedWrite(const tlm::tlm_generic_payload& payload) const override;
 
 #ifdef USE_DRAMPOWER
-    [[nodiscard]] std::unique_ptr<DRAMPower::dram_base<DRAMPower::CmdType>> toDramPowerObject() const override;
+    [[nodiscard]] std::unique_ptr<DRAMPowerVariant> toDramPowerObject(const DRAMPower::config::SimConfig& config) const override;
 #endif
 };
 
