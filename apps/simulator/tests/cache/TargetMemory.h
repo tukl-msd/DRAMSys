@@ -33,44 +33,50 @@
  *    Derek Christ
  */
 
-#include <simulator/Simulator.h>
+#pragma once
 
-#include <benchmark/benchmark.h>
-#include <sysc/kernel/sc_simcontext.h>
-#include <filesystem>
-#include <tuple>
+#include <systemc>
+#include <tlm>
+#include <tlm_utils/peq_with_cb_and_phase.h>
+#include <tlm_utils/simple_target_socket.h>
 
-namespace Simulation
+#include <queue>
+
+class TargetMemory : public sc_core::sc_module
 {
+public:
+    tlm_utils::simple_target_socket<TargetMemory> tSocket;
+    TargetMemory(const sc_core::sc_module_name& name,
+                 sc_core::sc_time acceptDelay,
+                 sc_core::sc_time memoryLatency,
+                 std::size_t bufferSize = DEFAULT_BUFFER_SIZE);
 
-template<class ...Args>
-static void example_simulation(benchmark::State& state, Args&&... args)
-{
-    auto args_tuple = std::make_tuple(std::move(args)...);
-    auto *rdbuf = std::cout.rdbuf(nullptr);
+private:
+    tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans,
+                                       tlm::tlm_phase& phase,
+                                       sc_core::sc_time& delay);
 
-    for (auto _ : state)
-    {
-        sc_core::sc_curr_simcontext = nullptr;
+    void peqCallback(tlm::tlm_generic_payload& trans, const tlm::tlm_phase& phase);
 
-        std::filesystem::path configFile = std::get<0>(args_tuple);
+    void sendEndRequest(tlm::tlm_generic_payload& trans);
+    void sendResponse(tlm::tlm_generic_payload& trans);
+    void executeTransaction(tlm::tlm_generic_payload& trans);
 
-        DRAMSys::Config::Configuration configuration =
-            DRAMSys::Config::from_path(configFile.c_str());
+    void printBuffer(int max, int n);
 
-        Simulator simulator(std::move(configuration), configFile);
-        simulator.run();
-    }
+    static constexpr std::size_t SIZE = static_cast<std::size_t>(64 * 1024);
+    static constexpr std::size_t DEFAULT_BUFFER_SIZE = 8;
+    const std::size_t bufferSize;
 
-    std::cout.rdbuf(rdbuf);
-}
+    const sc_core::sc_time acceptDelay;
+    const sc_core::sc_time memoryLatency;
 
-BENCHMARK_CAPTURE(example_simulation, ddr3, std::string("configs/ddr3-example.json"));
-BENCHMARK_CAPTURE(example_simulation, ddr4, std::string("configs/ddr4-example.json"));
-BENCHMARK_CAPTURE(example_simulation, lpddr4, std::string("configs/lpddr4-example.json"));
-BENCHMARK_CAPTURE(example_simulation, hbm2, std::string("configs/hbm2-example.json"));
-BENCHMARK_CAPTURE(example_simulation, hbm3, std::string("extensions/HBM3/configs/hbm3-example.json"));
-BENCHMARK_CAPTURE(example_simulation, ddr5, std::string("extensions/DDR5/configs/ddr5-example.json"));
-BENCHMARK_CAPTURE(example_simulation, lpddr5, std::string("extensions/LPDDR5/configs/lpddr5-example.json"));
+    std::vector<uint8_t> memory;
 
-} // namespace Simulation
+    unsigned int currentTransactions = 0;
+    bool responseInProgress = false;
+    tlm::tlm_generic_payload* endRequestPending = nullptr;
+
+    tlm_utils::peq_with_cb_and_phase<TargetMemory> peq;
+    std::queue<tlm::tlm_generic_payload*> responseQueue;
+};

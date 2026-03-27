@@ -1,0 +1,132 @@
+{
+    "simulation": {
+        "addressmapping": {
+            "BANKGROUP_BIT":[
+                29,
+                30
+            ],
+            "BANK_BIT": [
+                31,
+                32
+            ],
+            "BYTE_BIT": [
+                0,
+                1,
+                2
+            ],
+            "COLUMN_BIT": [
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12
+            ],
+            "ROW_BIT": [
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28
+            ]
+        },
+        "mcconfig": {
+            "Arbiter": "Fifo",
+            "CmdMux": "Oldest",
+            "MaxActiveTransactions": 128,
+            "PagePolicy": "Open",
+            "PowerDownPolicy": "NoPowerDown",
+            "RefreshManagement": false,
+            "RefreshMaxPostponed": 8,
+            "RefreshMaxPulledin": 8,
+            "RefreshPolicy": "AllBank",
+            "RequestBufferSize": 128,
+            "RespQueue": "Fifo",
+            "Scheduler": "FrFcfs",
+            "SchedulerBuffer": "Shared"
+        },
+        "memspec": {
+            "memarchitecturespec": {
+                "burstLength": 8,
+                "dataRate": 2,
+                "nbrOfBankGroups": 4,
+                "nbrOfBanks": 16,
+                "nbrOfChannels": 1,
+                "nbrOfColumns": 1024,
+                "nbrOfDevices": 8,
+                "nbrOfRanks": 1,
+                "nbrOfRows": 65536,
+                "width": 8
+            },
+            "memoryId": "MICRON_8Gb_DDR4-2666_8bit_A",
+            "memoryType": "DDR4",
+            "memtimingspec": {
+                "ACTPDEN": 2,
+                "AL": 0,
+                "CCD_L": 6,
+                "CCD_S": 4,
+                "CKE": 6,
+                "CKESR": 7,
+                "CL": 16,
+                "DQSCK": 2,
+                "FAW": 28,
+                "PRPDEN": 2,
+                "RAS": 43,
+                "RC": 61,
+                "RCD": 18,
+                "REFI": 5200,
+                "REFM": 1,
+                "REFPDEN": 2,
+                "RFC": 347,
+                "RL": 16,
+                "RP": 18,
+                "RPRE": 1,
+                "RRD_L": 6,
+                "RRD_S": 4,
+                "RTP": 10,
+                "RTRS": 1,
+                "WL": 16,
+                "WPRE": 1,
+                "WR": 20,
+                "WTR_L": 10,
+                "WTR_S": 3,
+                "XP": 8,
+                "XPDLL": 325,
+                "XS": 360,
+                "XSDLL": 512,
+                "tCK": 750
+            }
+        },
+        "simconfig": {
+            "AddressOffset": 0,
+            "CheckTLM2Protocol": false,
+            "DatabaseRecording": true,
+            "Debug": false,
+            "EnableWindowing": true,
+            "PowerAnalysis": false,
+            "SimulationName": "example",
+            "SimulationProgressBar": true,
+            "StoreMode": "NoStorage",
+            "UseMalloc": false,
+            "WindowSize": 1000,
+            "SimulationTime": 50e-6
+        },
+        "simulationid": "ddr4-example",
+        "tracesetup": []
+    }
+}

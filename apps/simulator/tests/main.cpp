@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2019, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,47 +30,14 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Derek Christ
+ *    Lukas Steiner
  */
 
-#include <simulator/Simulator.h>
+#include <gtest/gtest.h>
+#include <systemc>
 
-#include <benchmark/benchmark.h>
-#include <sysc/kernel/sc_simcontext.h>
-#include <filesystem>
-#include <tuple>
-
-namespace Simulation
+int sc_main(int argc, char** argv)
 {
-
-template<class ...Args>
-static void example_simulation(benchmark::State& state, Args&&... args)
-{
-    auto args_tuple = std::make_tuple(std::move(args)...);
-    auto *rdbuf = std::cout.rdbuf(nullptr);
-
-    for (auto _ : state)
-    {
-        sc_core::sc_curr_simcontext = nullptr;
-
-        std::filesystem::path configFile = std::get<0>(args_tuple);
-
-        DRAMSys::Config::Configuration configuration =
-            DRAMSys::Config::from_path(configFile.c_str());
-
-        Simulator simulator(std::move(configuration), configFile);
-        simulator.run();
-    }
-
-    std::cout.rdbuf(rdbuf);
+    testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }
-
-BENCHMARK_CAPTURE(example_simulation, ddr3, std::string("configs/ddr3-example.json"));
-BENCHMARK_CAPTURE(example_simulation, ddr4, std::string("configs/ddr4-example.json"));
-BENCHMARK_CAPTURE(example_simulation, lpddr4, std::string("configs/lpddr4-example.json"));
-BENCHMARK_CAPTURE(example_simulation, hbm2, std::string("configs/hbm2-example.json"));
-BENCHMARK_CAPTURE(example_simulation, hbm3, std::string("extensions/HBM3/configs/hbm3-example.json"));
-BENCHMARK_CAPTURE(example_simulation, ddr5, std::string("extensions/DDR5/configs/ddr5-example.json"));
-BENCHMARK_CAPTURE(example_simulation, lpddr5, std::string("extensions/LPDDR5/configs/lpddr5-example.json"));
-
-} // namespace Simulation

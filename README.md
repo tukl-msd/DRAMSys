@@ -1,4 +1,4 @@
-<img src="docs/images/dramsys_logo.png" width="350" style="float: left;" alt="DRAMSys Logo"/>
+<img src="docs/images/dramsys.svg" width="350" style="float: left;" alt="DRAMSys Logo"/>
 
 **DRAMSys** is a flexible DRAM subsystem design space exploration framework based on SystemC TLM-2.0. It was developed by the [Microelectronic Systems Design Research Group](https://eit.rptu.de/en/fgs/ems/home/seite) at [RPTU Kaiserslautern-Landau](https://rptu.de/en/), by [Fraunhofer IESE](https://www.iese.fraunhofer.de/en.html) and by the [Computer Engineering Group](https://www.informatik.uni-wuerzburg.de/ce/) at [JMU Würzburg](https://www.uni-wuerzburg.de/en/home/).
 
@@ -116,19 +116,6 @@ More information on the configuration can be found [here](configs/README.md).
 There are two ways to couple DRAMSys with **gem5**:
 - Use the official integration of DRAMSys in gem5. More information can be found in `ext/dramsys` of the gem5 repository.
 - (Deprecated) Compile gem5 as a shared library and link it with DRAMSys, which is only supported in older versions of DRAMSys (tag v4.0).
-
-## Development
-
-Some additional development sources required for tests may be obtained using Git LFS.
-Make sure to have Git LFS installed through your system's package manager and set up for your user:
-```console
-$ git lfs install
-```
-
-To make the additional files available, run:
-```console
-$ git lfs pull
-```
 
 ## Third-party libraries
 

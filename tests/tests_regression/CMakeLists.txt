@@ -32,36 +32,11 @@
 #    Derek Christ
 
 ###############################################
-###             benches_dramsys             ###
+###             tests_regression            ###
 ###############################################
 
-option(DRAMSYS_USE_FETCH_CONTENT_GOOGLE_BENCHMARK "Enable FetchContent to provide Google Benchmark" ${DRAMSYS_USE_FETCH_CONTENT})
-
-if (DRAMSYS_USE_FETCH_CONTENT_GOOGLE_BENCHMARK)
-    set(BENCHMARK_ENABLE_TESTING OFF)
-
-    FetchContent_Declare(
-        benchmark
-        URL https://github.com/google/benchmark/archive/refs/tags/v1.9.5.tar.gz
-        OVERRIDE_FIND_PACKAGE
-    )
-
-    FetchContent_MakeAvailable(benchmark)
-endif()
-
-find_package(benchmark REQUIRED)
-
-add_executable(benches_dramsys
-		main.cpp
-		simulation.cpp
-		addressdecoder.cpp
-)
-
-target_include_directories(benches_dramsys PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-target_link_libraries(benches_dramsys
-    DRAMSys::DRAMSys
-    DRAMSys::simulator
-    SystemC::systemc
-    benchmark::benchmark
-)
+test_standard(DDR3 ${CMAKE_CURRENT_SOURCE_DIR}/ddr3-example.json DRAMSys_ddr3-dual-rank_ddr3_ch0.tdb DRAMSys_ddr3-dual-rank_ddr3_ch0.tdb)
+test_standard(DDR4 ${CMAKE_CURRENT_SOURCE_DIR}/ddr4-example.json DRAMSys_ddr4-bankgrp_ddr4_ch0.tdb DRAMSys_ddr4-bankgrp_ddr4_ch0.tdb)
+test_standard(LPDDR4 ${CMAKE_CURRENT_SOURCE_DIR}/lpddr4-example.json DRAMSys_lpddr4-example_lpddr4_ch0.tdb DRAMSys_lpddr4-example_lpddr4_ch0.tdb)
+test_standard(HBM2.Ch0 ${CMAKE_CURRENT_SOURCE_DIR}/hbm2-example.json DRAMSys_hbm2-example_hbm2_ch0.tdb DRAMSys_hbm2-example_hbm2_ch0.tdb)
+test_standard(HBM2.Ch1 ${CMAKE_CURRENT_SOURCE_DIR}/hbm2-example.json DRAMSys_hbm2-example_hbm2_ch1.tdb DRAMSys_hbm2-example_hbm2_ch1.tdb)

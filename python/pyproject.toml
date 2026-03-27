@@ -1,0 +1,32 @@
+[project]
+name = "dramsys"
+version = "0.1.0"
+description = "DRAMSys utility Python scripts"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "kaleido>=1.2.0",
+    "polars>=1.39.3",
+    "pyvcd>=0.4.1",
+    "tqdm>=4.67.3",
+]
+
+[project.optional-dependencies]
+extensions = ["dramsys-extensions"]
+
+[project.scripts]
+dramsys_metrics = "dramsys.analysis.metrics:main"
+dramsys_plots = "dramsys.analysis.plots:main"
+dramsys_tests = "dramsys.analysis.tests:main"
+dramsys_vcd_export = "dramsys.tools.vcdExport:main"
+dramsys_mkpkg = "dramsys.tools.packaging.mkpkg:main"
+
+[tool.uv.build-backend]
+module-name = "dramsys.simulation"
+
+[tool.uv.sources]
+dramsys-extensions = { path = "../extensions/python", editable = true }
+
+[build-system]
+requires = ["uv_build>=0.9.7,<0.10.0"]
+build-backend = "uv_build"

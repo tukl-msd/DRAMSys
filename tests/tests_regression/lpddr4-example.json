@@ -1,0 +1,209 @@
+{
+    "simulation": {
+        "addressmapping": {
+            "BANK_BIT": [
+                27,
+                28,
+                29
+            ],
+            "BYTE_BIT": [
+                0
+            ],
+            "COLUMN_BIT": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10
+            ],
+            "ROW_BIT": [
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26
+            ]
+        },
+        "mcconfig": {
+            "PagePolicy": "OpenAdaptive",
+            "Scheduler": "Fifo",
+            "RequestBufferSize": 8,
+            "CmdMux": "Oldest",
+            "RespQueue": "Fifo",
+            "RefreshPolicy": "Bankwise",
+            "RefreshMaxPostponed": 8,
+            "RefreshMaxPulledin": 8,
+            "PowerDownPolicy": "NoPowerDown",
+            "PowerDownTimeout": 100
+        },
+        "memspec": {
+            "memarchitecturespec": {
+                "nbrOfBankGroups": 1,
+                "burstLength": 16,
+                "dataRate": 2,
+                "nbrOfBanks": 8,
+                "nbrOfColumns": 1024,
+                "nbrOfRanks": 1,
+                "nbrOfChannels": 1,
+                "nbrOfDevices": 1,
+                "nbrOfRows": 65536,
+                "width": 16,
+                "maxBurstLength": 16
+            },
+            "memoryId": "JEDEC_8Gb_LPDDR4-3200_16bit",
+            "memoryType": "LPDDR4",
+            "memtimingspec": {
+                "CCD": 8,
+                "CCDMW": 32,
+                "CKE": 12,
+                "CMDCKE": 3,
+                "DQS2DQ": 2,
+                "DQSCK": 6,
+                "DQSS": 1,
+                "ESCKE": 3,
+                "FAW": 64,
+                "PPD": 4,
+                "RAS": 68,
+                "RCD": 29,
+                "REFI": 6246,
+                "REFIpb": 780,
+                "RFCab": 448,
+                "RFCpb": 224,
+                "RL": 28,
+                "RPab": 34,
+                "RPpb": 29,
+                "RCab": 102,
+                "RCpb": 97,
+                "RPST": 0,
+                "RRD": 16,
+                "RTP": 12,
+                "SR": 24,
+                "WL": 14,
+                "WPRE": 2,
+                "WR": 29,
+                "WTR": 16,
+                "XP": 12,
+                "XSR": 460,
+                "RTRS": 1,
+                "REFM": 0,
+                "tCK": 625e-12
+            },
+            "mempowerspec": {
+                "vdd1": 0.0,
+                "idd01": 0.0,
+                "idd2n1": 0.0,
+                "idd3n1": 0.0,
+                "idd4r1": 0.0,
+                "idd4w1": 0.0,
+                "idd51": 0.0,
+                "idd5pb1": 0.0,
+                "idd61": 0.0,
+                "idd2p1": 0.0,
+                "idd3p1": 0.0,
+                "vdd2": 0.0,
+                "idd02": 0.0,
+                "idd2n2": 0.0,
+                "idd3n2": 0.0,
+                "idd4r2": 0.0,
+                "idd4w2": 0.0,
+                "idd52": 0.0,
+                "idd5pb2": 0.0,
+                "idd62": 0.0,
+                "idd2p2": 0.0,
+                "idd3p2": 0.0,
+                "vddq": 0.0,
+                "iBeta_vdd1": 0.0,
+                "iBeta_vdd2": 0.0
+            },
+            "memimpedancespec": {
+                "ck_termination": true,
+                "ck_R_eq": 1e6,
+                "ck_dyn_E": 1e-12,
+          
+                "ca_termination": true,
+                "ca_R_eq": 1e6,
+                "ca_dyn_E": 1e-12,
+          
+                "rdq_termination": true,
+                "rdq_R_eq": 1e6,
+                "rdq_dyn_E": 1e-12,
+                "wdq_termination": true,
+                "wdq_R_eq": 1e6,
+                "wdq_dyn_E": 1e-12,
+          
+                "wdqs_termination": true,
+                "wdqs_R_eq": 1e6,
+                "wdqs_dyn_E": 1e-12,
+                "rdqs_termination": true,
+                "rdqs_R_eq": 1e6,
+                "rdqs_dyn_E": 1e-12,
+
+                "rdbi_termination": true,
+                "rdbi_R_eq": 1e6,
+                "rdbi_dyn_E": 1e-12,
+                "wdbi_termination": true,
+                "wdbi_R_eq": 1e6,
+                "wdbi_dyn_E": 1e-12
+            },
+            "bankwisespec": {
+                "factRho": 1.0,
+                "factSigma": 1.0,
+                "pasrMode": 0,
+                "hasPASR": false
+            }
+        },
+        "simconfig": {
+            "AddressOffset": 0,
+            "DatabaseRecording": true,
+            "Debug": false,
+            "ECCControllerMode": "Disabled",
+            "EnableWindowing": false,
+            "ErrorCSVFile": "",
+            "ErrorChipSeed": 42,
+            "PowerAnalysis": false,
+            "SimulationName": "lpddr4",
+            "SimulationProgressBar": true,
+            "StoreMode": "NoStorage",
+            "ThermalSimulation": false,
+            "UseMalloc": false,
+            "WindowSize": 1000
+        },
+        "simulationid": "lpddr4-example",
+        "tracesetup": [
+            {
+                "clkMhz": 2000,
+                "dataLength": 64,
+                "type": "generator",
+                "name": "gen0",
+                "numRequests": 1000,
+                "rwRatio": 0.5,
+                "addressDistribution": "sequential"
+            },
+            {
+                "clkMhz": 50,
+                "dataLength": 64,
+                "type": "generator",
+                "name": "gen1",
+                "numRequests": 3000,
+                "rwRatio": 0.5,
+                "addressDistribution": "random"
+            }
+        ]
+    }
+}

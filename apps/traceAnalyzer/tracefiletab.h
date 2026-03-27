@@ -112,10 +112,6 @@ private:
     SelectedTracePlotLineModel* selectedRowsModel;
     TracePlotLineDataSource* tracePlotLineDataSource;
 
-#ifdef EXTENSION_ENABLED
-    QAbstractItemModel* depInfosView;
-#endif
-
     PythonCaller& pythonCaller;
 
     void setUpQueryEditor(QString path);
@@ -123,17 +119,13 @@ private:
 
 public Q_SLOTS:
     void tracefileChanged();
+    void on_latencyTreeView_doubleClicked(const QModelIndex& index);
+    void on_startLatencyAnalysis_clicked();
+    void on_startPowerAnalysis_clicked();
 
 Q_SIGNALS:
     void statusChanged(const QString& message);
     void colorGroupingChanged(ColorGrouping colorgrouping);
-
-private Q_SLOTS:
-#ifdef EXTENSION_ENABLED
-    void on_latencyTreeView_doubleClicked(const QModelIndex& index);
-    void on_startLatencyAnalysis_clicked();
-    void on_startPowerAnalysis_clicked();
-#endif
 };
 
 #endif // TRACEFILETAB_H

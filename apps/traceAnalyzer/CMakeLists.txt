@@ -40,16 +40,14 @@
 
 option(DRAMSYS_USE_FETCH_CONTENT_PYBIND "Enable FetchContent to provide pybind11" ${DRAMSYS_USE_FETCH_CONTENT})
 
-if (DRAMSYS_USE_FETCH_CONTENT)
-    if (DRAMSYS_USE_FETCH_CONTENT_PYBIND)
-        FetchContent_Declare(
-            pybind11
-            URL https://github.com/pybind/pybind11/archive/refs/tags/v2.13.6.tar.gz
-            OVERRIDE_FIND_PACKAGE
-        )
+if (DRAMSYS_USE_FETCH_CONTENT_PYBIND)
+    FetchContent_Declare(
+        pybind11
+        URL https://github.com/pybind/pybind11/archive/refs/tags/v3.0.2.tar.gz
+        OVERRIDE_FIND_PACKAGE
+    )
 
-        FetchContent_MakeAvailable(pybind11)
-    endif()
+    FetchContent_MakeAvailable(pybind11)
 endif()
 
 if (APPLE)
@@ -103,13 +101,12 @@ add_executable(TraceAnalyzer
     tracefiletab.cpp
 )
 
-target_include_directories(TraceAnalyzer
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}
-)
+# DRAMSys module interface that modules can link against
+add_library(traceanalyzer_modules INTERFACE)
 
 target_link_libraries(TraceAnalyzer
-    PRIVATE
+    PUBLIC
+        traceanalyzer_modules
         pybind11::embed
         Qt5::Widgets
         Qt5::Sql

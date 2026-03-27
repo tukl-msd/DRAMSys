@@ -1,3 +1,32 @@
+## [5.5.0] - 2026-03-27
+
+### 🐛 Bug Fixes
+
+- *(benches)* Restore SystemC 3 compatibility
+
+### 💼 Other
+
+- Require FetchContent module
+- Remove FetchContent option for internal deps
+
+### 🚜 Refactor
+
+- Modularize DRAMSys extensions
+- Clean up repository
+- Move proprietary files to extensions
+- Separate dramsys Python package
+- Move extensions to external repository
+
+### 🧪 Testing
+
+- Switch regression tests to use generator
+- Fetch reference databases from package repo
+
+### ⚙️ Miscellaneous Tasks
+
+- Update dependency versions
+- Clean up .gitignore
+- Disable git lfs
 ## [5.4.0] - 2026-03-09
 ## 🚨 Breaking Changes
 

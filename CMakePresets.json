@@ -24,6 +24,16 @@
       }
     },
     {
+      "name": "cicd",
+      "hidden": true,
+      "cacheVariables": {
+        "DRAMSYS_BUILD_REGRESSION_TESTS": "ON",
+        "DRAMSYS_USE_EXTENSIONS": "ON",
+        "DRAMSYS_BUILD_TESTS": "ON",
+        "DRAMSYS_BUILD_TRACE_ANALYZER": "ON"
+      }
+    },
+    {
       "name": "dev",
       "binaryDir": "${sourceDir}/build",
       "inherits": [
@@ -33,6 +43,7 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_FLAGS": "-Wall -Wextra -Wpedantic -fdiagnostics-color=always",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "DRAMSYS_USE_EXTENSIONS": "ON",
         "DRAMSYS_BUILD_TESTS": "ON",
         "DRAMSYS_BUILD_BENCHMARKS": "ON",
         "DRAMSYS_BUILD_TRACE_ANALYZER": "ON"
@@ -49,6 +60,7 @@
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_CXX_FLAGS": "/W4 /permissive-",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "DRAMSYS_USE_EXTENSIONS": "ON",
         "DRAMSYS_BUILD_BENCHMARKS": "ON",
         "DRAMSYS_BUILD_TESTS": "ON",
         "DRAMSYS_BUILD_TRACE_ANALYZER": "OFF"
@@ -63,15 +75,6 @@
       }
     },
     {
-      "name": "dev-local",
-      "inherits": [
-        "dev"
-      ],
-      "cacheVariables": {
-        "DRAMSYS_USE_FETCH_CONTENT": "OFF"
-      }
-    },
-    {
       "name": "dev-vcpkg",
       "inherits": [
         "dev",
@@ -79,8 +82,6 @@
       ],
       "cacheVariables": {
         "VCPKG_MANIFEST_FEATURES": "dev",
-        "DRAMSYS_USE_FETCH_CONTENT": "ON",
-        "DRAMSYS_USE_FETCH_CONTENT_INTERNAL": "ON",
         "DRAMSYS_USE_FETCH_CONTENT_SYSTEMC": "OFF",
         "DRAMSYS_USE_FETCH_CONTENT_SQLITE3": "OFF",
         "DRAMSYS_USE_FETCH_CONTENT_NLOHMANN_JSON": "OFF",
@@ -94,7 +95,7 @@
       "binaryDir": "${sourceDir}/build/coverage",
       "inherits": [
         "cpp-standard",
-        "dev"
+        "cicd"
       ],
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Coverage",

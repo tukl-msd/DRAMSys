@@ -40,7 +40,7 @@ cmake_minimum_required(VERSION 3.25)
 
 set(PROJECT_NAME "DRAMSys")
 
-project(${PROJECT_NAME} VERSION 5.4.0)
+project(${PROJECT_NAME} VERSION 5.5.0)
 
 if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
@@ -61,27 +61,38 @@ if (PROJECT_IS_TOP_LEVEL)
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 endif()
 
-if(DRAMSYS_ENABLE_COVERAGE)
-    include(coverage)
-endif()
-
 ### Project settings ###
 option(DRAMSYS_BUILD_TESTS "Build DRAMSys unit tests" OFF)
+option(DRAMSYS_BUILD_REGRESSION_TESTS "Build DRAMSys regression tests" OFF)
 option(DRAMSYS_BUILD_BENCHMARKS "Build DRAMSys benchmarks" OFF)
 option(DRAMSYS_BUILD_CLI "Build DRAMSys Command Line Tool" ${PROJECT_IS_TOP_LEVEL})
 option(DRAMSYS_BUILD_TOOLS "Build DRAMSys Tools" OFF)
 option(DRAMSYS_BUILD_TRACE_ANALYZER "Build DRAMSys Trace Analyzer" OFF)
 option(DRAMSYS_USE_DRAMPOWER "Enable DRAMPower integration" ON)
 option(DRAMSYS_USE_LEGACY_SYSTEMC_INSTALLATION "Use SystemC installed with autotools (set SYSTEMC_HOME)" OFF)
+option(DRAMSYS_USE_EXTENSIONS "Enable internal DRAMSys extensions" OFF)
+
+if(DRAMSYS_BUILD_TESTS)
+    enable_testing()
+endif()
+
+if(DRAMSYS_ENABLE_COVERAGE)
+    include(coverage)
+endif()
+
+if(DRAMSYS_BUILD_REGRESSION_TESTS)
+    include(regression_tests)
+endif()
 
 # Use sane defaults for FetchContent:
 # In case we are the top-level project, get everything by default
 # In case we are included in another project, the user might want to provide their own system dependencies
-option(DRAMSYS_USE_FETCH_CONTENT "Enable the FetchContent module" ${PROJECT_IS_TOP_LEVEL})
-option(DRAMSYS_USE_FETCH_CONTENT_INTERNAL "Enable FetchContent to provide internal dependencies" ${DRAMSYS_USE_FETCH_CONTENT})
-option(DRAMSYS_USE_FETCH_CONTENT_SYSTEMC "Enable FetchContent to provide SystemC" ${DRAMSYS_USE_FETCH_CONTENT})
-option(DRAMSYS_USE_FETCH_CONTENT_SQLITE3 "Enable FetchContent to provide SQLite3" ${DRAMSYS_USE_FETCH_CONTENT})
-option(DRAMSYS_USE_FETCH_CONTENT_NLOHMANN_JSON "Enable FetchContent to provide nlohmann_json" ${DRAMSYS_USE_FETCH_CONTENT})
+option(DRAMSYS_USE_FETCH_CONTENT "Use FetchContent to provide external dependencies" ${PROJECT_IS_TOP_LEVEL})
+option(DRAMSYS_USE_FETCH_CONTENT_DRAMPOWER "Use FetchContent to provide DRAMPower" ${DRAMSYS_USE_FETCH_CONTENT})
+option(DRAMSYS_USE_FETCH_CONTENT_SYSTEMC "Use FetchContent to provide SystemC" ${DRAMSYS_USE_FETCH_CONTENT})
+option(DRAMSYS_USE_FETCH_CONTENT_SQLITE3 "Use FetchContent to provide SQLite3" ${DRAMSYS_USE_FETCH_CONTENT})
+option(DRAMSYS_USE_FETCH_CONTENT_NLOHMANN_JSON "Use FetchContent to provide nlohmann_json" ${DRAMSYS_USE_FETCH_CONTENT})
+option(DRAMSYS_USE_FETCH_CONTENT_GOOGLE_TEST "Enable FetchContent to provide Google Test" ${DRAMSYS_USE_FETCH_CONTENT})
 
 # TODO: Remove as soon as DRAMPower is updated
 set(DRAMSYS_SHARED_LIBS OFF)
@@ -101,53 +112,48 @@ set(DRAMSYS_EXTENSIONS_DIR  "${PROJECT_SOURCE_DIR}/extensions")
 ###           Library Settings              ###
 ###############################################
 
-if (DRAMSYS_USE_FETCH_CONTENT)
-    include(FetchContent)
+include(FetchContent)
 
-    if (DRAMSYS_USE_FETCH_CONTENT_NLOHMANN_JSON)
-        FetchContent_Declare(nlohmann_json
-            URL https://github.com/nlohmann/json/releases/download/v3.11.3/json.tar.xz
-            OVERRIDE_FIND_PACKAGE
-        )
+if (DRAMSYS_USE_FETCH_CONTENT_NLOHMANN_JSON)
+    FetchContent_Declare(nlohmann_json
+        URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
+        OVERRIDE_FIND_PACKAGE
+    )
+    FetchContent_MakeAvailable(nlohmann_json)
+endif()
 
-        FetchContent_MakeAvailable(nlohmann_json)
-    endif()
+FetchContent_Declare(
+    DRAMUtils
+    URL "https://github.com/tukl-msd/DRAMUtils/archive/refs/tags/v1.13.1.tar.gz"
+    OVERRIDE_FIND_PACKAGE
+)
+FetchContent_MakeAvailable(DRAMUtils)
 
-    if (DRAMSYS_USE_FETCH_CONTENT_SQLITE3)
-        add_subdirectory(${DRAMSYS_LIBRARY_DIR}/sqlite3)
-    endif()
+if (DRAMSYS_USE_FETCH_CONTENT_DRAMPOWER)
+    FetchContent_Declare(
+        DRAMPower
+        URL "https://github.com/tukl-msd/DRAMPower/archive/refs/tags/v5.4.1.tar.gz"
+        OVERRIDE_FIND_PACKAGE
+    )
+    FetchContent_MakeAvailable(DRAMPower)
+endif()
 
-    if (DRAMSYS_USE_FETCH_CONTENT_SYSTEMC)
-        set(DISABLE_COPYRIGHT_MESSAGE TRUE)
+if (DRAMSYS_USE_FETCH_CONTENT_SQLITE3)
+    add_subdirectory(${DRAMSYS_LIBRARY_DIR}/sqlite3)
+endif()
 
-        FetchContent_Declare(
-            SystemCLanguage
-            URL https://github.com/accellera-official/systemc/archive/refs/tags/3.0.1.tar.gz
-            OVERRIDE_FIND_PACKAGE
-        )
+if (DRAMSYS_USE_FETCH_CONTENT_SYSTEMC)
+    set(DISABLE_COPYRIGHT_MESSAGE TRUE)
 
-        FetchContent_MakeAvailable(SystemCLanguage)
+    FetchContent_Declare(
+        SystemCLanguage
+        URL https://github.com/accellera-official/systemc/archive/refs/tags/3.0.2.tar.gz
+        OVERRIDE_FIND_PACKAGE
+    )
+    FetchContent_MakeAvailable(SystemCLanguage)
 
-        # Set include directories to SYSTEM to suppress warnings
-        set_target_properties(systemc PROPERTIES SYSTEM TRUE)
-    endif()
-
-    if (DRAMSYS_USE_FETCH_CONTENT_INTERNAL)
-        FetchContent_Declare(
-            DRAMUtils
-            URL "https://github.com/tukl-msd/DRAMUtils/archive/refs/tags/v1.13.1.tar.gz"
-            OVERRIDE_FIND_PACKAGE
-        )
-        FetchContent_MakeAvailable(DRAMUtils)
-        
-        FetchContent_Declare(
-            DRAMPower
-            URL "https://github.com/tukl-msd/DRAMPower/archive/refs/tags/v5.4.1.tar.gz"
-            OVERRIDE_FIND_PACKAGE
-        )
-
-        FetchContent_MakeAvailable(DRAMPower)
-    endif()
+    # Set include directories to SYSTEM to suppress warnings
+    set_target_properties(systemc PROPERTIES SYSTEM TRUE)
 endif()
 
 # Special handling of SystemC:
@@ -174,28 +180,25 @@ endif()
 
 add_subdirectory(src)
 
-if(DRAMSYS_BUILD_TOOLS)
-    add_subdirectory(tools)
-endif()
-
-if(DRAMSYS_BUILD_CLI)
-    add_subdirectory(apps/simulator)
-endif()
-
-if(DRAMSYS_BUILD_TRACE_ANALYZER)
-    add_subdirectory(apps/traceAnalyzer)
-endif()
-
-if(EXISTS ${DRAMSYS_EXTENSIONS_DIR})
-    add_subdirectory(${DRAMSYS_EXTENSIONS_DIR})
-endif()
-
 ###############################################
 ###           Test Directory                ###
 ###############################################
 
 if(DRAMSYS_BUILD_TESTS)
-    enable_testing()
+    include(GoogleTest)
+
+    if (DRAMSYS_USE_FETCH_CONTENT_GOOGLE_TEST)
+        FetchContent_Declare(
+        GTest
+        URL https://github.com/google/googletest/releases/download/v1.17.0/googletest-1.17.0.tar.gz
+        OVERRIDE_FIND_PACKAGE
+    )
+
+        FetchContent_MakeAvailable(GTest)
+    endif()
+
+    find_package(GTest REQUIRED)
+
     add_subdirectory(tests)
 endif()
 
@@ -205,4 +208,39 @@ endif()
 
 if(DRAMSYS_BUILD_BENCHMARKS)
     add_subdirectory(benches)
+endif()
+
+###############################################
+###                 Apps                    ###
+###############################################
+
+if(DRAMSYS_BUILD_CLI)
+    add_subdirectory(apps/simulator)
+endif()
+
+if(DRAMSYS_BUILD_TRACE_ANALYZER)
+    add_subdirectory(apps/traceAnalyzer)
+endif()
+
+if(DRAMSYS_BUILD_TOOLS)
+    add_subdirectory(tools)
+endif()
+
+###############################################
+###              Extensions                 ###
+###############################################
+
+if (DRAMSYS_USE_EXTENSIONS)
+    if (IS_DIRECTORY ${DRAMSYS_EXTENSIONS_DIR})
+        add_subdirectory(${DRAMSYS_EXTENSIONS_DIR})
+    else()
+        if(DEFINED ENV{EXTENSIONS_TOKEN})
+            set(EXTENSIONS_AUTH "token:$ENV{EXTENSIONS_TOKEN}@")
+        endif()
+        FetchContent_Declare(DRAMSysExtensions
+            GIT_REPOSITORY "https://${EXTENSIONS_AUTH}erbenschell.iese.fraunhofer.de/dramsys/dramsys-extensions.git"
+            GIT_TAG v5.5.0
+        )
+        FetchContent_MakeAvailable(DRAMSysExtensions)
+    endif()
 endif()

@@ -82,4 +82,8 @@ target_link_libraries(dramsys_bin
         DRAMSys::simulator
 )
 
+if(DRAMSYS_BUILD_TESTS)
+    add_subdirectory(tests)
+endif()
+
 install(TARGETS dramsys_bin)

@@ -98,6 +98,3 @@ topo_order_commits = true
 sort_commits = "oldest"
 # Process submodules commits
 recurse_submodules = false
-
-# Ignore old tags that did not conform to Conventional Commits
-skip_tags = "(v3.0.0|v4.0.0|v5.0.0|v5.1.0)"

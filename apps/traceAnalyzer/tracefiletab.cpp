@@ -50,6 +50,10 @@
 
 #include <fstream>
 
+#ifdef EXTENSION_ENABLED
+#include <plots.h>
+#endif
+
 TraceFileTab::TraceFileTab(std::string_view traceFilePath,
                            PythonCaller& pythonCaller,
                            QWidget* parent) :
@@ -83,7 +87,7 @@ TraceFileTab::TraceFileTab(std::string_view traceFilePath,
     setUpCommentView();
 
 #ifndef EXTENSION_ENABLED
-        addDisclaimer();
+    addDisclaimer();
 #endif
 
     tracefileChanged();
@@ -342,4 +346,34 @@ bool TraceFileTab::eventFilter(QObject* object, QEvent* event)
     }
 
     return QWidget::eventFilter(object, event);
+}
+
+void TraceFileTab::on_latencyTreeView_doubleClicked(const QModelIndex& index)
+{
+    // Get onlye the leaf:
+    if (index.column() == 0 && index.model()->hasChildren(index) == false)
+    {
+        unsigned int id = index.data().toUInt();
+        if (id != 0)
+        {
+            navigator->selectTransaction(id);
+        }
+    }
+}
+
+void TraceFileTab::on_startLatencyAnalysis_clicked()
+{
+#ifdef EXTENSION_ENABLED
+    QSqlDatabase db = navigator->TraceFile().getDatabase();
+    TraceAnalyzerExtension::latencyAnalysis(
+        db, ui->latencyAnalysisProgressBar, ui->latencyTreeView, ui->latencyPlot);
+#endif
+}
+
+void TraceFileTab::on_startPowerAnalysis_clicked()
+{
+#ifdef EXTENSION_ENABLED
+    QSqlDatabase db = navigator->TraceFile().getDatabase();
+    TraceAnalyzerExtension::powerAnalysis(db, ui->powerPlot, ui->bandwidthPlot, ui->bufferPlot);
+#endif
 }

@@ -1,0 +1,156 @@
+{
+    "simulation": {
+        "addressmapping": {
+            "BANK_BIT": [
+                [13, 16],
+                14,
+                15
+            ],
+            "BYTE_BIT": [
+                0,
+                1,
+                2
+            ],
+            "COLUMN_BIT": [
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9,
+                10,
+                11,
+                12
+            ],
+            "ROW_BIT": [
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25,
+                26,
+                27,
+                28,
+                29
+            ],
+            "RANK_BIT": [
+                30
+            ]
+        },
+        "mcconfig": {
+            "PagePolicy": "Open",
+            "Scheduler": "FrFcfsGrp",
+            "RequestBufferSize": 8,
+            "CmdMux": "Oldest",
+            "RespQueue": "Fifo",
+            "RefreshPolicy": "Rankwise",
+            "RefreshMaxPostponed": 0,
+            "RefreshMaxPulledin": 0,
+            "PowerDownPolicy": "Staggered",
+            "PowerDownTimeout": 100
+        },
+        "memspec": {
+            "memarchitecturespec": {
+                "burstLength": 8,
+                "dataRate": 2,
+                "nbrOfBanks": 8,
+                "nbrOfColumns": 1024,
+                "nbrOfRanks": 2,
+                "nbrOfChannels": 1,
+                "nbrOfRows": 16384,
+                "width": 64,
+                "nbrOfDevices": 1,
+                "maxBurstLength": 8
+            },
+            "memoryId": "MICRON_2GB_DDR3-1066_64bit_D_SODIMM",
+            "memoryType": "DDR3",
+            "mempowerspec": {
+                "idd0": 720.0e-3,
+                "idd2n": 400.0e-3,
+                "idd2p0": 80.0e-3,
+                "idd2p1": 200.0e-3,
+                "idd3n": 440.0e-3,
+                "idd3p0": 240.0e-3,
+                "idd3p1": 240.0e-3,
+                "idd4r": 1200.0e-3,
+                "idd4w": 1200.0e-3,
+                "idd5": 1760.0e-3,
+                "idd6": 48.0e-3,
+                "vdd": 1.5
+            },
+            "memtimingspec": {
+                "AL": 0,
+                "CCD": 4,
+                "CKE": 3,
+                "CKESR": 4,
+                "CL": 7,
+                "DQSCK": 0,
+                "FAW": 20,
+                "RAS": 20,
+                "RC": 27,
+                "RCD": 7,
+                "REFI": 4160,
+                "RFC": 59,
+                "RL": 7,
+                "RP": 7,
+                "RRD": 4,
+                "RTP": 4,
+                "WL": 6,
+                "WR": 8,
+                "WTR": 4,
+                "XP": 4,
+                "XPDLL": 13,
+                "XS": 64,
+                "XSDLL": 512,
+                "ACTPDEN": 1,
+                "PRPDEN": 1,
+                "REFPDEN": 1,
+                "RTRS": 1,
+                "tCK": 1876e-12
+            }
+        },
+        "simconfig": {
+            "AddressOffset": 0,
+            "DatabaseRecording": true,
+            "Debug": false,
+            "ECCControllerMode": "Disabled",
+            "EnableWindowing": false,
+            "ErrorCSVFile": "",
+            "ErrorChipSeed": 42,
+            "PowerAnalysis": false,
+            "SimulationName": "ddr3",
+            "SimulationProgressBar": true,
+            "StoreMode": "NoStorage",
+            "ThermalSimulation": false,
+            "UseMalloc": false,
+            "WindowSize": 1000
+        },
+        "simulationid": "ddr3-dual-rank",
+        "tracesetup": [
+            {
+                "clkMhz": 2000,
+                "dataLength": 64,
+                "type": "generator",
+                "name": "gen0",
+                "numRequests": 1000,
+                "rwRatio": 0.5,
+                "addressDistribution": "sequential"
+            },
+            {
+                "clkMhz": 50,
+                "dataLength": 64,
+                "type": "generator",
+                "name": "gen1",
+                "numRequests": 3000,
+                "rwRatio": 0.5,
+                "addressDistribution": "random"
+            }
+        ]
+    }
+}

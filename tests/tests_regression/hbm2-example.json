@@ -1,0 +1,147 @@
+{
+    "simulation": {
+        "addressmapping": {
+            "CHANNEL_BIT": [
+                30
+            ],
+            "BANKGROUP_BIT": [
+                28,
+                29
+            ],
+            "BANK_BIT": [
+                26,
+                27
+            ],
+            "BURST_BIT": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5
+            ],
+            "COLUMN_BIT": [
+                6,
+                7,
+                8,
+                9,
+                10
+            ],
+            "ROW_BIT": [
+                11,
+                12,
+                13,
+                14,
+                15,
+                16,
+                17,
+                18,
+                19,
+                20,
+                21,
+                22,
+                23,
+                24,
+                25
+            ]
+        },
+        "mcconfig": {
+            "PagePolicy": "Closed",
+            "Scheduler": "Fifo",
+            "RequestBufferSize": 8,
+            "CmdMux": "Strict",
+            "RespQueue": "Fifo",
+            "RefreshPolicy": "PerBank",
+            "RefreshMaxPostponed": 0,
+            "RefreshMaxPulledin": 0,
+            "PowerDownPolicy": "NoPowerDown",
+            "PowerDownTimeout": 100
+        },
+        "memspec": {
+            "memarchitecturespec": {
+                "burstLength": 4,
+                "dataRate": 2,
+                "nbrOfBankGroups": 4,
+                "nbrOfBanks": 16,
+                "nbrOfStacks": 1,
+                "nbrOfColumns": 32,
+                "nbrOfPseudoChannels": 1,
+                "nbrOfChannels": 2,
+                "nbrOfDevices": 1,
+                "nbrOfRows": 32768,
+                "width": 128,
+                "maxBurstLength": 4
+            },
+            "memoryId": "https://www.computerbase.de/2019-05/amd-memory-tweak-vram-oc/#bilder",
+            "memoryType": "HBM2",
+            "memtimingspec": {
+                "CCDL": 3,
+                "CCDS": 2,
+                "CCDR": 2,
+                "CKE": 8,
+                "DQSCK": 1,
+                "FAW": 16,
+                "PL": 0,
+                "RAS": 28,
+                "RC": 42,
+                "RCDRD": 12,
+                "RCDWR": 6,
+                "REFI": 3900,
+                "REFISB": 244,
+                "RFC": 220,
+                "RFCSB": 96,
+                "RL": 17,
+                "RP": 14,
+                "RRDL": 6,
+                "RRDS": 4,
+                "RREFD": 8,
+                "RTP": 5,
+                "RTW": 18,
+                "WL": 7,
+                "WR": 14,
+                "WTRL": 9,
+                "WTRS": 4,
+                "XP": 8,
+                "XS": 216,
+                "tCK": 1000e-12
+            }
+        },
+        "simconfig": {
+            "AddressOffset": 0,
+            "DatabaseRecording": true,
+            "Debug": false,
+            "ECCControllerMode": "Disabled",
+            "EnableWindowing": false,
+            "ErrorCSVFile": "",
+            "ErrorChipSeed": 42,
+            "PowerAnalysis": false,
+            "SimulationName": "hbm2",
+            "SimulationProgressBar": true,
+            "StoreMode": "NoStorage",
+            "ThermalSimulation": false,
+            "UseMalloc": false,
+            "WindowSize": 1000
+        },
+        "simulationid": "hbm2-example",
+        "tracesetup": [
+            {
+                "clkMhz": 2000,
+                "dataLength": 32,
+                "type": "generator",
+                "name": "gen0",
+                "numRequests": 1000,
+                "rwRatio": 0.5,
+                "addressDistribution": "sequential"
+            },
+            {
+                "clkMhz": 50,
+                "dataLength": 32,
+                "type": "generator",
+                "name": "gen1",
+                "numRequests": 3000,
+                "rwRatio": 0.5,
+                "addressDistribution": "random"
+            }
+        ]
+    }
+}
