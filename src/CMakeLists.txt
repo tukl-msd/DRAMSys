@@ -132,6 +132,7 @@ target_link_libraries(dramsys
         DRAMUtils::DRAMUtils
     PRIVATE
         SQLite3::SQLite3
+        fmt::fmt
 )
 
 if (DRAMSYS_USE_DRAMPOWER)

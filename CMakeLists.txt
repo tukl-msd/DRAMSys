@@ -93,6 +93,7 @@ option(DRAMSYS_USE_FETCH_CONTENT_DRAMPOWER "Use FetchContent to provide DRAMPowe
 option(DRAMSYS_USE_FETCH_CONTENT_SYSTEMC "Use FetchContent to provide SystemC" ${DRAMSYS_USE_FETCH_CONTENT})
 option(DRAMSYS_USE_FETCH_CONTENT_SQLITE3 "Use FetchContent to provide SQLite3" ${DRAMSYS_USE_FETCH_CONTENT})
 option(DRAMSYS_USE_FETCH_CONTENT_NLOHMANN_JSON "Use FetchContent to provide nlohmann_json" ${DRAMSYS_USE_FETCH_CONTENT})
+option(DRAMSYS_USE_FETCH_CONTENT_FMT "Use FetchContent to provide fmt" ${DRAMSYS_USE_FETCH_CONTENT})
 option(DRAMSYS_USE_FETCH_CONTENT_GOOGLE_TEST "Enable FetchContent to provide Google Test" ${DRAMSYS_USE_FETCH_CONTENT})
 
 # TODO: Remove as soon as DRAMPower is updated
@@ -121,6 +122,14 @@ if (DRAMSYS_USE_FETCH_CONTENT_NLOHMANN_JSON)
         OVERRIDE_FIND_PACKAGE
     )
     FetchContent_MakeAvailable(nlohmann_json)
+endif()
+
+if (DRAMSYS_USE_FETCH_CONTENT_FMT)
+    FetchContent_Declare(fmt
+        URL https://github.com/fmtlib/fmt/releases/download/12.1.0/fmt-12.1.0.zip
+        OVERRIDE_FIND_PACKAGE
+    )
+    FetchContent_MakeAvailable(fmt)
 endif()
 
 FetchContent_Declare(
@@ -169,6 +178,8 @@ else()
 endif()
 
 find_package(SQLite3 REQUIRED)
+find_package(nlohmann_json REQUIRED)
+find_package(fmt REQUIRED)
 find_package(DRAMUtils REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
