@@ -56,7 +56,6 @@
 class CommentModel;
 class McConfigModel;
 class MemSpecModel;
-class PythonCaller;
 
 class TraceFileTab : public QWidget
 {
@@ -64,7 +63,6 @@ class TraceFileTab : public QWidget
 
 public:
     explicit TraceFileTab(std::string_view traceFilePath,
-                          PythonCaller& pythonCaller,
                           QWidget* parent);
     ~TraceFileTab();
 
@@ -111,8 +109,6 @@ private:
     AvailableTracePlotLineModel* availableRowsModel;
     SelectedTracePlotLineModel* selectedRowsModel;
     TracePlotLineDataSource* tracePlotLineDataSource;
-
-    PythonCaller& pythonCaller;
 
     void setUpQueryEditor(QString path);
     bool savingChangesToDB;

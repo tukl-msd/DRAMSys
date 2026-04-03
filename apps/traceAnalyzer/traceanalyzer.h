@@ -40,11 +40,11 @@
 #define TRACEANALYZER_H
 
 #include "evaluationtool.h"
+
 #include <QLabel>
 #include <QMainWindow>
 #include <QSet>
 #include <QString>
-#include <vector>
 
 namespace Ui
 {
@@ -76,7 +76,6 @@ private:
     QLabel* statusLabel;
     QSet<QString> openedTraceFiles;
     EvaluationTool evaluationTool;
-    PythonCaller pythonCaller;
 
 private Q_SLOTS:
     void on_menuFile_aboutToShow();

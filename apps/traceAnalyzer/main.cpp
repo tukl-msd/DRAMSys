@@ -36,9 +36,6 @@
  *    Derek Christ
  */
 
-// Has to come first.
-#include <pybind11/embed.h>
-
 #include "traceanalyzer.h"
 
 #include <QApplication>
@@ -47,7 +44,6 @@
 #include <QSet>
 #include <QString>
 #include <csignal>
-#include <filesystem>
 #include <iostream>
 
 int main(int argc, char* argv[])
@@ -62,18 +58,17 @@ int main(int argc, char* argv[])
     QApplication::setApplicationName(QStringLiteral("TraceAnalyzer"));
     QApplication::setApplicationDisplayName(QStringLiteral("Trace Analyzer"));
 
-    pybind11::scoped_interpreter guard;
-
     // Check if dramsys Python module is available
-    try
+    auto checkDRAMSysPackage = []() -> bool
     {
-        pybind11::module_::import("dramsys");
-    }
-    catch (pybind11::error_already_set const& err)
+        std::string cmd = "python3 -c \"import dramsys\" 2>/dev/null";
+        return std::system(cmd.c_str()) == 0;
+    };
+    if (!checkDRAMSysPackage())
     {
         std::cout << "Warning: No dramsys Python module found. Metrics, plots and exports will not "
-                     "work. Set up a virutal environment and install the dramsys package with its "
-                     "dependencies into it.\n";
+                     "be available. Set up a virutal environment and install the dramsys package "
+                     "with its dependencies into it.\n";
     }
 
     if (argc > 1)

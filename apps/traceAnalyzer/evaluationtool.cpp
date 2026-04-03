@@ -39,7 +39,9 @@
  */
 
 #include "evaluationtool.h"
+#include "businessObjects/pythoncaller.h"
 #include "ui_evaluationtool.h"
+
 #include <QApplication>
 #include <QDebug>
 #include <QFile>
@@ -48,13 +50,8 @@
 #include <QPainter>
 #include <QTextStream>
 #include <QtAlgorithms>
-#include <iostream>
-#include <stdio.h>
 
-EvaluationTool::EvaluationTool(PythonCaller& pythonCaller, QWidget* parent) :
-    QWidget(parent),
-    ui(new Ui::EvaluationTool),
-    pythonCaller(pythonCaller)
+EvaluationTool::EvaluationTool(QWidget* parent) : QWidget(parent), ui(new Ui::EvaluationTool)
 {
     ui->setupUi(this);
     traceFilesModel = new QStandardItemModel(this);
@@ -127,15 +124,15 @@ void EvaluationTool::on_btn_calculateMetrics_clicked()
 
 void EvaluationTool::getSelectedMetrics()
 {
-    std::vector<long> selectedMetrics;
+    std::vector<std::string> selectedMetrics;
     for (QCheckBox* metric : selectMetrics->metrics)
     {
-        selectedMetrics.push_back(metric->isChecked());
+        selectedMetrics.push_back(metric->text().toStdString());
     }
     calculateMetrics(selectedMetrics);
 }
 
-void EvaluationTool::calculateMetrics(std::vector<long> selectedMetrics)
+void EvaluationTool::calculateMetrics(std::vector<std::string> selectedMetrics)
 {
     ui->traceMetricTreeWidget->clear();
     for (int row = 0; row < traceFilesModel->rowCount(); ++row)
@@ -144,7 +141,7 @@ void EvaluationTool::calculateMetrics(std::vector<long> selectedMetrics)
         if (item->checkState() == Qt::Checked)
         {
             TraceCalculatedMetrics result =
-                pythonCaller.evaluateMetrics(item->getPath().toStdString(), selectedMetrics);
+                PythonCaller::evaluateMetrics(item->getPath().toStdString(), selectedMetrics);
             calculatedMetrics.push_back(result);
             ui->traceMetricTreeWidget->addTraceMetricResults(result);
         }
@@ -159,27 +156,6 @@ EvaluationTool::TraceFileItem::TraceFileItem(const QString& path)
     setCheckable(true);
     setCheckState(Qt::Checked);
     setEditable(false);
-}
-
-void EvaluationTool::on_btn_exportCSV_clicked()
-{
-    if (calculatedMetrics.size() > 0)
-    {
-        QString filename = QFileDialog::getSaveFileName(
-            this, "Export to CSV", "", "Comma separated Values(*.csv)");
-        if (filename != "")
-        {
-            QFile file(filename);
-            file.open(QIODevice::WriteOnly | QIODevice::Text);
-            QTextStream out(&file);
-            out << calculatedMetrics[0].toCSVHeader() << "\n";
-            for (TraceCalculatedMetrics& metrics : calculatedMetrics)
-            {
-                out << metrics.toCSVLine() << "\n";
-            }
-            file.close();
-        }
-    }
 }
 
 void EvaluationTool::on_btn_genPlots_clicked()

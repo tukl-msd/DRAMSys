@@ -55,7 +55,6 @@ void TraceAnalyzer::setUpStatusBar()
 
 TraceAnalyzer::TraceAnalyzer(QWidget* parent) :
     QMainWindow(parent),
-    evaluationTool(pythonCaller),
     ui(new Ui::TraceAnalyzer)
 {
     ui->setupUi(this);
@@ -89,7 +88,7 @@ void TraceAnalyzer::on_actionOpen_triggered()
 
 TraceFileTab* TraceAnalyzer::createTraceFileTab(const QString& path)
 {
-    auto* traceFileTab = new TraceFileTab(path.toStdString(), pythonCaller, this);
+    auto* traceFileTab = new TraceFileTab(path.toStdString(), this);
 
     connect(traceFileTab, &TraceFileTab::statusChanged, this, &TraceAnalyzer::statusChanged);
 

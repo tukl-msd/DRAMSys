@@ -37,87 +37,148 @@
  *    Derek Christ
  */
 
-// Has to come first.
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
- 
 #include "pythoncaller.h"
 
-#include <exception>
+#include <array>
 #include <iostream>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <sstream>
 #include <string>
 
-std::string PythonCaller::generatePlots(std::string_view pathToTrace)
+#ifdef _WIN32
+#define popen _popen
+#define pclose _pclose
+#endif
+
+namespace PythonCaller
+{
+
+static std::string runCommand(std::string const& command)
+{
+    std::string cmd = command + " 2>&1";
+    static constexpr std::size_t BUFFER_SIZE = 256;
+    std::array<char, BUFFER_SIZE> buffer{};
+    std::string result;
+
+    std::unique_ptr<FILE, int (*)(FILE*)> pipe(popen(cmd.c_str(), "r"), pclose);
+    if (!pipe)
+        throw std::runtime_error("popen() failed");
+
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr)
+        result += buffer.data();
+
+    if (!result.empty() && result.back() == '\n')
+        result.pop_back();
+
+    int exitCode = pclose(pipe.release());
+    if (exitCode != 0)
+        throw std::runtime_error("Python error: " + result);
+
+    return result;
+}
+
+std::string generatePlots(std::string const& pathToTrace)
 {
     try
     {
-        pybind11::module_ metricsModule = pybind11::module_::import("dramsys.analysis.plots");
-        auto result = metricsModule.attr("generatePlots")(pathToTrace).cast<std::string>();
+        auto res = runCommand("dramsys_plots " + pathToTrace);
+        return res;
+    }
+    catch (std::exception const& err)
+    {
+        std::cout << err.what() << "\n";
+    }
+    return {};
+}
+
+std::vector<std::string> availableMetrics(std::string const& pathToTrace)
+{
+    try
+    {
+        auto jsonString = runCommand("dramsys_metrics --json --list-metrics " + pathToTrace);
+
+        std::vector<std::string> result;
+        nlohmann::json j = nlohmann::json::parse(jsonString);
+
+        if (!j.contains("metrics") || !j["metrics"].is_array())
+            return result;
+
+        for (const auto& item : j["metrics"])
+        {
+            result.push_back(item.get<std::string>());
+        }
         return result;
     }
     catch (std::exception const& err)
     {
-        std::cout << err.what() << std::endl;
+        std::cout << err.what() << "\n";
     }
-
     return {};
 }
 
-std::vector<std::string> PythonCaller::availableMetrics(std::string_view pathToTrace)
+TraceCalculatedMetrics evaluateMetrics(std::string const& pathToTrace,
+                                       std::vector<std::string> const& selectedMetrics)
 {
     try
     {
-        pybind11::module_ metricsModule = pybind11::module_::import("dramsys.analysis.metrics");
-        pybind11::list result = metricsModule.attr("getMetrics")(pathToTrace);
-        return result.cast<std::vector<std::string>>();
-    }
-    catch (std::exception const& err)
-    {
-        std::cout << err.what() << std::endl;
-    }
-
-    return {};
-}
-
-TraceCalculatedMetrics PythonCaller::evaluateMetrics(std::string_view pathToTrace,
-                                                     std::vector<long> selectedMetrics)
-{
-    TraceCalculatedMetrics metrics(pathToTrace.data());
-
-    try
-    {
-        pybind11::module_ metricsModule = pybind11::module_::import("dramsys.analysis.metrics");
-        pybind11::list result =
-            metricsModule.attr("calculateMetrics")(pathToTrace, selectedMetrics);
-        auto metricList = result.cast<std::vector<pybind11::tuple>>();
-
-        for (auto metricPair : metricList)
+        TraceCalculatedMetrics metrics;
+        metrics.traceName = pathToTrace.c_str();
+        std::ostringstream metricsStream;
+        for (auto const& metric : selectedMetrics)
         {
-            std::string name = metricPair[0].cast<std::string>();
-            double value = metricPair[1].cast<double>();
-            metrics.addCalculatedMetric({name, value});
+            metricsStream << metric << " ";
         }
+
+        auto jsonString = runCommand("dramsys_metrics --json " + pathToTrace + " --metric " +
+                                     metricsStream.str());
+        nlohmann::json j = nlohmann::json::parse(jsonString);
+
+        if (!j.contains("metrics") || !j["metrics"].is_object())
+            return metrics;
+
+        for (auto const& [key, value] : j["metrics"].items())
+        {
+            if (value.is_number())
+            {
+                metrics.calculatedMetrics.push_back(TraceCalculatedMetrics::CalculatedMetric{
+                    key.c_str(), QString::number(value.get<double>(), 'f')});
+            }
+            else if (value.is_array())
+            {
+                QString result;
+                for (size_t i = 0; i < value.size(); ++i)
+                {
+                    result += QString::number(value[i].get<double>(), 'f');
+                    if (i + 1 < value.size())
+                        result += " ";
+                }
+                metrics.calculatedMetrics.push_back(
+                    TraceCalculatedMetrics::CalculatedMetric{key.c_str(), result});
+            }
+        }
+
+        return metrics;
     }
     catch (std::exception const& err)
     {
-        std::cout << err.what() << std::endl;
+        std::cout << err.what() << "\n";
     }
-
-    return metrics;
+    return {};
 }
 
-std::string PythonCaller::dumpVcd(std::string_view pathToTrace)
+std::string dumpVcd(std::string const& pathToTrace, std::string const& outputFilePath)
 {
     try
     {
-        pybind11::module_ vcdModule = pybind11::module_::import("dramsys.tools.vcdExport");
-        pybind11::str result = vcdModule.attr("dumpVcd")(pathToTrace);
-        return result.cast<std::string>();
+        auto res = runCommand("dramsys_vcd_export " + pathToTrace + " " + outputFilePath);
+        return res;
     }
     catch (std::exception const& err)
     {
-        std::cout << err.what() << std::endl;
+        std::cout << err.what() << "\n";
     }
-
     return {};
 }
+
+} // namespace PythonCaller

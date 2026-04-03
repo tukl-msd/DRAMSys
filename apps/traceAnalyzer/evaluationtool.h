@@ -43,7 +43,6 @@
 
 #include "selectmetrics.h"
 
-#include "businessObjects/pythoncaller.h"
 #include "businessObjects/tracecalculatedmetrics.h"
 #include <QList>
 #include <QStandardItem>
@@ -62,7 +61,7 @@ class EvaluationTool : public QWidget
     Q_OBJECT
 
 public:
-    explicit EvaluationTool(PythonCaller& pythonCaller, QWidget* parent = nullptr);
+    explicit EvaluationTool(QWidget* parent = nullptr);
     ~EvaluationTool();
 
     void showForFiles(QList<QString> paths);
@@ -70,7 +69,6 @@ public:
 
 private Q_SLOTS:
     void on_btn_calculateMetrics_clicked();
-    void on_btn_exportCSV_clicked();
     void on_btn_genPlots_clicked();
     void getSelectedMetrics();
 
@@ -78,15 +76,13 @@ private:
     void fillFileList(QList<QString> paths);
     void cleanUpUI();
     void genPlots();
-    void calculateMetrics(std::vector<long> selectedMetrics);
+    void calculateMetrics(std::vector<std::string> selectedMetrics);
     std::vector<std::string> getMetrics();
 
     Ui::EvaluationTool* ui;
     QStandardItemModel* traceFilesModel;
     std::vector<TraceCalculatedMetrics> calculatedMetrics;
     SelectMetrics* selectMetrics;
-
-    PythonCaller& pythonCaller;
 
     class TraceFileItem : public QStandardItem
     {

@@ -55,7 +55,6 @@
 #endif
 
 TraceFileTab::TraceFileTab(std::string_view traceFilePath,
-                           PythonCaller& pythonCaller,
                            QWidget* parent) :
     QWidget(parent),
     traceFilePath(traceFilePath),
@@ -67,7 +66,6 @@ TraceFileTab::TraceFileTab(std::string_view traceFilePath,
     availableRowsModel(new AvailableTracePlotLineModel(navigator->GeneralTraceInfo(), this)),
     selectedRowsModel(new SelectedTracePlotLineModel(navigator->GeneralTraceInfo(), this)),
     tracePlotLineDataSource(new TracePlotLineDataSource(selectedRowsModel, this)),
-    pythonCaller(pythonCaller),
     savingChangesToDB(false)
 {
     ui->setupUi(this);
@@ -109,10 +107,7 @@ void TraceFileTab::exportAsVCD()
     std::string filename =
         QFileDialog::getSaveFileName(this, "Export to VCD", "", "VCD files (*.vcd)").toStdString();
 
-    auto dump = PythonCaller::dumpVcd(traceFilePath);
-
-    std::ofstream file(filename);
-    file << dump;
+    PythonCaller::dumpVcd(traceFilePath, filename);
 
     Q_EMIT statusChanged(QString("VCD export finished."));
 }

@@ -29,7 +29,3 @@ This software uses the following third-party libraries:
 7. Google Benchmark v1.9.5
    License: Apache-2.0
    License URL: https://github.com/google/benchmark/blob/main/LICENSE
-
-8. Pybind11 v3.0.2
-   License: BSD-3-Clause
-   License URL: https://github.com/pybind/pybind11/blob/master/LICENSE

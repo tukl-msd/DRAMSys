@@ -45,21 +45,12 @@ TraceMetricTreeWidget::TraceMetricTreeWidget(QWidget* parent) : QTreeWidget(pare
 
 void TraceMetricTreeWidget::addTraceMetricResults(const TraceCalculatedMetrics& result)
 {
-    QTreeWidgetItem* top = new QTreeWidgetItem({result.getTraceName()});
+    QTreeWidgetItem* top = new QTreeWidgetItem({result.traceName});
     addTopLevelItem(top);
 
-    if (result.getCalculatedMetrics().empty())
+    for (auto const& calculatedMetric : result.calculatedMetrics)
     {
-        new QTreeWidgetItem(top, {QString("Number of threads: 1")});
-    }
-    else
-    {
-        for (CalculatedMetric calculatedMetric : result.getCalculatedMetrics())
-        {
-            new QTreeWidgetItem(top,
-                                {calculatedMetric.name.c_str() + QString(": ") +
-                                 QString::number(calculatedMetric.value, 'f')});
-        }
+        new QTreeWidgetItem(top, {(calculatedMetric.name + ": " + calculatedMetric.value)});
     }
 }
 

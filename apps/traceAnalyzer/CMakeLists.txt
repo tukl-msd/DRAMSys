@@ -38,27 +38,12 @@
 ###           TraceAnalyzer          ###
 ########################################
 
-option(DRAMSYS_USE_FETCH_CONTENT_PYBIND "Enable FetchContent to provide pybind11" ${DRAMSYS_USE_FETCH_CONTENT})
-
-if (DRAMSYS_USE_FETCH_CONTENT_PYBIND)
-    FetchContent_Declare(
-        pybind11
-        URL https://github.com/pybind/pybind11/archive/refs/tags/v3.0.2.tar.gz
-        OVERRIDE_FIND_PACKAGE
-    )
-
-    FetchContent_MakeAvailable(pybind11)
-endif()
-
 if (APPLE)
     set(Qt5_DIR "/opt/homebrew/opt/qt@5/lib/cmake/Qt5")
 endif(APPLE)
 
 find_package(Qt5 COMPONENTS Core Gui Widgets Sql REQUIRED)
 find_package(Qwt REQUIRED)
-
-find_package(Python3 COMPONENTS Development Interpreter REQUIRED)
-find_package(pybind11 REQUIRED)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
@@ -107,10 +92,10 @@ add_library(traceanalyzer_modules INTERFACE)
 target_link_libraries(TraceAnalyzer
     PUBLIC
         traceanalyzer_modules
-        pybind11::embed
         Qt5::Widgets
         Qt5::Sql
         Qwt::Qwt
+        nlohmann_json::nlohmann_json
 )
 
 install(TARGETS TraceAnalyzer)
