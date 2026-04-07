@@ -14,13 +14,6 @@ dependencies = [
 [project.optional-dependencies]
 extensions = ["dramsys-extensions"]
 
-[project.scripts]
-dramsys_metrics = "dramsys.analysis.metrics:main"
-dramsys_plots = "dramsys.analysis.plots:main"
-dramsys_tests = "dramsys.analysis.tests:main"
-dramsys_vcd_export = "dramsys.tools.vcdExport:main"
-dramsys_mkpkg = "dramsys.tools.packaging.mkpkg:main"
-
 [tool.uv.build-backend]
 module-name = "dramsys.simulation"
 
