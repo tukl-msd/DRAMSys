@@ -26,7 +26,6 @@ build:
     after_script:
         - find . -name "*.o" -type f -delete
         - find . -name "*.a" -type f -delete
-        - rm -r build/coverage/_deps
     artifacts:
         paths:
             - build/coverage
