@@ -239,7 +239,7 @@ if (DRAMSYS_USE_EXTENSIONS)
         endif()
         FetchContent_Declare(DRAMSysExtensions
             GIT_REPOSITORY "https://${EXTENSIONS_AUTH}erbenschell.iese.fraunhofer.de/dramsys/dramsys-extensions.git"
-            GIT_TAG 92cb429a6c5575e6351b075f7048a1fcd5d5fcb1
+            GIT_TAG 0adacfae0791f7fbd3056c97dd74d98c4407f554
         )
         FetchContent_MakeAvailable(DRAMSysExtensions)
     endif()
