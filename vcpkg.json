@@ -3,6 +3,7 @@
   "version": "5.5.0",
   "dependencies": [
     "systemc",
+    "nlohmann-json",
     {
       "name": "sqlite3",
       "features": [

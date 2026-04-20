@@ -169,6 +169,7 @@ endif()
 
 find_package(SQLite3 REQUIRED)
 find_package(DRAMUtils REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 ###############################################
 ###           Source Directory              ###
