@@ -474,10 +474,15 @@ void Controller::controllerMethod()
             {
                 scheduler->removeRequest(*trans);
                 manageRequests(config.thinkDelayFw);
+
+                sc_time phyDelayBwEff = trans->is_read()
+                                ? config.phyDelayBw
+                                : SC_ZERO_TIME;
+
                 respQueue->insertPayload(trans,
                                          sc_time_stamp() + config.phyDelayFw +
                                              memSpec.getIntervalOnDataStrobe(command, *trans).end +
-                                             config.phyDelayBw + config.thinkDelayBw);
+                                             phyDelayBwEff + config.thinkDelayBw);
 
                 sc_time triggerTime = respQueue->getTriggerTime();
                 if (triggerTime != scMaxTime)
