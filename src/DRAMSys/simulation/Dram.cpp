@@ -55,6 +55,8 @@
 
 #ifdef USE_DRAMPOWER
 #include <DRAMPower/command/Command.h>
+#include <DRAMPower/command/CmdType.h>
+#include <DRAMPower/dram/dram_base.h>
 #endif
 
 using namespace sc_core;
@@ -69,6 +71,7 @@ Dram::Dram(const sc_module_name& name,
            TlmRecorder* tlmRecorder) :
     sc_module(name),
     memSpec(memSpec),
+    powerAnalysis(simConfig.powerAnalysis),
     storeMode(simConfig.storeMode),
     channelSize(memSpec.getSimMemSizeInBytes() / memSpec.numberOfChannels),
     useMalloc(simConfig.useMalloc),
@@ -104,11 +107,11 @@ Dram::Dram(const sc_module_name& name,
     tSocket.register_b_transport(this, &Dram::b_transport);
     tSocket.register_transport_dbg(this, &Dram::transport_dbg);
 
-    if (simConfig.powerAnalysis)
+    if (powerAnalysis)
     {
 #ifdef USE_DRAMPOWER
         DRAMPower = memSpec.toDramPowerObject();
-        if (DRAMPower && storeMode == Config::StoreModeType::NoStorage) {
+        if (storeMode == Config::StoreModeType::NoStorage) {
             if (simConfig.togglingRate) {
                 DRAMPower->setToggleRate(0, simConfig.togglingRate);
             }
@@ -120,11 +123,11 @@ Dram::Dram(const sc_module_name& name,
             }
         }
 #else
-        SC_REPORT_WARNING("DRAM", "Power Analysis only supported when building with DRAMPower!");
+        SC_REPORT_FATAL("DRAM", "Power Analysis only supported when building with DRAMPower!");
 #endif
     }
 
-    if (simConfig.powerAnalysis && simConfig.enableWindowing)
+    if (powerAnalysis && simConfig.enableWindowing)
         SC_THREAD(powerWindow);
 }
 
@@ -136,9 +139,7 @@ Dram::~Dram()
 
 void Dram::reportPower()
 {
-    if (!DRAMPower)
-        return;
-
+#ifdef USE_DRAMPOWER
     double coreEnergy = DRAMPower->calcCoreEnergy(DRAMPower->getLastCommandTime()).total();
     double interfaceEnergy =
         DRAMPower->calcInterfaceEnergy(DRAMPower->getLastCommandTime()).total();
@@ -164,6 +165,7 @@ void Dram::reportPower()
     {
         tlmRecorder->recordPower(sc_time_stamp().to_seconds(), energy / time);
     }
+#endif
 }
 
 tlm_sync_enum
@@ -171,7 +173,8 @@ Dram::nb_transport_fw(tlm_generic_payload& trans, tlm_phase& phase, [[maybe_unus
 {
     assert(phase >= BEGIN_RD && phase <= END_SREF);
 
-    if (DRAMPower)
+#ifdef USE_DRAMPOWER
+    if (powerAnalysis)
     {
         auto rank = static_cast<std::size_t>(
             ControllerExtension::getRank(trans)); // relaitve to the channel
@@ -188,16 +191,17 @@ Dram::nb_transport_fw(tlm_generic_payload& trans, tlm_phase& phase, [[maybe_unus
         // banks are relative to the rank
         // bankgroups are relative to the rank
         bank = bank + (bank_group * memSpec.banksPerGroup);
-        
+
         DRAMPower::TargetCoordinate target(bank, bank_group, rank, row, column);
 
         // TODO read, write data for interface calculation
-        uint8_t * data = trans.get_data_ptr(); // Can be nullptr if no data
+        uint8_t* data = trans.get_data_ptr();               // Can be nullptr if no data
         std::size_t datasize = trans.get_data_length() * 8; // Is always set
 
         DRAMPower::Command command(cycle, phaseToDRAMPowerCommand(phase), target, data, datasize);
         DRAMPower->doCoreInterfaceCommand(command);
     }
+#endif
 
     // Strictly speaking, the DRAM should honor the delay value before executing the read or write
     // transaction in the memory. However, as the controller issues only a constant delay, this
@@ -325,6 +329,7 @@ void Dram::deserialize(std::istream& stream)
 
 void Dram::powerWindow()
 {
+#ifdef USE_DRAMPOWER
     int64_t clkCycles = 0;
     double previousEnergy = 0;
     double currentEnergy = 0;
@@ -361,6 +366,7 @@ void Dram::powerWindow()
                               std::to_string(windowEnergy / powerWindowSizeSeconds) +
                               std::string("\t[W]"));
     }
+#endif
 }
 
 } // namespace DRAMSys

@@ -124,19 +124,19 @@ target_compile_features(dramsys PUBLIC cxx_std_17)
 # DRAMSys module interface that modules can link against
 add_library(dramsys_modules INTERFACE)
 
-target_compile_definitions(dramsys
-    PUBLIC
-        $<$<BOOL:${DRAMPower_FOUND}>:USE_DRAMPOWER>
-)
-
 target_link_libraries(dramsys
     PUBLIC
         SystemC::systemc
         DRAMUtils::DRAMUtils
-        $<$<TARGET_EXISTS:DRAMPower::DRAMPower>:DRAMPower::DRAMPower>
     PRIVATE
         dramsys_modules
         SQLite::SQLite3
 )
+
+if (DRAMSYS_USE_DRAMPOWER)
+    find_package(DRAMPower REQUIRED)
+    target_link_libraries(dramsys PRIVATE DRAMPower::DRAMPower)
+    target_compile_definitions(dramsys PRIVATE USE_DRAMPOWER)
+endif()
 
 add_library(DRAMSys::DRAMSys ALIAS dramsys)

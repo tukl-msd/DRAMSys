@@ -48,9 +48,6 @@
 #include "DRAMSys/configuration/memspec/MemSpec.h"
 #include "DRAMSys/simulation/SimConfig.h"
 
-#include <DRAMPower/command/CmdType.h>
-#include <DRAMPower/dram/dram_base.h>
-
 #include <systemc>
 #include <tlm>
 #include <tlm_utils/simple_target_socket.h>
@@ -63,27 +60,31 @@ class Dram : public sc_core::sc_module, public Serialize, public Deserialize
 private:
     const MemSpec& memSpec;
 
+    bool powerAnalysis;
+
     // Data Storage:
-    const Config::StoreModeType storeMode;
+    Config::StoreModeType storeMode;
     unsigned char* memory;
-    const uint64_t channelSize;
-    const bool useMalloc;
+    uint64_t channelSize;
+    bool useMalloc;
 
     TlmRecorder* const tlmRecorder;
     sc_core::sc_time powerWindowSize;
 
+#ifdef USE_DRAMPOWER
     std::unique_ptr<DRAMPower::dram_base<DRAMPower::CmdType>> DRAMPower;
+#endif
 
     // This Thread is only triggered when Power Simulation is enabled.
     // It estimates the current average power which will be stored in the trace database for
     // visualization purposes.
     void powerWindow();
 
-    virtual tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans,
+    tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans,
                                                tlm::tlm_phase& phase,
                                                sc_core::sc_time& delay);
-    virtual void b_transport(tlm::tlm_generic_payload& trans, sc_core::sc_time& delay);
-    virtual unsigned int transport_dbg(tlm::tlm_generic_payload& trans);
+    void b_transport(tlm::tlm_generic_payload& trans, sc_core::sc_time& delay);
+    unsigned int transport_dbg(tlm::tlm_generic_payload& trans);
 
     void executeRead(tlm::tlm_generic_payload& trans) const;
     void executeWrite(const tlm::tlm_generic_payload& trans);
@@ -107,7 +108,7 @@ public:
 
     tlm_utils::simple_target_socket<Dram> tSocket{"tSocket"};
 
-    virtual void reportPower();
+    void reportPower();
 
     void serialize(std::ostream& stream) const override;
     void deserialize(std::istream& stream) override;

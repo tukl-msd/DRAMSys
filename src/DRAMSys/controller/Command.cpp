@@ -181,6 +181,7 @@ tlm_phase Command::toPhase() const
     return phaseOfCommand[type];
 }
 
+#ifdef USE_DRAMPOWER
 DRAMPower::CmdType phaseToDRAMPowerCommand(tlm_phase phase)
 {
     // TODO missing DSMEN, DSMEX
@@ -214,6 +215,7 @@ DRAMPower::CmdType phaseToDRAMPowerCommand(tlm_phase phase)
     };
     return phaseOfCommand[phase - BEGIN_NOP];
 }
+#endif
 
 bool Command::isBankCommand() const
 {

@@ -170,10 +170,6 @@ endif()
 find_package(SQLite3 REQUIRED)
 find_package(DRAMUtils REQUIRED)
 
-if (DRAMSYS_USE_DRAMPOWER)
-    find_package(DRAMPower REQUIRED)
-endif()
-
 ###############################################
 ###           Source Directory              ###
 ###############################################
