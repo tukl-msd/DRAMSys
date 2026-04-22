@@ -135,8 +135,8 @@ target_link_libraries(dramsys
 
 if (DRAMSYS_USE_DRAMPOWER)
     find_package(DRAMPower REQUIRED)
-    target_link_libraries(dramsys PRIVATE DRAMPower::DRAMPower)
-    target_compile_definitions(dramsys PRIVATE USE_DRAMPOWER)
+    target_link_libraries(dramsys PUBLIC DRAMPower::DRAMPower)
+    target_compile_definitions(dramsys PUBLIC USE_DRAMPOWER)
 endif()
 
 add_library(DRAMSys::DRAMSys ALIAS dramsys)
