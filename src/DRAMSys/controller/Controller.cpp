@@ -38,6 +38,7 @@
 
 #include "Controller.h"
 
+#include "DRAMSys/common/StandardMapping.h"
 #include "DRAMSys/common/dramExtensions.h"
 #include "DRAMSys/configuration/json/McConfig.h"
 #include "DRAMSys/controller/checker/CheckerDDR3.h"
@@ -46,6 +47,7 @@
 #include "DRAMSys/controller/checker/CheckerGDDR5X.h"
 #include "DRAMSys/controller/checker/CheckerGDDR6.h"
 #include "DRAMSys/controller/checker/CheckerHBM2.h"
+#include "DRAMSys/controller/checker/CheckerIF.h"
 #include "DRAMSys/controller/checker/CheckerLPDDR4.h"
 #include "DRAMSys/controller/checker/CheckerSTTMRAM.h"
 #include "DRAMSys/controller/checker/CheckerWideIO.h"
@@ -68,22 +70,26 @@
 #include "DRAMSys/controller/scheduler/SchedulerGrpFrFcfsWm.h"
 #include "DRAMSys/ecc/InlineEcc.h"
 
-#include <cstdint>
-#include <numeric>
-#include <string>
-
 #ifdef DDR5_SIM
 #include "DRAMSys/controller/checker/CheckerDDR5.h"
 #endif
+
 #ifdef LPDDR5_SIM
 #include "DRAMSys/controller/checker/CheckerLPDDR5.h"
 #endif
+
 #ifdef LPDDR6_SIM
 #include "DRAMSys/controller/checker/CheckerLPDDR6.h"
 #endif
+
 #ifdef HBM3_4_SIM
 #include "DRAMSys/controller/checker/CheckerHBM3_4.h"
 #endif
+
+#include <cstdint>
+#include <memory>
+#include <numeric>
+#include <string>
 
 using namespace sc_core;
 using namespace tlm;
@@ -93,6 +99,7 @@ namespace DRAMSys
 
 Controller::Controller(const sc_module_name& name,
                        const McConfig& config,
+                       const DRAMUtils::MemSpec::MemSpecVariant& memSpecVar,
                        const MemSpec& memSpec,
                        const SimConfig& simConfig,
                        const AddressDecoder& addressDecoder,
@@ -128,80 +135,25 @@ Controller::Controller(const sc_module_name& name,
     readyCommands.reserve(memSpec.banksPerChannel);
 
     // instantiate timing checker
-    try
-    {
-        if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecDDR3::id)
-        {
-            checker = std::make_unique<CheckerDDR3>(dynamic_cast<const MemSpecDDR3&>(memSpec));
+    checker = std::visit([this, &memSpec](const auto& v) -> std::unique_ptr<CheckerIF> {
+        using T = std::decay_t<decltype(v)>;
+        if constexpr (StandardMapping::has_CheckerType_v<T> && StandardMapping::has_MemSpecType_v<T>) {
+            using CheckerType = typename StandardMapping::Mapping<T>::CheckerType;
+            using MemSpecType = typename StandardMapping::Mapping<T>::MemSpecType;
+            try
+            {
+                return std::make_unique<CheckerType>(dynamic_cast<const MemSpecType&>(memSpec));
+            }
+            catch (const std::bad_cast& e)
+            {
+                // Indicates invalid mapping in DRAMSysMapping.h
+                SC_REPORT_FATAL(sc_module::name(), "Invalid Mapping");
+                return nullptr;
+            }
         }
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecDDR4::id)
-        {
-            checker = std::make_unique<CheckerDDR4>(dynamic_cast<const MemSpecDDR4&>(memSpec));
-        }
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecWideIO::id)
-        {
-            checker = std::make_unique<CheckerWideIO>(dynamic_cast<const MemSpecWideIO&>(memSpec));
-        }
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecLPDDR4::id)
-        {
-            checker = std::make_unique<CheckerLPDDR4>(dynamic_cast<const MemSpecLPDDR4&>(memSpec));
-        }
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecWideIO2::id)
-        {
-            checker =
-                std::make_unique<CheckerWideIO2>(dynamic_cast<const MemSpecWideIO2&>(memSpec));
-        }
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecHBM2::id)
-        {
-            checker = std::make_unique<CheckerHBM2>(dynamic_cast<const MemSpecHBM2&>(memSpec));
-        }
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecGDDR5::id)
-        {
-            checker = std::make_unique<CheckerGDDR5>(dynamic_cast<const MemSpecGDDR5&>(memSpec));
-        }
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecGDDR5X::id)
-        {
-            checker = std::make_unique<CheckerGDDR5X>(dynamic_cast<const MemSpecGDDR5X&>(memSpec));
-        }
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecGDDR6::id)
-        {
-            checker = std::make_unique<CheckerGDDR6>(dynamic_cast<const MemSpecGDDR6&>(memSpec));
-        }
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecSTTMRAM::id)
-        {
-            checker =
-                std::make_unique<CheckerSTTMRAM>(dynamic_cast<const MemSpecSTTMRAM&>(memSpec));
-        }
-#ifdef DDR5_SIM
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecDDR5::id)
-        {
-            checker = std::make_unique<CheckerDDR5>(dynamic_cast<const MemSpecDDR5&>(memSpec));
-        }
-#endif
-#ifdef LPDDR5_SIM
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecLPDDR5::id)
-        {
-            checker = std::make_unique<CheckerLPDDR5>(dynamic_cast<const MemSpecLPDDR5&>(memSpec));
-        }
-#endif
-#ifdef LPDDR6_SIM
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecLPDDR6::id)
-        {
-            checker = std::make_unique<CheckerLPDDR6>(dynamic_cast<const MemSpecLPDDR6&>(memSpec));
-        }
-#endif
-#ifdef HBM3_4_SIM
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecHBM3::id ||
-                 memSpec.memoryType == DRAMUtils::MemSpec::MemSpecHBM4::id)
-        {
-            checker = std::make_unique<CheckerHBM3_4>(dynamic_cast<const MemSpecHBM3_4&>(memSpec));
-        }
-#endif
-    }
-    catch (const std::bad_cast& e)
-    {
-        SC_REPORT_FATAL(sc_module::name(), "Wrong MemSpec chosen");
-    }
+        SC_REPORT_FATAL("Configuration", ("Unsupported DRAM type: " + std::string(T::id)).c_str());
+        return nullptr;
+    }, memSpecVar.getVariant());
 
     // instantiate scheduler and command mux
     if (config.scheduler == Config::SchedulerType::Fifo)

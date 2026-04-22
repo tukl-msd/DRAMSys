@@ -58,6 +58,9 @@ class AddressDecoder;
 class Arbiter;
 class Controller;
 class Dram;
+#ifdef USE_DRAMPOWER
+class DRAMPowerAdapter;
+#endif
 class DramATRecorder;
 class McConfig;
 class MemSpec;
@@ -107,6 +110,9 @@ private:
                                                   const McConfig& mcConfig,
                                                   const MemSpec& memSpec,
                                                   const AddressDecoder& addressDecoder);
+#ifdef USE_DRAMPOWER
+    void createDRAMPowers(const DRAMUtils::MemSpec::MemSpecVariant& memSpecVar);
+#endif
 
     void end_of_simulation() override;
 
@@ -129,6 +135,10 @@ private:
 
     // DRAM units
     std::vector<std::unique_ptr<Dram>> drams;
+
+#ifdef USE_DRAMPOWER
+    std::vector<std::unique_ptr<DRAMPowerAdapter>> DRAMPowers;
+#endif
 
     // Transaction Recorders (one per channel).
     // They generate the output databases.

@@ -44,14 +44,6 @@
 #include "DRAMSys/common/utils.h"
 #include "DRAMSys/controller/Command.h"
 
-#ifdef USE_DRAMPOWER
-#include "DRAMSys/power/DRAMPowerVariant.h"
-#include <DRAMPower/command/CmdType.h>
-#include <DRAMPower/dram/dram_base.h>
-#include <DRAMPower/simconfig/simconfig.h>
-#include <memory>
-#endif
-
 #include <cstddef>
 #include <string>
 #include <systemc>
@@ -96,8 +88,6 @@ public:
     // Clock
     sc_core::sc_time tCK;
 
-    std::string memoryType;
-
     [[nodiscard]] virtual sc_core::sc_time getRefreshIntervalAB() const;
     [[nodiscard]] virtual sc_core::sc_time getRefreshIntervalPB() const;
     [[nodiscard]] virtual sc_core::sc_time getRefreshIntervalP2B() const;
@@ -121,22 +111,6 @@ public:
     [[nodiscard]] sc_core::sc_time getCommandLength(Command command) const;
     [[nodiscard]] double getCommandLengthInCycles(Command command) const;
     [[nodiscard]] uint64_t getSimMemSizeInBytes() const;
-
-#ifdef USE_DRAMPOWER
-    /**
-     * @brief Creates the DRAMPower object if the standard is supported by DRAMPower.
-     * If the standard is not supported, a fatal error is reported and the simulation is aborted.
-     * @return unique_ptr to the DRAMPower object.
-     */
-    [[nodiscard]] virtual std::unique_ptr<DRAMPowerVariant>
-    toDramPowerObject(const DRAMPower::config::SimConfig&) const
-    {
-        SC_REPORT_FATAL("MemSpec", "DRAMPower does not support this memory standard");
-        sc_core::sc_abort();
-        // This line is never reached, but it is needed to avoid a compiler warning
-        return nullptr;
-    }
-#endif
 
 protected:
     [[nodiscard]] static bool allBytesEnabled(const tlm::tlm_generic_payload& trans)
@@ -198,7 +172,6 @@ protected:
         maxBytesPerBurst((maxBurstLength * dataBusWidth) / 8),
         maxDataBytesPerBurst(maxBytesPerBurst),
         tCK(sc_core::sc_time(memSpec.memtimingspec.tCK, TCK_UNIT)),
-        memoryType(memSpec.id),
         burstDuration(tCK * (static_cast<double>(defaultBurstLength) / dataRate))
 
     {

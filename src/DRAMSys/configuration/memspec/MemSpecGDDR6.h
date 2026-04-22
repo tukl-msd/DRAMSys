@@ -47,7 +47,7 @@
 namespace DRAMSys
 {
 
-struct MemSpecGDDR6 final : public MemSpec
+class MemSpecGDDR6 final : public MemSpec
 {
 public:
     explicit MemSpecGDDR6(const DRAMUtils::MemSpec::MemSpecGDDR6& memSpec);

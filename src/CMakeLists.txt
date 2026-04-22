@@ -93,6 +93,7 @@ add_library(dramsys
     DRAMSys/ecc/InlineEcc.cpp
     DRAMSys/ecc/OrinScheme.cpp
     DRAMSys/ecc/TwoLevelScheme.cpp
+    DRAMSys/power/DRAMPowerAdapter.cpp
     DRAMSys/simulation/AddressDecoder.cpp
     DRAMSys/simulation/Arbiter.cpp
     DRAMSys/simulation/Dram.cpp

@@ -61,6 +61,11 @@ SimConfig::SimConfig(const Config::SimConfig& simConfig) :
 
     if (windowSize == 0)
         SC_REPORT_FATAL("SimConfig", "Minimum window size is 1");
+
+    if (powerAnalysis && (Config::StoreModeType::NoStorage == storeMode) && (!togglingRate))
+        SC_REPORT_FATAL(
+            "SimConfig",
+            "Toggling rates for power estimation must be provided for storeMode NoStorage");
 }
 
 } // namespace DRAMSys

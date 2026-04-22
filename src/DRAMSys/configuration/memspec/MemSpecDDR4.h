@@ -40,10 +40,6 @@
 
 #include "DRAMSys/configuration/memspec/MemSpec.h"
 
-#ifdef USE_DRAMPOWER
-#include "DRAMSys/power/DRAMPowerVariant.h"
-#endif
-
 #include <DRAMUtils/memspec/standards/MemSpecDDR4.h>
 
 #include <systemc>
@@ -57,7 +53,6 @@ public:
     explicit MemSpecDDR4(const DRAMUtils::MemSpec::MemSpecDDR4& memSpec);
 
     // Memspec Variables:
-    const DRAMUtils::MemSpec::MemSpecDDR4& memSpec;
     const sc_core::sc_time tCKE;
     const sc_core::sc_time tPD;
     const sc_core::sc_time tCKESR;
@@ -100,10 +95,6 @@ public:
                             const tlm::tlm_generic_payload& payload) const override;
 
     [[nodiscard]] bool requiresMaskedWrite(const tlm::tlm_generic_payload& payload) const override;
-
-#ifdef USE_DRAMPOWER
-    [[nodiscard]] std::unique_ptr<DRAMPowerVariant> toDramPowerObject(const DRAMPower::config::SimConfig& config) const override;
-#endif
 };
 
 } // namespace DRAMSys

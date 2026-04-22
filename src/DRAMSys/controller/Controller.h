@@ -38,22 +38,23 @@
 #ifndef CONTROLLER_H
 #define CONTROLLER_H
 
-#include "BankMachine.h"
-#include "Command.h"
-#include "McConfig.h"
-#include "checker/CheckerIF.h"
-#include "cmdmux/CmdMuxIF.h"
-#include "powerdown/PowerDownManagerIF.h"
-#include "refresh/RefreshManagerIF.h"
-#include "respqueue/RespQueueIF.h"
+#include "DRAMSys/common/DebugManager.h"
 #include "DRAMSys/common/Deserialize.h"
+#include "DRAMSys/common/MemoryManager.h"
 #include "DRAMSys/common/Serialize.h"
-
 #include "DRAMSys/common/TlmRecorder.h"
+#include "DRAMSys/controller/BankMachine.h"
+#include "DRAMSys/controller/Command.h"
+#include "DRAMSys/controller/McConfig.h"
+#include "DRAMSys/controller/checker/CheckerIF.h"
+#include "DRAMSys/controller/cmdmux/CmdMuxIF.h"
+#include "DRAMSys/controller/powerdown/PowerDownManagerIF.h"
+#include "DRAMSys/controller/refresh/RefreshManagerIF.h"
+#include "DRAMSys/controller/respqueue/RespQueueIF.h"
+#include "DRAMSys/simulation/AddressDecoder.h"
 #include "DRAMSys/simulation/SimConfig.h"
-#include <DRAMSys/common/DebugManager.h>
-#include <DRAMSys/common/MemoryManager.h>
-#include <DRAMSys/simulation/AddressDecoder.h>
+
+#include <DRAMUtils/memspec/MemSpec.h>
 
 #include <functional>
 #include <systemc>
@@ -73,6 +74,7 @@ public:
     SC_HAS_PROCESS(Controller);
     Controller(const sc_core::sc_module_name& name,
                const McConfig& config,
+               const DRAMUtils::MemSpec::MemSpecVariant& memSpecVar,
                const MemSpec& memSpec,
                const SimConfig& simConfig,
                const AddressDecoder& addressDecoder,

@@ -42,7 +42,6 @@
 #include "Dram.h"
 
 #include "DRAMSys/common/DebugManager.h"
-#include "DRAMSys/common/TlmRecorder.h"
 
 #include <cassert>
 #include <cstdlib>
@@ -53,13 +52,6 @@
 #include <sys/mman.h>
 #endif
 
-#ifdef USE_DRAMPOWER
-#include <DRAMPower/simconfig/simconfig.h>
-#include <DRAMPower/command/Command.h>
-#include <DRAMPower/command/CmdType.h>
-#include <DRAMPower/dram/dram_base.h>
-#endif
-
 using namespace sc_core;
 using namespace tlm;
 
@@ -67,23 +59,14 @@ namespace DRAMSys
 {
 
 Dram::Dram(const sc_module_name& name,
+           std::size_t channel,
            const SimConfig& simConfig,
-           const MemSpec& memSpec,
-           TlmRecorder* tlmRecorder) :
+           const MemSpec& memSpec) :
     sc_module(name),
-    memSpec(memSpec),
-    powerAnalysis(simConfig.powerAnalysis),
     storeMode(simConfig.storeMode),
     channelSize(memSpec.getSimMemSizeInBytes() / memSpec.numberOfChannels),
     useMalloc(simConfig.useMalloc),
-    tlmRecorder(tlmRecorder),
-    powerWindowSize(memSpec.tCK * simConfig.windowSize)
-#ifdef USE_DRAMPOWER
-    , DRAMPower(simConfig.powerAnalysis
-        ? memSpec.toDramPowerObject(createDRAMPowerSimConfig(simConfig.storeMode, simConfig))
-        : nullptr
-    )
-#endif
+    channel(channel)
 {
     if (storeMode == Config::StoreModeType::Store)
     {
@@ -113,16 +96,6 @@ Dram::Dram(const sc_module_name& name,
     tSocket.register_nb_transport_fw(this, &Dram::nb_transport_fw);
     tSocket.register_b_transport(this, &Dram::b_transport);
     tSocket.register_transport_dbg(this, &Dram::transport_dbg);
-
-#ifndef USE_DRAMPOWER
-    if (powerAnalysis)
-    {
-        SC_REPORT_FATAL("DRAM", "Power Analysis only supported when building with DRAMPower!");
-    }
-#endif
-
-    if (powerAnalysis && simConfig.enableWindowing)
-        SC_THREAD(powerWindow);
 }
 
 Dram::~Dram()
@@ -131,78 +104,14 @@ Dram::~Dram()
         free(memory);
 }
 
-void Dram::reportPower()
-{
-#ifdef USE_DRAMPOWER
-    double coreEnergy = 0;
-    double interfaceEnergy = 0;
-    double energy = 0;
-    double time = 0;
-    std::visit([&coreEnergy, &interfaceEnergy, &energy, &time](auto& var){
-        coreEnergy = var.calcCoreEnergy(var.getLastCommandTime()).total();
-        interfaceEnergy = var.calcInterfaceEnergy(var.getLastCommandTime()).total();
-        energy = coreEnergy + interfaceEnergy;
-        time = var.getLastCommandTime();
-    }, *DRAMPower);
-    time *= memSpec.tCK.to_seconds();
-
-    // Print the final total energy and the average power for
-    // the simulation:
-    std::cout << name() << std::string("  Total Energy:   ") << std::defaultfloat
-              << std::setprecision(6) << energy << std::string(" J") << std::endl;
-
-    std::cout << name() << std::string("  Core Energy:   ") << std::defaultfloat
-              << std::setprecision(6) << coreEnergy << std::string(" J") << std::endl;
-
-    std::cout << name() << std::string("  Interface Energy:   ") << std::defaultfloat
-              << std::setprecision(6) << interfaceEnergy << std::string(" J") << std::endl;
-
-    std::cout << name() << std::string("  Average Power:  ") << std::defaultfloat
-              << std::setprecision(6) << energy / time << std::string(" W") << std::endl;
-
-    if (tlmRecorder != nullptr)
-    {
-        tlmRecorder->recordPower(sc_time_stamp().to_seconds(), energy / time);
-    }
-#endif
+void Dram::setDRAMPower(DRAMPowerAdapter* drampower) {
+    this->drampower = drampower;
 }
 
 tlm_sync_enum
 Dram::nb_transport_fw(tlm_generic_payload& trans, tlm_phase& phase, [[maybe_unused]] sc_time& delay)
 {
     assert(phase >= BEGIN_RD && phase <= END_SREF);
-
-#ifdef USE_DRAMPOWER
-    if (powerAnalysis)
-    {
-        auto rank = static_cast<std::size_t>(
-            ControllerExtension::getRank(trans)); // relaitve to the channel
-        auto bank_group_abs = static_cast<std::size_t>(
-            ControllerExtension::getBankGroup(trans)); // relative to the channel
-        auto bank_group = bank_group_abs - (rank * memSpec.groupsPerRank); // relative to the rank
-        auto bank = static_cast<std::size_t>(ControllerExtension::getBank(trans)) -
-                    (bank_group_abs * memSpec.banksPerGroup); // relative to the bank_group
-        auto row = static_cast<std::size_t>(ControllerExtension::getRow(trans));
-        auto column = static_cast<std::size_t>(ControllerExtension::getColumn(trans));
-        uint64_t cycle = std::lround((sc_time_stamp() + delay) / memSpec.tCK);
-
-        // DRAMPower:
-        // banks are relative to the rank
-        // bankgroups are relative to the rank
-        bank = bank + (bank_group * memSpec.banksPerGroup);
-
-        DRAMPower::TargetCoordinate target(bank, bank_group, rank, row, column);
-
-        // TODO read, write data for interface calculation
-        uint8_t* data = trans.get_data_ptr();               // Can be nullptr if no data
-        std::size_t datasize = trans.get_data_length() * 8; // Is always set
-
-        DRAMPower::Command command(cycle, phaseToDRAMPowerCommand(phase), target, data, datasize);
-        std::visit([&command](auto& var){
-            var.doCommand(command);
-        }, *DRAMPower);
-    }
-#endif
 
     // Strictly speaking, the DRAM should honor the delay value before executing the read or write
     // transaction in the memory. However, as the controller issues only a constant delay, this
@@ -221,6 +130,13 @@ Dram::nb_transport_fw(tlm_generic_payload& trans, tlm_phase& phase, [[maybe_unus
             executeWrite(trans);
         }
     }
+
+#ifdef USE_DRAMPOWER
+    if (nullptr != drampower)
+    {
+        drampower->handleTransaction(channel, trans, phase, delay);
+    }
+#endif
 
     return TLM_ACCEPTED;
 }
@@ -327,63 +243,5 @@ void Dram::deserialize(std::istream& stream)
 {
     stream.read(reinterpret_cast<char*>(memory), channelSize);
 }
-
-void Dram::powerWindow()
-{
-#ifdef USE_DRAMPOWER
-    int64_t clkCycles = 0;
-    double previousEnergy = 0;
-    double currentEnergy = 0;
-    double windowEnergy = 0;
-    double powerWindowSizeSeconds = powerWindowSize.to_seconds();
-
-    while (true)
-    {
-        // At the very beginning (zero clock cycles) the energy is 0, so we wait first
-        sc_module::wait(powerWindowSize);
-
-        clkCycles = std::lround(sc_time_stamp() / this->memSpec.tCK);
-
-        std::visit([&currentEnergy, &clkCycles](auto& var){
-            currentEnergy = var.getTotalEnergy(clkCycles);
-        }, *DRAMPower);
-        windowEnergy = currentEnergy - previousEnergy;
-        previousEnergy = currentEnergy;
-
-        // During operation the energy should never be zero since the device is always consuming
-        assert(!(windowEnergy < 1e-15));
-
-        if (tlmRecorder)
-        {
-            // Store the time (in seconds) and the current average power (in mW) into the database
-            tlmRecorder->recordPower(sc_time_stamp().to_seconds(),
-                                     windowEnergy / powerWindowSizeSeconds);
-        }
-
-        // Here considering that DRAMPower provides the energy in J and the power in W
-        PRINTDEBUGMESSAGE(this->name(),
-                          std::string("\tWindow Energy: \t") + std::to_string(windowEnergy) +
-                              std::string("\t[J]"));
-        PRINTDEBUGMESSAGE(this->name(),
-                          std::string("\tWindow Average Power: \t") +
-                              std::to_string(windowEnergy / powerWindowSizeSeconds) +
-                              std::string("\t[W]"));
-    }
-#endif
-}
-
-#ifdef USE_DRAMPOWER
-DRAMPower::config::SimConfig Dram::createDRAMPowerSimConfig(Config::StoreModeType storeMode, const SimConfig& simConfig)
-{
-    if ( (storeMode == Config::StoreModeType::NoStorage) && (!simConfig.togglingRate) ) {
-        SC_REPORT_FATAL(
-            "DRAM",
-            "Toggling rates for power estimation must be provided for storeMode NoStorage");
-    }
-    return DRAMPower::config::SimConfig {
-        storeMode == Config::StoreModeType::NoStorage ? simConfig.togglingRate : std::nullopt
-    };
-}
-#endif
 
 } // namespace DRAMSys

@@ -41,7 +41,6 @@
 
 
 #include <iostream>
-#include <utility>
 
 using namespace sc_core;
 using namespace tlm;
@@ -60,7 +59,6 @@ MemSpecLPDDR4::MemSpecLPDDR4(const DRAMUtils::MemSpec::MemSpecLPDDR4& memSpec) :
                 memSpec.memarchitecturespec.nbrOfRanks,
             memSpec.memarchitecturespec.nbrOfRanks,
             memSpec.memarchitecturespec.nbrOfDevices),
-    memSpec(memSpec),
     tREFI(tCK * memSpec.memtimingspec.REFI),
     tREFIpb(tCK * memSpec.memtimingspec.REFIpb),
     tRFCab(tCK * memSpec.memtimingspec.RFCab),
@@ -194,16 +192,5 @@ bool MemSpecLPDDR4::requiresMaskedWrite(const tlm::tlm_generic_payload& payload)
 {
     return !allBytesEnabled(payload);
 }
-
-#ifdef USE_DRAMPOWER
-[[nodiscard]] std::unique_ptr<DRAMPowerVariant> MemSpecLPDDR4::toDramPowerObject(const DRAMPower::config::SimConfig& config) const
-{
-    return std::make_unique<DRAMPowerVariant>(
-        std::in_place_type<DRAMPowerLPDDR4>,
-        memSpec,
-        config
-    );
-}
-#endif
 
 } // namespace DRAMSys

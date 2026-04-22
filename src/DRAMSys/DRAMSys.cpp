@@ -41,18 +41,19 @@
 
 #include "DRAMSys.h"
 
+#include "DRAMSys/common/DebugManager.h"
+#include "DRAMSys/common/DramATRecorder.h"
+#include "DRAMSys/common/StandardMapping.h"
+#include "DRAMSys/common/TlmATRecorder.h"
+#include "DRAMSys/common/utils.h"
+#include "DRAMSys/configuration/json/MemSpec.h"
 #include "DRAMSys/controller/Controller.h"
 #include "DRAMSys/controller/McConfig.h"
 #include "DRAMSys/simulation/AddressDecoder.h"
 #include "DRAMSys/simulation/Arbiter.h"
+#include "DRAMSys/simulation/Dram.h"
 #include "DRAMSys/simulation/SimConfig.h"
-#include <DRAMUtils/memspec/MemSpec.h>
 
-#include "DRAMSys/common/DebugManager.h"
-#include "DRAMSys/common/DramATRecorder.h"
-#include "DRAMSys/common/TlmATRecorder.h"
-#include "DRAMSys/common/utils.h"
-#include "DRAMSys/configuration/json/MemSpec.h"
 #include "DRAMSys/configuration/memspec/MemSpecDDR3.h"
 #include "DRAMSys/configuration/memspec/MemSpecDDR4.h"
 #include "DRAMSys/configuration/memspec/MemSpecGDDR5.h"
@@ -63,20 +64,28 @@
 #include "DRAMSys/configuration/memspec/MemSpecSTTMRAM.h"
 #include "DRAMSys/configuration/memspec/MemSpecWideIO.h"
 #include "DRAMSys/configuration/memspec/MemSpecWideIO2.h"
-#include "DRAMSys/simulation/Dram.h"
 
 #ifdef DDR5_SIM
 #include "DRAMSys/configuration/memspec/MemSpecDDR5.h"
 #endif
+
 #ifdef LPDDR5_SIM
 #include "DRAMSys/configuration/memspec/MemSpecLPDDR5.h"
 #endif
+
 #ifdef LPDDR6_SIM
 #include "DRAMSys/configuration/memspec/MemSpecLPDDR6.h"
 #endif
+
 #ifdef HBM3_4_SIM
 #include "DRAMSys/configuration/memspec/MemSpecHBM3_4.h"
 #endif
+
+#ifdef USE_DRAMPOWER
+#include "DRAMSys/power/DRAMPowerAdapter.h"
+#endif
+
+#include <DRAMUtils/memspec/MemSpec.h>
 
 #include <cstdlib>
 #include <iostream>
@@ -103,6 +112,11 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
     // Setup the debug manager:
     setupDebugManager(simConfig->simulationName);
 
+#ifndef USE_DRAMPOWER
+    if (simConfig->powerAnalysis)
+        SC_REPORT_FATAL("DRAMSys", "Power Analysis only supported when building with DRAMPower!");
+#endif
+
     // Instantiate all internal DRAMSys modules:
     if (simConfig->databaseRecording)
     {
@@ -120,13 +134,14 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
             controllers.emplace_back(
                 std::make_unique<Controller>(("controller" + std::to_string(i)).c_str(),
                                              *mcConfig,
+                                             config.memspec,
                                              *memSpec,
                                              *simConfig,
                                              *addressDecoder,
                                              &tlmRecorders[i]));
 
             drams.emplace_back(std::make_unique<Dram>(
-                ("dram" + std::to_string(i)).c_str(), *simConfig, *memSpec, &tlmRecorders[i]));
+                ("dram" + std::to_string(i)).c_str(), i, *simConfig, *memSpec));
 
             // Not recording bandwidth between Arbiter - Controller
             tlmATRecorders.emplace_back(
@@ -152,15 +167,24 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
             controllers.emplace_back(
                 std::make_unique<Controller>(("controller" + std::to_string(i)).c_str(),
                                              *mcConfig,
+                                             config.memspec,
                                              *memSpec,
                                              *simConfig,
                                              *addressDecoder,
                                              nullptr));
 
             drams.emplace_back(std::make_unique<Dram>(
-                ("dram" + std::to_string(i)).c_str(), *simConfig, *memSpec, nullptr));
+                ("dram" + std::to_string(i)).c_str(), i, *simConfig, *memSpec));
         }
     }
+
+    // Create DRAMPowerAdapters
+#ifdef USE_DRAMPOWER
+    if (simConfig->powerAnalysis)
+    {
+        createDRAMPowers(config.memspec);
+    }
+#endif
 
     // Connect all internal DRAMSys modules:
     // If database recording is enabled, then the tlmRecorders are placed
@@ -247,11 +271,13 @@ void DRAMSys::registerIdleCallback(const std::function<void()>& idleCallback)
 
 void DRAMSys::end_of_simulation()
 {
+#ifdef USE_DRAMPOWER
     if (simConfig->powerAnalysis)
     {
-        for (auto& dram : drams)
-            dram->reportPower();
+        for (auto& DRAMPower : DRAMPowers)
+            DRAMPower->reportPower();
     }
+#endif
 
     if (simConfig->databaseRecording)
     {
@@ -307,56 +333,56 @@ DRAMSys::createMemSpec(const DRAMUtils::MemSpec::MemSpecVariant& memSpec)
         [](const auto& v) -> std::unique_ptr<const MemSpec>
         {
             using T = std::decay_t<decltype(v)>;
-
-            if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecDDR3>)
-                return std::make_unique<const MemSpecDDR3>(v);
-            else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecDDR4>)
-                return std::make_unique<const MemSpecDDR4>(v);
-            else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecLPDDR4>)
-                return std::make_unique<const MemSpecLPDDR4>(v);
-            else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecWideIO>)
-                return std::make_unique<const MemSpecWideIO>(v);
-            else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecWideIO2>)
-                return std::make_unique<const MemSpecWideIO2>(v);
-            else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecHBM2>)
-                return std::make_unique<const MemSpecHBM2>(v);
-            else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecGDDR5>)
-                return std::make_unique<const MemSpecGDDR5>(v);
-            else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecGDDR5X>)
-                return std::make_unique<const MemSpecGDDR5X>(v);
-            else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecGDDR6>)
-                return std::make_unique<const MemSpecGDDR6>(v);
-            else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecSTTMRAM>)
-                return std::make_unique<const MemSpecSTTMRAM>(v);
-#ifdef DDR5_SIM
-            else if constexpr ((std::is_same_v<T, DRAMUtils::MemSpec::MemSpecDDR5>))
-                return std::make_unique<const MemSpecDDR5>(v);
-#endif
-#ifdef LPDDR5_SIM
-            else if constexpr ((std::is_same_v<T, DRAMUtils::MemSpec::MemSpecLPDDR5>))
-            {
-                return std::make_unique<const MemSpecLPDDR5>(v);
+            if constexpr (StandardMapping::has_MemSpecType_v<T>) {
+                using Impl = typename StandardMapping::Mapping<T>::MemSpecType;
+                return std::make_unique<const Impl>(v);
             }
-#endif
-#ifdef LPDDR6_SIM
-            else if constexpr ((std::is_same_v<T, DRAMUtils::MemSpec::MemSpecLPDDR6>))
-            {
-                return std::make_unique<const MemSpecLPDDR6>(v);
-            }
-#endif
-#ifdef HBM3_4_SIM
-            else if constexpr (std::is_same_v<T, DRAMUtils::MemSpec::MemSpecHBM3> ||
-                               std::is_same_v<T, DRAMUtils::MemSpec::MemSpecHBM4>)
-                return std::make_unique<const MemSpecHBM3_4>(v);
-#endif
-            else
-            {
-                SC_REPORT_FATAL("Configuration", "Unsupported DRAM type");
-                return nullptr;
-            }
+            SC_REPORT_FATAL("Configuration", ("Unsupported DRAM type: " + std::string(T::id)).c_str());
+            return nullptr;
         },
         memSpec.getVariant());
 }
+
+#ifdef USE_DRAMPOWER
+void DRAMSys::createDRAMPowers(const DRAMUtils::MemSpec::MemSpecVariant& memSpecVar)
+{
+    // DRAMPower SimConfig
+    auto drampowerSimConfig = DRAMPower::config::SimConfig {
+        simConfig->storeMode == Config::StoreModeType::NoStorage ? simConfig->togglingRate : std::nullopt
+    };
+
+    // DRAMPowerAdapter generator
+    auto generator = [this, &memSpecVar, &drampowerSimConfig] (std::size_t channel, TlmRecorder* recorder) -> std::unique_ptr<DRAMPowerAdapter> {
+        std::unique_ptr<DRAMPowerAdapter> adapter = std::visit(
+            [this, &drampowerSimConfig, recorder, channel](const auto& var) -> std::unique_ptr<DRAMPowerAdapter> {
+            using T = std::decay_t<decltype(var)>;
+            if constexpr (StandardMapping::has_PowerType_v<T>) {
+                using Impl = typename StandardMapping::Mapping<T>::PowerType;
+                return std::make_unique<DRAMPowerAdapter>(
+                    ("drampoweradapter" + std::to_string(channel)).c_str(), Impl(var, drampowerSimConfig),
+                    *simConfig, *memSpec, recorder
+                );
+            }
+            SC_REPORT_FATAL("DRAMSys", "Standard does not support the power analysis");
+            return nullptr;
+        }, memSpecVar.getVariant());
+        return adapter;
+    };
+
+    // Create DRAMPowerAdapters
+    DRAMPowerAdapter* lastAdapter = nullptr;
+    for (std::size_t i = 0; i < memSpec->numberOfChannels; ++i)
+    {
+        auto* recorder = simConfig->databaseRecording ? &tlmRecorders[i] : nullptr;
+        if (auto drampower = generator(i, recorder))
+        {
+            lastAdapter = drampower.get();
+            DRAMPowers.emplace_back(std::move(drampower));
+        }
+        drams[i]->setDRAMPower(lastAdapter);
+    }
+}
+#endif
 
 std::unique_ptr<Arbiter> DRAMSys::createArbiter(const SimConfig& simConfig,
                                                 const McConfig& mcConfig,
