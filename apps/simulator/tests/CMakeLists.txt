@@ -1,6 +1,4 @@
-###############################################
-###             tests_simulator             ###
-###############################################
+find_package(GTest REQUIRED)
 
 add_executable(tests_simulator
     main.cpp

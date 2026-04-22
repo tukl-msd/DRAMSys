@@ -35,13 +35,11 @@
 
 #include "AddressDecoderConfigs.h"
 
-#include "gtest/gtest-spi.h"
 #include <gtest/gtest.h>
+#include <nlohmann/json.hpp>
 
+#include <DRAMSys/configuration/memspec/MemSpecDDR4.h>
 #include <DRAMSys/simulation/AddressDecoder.h>
-
-#include "DRAMSys/configuration/memspec/MemSpec.h"
-#include "DRAMSys/configuration/memspec/MemSpecDDR4.h"
 
 class AddressDecoderFixture : public ::testing::Test
 {

@@ -184,16 +184,14 @@ if(DRAMSYS_BUILD_TESTS)
     include(GoogleTest)
 
     if (DRAMSYS_USE_FETCH_CONTENT_GOOGLE_TEST)
-        FetchContent_Declare(
-        GTest
-        URL https://github.com/google/googletest/releases/download/v1.17.0/googletest-1.17.0.tar.gz
-        OVERRIDE_FIND_PACKAGE
-    )
+            FetchContent_Declare(
+            GTest
+            URL https://github.com/google/googletest/releases/download/v1.17.0/googletest-1.17.0.tar.gz
+            OVERRIDE_FIND_PACKAGE
+        )
 
         FetchContent_MakeAvailable(GTest)
     endif()
-
-    find_package(GTest REQUIRED)
 
     add_subdirectory(tests)
 endif()
