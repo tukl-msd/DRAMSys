@@ -12,3 +12,4 @@ build*/
 .env
 CMakeUserPresets.json
 extensions/
+*.code-workspace
