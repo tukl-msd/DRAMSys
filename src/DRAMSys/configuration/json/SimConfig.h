@@ -82,7 +82,6 @@ struct SimConfig
     std::optional<bool> SimulationProgressBar;
     std::optional<StoreModeType> StoreMode;
     std::optional<bool> ThermalSimulation;
-    std::optional<bool> UseMalloc;
     std::optional<unsigned int> WindowSize;
     std::optional<double> SimulationTime;
     std::optional<DRAMUtils::Config::ToggleRateDefinition> TogglingRate;
@@ -98,7 +97,6 @@ NLOHMANN_JSONIFY_ALL_THINGS(SimConfig,
                             SimulationProgressBar,
                             StoreMode,
                             ThermalSimulation,
-                            UseMalloc,
                             WindowSize,
                             SimulationTime,
                             TogglingRate)

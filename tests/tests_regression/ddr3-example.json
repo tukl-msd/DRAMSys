@@ -128,7 +128,6 @@
             "SimulationProgressBar": true,
             "StoreMode": "NoStorage",
             "ThermalSimulation": false,
-            "UseMalloc": false,
             "WindowSize": 1000
         },
         "simulationid": "ddr3-dual-rank",

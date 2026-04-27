@@ -8,7 +8,6 @@
         "SimulationName": "gem5_se",
         "SimulationProgressBar": true,
         "StoreMode": "Store",
-        "UseMalloc": false,
         "WindowSize": 1000
     }
 }

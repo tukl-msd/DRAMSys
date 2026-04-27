@@ -65,7 +65,6 @@ private:
     Config::StoreModeType storeMode;
     unsigned char* memory;
     uint64_t channelSize;
-    bool useMalloc;
     std::size_t channel;
 
     tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans,
@@ -88,11 +87,6 @@ public:
          const SimConfig& simConfig,
          const MemSpec& memSpec);
 
-    Dram(const Dram&) = delete;
-    Dram(Dram&&) = delete;
-    Dram& operator=(const Dram&) = delete;
-    Dram& operator=(Dram&&) = delete;
-    ~Dram() override;
 
 #ifdef USE_DRAMPOWER
     void setDRAMPower(DRAMPowerAdapter* drampower);

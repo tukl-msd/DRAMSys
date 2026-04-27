@@ -181,7 +181,6 @@
             "SimulationProgressBar": true,
             "StoreMode": "NoStorage",
             "ThermalSimulation": false,
-            "UseMalloc": false,
             "WindowSize": 1000
         },
         "simulationid": "lpddr4-example",

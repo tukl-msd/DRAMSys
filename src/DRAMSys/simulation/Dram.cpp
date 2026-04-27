@@ -65,32 +65,22 @@ Dram::Dram(const sc_module_name& name,
     sc_module(name),
     storeMode(simConfig.storeMode),
     channelSize(memSpec.getSimMemSizeInBytes() / memSpec.numberOfChannels),
-    useMalloc(simConfig.useMalloc),
     channel(channel)
 {
     if (storeMode == Config::StoreModeType::Store)
     {
-        if (useMalloc)
-        {
-            memory = (unsigned char*)malloc(channelSize);
-            if (memory == nullptr)
-                SC_REPORT_FATAL(this->name(), "Memory allocation failed");
-        }
-        else
-        {
 // allocate and model storage of one DRAM channel using memory map
 #ifdef _WIN32
-            SC_REPORT_FATAL("Dram", "On Windows Storage is not yet supported");
-            memory = 0; // FIXME
+        SC_REPORT_FATAL("Dram", "On Windows Storage is not yet supported");
+        memory = 0; // FIXME
 #else
-            memory = (unsigned char*)mmap(nullptr,
-                                          channelSize,
-                                          PROT_READ | PROT_WRITE,
-                                          MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
-                                          -1,
-                                          0);
+        memory = (unsigned char*)mmap(nullptr,
+                                      channelSize,
+                                      PROT_READ | PROT_WRITE,
+                                      MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
+                                      -1,
+                                      0);
 #endif
-        }
     }
 
     tSocket.register_nb_transport_fw(this, &Dram::nb_transport_fw);
@@ -98,11 +88,6 @@ Dram::Dram(const sc_module_name& name,
     tSocket.register_transport_dbg(this, &Dram::transport_dbg);
 }
 
-Dram::~Dram()
-{
-    if (useMalloc)
-        free(memory);
-}
 
 void Dram::setDRAMPower(DRAMPowerAdapter* drampower) {
     this->drampower = drampower;

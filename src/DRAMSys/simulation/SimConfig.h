@@ -57,7 +57,6 @@ struct SimConfig
     unsigned int windowSize;
     bool debug;
     bool simulationProgressBar;
-    bool useMalloc;
     unsigned long long int addressOffset;
     Config::StoreModeType storeMode;
     std::optional<DRAMUtils::Config::ToggleRateDefinition> togglingRate;
@@ -69,7 +68,6 @@ struct SimConfig
     static constexpr unsigned int DEFAULT_WINDOW_SIZE = 1000;
     static constexpr bool DEFAULT_DEBUG = false;
     static constexpr bool DEFAULT_SIMULATION_PROGRESS_BAR = false;
-    static constexpr bool DEFAULT_USE_MALLOC = false;
     static constexpr unsigned long long int DEFAULT_ADDRESS_OFFSET = 0;
     static constexpr Config::StoreModeType DEFAULT_STORE_MODE = Config::StoreModeType::NoStorage;
 };

@@ -164,7 +164,6 @@ The content of [ddr3.json](simconfig/example.json) is presented below as an exam
         "EnableWindowing": false,
         "WindowSize": 1000,
         "SimulationProgressBar": true,
-        "UseMalloc": false,
         "AddressOffset": 0,
         "StoreMode": "NoStorage"
     }
@@ -193,9 +192,6 @@ The content of [ddr3.json](simconfig/example.json) is presented below as an exam
 - *SimulationProgressBar* (boolean)
     - true: enables the simulation progress bar
     - false: disables the simulation progress bar
-- *UseMalloc* (boolean)
-    - false: model storage using mmap() (DEFAULT)
-    - true: allocate memory for modeling storage using malloc()
 - *AddressOffset* (unsigned int)
     - Address offset of the DRAM subsystem (required for the gem5 coupling).
 - *StoreMode* (string)

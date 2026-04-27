@@ -122,7 +122,6 @@
             "SimulationName": "example",
             "SimulationProgressBar": true,
             "StoreMode": "NoStorage",
-            "UseMalloc": false,
             "WindowSize": 1000,
             "SimulationTime": 50e-6
         },

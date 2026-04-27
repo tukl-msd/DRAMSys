@@ -51,7 +51,6 @@ SimConfig::SimConfig(const Config::SimConfig& simConfig) :
     debug(simConfig.Debug.value_or(DEFAULT_DEBUG)),
     simulationProgressBar(
         simConfig.SimulationProgressBar.value_or(DEFAULT_SIMULATION_PROGRESS_BAR)),
-    useMalloc(simConfig.UseMalloc.value_or(DEFAULT_USE_MALLOC)),
     addressOffset(simConfig.AddressOffset.value_or(DEFAULT_ADDRESS_OFFSET)),
     storeMode(simConfig.StoreMode.value_or(DEFAULT_STORE_MODE)),
     togglingRate(simConfig.TogglingRate)
