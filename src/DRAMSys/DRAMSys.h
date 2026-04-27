@@ -43,6 +43,7 @@
 #define DRAMSYS_H
 
 #include "DRAMSys/configuration/json/DRAMSysConfiguration.h"
+#include "DRAMSys/simulation/Dram.h"
 
 #include <memory>
 #include <string>
@@ -57,7 +58,6 @@ namespace DRAMSys
 class AddressDecoder;
 class Arbiter;
 class Controller;
-class Dram;
 #ifdef USE_DRAMPOWER
 class DRAMPowerAdapter;
 #endif
@@ -133,8 +133,8 @@ private:
     // Each DRAM unit has a controller
     std::vector<std::unique_ptr<Controller>> controllers;
 
-    // DRAM units
-    std::vector<std::unique_ptr<Dram>> drams;
+    // DRAM unit
+    Dram dram;
 
 #ifdef USE_DRAMPOWER
     std::vector<std::unique_ptr<DRAMPowerAdapter>> DRAMPowers;

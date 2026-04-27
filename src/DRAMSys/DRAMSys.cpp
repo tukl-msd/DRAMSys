@@ -103,7 +103,8 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
     simConfig(std::make_unique<SimConfig>(config.simconfig)),
     mcConfig(std::make_unique<McConfig>(config.mcconfig, *memSpec)),
     addressDecoder(std::make_unique<AddressDecoder>(config.addressmapping)),
-    arbiter(createArbiter(*simConfig, *mcConfig, *memSpec, *addressDecoder))
+    arbiter(createArbiter(*simConfig, *mcConfig, *memSpec, *addressDecoder)),
+    dram(memSpec->getSimMemSizeInBytes())
 {
     logo();
     addressDecoder->plausibilityCheck(*memSpec);
@@ -140,9 +141,6 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
                                              *addressDecoder,
                                              &tlmRecorders[i]));
 
-            drams.emplace_back(std::make_unique<Dram>(
-                ("dram" + std::to_string(i)).c_str(), i, *simConfig, *memSpec));
-
             // Not recording bandwidth between Arbiter - Controller
             tlmATRecorders.emplace_back(
                 std::make_unique<TlmATRecorder>(("TlmATRecorder" + std::to_string(i)).c_str(),
@@ -172,9 +170,6 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
                                              *simConfig,
                                              *addressDecoder,
                                              nullptr));
-
-            drams.emplace_back(std::make_unique<Dram>(
-                ("dram" + std::to_string(i)).c_str(), i, *simConfig, *memSpec));
         }
     }
 
@@ -202,16 +197,26 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
             arbiter->iSocket.bind(controllers[i]->tSocket);
         }
 
-        if (simConfig->databaseRecording)
+        auto traceCallback = [this, i](tlm::tlm_generic_payload const& trans,
+                                       tlm::tlm_phase const& phase,
+                                       sc_core::sc_time const& delay)
         {
-            // Controller <--> tlmRecorder <--> Dram
-            controllers[i]->iSocket.bind(dramATRecorders[i]->tSocket);
-            dramATRecorders[i]->iSocket.bind(drams[i]->tSocket);
+            if (simConfig->databaseRecording)
+                dramATRecorders[i]->record(trans, phase, delay);
+
+            if (simConfig->powerAnalysis)
+                DRAMPowers[i]->handleTransaction(i, trans, phase, delay);
+        };
+
+        if (simConfig->databaseRecording || simConfig->powerAnalysis)
+        {
+            controllers[i]->registerTraceCallback(traceCallback);
         }
-        else
+
+        if (simConfig->storageEnabled)
         {
-            // Controller <--> Dram
-            controllers[i]->iSocket.bind(drams[i]->tSocket);
+            controllers[i]->registerAccessCallback([this](tlm::tlm_generic_payload& trans)
+                                                   { dram.access(trans); });
         }
     }
 
@@ -326,6 +331,7 @@ void DRAMSys::report()
     std::cout << headline << std::endl;
 }
 
+
 std::unique_ptr<const MemSpec>
 DRAMSys::createMemSpec(const DRAMUtils::MemSpec::MemSpecVariant& memSpec)
 {
@@ -347,9 +353,8 @@ DRAMSys::createMemSpec(const DRAMUtils::MemSpec::MemSpecVariant& memSpec)
 void DRAMSys::createDRAMPowers(const DRAMUtils::MemSpec::MemSpecVariant& memSpecVar)
 {
     // DRAMPower SimConfig
-    auto drampowerSimConfig = DRAMPower::config::SimConfig {
-        simConfig->storeMode == Config::StoreModeType::NoStorage ? simConfig->togglingRate : std::nullopt
-    };
+    auto drampowerSimConfig =
+        DRAMPower::config::SimConfig{simConfig->storageEnabled ? std::nullopt : simConfig->togglingRate};
 
     // DRAMPowerAdapter generator
     auto generator = [this, &memSpecVar, &drampowerSimConfig] (std::size_t channel, TlmRecorder* recorder) -> std::unique_ptr<DRAMPowerAdapter> {
@@ -370,16 +375,10 @@ void DRAMSys::createDRAMPowers(const DRAMUtils::MemSpec::MemSpecVariant& memSpec
     };
 
     // Create DRAMPowerAdapters
-    DRAMPowerAdapter* lastAdapter = nullptr;
     for (std::size_t i = 0; i < memSpec->numberOfChannels; ++i)
     {
         auto* recorder = simConfig->databaseRecording ? &tlmRecorders[i] : nullptr;
-        if (auto drampower = generator(i, recorder))
-        {
-            lastAdapter = drampower.get();
-            DRAMPowers.emplace_back(std::move(drampower));
-        }
-        drams[i]->setDRAMPower(lastAdapter);
+        DRAMPowers.emplace_back(generator(i, recorder));
     }
 }
 #endif

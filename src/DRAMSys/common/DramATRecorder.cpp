@@ -6,10 +6,10 @@ namespace DRAMSys
 {
 
 DramATRecorder::DramATRecorder(const sc_core::sc_module_name& name,
-                                 const SimConfig& simConfig,
-                                 const MemSpec& memSpec,
-                                 TlmRecorder& tlmRecorder,
-                                 bool enableBandwidth) :
+                               const SimConfig& simConfig,
+                               const MemSpec& memSpec,
+                               TlmRecorder& tlmRecorder,
+                               bool enableBandwidth) :
     sc_module(name),
     tlmRecorder(tlmRecorder),
     enableWindowing(simConfig.enableWindowing),
@@ -20,20 +20,15 @@ DramATRecorder::DramATRecorder(const sc_core::sc_module_name& name,
     activeTimeMultiplier(memSpec.tCK / memSpec.dataRate),
     enableBandwidth(enableBandwidth)
 {
-    iSocket.register_nb_transport_bw(this, &DramATRecorder::nb_transport_bw);
-    tSocket.register_nb_transport_fw(this, &DramATRecorder::nb_transport_fw);
-    tSocket.register_b_transport(this, &DramATRecorder::b_transport);
-    tSocket.register_transport_dbg(this, &DramATRecorder::transport_dbg);
-
     if (enableBandwidth && enableWindowing)
     {
         SC_THREAD(recordBandwidth);
     }
 }
 
-tlm::tlm_sync_enum DramATRecorder::nb_transport_fw(tlm::tlm_generic_payload& trans,
-                                                    tlm::tlm_phase& phase,
-                                                    sc_core::sc_time& delay)
+void DramATRecorder::record(tlm::tlm_generic_payload const& trans,
+                            tlm::tlm_phase const& phase,
+                            sc_core::sc_time const& delay)
 {
     if (enableBandwidth && enableWindowing)
     {
@@ -47,30 +42,11 @@ tlm::tlm_sync_enum DramATRecorder::nb_transport_fw(tlm::tlm_generic_payload& tra
     }
 
     tlmRecorder.recordPhase(trans, phase, delay);
-    return iSocket->nb_transport_fw(trans, phase, delay);
-}
-
-tlm::tlm_sync_enum DramATRecorder::nb_transport_bw(tlm::tlm_generic_payload& trans,
-                                                    tlm::tlm_phase& phase,
-                                                    sc_core::sc_time& delay)
-{
-    tlmRecorder.recordPhase(trans, phase, delay);
-    return tSocket->nb_transport_bw(trans, phase, delay);
-}
-
-void DramATRecorder::b_transport(tlm::tlm_generic_payload& trans, sc_core::sc_time& delay)
-{
-    iSocket->b_transport(trans, delay);
-}
-
-unsigned int DramATRecorder::transport_dbg(tlm::tlm_generic_payload& trans)
-{
-    return iSocket->transport_dbg(trans);
 }
 
 void DramATRecorder::recordBandwidth()
 {
-    while (true) 
+    while (true)
     {
         wait(windowSizeTime);
 

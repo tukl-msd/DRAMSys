@@ -40,8 +40,8 @@
 #include <DRAMSys/configuration/json/SimConfig.h>
 #include <DRAMUtils/config/toggling_rate.h>
 
-#include <string>
 #include <optional>
+#include <string>
 
 namespace DRAMSys
 {
@@ -58,7 +58,7 @@ struct SimConfig
     bool debug;
     bool simulationProgressBar;
     unsigned long long int addressOffset;
-    Config::StoreModeType storeMode;
+    bool storageEnabled = DEFAULT_STORAGE_ENABLED;
     std::optional<DRAMUtils::Config::ToggleRateDefinition> togglingRate;
 
     static constexpr std::string_view DEFAULT_SIMULATION_NAME = "default";
@@ -69,7 +69,7 @@ struct SimConfig
     static constexpr bool DEFAULT_DEBUG = false;
     static constexpr bool DEFAULT_SIMULATION_PROGRESS_BAR = false;
     static constexpr unsigned long long int DEFAULT_ADDRESS_OFFSET = 0;
-    static constexpr Config::StoreModeType DEFAULT_STORE_MODE = Config::StoreModeType::NoStorage;
+    static constexpr bool DEFAULT_STORAGE_ENABLED = false;
 };
 
 } // namespace DRAMSys

@@ -18,23 +18,15 @@ class DramATRecorder : public sc_core::sc_module
     SC_HAS_PROCESS(DramATRecorder);
 
 public:
-    tlm_utils::simple_initiator_socket<DramATRecorder> iSocket;
-    tlm_utils::simple_target_socket<DramATRecorder> tSocket;
-
     DramATRecorder(const sc_core::sc_module_name& name,
-                    const SimConfig& simConfig,
-                    const MemSpec& memspec,
-                    TlmRecorder& tlmRecorder,
-                    bool enableBandwidth);
+                   const SimConfig& simConfig,
+                   const MemSpec& memspec,
+                   TlmRecorder& tlmRecorder,
+                   bool enableBandwidth);
 
-    tlm::tlm_sync_enum nb_transport_fw(tlm::tlm_generic_payload& trans,
-                                       tlm::tlm_phase& phase,
-                                       sc_core::sc_time& delay);
-    tlm::tlm_sync_enum nb_transport_bw(tlm::tlm_generic_payload& trans,
-                                       tlm::tlm_phase& phase,
-                                       sc_core::sc_time& delay);
-    void b_transport(tlm::tlm_generic_payload& trans, sc_core::sc_time& delay);
-    unsigned int transport_dbg(tlm::tlm_generic_payload& trans);
+    void record(tlm::tlm_generic_payload const& trans,
+                tlm::tlm_phase const& phase,
+                sc_core::sc_time const& delay);
 
 private:
     TlmRecorder& tlmRecorder;

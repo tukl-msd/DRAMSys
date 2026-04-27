@@ -144,30 +144,3 @@ TEST_F(BTransportStorage, DataWritten)
 
     EXPECT_EQ(data, BlockingInitiator::TEST_DATA);
 }
-
-TEST_F(BTransportNoStorage, Warning)
-{
-    BlockingInitiator initiator("initiator", dramSysNoStorage);
-    initiator.iSocket.bind(dramSysNoStorage.tSocket);
-
-    // Redirect stdout to buffer
-    std::stringstream buffer;
-    std::streambuf* sbuf = std::cout.rdbuf();
-    std::cout.rdbuf(buffer.rdbuf());
-
-    sc_core::sc_start(sc_core::sc_time(1, sc_core::SC_US));
-
-    // Try to find the warning string
-    std::string output = buffer.str();
-    auto warning_pos = output.find(DRAMSys::Dram::BLOCKING_WARNING);
-
-    // Warning should be printed once ...
-    EXPECT_NE(warning_pos, std::string::npos);
-
-    // ... but not twice
-    warning_pos = output.find(DRAMSys::Dram::BLOCKING_WARNING, warning_pos + 1);
-    EXPECT_EQ(warning_pos, std::string::npos);
-
-    // Restore stdout
-    std::cout.rdbuf(sbuf);
-}

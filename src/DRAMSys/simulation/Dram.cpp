@@ -41,8 +41,6 @@
 
 #include "Dram.h"
 
-#include "DRAMSys/common/DebugManager.h"
-
 #include <cassert>
 #include <cstdlib>
 
@@ -58,123 +56,23 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-Dram::Dram(const sc_module_name& name,
-           std::size_t channel,
-           const SimConfig& simConfig,
-           const MemSpec& memSpec) :
-    sc_module(name),
-    storeMode(simConfig.storeMode),
-    channelSize(memSpec.getSimMemSizeInBytes() / memSpec.numberOfChannels),
-    channel(channel)
+Dram::Dram(uint64_t size) : size(size)
 {
-    if (storeMode == Config::StoreModeType::Store)
-    {
-// allocate and model storage of one DRAM channel using memory map
 #ifdef _WIN32
-        SC_REPORT_FATAL("Dram", "On Windows Storage is not yet supported");
-        memory = 0; // FIXME
+    memory = static_cast<unsigned char*>(
+        VirtualAlloc(nullptr, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
 #else
-        memory = (unsigned char*)mmap(nullptr,
-                                      channelSize,
-                                      PROT_READ | PROT_WRITE,
-                                      MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
-                                      -1,
-                                      0);
+    memory = static_cast<unsigned char*>(
+        mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_NORESERVE, -1, 0));
 #endif
-    }
-
-    tSocket.register_nb_transport_fw(this, &Dram::nb_transport_fw);
-    tSocket.register_b_transport(this, &Dram::b_transport);
-    tSocket.register_transport_dbg(this, &Dram::transport_dbg);
 }
 
-
-void Dram::setDRAMPower(DRAMPowerAdapter* drampower) {
-    this->drampower = drampower;
-}
-
-tlm_sync_enum
-Dram::nb_transport_fw(tlm_generic_payload& trans, tlm_phase& phase, [[maybe_unused]] sc_time& delay)
+void Dram::access(tlm::tlm_generic_payload& trans)
 {
-    assert(phase >= BEGIN_RD && phase <= END_SREF);
-
-    // Strictly speaking, the DRAM should honor the delay value before executing the read or write
-    // transaction in the memory. However, as the controller issues only a constant delay, this
-    // would not make a difference. When coupling with RTL models however, it could make a
-    // difference.
-
-    if (storeMode == Config::StoreModeType::Store)
-    {
-        if (phase == BEGIN_RD || phase == BEGIN_RDA)
-        {
-            executeRead(trans);
-        }
-        else if (phase == BEGIN_WR || phase == BEGIN_WRA || phase == BEGIN_MWR ||
-                 phase == BEGIN_MWRA)
-        {
-            executeWrite(trans);
-        }
-    }
-
-#ifdef USE_DRAMPOWER
-    if (nullptr != drampower)
-    {
-        drampower->handleTransaction(channel, trans, phase, delay);
-    }
-#endif
-
-    return TLM_ACCEPTED;
-}
-
-unsigned int Dram::transport_dbg(tlm_generic_payload& trans)
-{
-    PRINTDEBUGMESSAGE(name(), "transport_dgb");
-
-    // TODO: This part is not tested yet, neither with traceplayers nor with GEM5 coupling
-    if (storeMode == Config::StoreModeType::NoStorage)
-    {
-        SC_REPORT_FATAL("DRAM", "Debug Transport is used in combination with NoStorage");
-    }
-    else if (storeMode == Config::StoreModeType::Store)
-    {
-        if (trans.is_read())
-        {
-            executeRead(trans);
-        }
-        else if (trans.is_write())
-        {
-            executeWrite(trans);
-        }
-
-        return trans.get_data_length();
-    }
-
-    return 0;
-}
-
-void Dram::b_transport(tlm_generic_payload& trans, [[maybe_unused]] sc_time& delay)
-{
-    static bool printedWarning = false;
-
-    if (!printedWarning)
-    {
-        SC_REPORT_WARNING("DRAM", BLOCKING_WARNING.data());
-        printedWarning = true;
-    }
-
-    if (storeMode == Config::StoreModeType::Store)
-    {
-        if (trans.is_read())
-        {
-            executeRead(trans);
-        }
-        else if (trans.is_write())
-        {
-            executeWrite(trans);
-        }
-    }
-
-    trans.set_response_status(tlm::TLM_OK_RESPONSE);
+    if (trans.is_read())
+        executeRead(trans);
+    else
+        executeWrite(trans);
 }
 
 void Dram::executeRead(tlm::tlm_generic_payload& trans) const
@@ -221,12 +119,12 @@ void Dram::executeWrite(const tlm::tlm_generic_payload& trans)
 
 void Dram::serialize(std::ostream& stream) const
 {
-    stream.write(reinterpret_cast<char const*>(memory), channelSize);
+    stream.write(reinterpret_cast<char const*>(memory), size);
 }
 
 void Dram::deserialize(std::istream& stream)
 {
-    stream.read(reinterpret_cast<char*>(memory), channelSize);
+    stream.read(reinterpret_cast<char*>(memory), size);
 }
 
 } // namespace DRAMSys

@@ -90,6 +90,7 @@
 #include <memory>
 #include <numeric>
 #include <string>
+#include <utility>
 
 using namespace sc_core;
 using namespace tlm;
@@ -112,7 +113,7 @@ Controller::Controller(const sc_module_name& name,
     tlmRecorder(tlmRecorder),
     windowSizeTime(simConfig.windowSize * memSpec.tCK),
     numberOfBeatsServed(memSpec.ranksPerChannel, 0),
-    memoryManager(simConfig.storeMode == Config::StoreModeType::Store)
+    memoryManager(simConfig.storageEnabled)
 {
     if (simConfig.databaseRecording && tlmRecorder != nullptr)
     {
@@ -125,7 +126,6 @@ Controller::Controller(const sc_module_name& name,
     tSocket.register_nb_transport_fw(this, &Controller::nb_transport_fw);
     tSocket.register_transport_dbg(this, &Controller::transport_dbg);
     tSocket.register_b_transport(this, &Controller::b_transport);
-    iSocket.register_nb_transport_bw(this, &Controller::nb_transport_bw);
 
     idleTimeCollector.start();
 
@@ -305,18 +305,31 @@ void Controller::registerIdleCallback(std::function<void()> idleCallback)
     this->idleCallback = std::move(idleCallback);
 }
 
+void Controller::registerAccessCallback(
+    std::function<void(tlm::tlm_generic_payload&)> accessCallback)
+{
+    this->accessCallback = std::move(accessCallback);
+}
+
+void Controller::registerTraceCallback(std::function<void(tlm::tlm_generic_payload const&,
+                                                          tlm::tlm_phase const&,
+                                                          sc_core::sc_time const&)> traceCallback)
+{
+    this->traceCallback = std::move(traceCallback);
+}
+
 void Controller::recordBufferDepth()
 {
-    while(true)
+    while (true)
     {
         wait(windowSizeTime);
-    
+
         for (std::size_t index = 0; index < slidingAverageBufferDepth.size(); index++)
         {
             windowAverageBufferDepth[index] = slidingAverageBufferDepth[index] / windowSizeTime;
             slidingAverageBufferDepth[index] = SC_ZERO_TIME;
         }
-    
+
         tlmRecorder->recordBufferDepth(sc_time_stamp().to_seconds(), windowAverageBufferDepth);
     }
 }
@@ -446,9 +459,11 @@ void Controller::controllerMethod()
             if (ranksNumberOfPayloads[rank] == 0)
                 powerDownManagers[rank]->triggerEntry();
 
-            sc_time fwDelay = config.phyDelayFw;
-            tlm_phase phase = command.toPhase();
-            iSocket->nb_transport_fw(*trans, phase, fwDelay);
+            if (accessCallback)
+                accessCallback(*trans);
+
+            if (traceCallback)
+                traceCallback(*trans, command.toPhase(), config.phyDelayFw);
         }
         else
             readyCmdBlocked = true;
@@ -530,23 +545,30 @@ Controller::nb_transport_fw(tlm_generic_payload& trans, tlm_phase& phase, sc_tim
     return TLM_ACCEPTED;
 }
 
-tlm_sync_enum Controller::nb_transport_bw([[maybe_unused]] tlm_generic_payload& trans,
-                                          [[maybe_unused]] tlm_phase& phase,
-                                          [[maybe_unused]] sc_time& delay)
-{
-    SC_REPORT_FATAL("Controller", "nb_transport_bw of controller must not be called!");
-    return TLM_ACCEPTED;
-}
-
 void Controller::b_transport(tlm_generic_payload& trans, sc_time& delay)
 {
-    iSocket->b_transport(trans, delay);
+    static bool printedWarning = false;
+
+    if (!printedWarning)
+    {
+        SC_REPORT_WARNING("DRAMSys",
+                          "Use the blocking mode of DRAMSys with caution. The simulated timings do "
+                          "not reflect the real system!");
+        printedWarning = true;
+    }
+
     delay += trans.is_write() ? config.blockingWriteDelay : config.blockingReadDelay;
+
+    if (accessCallback)
+        accessCallback(trans);
 }
 
 unsigned int Controller::transport_dbg(tlm_generic_payload& trans)
 {
-    return iSocket->transport_dbg(trans);
+    if (accessCallback)
+        accessCallback(trans);
+
+    return trans.get_data_length();
 }
 
 void Controller::manageRequests(const sc_time& delay)
@@ -596,16 +618,15 @@ void Controller::manageRequests(const sc_time& delay)
                                           .c_str());
                 }
 
-                ControllerExtension::setAutoExtension(
-                    *transToAcquire.payload,
-                    nextChannelPayloadIDToAppend++,
-                    Rank(decodedAddress.rank),
-                    Stack(decodedAddress.stack),
-                    BankGroup(decodedAddress.bankgroup),
-                    Bank(decodedAddress.bank),
-                    Row(decodedAddress.row),
-                    Column(decodedAddress.column),
-                    burstLength);
+                ControllerExtension::setAutoExtension(*transToAcquire.payload,
+                                                      nextChannelPayloadIDToAppend++,
+                                                      Rank(decodedAddress.rank),
+                                                      Stack(decodedAddress.stack),
+                                                      BankGroup(decodedAddress.bankgroup),
+                                                      Bank(decodedAddress.bank),
+                                                      Row(decodedAddress.row),
+                                                      Column(decodedAddress.column),
+                                                      burstLength);
 
                 Rank rank = Rank(decodedAddress.rank);
                 if (ranksNumberOfPayloads[rank] == 0)

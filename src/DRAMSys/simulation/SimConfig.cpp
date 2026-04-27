@@ -52,16 +52,20 @@ SimConfig::SimConfig(const Config::SimConfig& simConfig) :
     simulationProgressBar(
         simConfig.SimulationProgressBar.value_or(DEFAULT_SIMULATION_PROGRESS_BAR)),
     addressOffset(simConfig.AddressOffset.value_or(DEFAULT_ADDRESS_OFFSET)),
-    storeMode(simConfig.StoreMode.value_or(DEFAULT_STORE_MODE)),
     togglingRate(simConfig.TogglingRate)
 {
-    if (storeMode == Config::StoreModeType::Invalid)
-        SC_REPORT_FATAL("SimConfig", "Invalid StoreMode");
+    if (simConfig.StoreMode.has_value())
+    {
+        storageEnabled = simConfig.StoreMode == Config::StoreModeType::Store;
+
+        if (simConfig.StoreMode == Config::StoreModeType::Invalid)
+            SC_REPORT_FATAL("SimConfig", "Invalid StoreMode");
+    }
 
     if (windowSize == 0)
         SC_REPORT_FATAL("SimConfig", "Minimum window size is 1");
 
-    if (powerAnalysis && (Config::StoreModeType::NoStorage == storeMode) && (!togglingRate))
+    if (powerAnalysis && !storageEnabled && !togglingRate)
         SC_REPORT_FATAL(
             "SimConfig",
             "Toggling rates for power estimation must be provided for storeMode NoStorage");
