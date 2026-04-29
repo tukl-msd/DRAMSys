@@ -96,7 +96,6 @@ public:
     // Clock
     sc_core::sc_time tCK;
 
-    std::string memoryId;
     std::string memoryType;
 
     [[nodiscard]] virtual sc_core::sc_time getRefreshIntervalAB() const;
@@ -199,7 +198,6 @@ protected:
         maxBytesPerBurst((maxBurstLength * dataBusWidth) / 8),
         maxDataBytesPerBurst(maxBytesPerBurst),
         tCK(sc_core::sc_time(memSpec.memtimingspec.tCK, TCK_UNIT)),
-        memoryId(memSpec.memoryId),
         memoryType(memSpec.id),
         burstDuration(tCK * (static_cast<double>(defaultBurstLength) / dataRate))
 
