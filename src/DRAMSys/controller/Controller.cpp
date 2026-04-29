@@ -81,8 +81,8 @@
 #ifdef LPDDR6_SIM
 #include "DRAMSys/controller/checker/CheckerLPDDR6.h"
 #endif
-#ifdef HBM3_SIM
-#include "DRAMSys/controller/checker/CheckerHBM3.h"
+#ifdef HBM3_4_SIM
+#include "DRAMSys/controller/checker/CheckerHBM3_4.h"
 #endif
 
 using namespace sc_core;
@@ -190,10 +190,11 @@ Controller::Controller(const sc_module_name& name,
             checker = std::make_unique<CheckerLPDDR6>(dynamic_cast<const MemSpecLPDDR6&>(memSpec));
         }
 #endif
-#ifdef HBM3_SIM
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecHBM3::id)
+#ifdef HBM3_4_SIM
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecHBM3::id ||
+                 memSpec.memoryType == DRAMUtils::MemSpec::MemSpecHBM4::id)
         {
-            checker = std::make_unique<CheckerHBM3>(dynamic_cast<const MemSpecHBM3&>(memSpec));
+            checker = std::make_unique<CheckerHBM3_4>(dynamic_cast<const MemSpecHBM3_4&>(memSpec));
         }
 #endif
     }

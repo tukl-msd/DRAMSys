@@ -124,7 +124,7 @@ endif()
 
 FetchContent_Declare(
     DRAMUtils
-    URL "https://github.com/tukl-msd/DRAMUtils/archive/refs/tags/v1.13.1.tar.gz"
+    URL "https://github.com/tukl-msd/DRAMUtils/archive/refs/tags/v1.13.3.tar.gz"
     OVERRIDE_FIND_PACKAGE
 )
 FetchContent_MakeAvailable(DRAMUtils)
@@ -234,7 +234,7 @@ if (DRAMSYS_USE_EXTENSIONS)
         endif()
         FetchContent_Declare(DRAMSysExtensions
             GIT_REPOSITORY "https://${EXTENSIONS_AUTH}erbenschell.iese.fraunhofer.de/dramsys/dramsys-extensions.git"
-            GIT_TAG fb30e4bb8e3dc6ab100126107902fd33f3b83e33
+            GIT_TAG 55e61bb62bfa6bc238680caaab331e41df2e1969
         )
         FetchContent_MakeAvailable(DRAMSysExtensions)
     endif()
