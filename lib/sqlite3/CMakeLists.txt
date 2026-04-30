@@ -23,4 +23,4 @@ target_include_directories(sqlite3 PUBLIC ${sqlite3_SOURCE_DIR})
 target_compile_definitions(sqlite3 PUBLIC SQLITE_ENABLE_RTREE SQLITE_OMIT_LOAD_EXTENSION)
 
 # Use the same name as the FindSQLite3 script of CMake uses
-add_library(SQLite::SQLite3 ALIAS sqlite3)
+add_library(SQLite3::SQLite3 ALIAS sqlite3)
