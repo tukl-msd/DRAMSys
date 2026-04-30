@@ -1,4 +1,4 @@
-/*.tdb
+*.tdb
 *.*~
 build*/
 ._.DS_Store
