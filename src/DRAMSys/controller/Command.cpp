@@ -46,10 +46,6 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-Command::Command(Type type) : type(type)
-{
-}
-
 std::string Command::toString() const
 {
     assert(type >= 0 && type < END_ENUM); // TODO < END_ENUM && type >= 0

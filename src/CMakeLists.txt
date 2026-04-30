@@ -107,6 +107,19 @@ add_library(dramsys
     DRAMSys/statistics/Group.cpp
     DRAMSys/statistics/JsonFormat.cpp
     DRAMSys/statistics/PrettyFormat.cpp
+    DRAMSys/recording/database/CommandTable.cpp
+    DRAMSys/recording/database/CommandStrobeTable.cpp
+    DRAMSys/recording/database/Database.cpp
+    DRAMSys/recording/database/DatabaseRecorder.cpp
+    DRAMSys/recording/database/DramStateTable.cpp
+    DRAMSys/recording/database/DataStrobeTable.cpp
+    DRAMSys/recording/database/GeneralInfoTable.cpp
+    DRAMSys/recording/database/NBTransportTable.cpp
+    DRAMSys/recording/database/SignalTable.cpp
+    DRAMSys/recording/database/TransactionTable.cpp
+    DRAMSys/recording/database/PhaseTable.cpp
+    DRAMSys/recording/TlmMonitor.cpp
+    DRAMSys/recording/DramMonitor.cpp
 )
 
 add_library(DRAMSys::DRAMSys ALIAS dramsys)

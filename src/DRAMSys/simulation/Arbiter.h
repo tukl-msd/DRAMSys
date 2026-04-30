@@ -60,6 +60,11 @@
 namespace DRAMSys
 {
 
+namespace Recording
+{
+class DatabaseRecorder;
+}
+
 DECLARE_EXTENDED_PHASE(REQ_ARBITRATION);
 DECLARE_EXTENDED_PHASE(RESP_ARBITRATION);
 
@@ -79,11 +84,13 @@ protected:
             const SimConfig& simConfig,
             const McConfig& mcConfig,
             const MemSpec& memSpec,
-            const AddressDecoder& addressDecoder);
+            const AddressDecoder& addressDecoder,
+            Recording::DatabaseRecorder& databaseRecorder);
 
     void end_of_elaboration() override;
 
     const AddressDecoder& addressDecoder;
+    Recording::DatabaseRecorder& databaseRecorder;
 
     tlm_utils::peq_with_cb_and_phase<Arbiter> payloadEventQueue;
     virtual void peqCallback(tlm::tlm_generic_payload& payload, const tlm::tlm_phase& phase) = 0;
@@ -93,8 +100,7 @@ protected:
 
     ControllerVector<Channel, std::queue<tlm::tlm_generic_payload*>> pendingRequestsOnChannel;
 
-    ControllerVector<Thread, std::uint64_t> nextThreadPayloadIDToAppend;
-    ControllerVector<Channel, std::uint64_t> nextChannelPayloadIDToAppend;
+    std::uint64_t totalTransactions = 0;
 
     tlm::tlm_sync_enum nb_transport_fw(int id,
                                        tlm::tlm_generic_payload& trans,
@@ -151,7 +157,8 @@ public:
                   const SimConfig& simConfig,
                   const McConfig& mcConfig,
                   const MemSpec& memSpec,
-                  const AddressDecoder& addressDecoder);
+                  const AddressDecoder& addressDecoder,
+                  Recording::DatabaseRecorder& databaseRecorder);
 
 private:
     void end_of_elaboration() override;
@@ -167,7 +174,8 @@ public:
                 const SimConfig& simConfig,
                 const McConfig& mcConfig,
                 const MemSpec& memSpec,
-                const AddressDecoder& addressDecoder);
+                const AddressDecoder& addressDecoder,
+                Recording::DatabaseRecorder& databaseRecorder);
 
 private:
     void end_of_elaboration() override;
@@ -190,7 +198,8 @@ public:
                    const SimConfig& simConfig,
                    const McConfig& mcConfig,
                    const MemSpec& memSpec,
-                   const AddressDecoder& addressDecoder);
+                   const AddressDecoder& addressDecoder,
+                   Recording::DatabaseRecorder& databaseRecorder);
 
 private:
     void end_of_elaboration() override;
@@ -204,8 +213,8 @@ private:
         bool operator()(const tlm::tlm_generic_payload* lhs,
                         const tlm::tlm_generic_payload* rhs) const
         {
-            return ArbiterExtension::getThreadPayloadID(*lhs) <
-                   ArbiterExtension::getThreadPayloadID(*rhs);
+            return ArbiterExtension::getTransactionId(*lhs) <
+                   ArbiterExtension::getTransactionId(*rhs);
         }
     };
 

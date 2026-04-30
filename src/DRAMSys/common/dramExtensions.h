@@ -84,39 +84,31 @@ public:
 class ArbiterExtension : public tlm::tlm_extension<ArbiterExtension>
 {
 public:
-    static void setAutoExtension(tlm::tlm_generic_payload& trans, Thread thread, Channel channel);
+    static void setAutoExtension(tlm::tlm_generic_payload& trans,
+                                 Thread thread,
+                                 Channel channel,
+                                 uint64_t transactionId);
     static void setExtension(tlm::tlm_generic_payload& trans,
                              Thread thread,
                              Channel channel,
-                             uint64_t threadPayloadID,
-                             const sc_core::sc_time& timeOfGeneration);
-    static void setIDAndTimeOfGeneration(tlm::tlm_generic_payload& trans,
-                                         uint64_t threadPayloadID,
-                                         const sc_core::sc_time& timeOfGeneration);
+                             uint64_t transactionId);
 
     [[nodiscard]] tlm::tlm_extension_base* clone() const override;
     void copy_from(const tlm::tlm_extension_base& ext) override;
 
     [[nodiscard]] Thread getThread() const;
     [[nodiscard]] Channel getChannel() const;
-    [[nodiscard]] uint64_t getThreadPayloadID() const;
-    [[nodiscard]] sc_core::sc_time getTimeOfGeneration() const;
+    [[nodiscard]] uint64_t getTransactionId() const;
 
     static const ArbiterExtension& getExtension(const tlm::tlm_generic_payload& trans);
     static Thread getThread(const tlm::tlm_generic_payload& trans);
     static Channel getChannel(const tlm::tlm_generic_payload& trans);
-    static uint64_t getThreadPayloadID(const tlm::tlm_generic_payload& trans);
-    static sc_core::sc_time getTimeOfGeneration(const tlm::tlm_generic_payload& trans);
+    static uint64_t getTransactionId(const tlm::tlm_generic_payload& trans);
 
-private:
-    ArbiterExtension(Thread thread,
-                     Channel channel,
-                     uint64_t threadPayloadID,
-                     const sc_core::sc_time& timeOfGeneration);
+    ArbiterExtension(Thread thread, Channel channel, uint64_t transactionId);
     Thread thread;
     Channel channel;
-    uint64_t threadPayloadID;
-    sc_core::sc_time timeOfGeneration;
+    uint64_t transactionId;
 };
 
 class ControllerExtension : public tlm::tlm_extension<ControllerExtension>
@@ -176,7 +168,6 @@ public:
     static Bank getDualBank(const tlm::tlm_generic_payload& trans);
     static void setDualBank(const tlm::tlm_generic_payload& trans, Bank dualBank);
 
-private:
     ControllerExtension(uint64_t channelPayloadID,
                         Rank rank,
                         Stack stack,

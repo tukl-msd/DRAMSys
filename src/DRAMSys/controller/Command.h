@@ -88,8 +88,7 @@ private:
     Type type;
 
 public:
-    Command() = default;
-    Command(Type type);
+    Command(Type type) : type(type) {}
 
     [[nodiscard]] std::string toString() const;
     static unsigned numberOfCommands();

@@ -4,7 +4,6 @@
 #include "DRAMSys/common/Deserialize.h"
 #include "DRAMSys/common/Serialize.h"
 #include "DRAMSys/common/dramExtensions.h"
-#include "DRAMSys/power/DRAMPowerTypes.h"
 
 #include <DRAMUtils/memspec/standards/MemSpecHBM2.h>
 

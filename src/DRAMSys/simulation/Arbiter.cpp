@@ -40,6 +40,8 @@
 #include "Arbiter.h"
 
 #include "DRAMSys/common/DebugManager.h"
+#include "DRAMSys/recording/database/DatabaseRecorder.h"
+#include "DRAMSys/recording/database/TransactionTable.h"
 #include "DRAMSys/simulation/AddressDecoder.h"
 
 using namespace sc_core;
@@ -52,9 +54,11 @@ Arbiter::Arbiter(const sc_module_name& name,
                  const SimConfig& simConfig,
                  const McConfig& mcConfig,
                  const MemSpec& memSpec,
-                 const AddressDecoder& addressDecoder) :
+                 const AddressDecoder& addressDecoder,
+                 Recording::DatabaseRecorder& databaseRecorder) :
     sc_module(name),
     addressDecoder(addressDecoder),
+    databaseRecorder(databaseRecorder),
     payloadEventQueue(this, &Arbiter::peqCallback),
     tCK(memSpec.tCK),
     arbitrationDelayFw(mcConfig.arbitrationDelayFw),
@@ -72,8 +76,9 @@ ArbiterSimple::ArbiterSimple(const sc_module_name& name,
                              const SimConfig& simConfig,
                              const McConfig& mcConfig,
                              const MemSpec& memSpec,
-                             const AddressDecoder& addressDecoder) :
-    Arbiter(name, simConfig, mcConfig, memSpec, addressDecoder)
+                             const AddressDecoder& addressDecoder,
+                             Recording::DatabaseRecorder& databaseRecorder) :
+    Arbiter(name, simConfig, mcConfig, memSpec, addressDecoder, databaseRecorder)
 {
 }
 
@@ -81,8 +86,9 @@ ArbiterFifo::ArbiterFifo(const sc_module_name& name,
                          const SimConfig& simConfig,
                          const McConfig& mcConfig,
                          const MemSpec& memSpec,
-                         const AddressDecoder& addressDecoder) :
-    Arbiter(name, simConfig, mcConfig, memSpec, addressDecoder),
+                         const AddressDecoder& addressDecoder,
+                         Recording::DatabaseRecorder& databaseRecorder) :
+    Arbiter(name, simConfig, mcConfig, memSpec, addressDecoder, databaseRecorder),
     maxActiveTransactionsPerThread(mcConfig.maxActiveTransactions)
 {
 }
@@ -91,8 +97,9 @@ ArbiterReorder::ArbiterReorder(const sc_module_name& name,
                                const SimConfig& simConfig,
                                const McConfig& mcConfig,
                                const MemSpec& memSpec,
-                               const AddressDecoder& addressDecoder) :
-    Arbiter(name, simConfig, mcConfig, memSpec, addressDecoder),
+                               const AddressDecoder& addressDecoder,
+                               Recording::DatabaseRecorder& databaseRecorder) :
+    Arbiter(name, simConfig, mcConfig, memSpec, addressDecoder, databaseRecorder),
     maxActiveTransactions(mcConfig.maxActiveTransactions)
 {
 }
@@ -101,13 +108,11 @@ void Arbiter::end_of_elaboration()
 {
     // initiator side
     threadIsBusy = ControllerVector<Thread, bool>(tSocket.size(), false);
-    nextThreadPayloadIDToAppend = ControllerVector<Thread, std::uint64_t>(tSocket.size(), 1);
 
     // channel side
     channelIsBusy = ControllerVector<Channel, bool>(iSocket.size(), false);
     pendingRequestsOnChannel = ControllerVector<Channel, std::queue<tlm_generic_payload*>>(
         iSocket.size(), std::queue<tlm_generic_payload*>());
-    nextChannelPayloadIDToAppend = ControllerVector<Channel, std::uint64_t>(iSocket.size(), 1);
 
     numberOfRequestsPerThread.resize(tSocket.size(), 0);
     bytesPerThread.resize(tSocket.size(), 0);
@@ -174,11 +179,21 @@ Arbiter::nb_transport_fw(int id, tlm_generic_payload& trans, tlm_phase& phase, s
         unsigned channel = addressDecoder.decodeChannel(adjustedAddress);
         assert(addressDecoder.decodeChannel(adjustedAddress + trans.get_data_length() - 1) ==
                channel);
-        ArbiterExtension::setAutoExtension(trans, Thread(id), Channel(channel));
+        auto transactionId = totalTransactions++;
+        ArbiterExtension::setAutoExtension(trans, Thread(id), Channel(channel), transactionId);
         trans.acquire();
 
         numberOfRequestsPerThread[id]++;
         bytesPerThread[id] += trans.get_data_length();
+
+        // Record
+        databaseRecorder.record(Recording::TransactionRecord{
+            transactionId,
+            trans.get_address(),
+            trans.get_data_length(),
+            trans.get_command(),
+            static_cast<unsigned>(id),
+        });
     }
 
     PRINTDEBUGMESSAGE(name(),
@@ -223,9 +238,6 @@ void ArbiterSimple::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& c
 
     if (cbPhase == BEGIN_REQ) // from initiator
     {
-        ArbiterExtension::setIDAndTimeOfGeneration(
-            cbTrans, nextThreadPayloadIDToAppend[thread]++, sc_time_stamp());
-
         if (!channelIsBusy[channel])
         {
             channelIsBusy[channel] = true;
@@ -327,9 +339,6 @@ void ArbiterFifo::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& cbP
         {
             activeTransactionsOnThread[thread]++;
 
-            ArbiterExtension::setIDAndTimeOfGeneration(
-                cbTrans, nextThreadPayloadIDToAppend[thread]++, sc_time_stamp());
-
             tlm_phase tPhase = END_REQ;
             sc_time tDelay = SC_ZERO_TIME;
 
@@ -379,9 +388,6 @@ void ArbiterFifo::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& cbP
             outstandingEndReqOnThread[thread] = nullptr;
             tlm_phase tPhase = END_REQ;
             sc_time tDelay = SC_ZERO_TIME;
-
-            ArbiterExtension::setIDAndTimeOfGeneration(
-                tPayload, nextThreadPayloadIDToAppend[thread]++, sc_time_stamp());
 
             tSocket[static_cast<int>(thread)]->nb_transport_bw(tPayload, tPhase, tDelay);
 
@@ -466,9 +472,6 @@ void ArbiterReorder::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& 
         {
             activeTransactionsOnThread[thread]++;
 
-            ArbiterExtension::setIDAndTimeOfGeneration(
-                cbTrans, nextThreadPayloadIDToAppend[thread]++, sc_time_stamp());
-
             tlm_phase tPhase = END_REQ;
             sc_time tDelay = SC_ZERO_TIME;
 
@@ -518,9 +521,6 @@ void ArbiterReorder::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& 
             tlm_phase tPhase = END_REQ;
             sc_time tDelay = SC_ZERO_TIME;
 
-            ArbiterExtension::setIDAndTimeOfGeneration(
-                tPayload, nextThreadPayloadIDToAppend[thread]++, sc_time_stamp());
-
             tSocket[static_cast<int>(thread)]->nb_transport_bw(tPayload, tPhase, tDelay);
 
             payloadEventQueue.notify(tPayload, REQ_ARBITRATION, arbitrationDelayFw);
@@ -531,7 +531,7 @@ void ArbiterReorder::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& 
         tlm_generic_payload& tPayload = **pendingResponsesOnThread[thread].begin();
 
         if (!pendingResponsesOnThread[thread].empty() &&
-            ArbiterExtension::getThreadPayloadID(tPayload) == nextThreadPayloadIDToReturn[thread])
+            ArbiterExtension::getTransactionId(tPayload) == nextThreadPayloadIDToReturn[thread])
         {
             nextThreadPayloadIDToReturn[thread]++;
             pendingResponsesOnThread[thread].erase(pendingResponsesOnThread[thread].begin());
@@ -577,8 +577,7 @@ void ArbiterReorder::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& 
         {
             tlm_generic_payload& tPayload = **pendingResponsesOnThread[thread].begin();
 
-            if (ArbiterExtension::getThreadPayloadID(tPayload) ==
-                nextThreadPayloadIDToReturn[thread])
+            if (ArbiterExtension::getTransactionId(tPayload) == nextThreadPayloadIDToReturn[thread])
             {
                 threadIsBusy[thread] = true;
 
@@ -611,13 +610,15 @@ void Arbiter::updateStats()
         stats.numberOfRequestsPerThread.values[i] =
             static_cast<double>(numberOfRequestsPerThread[i]);
         stats.averageBandwidthPerThread.values[i] =
-            static_cast<double>(bytesPerThread[i]) / (sc_core::sc_time_stamp() - activeStatsWindow).to_seconds();
+            static_cast<double>(bytesPerThread[i]) /
+            (sc_core::sc_time_stamp() - activeStatsWindow).to_seconds();
     }
 
     for (std::size_t i = 0; i < iSocket.size(); i++)
     {
         stats.averageBandwidthPerChannel.values[i] =
-            static_cast<double>(bytesPerChannel[i]) / (sc_core::sc_time_stamp() - activeStatsWindow).to_seconds();
+            static_cast<double>(bytesPerChannel[i]) /
+            (sc_core::sc_time_stamp() - activeStatsWindow).to_seconds();
     }
 }
 

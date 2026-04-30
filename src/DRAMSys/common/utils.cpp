@@ -100,7 +100,10 @@ void setUpDummy(tlm_generic_payload& payload,
     payload.set_streaming_width(0);
     ControllerExtension::setExtension(
         payload, channelPayloadID, rank, Stack(0), bankGroup, bank, Row(0), Column(0), 0, dualBank);
-    ArbiterExtension::setExtension(payload, Thread(UINT_MAX), Channel(0), 0, SC_ZERO_TIME);
+    ArbiterExtension::setExtension(payload,
+                                   Thread(std::numeric_limits<unsigned>::max()),
+                                   Channel(0),
+                                   std::numeric_limits<unsigned>::max());
 }
 
 bool isFullCycle(sc_core::sc_time time, sc_core::sc_time cycleTime)

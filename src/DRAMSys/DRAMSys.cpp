@@ -109,7 +109,6 @@ class DRAMPowerAdapter
 
 #include <cstdlib>
 #include <memory>
-#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -124,15 +123,19 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
             config.memspec,
             config.addressmapping)
 {
-    // for (auto& recorder : tlmRecorders)
-    // {
-    //     nlohmann::json mcconfig_json;
-    //     nlohmann::json memspec_json;
-    //     mcconfig_json["mcconfig"] = config.mcconfig;
-    //     memspec_json["memspec"] = config.memspec;
-    //     recorder.insertGeneralInfo(
-    //         this->simConfig->simulationName, mcconfig_json.dump(), memspec_json.dump());
-    // }
+    nlohmann::json mcconfigJson;
+    mcconfigJson["mcconfig"] = config.mcconfig;
+    databaseRecorder.record(Recording::GeneralInfoRecord{"MCconfig", mcconfigJson.dump()});
+
+    nlohmann::json memspecJson;
+    memspecJson["memspec"] = config.memspec;
+    databaseRecorder.record(Recording::GeneralInfoRecord{"Memspec", memspecJson.dump()});
+
+    if (config.simconfig.WindowSize.has_value())
+    {
+        databaseRecorder.record(
+            Recording::GeneralInfoRecord{"WindowSize", config.simconfig.WindowSize.value()});
+    }
 }
 
 DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
@@ -146,14 +149,13 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
     simConfig(std::make_unique<SimConfig>(simconfig)),
     mcConfig(std::make_unique<McConfig>(mcconfig)),
     addressDecoder(std::make_unique<AddressDecoder>(addressmapping)),
-    arbiter(createArbiter(*simConfig, *mcConfig, *memSpec, *addressDecoder)),
-    dram(std::make_unique<Dram>("Dram",
-                                &backingStore,
-                                memSpec.get(),
-                                simconfig.powerAnalysis,
-                                &DRAMPowerMappings)),
+    arbiter(createArbiter()),
+    dram(std::make_unique<Dram>(
+        "Dram", &backingStore, memSpec.get(), simconfig.powerAnalysis, &DRAMPowerMappings)),
     checker(createChecker(*memSpec)),
     phy(std::make_unique<Phy>("Phy", simconfig.efficiencyMode)),
+    database(simid + ".tdb"),
+    databaseRecorder(database),
     stats(*this)
 {
     printLogo();
@@ -163,9 +165,12 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
     addressDecoder->print();
     fmt::println(headline);
 
-    if (!addressDecoder->plausibilityCheck(*memSpec)) {
+    if (!addressDecoder->plausibilityCheck(*memSpec))
+    {
         SC_REPORT_FATAL("DRAMSys", "AddressDecoder configuration not plausible!");
     }
+
+    tlm::tlm_phase my_phase(tlm::tlm_phase_enum(0));
 
     // Setup the debug manager:
     setupDebugManager(simConfig->simulationName);
@@ -203,10 +208,74 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
     for (unsigned i = 0; i < memSpec->numberOfChannels; i++)
     {
         // Arbiter <--> Controller
-        arbiter->iSocket.bind(controllers[i]->tSocket);
+        auto controller_bus_record = Recording::SignalRecord{
+            fmt::format("{}.channel{}", this->name(), i), Recording::SignalType::TLMBus, i};
+        unsigned tlm_bus_id = databaseRecorder.record(controller_bus_record);
+        auto monitor = std::make_unique<Recording::TlmMonitor<Recording::DatabaseRecorder>>(
+            ("monitor" + std::to_string(i)).c_str(), tlm_bus_id, &databaseRecorder);
+
+        arbiter->iSocket.bind(monitor->targetSocket());
+        monitor->initiatorSocket().bind(controllers[i]->tSocket);
+        monitors.emplace_back(std::move(monitor));
+
+        auto command_bus_record = Recording::SignalRecord{
+            fmt::format("{}.controller{}.cmd", this->name(), i),
+            Recording::SignalType::CommandBus,
+            i,
+        };
+        unsigned command_bus_id = databaseRecorder.record(command_bus_record);
+
+        auto data_bus_record = Recording::SignalRecord{
+            fmt::format("{}.controller{}.data", this->name(), i),
+            Recording::SignalType::DataBus,
+            i,
+        };
+        unsigned data_bus_id = databaseRecorder.record(data_bus_record);
+
+        // Controller <--> Dram
+        auto dram_monitor =
+            std::make_unique<Recording::DramMonitor>(("dramMonitor" + std::to_string(i)).c_str(),
+                                                     command_bus_id,
+                                                     data_bus_id,
+                                                     memSpec.get(),
+                                                     &databaseRecorder);
         controllers[i]->iSocket.bind(phy->tSocket);
-        phy->iSocket.bind(dram->tSocket);
+        phy->iSocket.bind(dram_monitor->targetSocket());
+        dram_monitor->initiatorSocket().bind(dram->tSocket);
+        dramMonitors.emplace_back(std::move(dram_monitor));
     }
+
+    // GeneralInfo Table
+    databaseRecorder.record(Recording::GeneralInfoRecord{"UnitOfTime", "PS"});
+    databaseRecorder.record(Recording::GeneralInfoRecord{
+        "Clk", static_cast<std::uint64_t>(memSpec->tCK.to_seconds() * 1e12 + 0.5)});
+    databaseRecorder.record(
+        Recording::GeneralInfoRecord{"NumberOfRanks", memSpec->ranksPerChannel});
+    databaseRecorder.record(
+        Recording::GeneralInfoRecord{"NumberOfBankgroups", memSpec->groupsPerRank});
+    databaseRecorder.record(Recording::GeneralInfoRecord{"NumberOfBanks", memSpec->banksPerRank});
+    databaseRecorder.record(
+        Recording::GeneralInfoRecord{"Per2BankOffset", memSpec->getPer2BankOffset()});
+    databaseRecorder.record(
+        Recording::GeneralInfoRecord{"RowColumnCommandBus", memSpec->hasRasAndCasBus()});
+    databaseRecorder.record(
+        Recording::GeneralInfoRecord{"PseudoChannelMode", memSpec->pseudoChannelMode()});
+
+    // Command Table
+    for (std::size_t i = 0; i < Command::END_ENUM; ++i)
+    {
+        Command command(static_cast<Command::Type>(i));
+        auto commandName = command.toString();
+        auto commandLength = memSpec->getCommandLength(command);
+        Recording::CommandRecord commandRecord{command, commandName, commandLength.value()};
+        databaseRecorder.record(commandRecord);
+    }
+
+    // Phases Table
+    databaseRecorder.record(Recording::PhaseRecord{tlm::BEGIN_REQ, "BEGIN_REQ"});
+    databaseRecorder.record(Recording::PhaseRecord{tlm::END_REQ, "END_REQ"});
+    databaseRecorder.record(Recording::PhaseRecord{tlm::BEGIN_RESP, "BEGIN_RESP"});
+    databaseRecorder.record(Recording::PhaseRecord{tlm::END_RESP, "END_RESP"});
 }
 
 DRAMSys::~DRAMSys() = default;
@@ -319,22 +388,19 @@ void DRAMSys::createDRAMPowers(
 #endif
 }
 
-std::unique_ptr<Arbiter> DRAMSys::createArbiter(const SimConfig& simConfig,
-                                                const McConfig& mcConfig,
-                                                const MemSpec& memSpec,
-                                                const AddressDecoder& addressDecoder)
+std::unique_ptr<Arbiter> DRAMSys::createArbiter()
 {
-    if (mcConfig.arbiter == McConfig::Arbiter::Simple)
+    if (mcConfig->arbiter == McConfig::Arbiter::Simple)
         return std::make_unique<ArbiterSimple>(
-            "arbiter", simConfig, mcConfig, memSpec, addressDecoder);
+            "arbiter", *simConfig, *mcConfig, *memSpec, *addressDecoder, databaseRecorder);
 
-    if (mcConfig.arbiter == McConfig::Arbiter::Fifo)
+    if (mcConfig->arbiter == McConfig::Arbiter::Fifo)
         return std::make_unique<ArbiterFifo>(
-            "arbiter", simConfig, mcConfig, memSpec, addressDecoder);
+            "arbiter", *simConfig, *mcConfig, *memSpec, *addressDecoder, databaseRecorder);
 
-    if (mcConfig.arbiter == McConfig::Arbiter::Reorder)
+    if (mcConfig->arbiter == McConfig::Arbiter::Reorder)
         return std::make_unique<ArbiterReorder>(
-            "arbiter", simConfig, mcConfig, memSpec, addressDecoder);
+            "arbiter", *simConfig, *mcConfig, *memSpec, *addressDecoder, databaseRecorder);
 
     SC_REPORT_FATAL("DRAMSys", "Invalid Arbiter");
     return {};

@@ -95,3 +95,4 @@ private:
 } // namespace DRAMSys
 
 #endif // DRAM_H
+

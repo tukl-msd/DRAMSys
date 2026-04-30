@@ -52,7 +52,9 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-void Dram::b_transport(int id, tlm_generic_payload& trans, [[maybe_unused]] sc_time& delay)
+void Dram::b_transport([[maybe_unused]] int id,
+                       tlm_generic_payload& trans,
+                       [[maybe_unused]] sc_time& delay)
 {
     trans.set_response_status(tlm::TLM_OK_RESPONSE);
 

@@ -109,9 +109,7 @@ void DRAMPowerAdapter::handleTransaction(std::size_t channel,
                                          Command command,
                                          const sc_core::sc_time& delay)
 {
-    std::visit([&](auto& var) {
-        return var.doCommand(channel, trans, command, delay);
-    }, DRAMPower);
+    std::visit([&](auto& var) { return var.doCommand(channel, trans, command, delay); }, DRAMPower);
 }
 
 void DRAMPowerAdapter::serialize(std::ostream& stream) const
