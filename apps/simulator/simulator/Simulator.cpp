@@ -56,12 +56,20 @@ Simulator::Simulator(DRAMSys::Config::Configuration configuration,
     {
         terminatedInitiators++;
 
-        if (terminatedInitiators == initiators.size())
+        if (terminatedInitiators == initiators.size() && dramSys->idle())
         {
-            // Stop simulation as soon as DRAMSys is idle
-            dramSys->registerIdleCallback([]() { sc_core::sc_stop(); });
+            sc_core::sc_stop();
         }
     };
+
+    dramSys->registerIdleCallback(
+        [this]()
+        {
+            if (terminatedInitiators == initiators.size() && dramSys->idle())
+            {
+                sc_core::sc_stop();
+            }
+        });
 
     finishTransaction = [this]()
     {
