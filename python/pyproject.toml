@@ -3,10 +3,10 @@ name = "dramsys"
 version = "0.1.0"
 description = "DRAMSys utility Python scripts"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.11"
 dependencies = [
-    "kaleido>=1.2.0",
-    "polars>=1.39.3",
+    "kaleido>=1.3.0",
+    "polars>=1.40.1",
     "pyvcd>=0.4.1",
     "tqdm>=4.67.3",
 ]
