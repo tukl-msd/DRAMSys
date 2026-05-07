@@ -204,8 +204,10 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
             if (simConfig->databaseRecording)
                 dramATRecorders[i]->record(trans, phase, delay);
 
+#ifdef USE_DRAMPOWER
             if (simConfig->powerAnalysis)
                 DRAMPowers[i]->handleTransaction(i, trans, phase, delay);
+#endif
         };
 
         if (simConfig->databaseRecording || simConfig->powerAnalysis)
