@@ -441,6 +441,9 @@ void Controller::controllerMethod()
                 scheduler->removeRequest(*trans);
                 manageRequests(config.thinkDelayFw);
 
+                if (accessCallback)
+                    accessCallback(*trans);
+
                 sc_time phyDelayBwEff = trans->is_read()
                                 ? config.phyDelayBw
                                 : SC_ZERO_TIME;
@@ -458,9 +461,6 @@ void Controller::controllerMethod()
             }
             if (ranksNumberOfPayloads[rank] == 0)
                 powerDownManagers[rank]->triggerEntry();
-
-            if (accessCallback)
-                accessCallback(*trans);
 
             if (traceCallback)
                 traceCallback(*trans, command.toPhase(), config.phyDelayFw);
