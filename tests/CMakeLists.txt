@@ -4,6 +4,8 @@ find_package(nlohmann_json REQUIRED)
 add_executable(tests_dramsys
     AddressDecoderTests.cpp
     b_transport/b_transport.cpp
+    storage/test_storage.cpp
+    storage/ListInitiator.cpp
     main.cpp
     test_utils.cpp
 )
