@@ -561,6 +561,8 @@ void Controller::b_transport(tlm_generic_payload& trans, sc_time& delay)
 
     if (accessCallback)
         accessCallback(trans);
+
+    trans.set_response_status(tlm::TLM_OK_RESPONSE);
 }
 
 unsigned int Controller::transport_dbg(tlm_generic_payload& trans)
