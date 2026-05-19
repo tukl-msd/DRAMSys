@@ -258,9 +258,12 @@ void ArbiterSimple::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& c
 
             tlm_sync_enum returnValue =
                 tSocket[static_cast<int>(thread)]->nb_transport_bw(cbTrans, tPhase, tDelay);
-            // Early completion from initiator
-            if (returnValue == TLM_UPDATED)
+            if (returnValue == TLM_UPDATED || returnValue == TLM_COMPLETED)
+            {                
+                if (returnValue == TLM_COMPLETED)
+                    tPhase = END_RESP;
                 payloadEventQueue.notify(cbTrans, tPhase, tDelay);
+            }
             threadIsBusy[thread] = true;
         }
         else
@@ -286,9 +289,12 @@ void ArbiterSimple::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& c
 
             tlm_sync_enum returnValue =
                 tSocket[static_cast<int>(thread)]->nb_transport_bw(tPayload, tPhase, tDelay);
-            // Early completion from initiator
-            if (returnValue == TLM_UPDATED)
+            if (returnValue == TLM_UPDATED || returnValue == TLM_COMPLETED)
+            {                
+                if (returnValue == TLM_COMPLETED)
+                    tPhase = END_RESP;
                 payloadEventQueue.notify(tPayload, tPhase, tDelay);
+            }
         }
         else
             threadIsBusy[thread] = false;
@@ -381,8 +387,12 @@ void ArbiterFifo::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& cbP
             tlm_sync_enum returnValue =
                 tSocket[static_cast<int>(thread)]->nb_transport_bw(tPayload, tPhase, tDelay);
             // Early completion from initiator
-            if (returnValue == TLM_UPDATED)
+            if (returnValue == TLM_UPDATED || returnValue == TLM_COMPLETED)
+            {                
+                if (returnValue == TLM_COMPLETED)
+                    tPhase = END_RESP;
                 payloadEventQueue.notify(tPayload, tPhase, tDelay);
+            }
         }
         else
             threadIsBusy[thread] = false;
@@ -419,8 +429,12 @@ void ArbiterFifo::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& cbP
             tlm_sync_enum returnValue =
                 tSocket[static_cast<int>(thread)]->nb_transport_bw(tPayload, tPhase, tDelay);
             // Early completion from initiator
-            if (returnValue == TLM_UPDATED)
+            if (returnValue == TLM_UPDATED || returnValue == TLM_COMPLETED)
+            {                
+                if (returnValue == TLM_COMPLETED)
+                    tPhase = END_RESP;
                 payloadEventQueue.notify(tPayload, tPhase, tDelay);
+            }
         }
     }
     else
@@ -514,8 +528,12 @@ void ArbiterReorder::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& 
             tlm_sync_enum returnValue =
                 tSocket[static_cast<int>(thread)]->nb_transport_bw(tPayload, tPhase, tDelay);
             // Early completion from initiator
-            if (returnValue == TLM_UPDATED)
+            if (returnValue == TLM_UPDATED || returnValue == TLM_COMPLETED)
+            {                
+                if (returnValue == TLM_COMPLETED)
+                    tPhase = END_RESP;
                 payloadEventQueue.notify(tPayload, tPhase, tDelay);
+            }
         }
         else
             threadIsBusy[thread] = false;
@@ -558,8 +576,12 @@ void ArbiterReorder::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& 
                 tlm_sync_enum returnValue =
                     tSocket[static_cast<int>(thread)]->nb_transport_bw(tPayload, tPhase, tDelay);
                 // Early completion from initiator
-                if (returnValue == TLM_UPDATED)
+                if (returnValue == TLM_UPDATED || returnValue == TLM_COMPLETED)
+                {                
+                    if (returnValue == TLM_COMPLETED)
+                        tPhase = END_RESP;
                     payloadEventQueue.notify(tPayload, tPhase, tDelay);
+                }
             }
         }
     }
