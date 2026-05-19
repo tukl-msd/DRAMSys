@@ -102,7 +102,6 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
     mcConfig(std::make_unique<McConfig>(config.mcconfig, *memSpec)),
     addressDecoder(std::make_unique<AddressDecoder>(config.addressmapping)),
     arbiter(createArbiter(*simConfig, *mcConfig, *memSpec, *addressDecoder)),
-    dram(std::make_unique<Dram>(memSpec->getSimMemSizeInBytes())),
     stats(*this)
 {
     fmt::print(LOGO, DRAMSYS_VERSION, DRAMSYS_YEAR);
@@ -223,8 +222,16 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
 
         if (simConfig->storageEnabled)
         {
-            controllers[i]->registerAccessCallback([this](tlm::tlm_generic_payload& trans)
-                                                   { dram->access(trans); });
+            controllers[i]->registerAccessCallback(
+                [this](tlm::tlm_generic_payload& trans)
+                {
+                    assert(backingStore != nullptr);
+                    
+                    if (trans.is_read())
+                        Dram::executeRead(backingStore, trans);
+                    else
+                        Dram::executeWrite(backingStore, trans);
+                });
         }
     }
 }

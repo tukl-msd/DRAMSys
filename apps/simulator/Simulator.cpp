@@ -99,6 +99,12 @@ Simulator::Simulator(sc_core::sc_module_name const& name,
         std::abort(); // Silence warning
     }
 
+    if (dramSys->getSimConfig().storageEnabled)
+    {
+        physicalStorage = std::make_unique<DRAMSys::PhysicalStorage>(dramSys->memorySize());
+        dramSys->setBackingStore(physicalStorage->data());
+    }
+
     for (const auto& initiatorConfig : *this->configuration.tracesetup)
     {
         auto initiator = instantiateInitiator(initiatorConfig);
@@ -238,4 +244,4 @@ void Simulator::resetStats()
 {
     startTime = std::chrono::high_resolution_clock::now();
     lastSimTime = sc_core::sc_time_stamp();
- }
+}

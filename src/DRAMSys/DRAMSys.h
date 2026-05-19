@@ -42,9 +42,9 @@
 #ifndef DRAMSYS_H
 #define DRAMSYS_H
 
+#include "DRAMSys/common/PhysicalStorage.h"
 #include "DRAMSys/configuration/json/DRAMSysConfiguration.h"
 #include "DRAMSys/statistics/Group.h"
-#include "DRAMSys/statistics/Stat.h"
 #include "DRAMSys/statistics/StatProvider.h"
 
 #include <memory>
@@ -60,7 +60,6 @@ namespace DRAMSys
 class AddressDecoder;
 class Arbiter;
 class Controller;
-class Dram;
 #ifdef USE_DRAMPOWER
 class DRAMPowerAdapter;
 #endif
@@ -88,6 +87,11 @@ public:
     const auto& getMcConfig() const { return *mcConfig; }
     const auto& getMemSpec() const { return *memSpec; }
     const auto& getAddressDecoder() const { return *addressDecoder; }
+
+    /**
+     * Sets the physical storage when simulation with data is enabled.
+     */
+    void setBackingStore(unsigned char* backingStore) { this->backingStore = backingStore; }
 
     /**
      * Returns true if all memory controllers are in idle state.
@@ -145,12 +149,11 @@ private:
     // Each DRAM unit has a controller
     std::vector<std::unique_ptr<Controller>> controllers;
 
-    // DRAM unit
-    std::unique_ptr<Dram> dram;
+    unsigned char* backingStore = nullptr;
 
 #ifdef USE_DRAMPOWER
     std::vector<std::unique_ptr<DRAMPowerAdapter>> DRAMPowers;
-    std::vector<DRAMPowerAdapter *> DRAMPowerMappings;
+    std::vector<DRAMPowerAdapter*> DRAMPowerMappings;
 #endif
 
     // Transaction Recorders (one per channel).
@@ -163,7 +166,7 @@ private:
     class Stats : public Statistics::Group
     {
     public:
-        Stats(DRAMSys &dramsys) : Statistics::Group(dramsys.basename()) {}
+        Stats(DRAMSys& dramsys) : Statistics::Group(dramsys.basename()) {}
     } stats;
 };
 

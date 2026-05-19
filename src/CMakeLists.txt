@@ -43,6 +43,7 @@ add_library(dramsys
     DRAMSys/common/TlmATRecorder.cpp
     DRAMSys/common/DramATRecorder.cpp
     DRAMSys/common/dramExtensions.cpp
+    DRAMSys/common/PhysicalStorage.cpp
     DRAMSys/common/utils.cpp
     DRAMSys/common/MemoryManager.cpp
     DRAMSys/components/Cache.cpp

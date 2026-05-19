@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2026, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,26 +30,40 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Robert Gernhardt
- *    Matthias Jung
- *    Peter Ehses
- *    Eder F. Zulian
- *    Felipe S. Prado
  *    Derek Christ
- *    Marco Mörz
  */
 
-#ifndef DRAM_H
-#define DRAM_H
+#include "PhysicalStorage.h"
 
-#include <tlm>
+#ifdef _WIN32
+#include <windows.h>
+#else
+#include <sys/mman.h>
+#endif
 
-namespace DRAMSys::Dram
+namespace DRAMSys
 {
 
-void executeRead(unsigned char const* backingStore, tlm::tlm_generic_payload& trans);
-void executeWrite(unsigned char* backingStore, const tlm::tlm_generic_payload& trans);
+PhysicalStorage::PhysicalStorage(uint64_t size) :
+    size(size),
+#ifdef _WIN32
+    memory(static_cast<unsigned char*>(
+        VirtualAlloc(nullptr, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE)))
+#else
+    memory(static_cast<unsigned char*>(
+        mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_NORESERVE, -1, 0)))
+#endif
+{
+}
 
-} // namespace DRAMSys::Dram
+void PhysicalStorage::serialize(std::ostream& stream) const
+{
+    stream.write(reinterpret_cast<char const*>(memory), size);
+}
 
-#endif // DRAM_H
+void PhysicalStorage::deserialize(std::istream& stream)
+{
+    stream.read(reinterpret_cast<char*>(memory), size);
+}
+
+} // namespace DRAMSys

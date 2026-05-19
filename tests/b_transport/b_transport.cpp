@@ -38,6 +38,7 @@
 #include <gtest/gtest.h>
 
 #include <DRAMSys/DRAMSys.h>
+#include <DRAMSys/common/PhysicalStorage.h>
 #include <DRAMSys/controller/McConfig.h>
 #include <DRAMSys/simulation/Dram.h>
 
@@ -61,12 +62,15 @@ class BTransportStorage : public SystemCTest
 protected:
     BTransportStorage() :
         storage_config(DRAMSys::Config::from_path("b_transport/configs/storage.json")),
-        dramSysStorage("StorageDRAMSys", storage_config)
+        dramSysStorage("StorageDRAMSys", storage_config),
+        physicalStorage(dramSysStorage.memorySize())
     {
+        dramSysStorage.setBackingStore(physicalStorage.data());
     }
 
     DRAMSys::Config::Configuration storage_config;
     DRAMSys::DRAMSys dramSysStorage;
+    DRAMSys::PhysicalStorage physicalStorage;
 };
 
 struct BlockingInitiator : sc_core::sc_module

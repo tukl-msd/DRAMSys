@@ -36,6 +36,7 @@
 #pragma once
 
 #include <DRAMSys/DRAMSys.h>
+#include <DRAMSys/common/PhysicalStorage.h>
 #include <DRAMSys/common/MemoryManager.h>
 #include <DRAMSys/configuration/json/DRAMSysConfiguration.h>
 #include <DRAMSys/initiators/request/RequestIssuer.h>
@@ -48,7 +49,7 @@ class Simulator : public sc_core::sc_module, public DRAMSys::Statistics::StatPro
 public:
     Simulator(sc_core::sc_module_name const& name, DRAMSys::Config::Configuration configuration, std::filesystem::path baseConfig);
  
-     void run();
+    void run();
  
     void updateStats() override;
     void resetStats() override;
@@ -65,6 +66,8 @@ private:
 
     std::unique_ptr<DRAMSys::DRAMSys> dramSys;
     std::vector<std::unique_ptr<DRAMSys::Initiators::RequestIssuer>> initiators;
+
+    std::unique_ptr<DRAMSys::PhysicalStorage> physicalStorage;
 
     std::function<void()> terminateInitiator;
     std::function<void()> finishTransaction;

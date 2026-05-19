@@ -42,42 +42,16 @@
 #include "Dram.h"
 
 #include <cassert>
-#include <cstdlib>
-
-#ifdef _WIN32
-#include <windows.h>
-#else
-#include <sys/mman.h>
-#endif
 
 using namespace sc_core;
 using namespace tlm;
 
-namespace DRAMSys
+namespace DRAMSys::Dram
 {
 
-Dram::Dram(uint64_t size) : size(size)
+void executeRead(unsigned char const* backingStore, tlm::tlm_generic_payload& trans)
 {
-#ifdef _WIN32
-    memory = static_cast<unsigned char*>(
-        VirtualAlloc(nullptr, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE));
-#else
-    memory = static_cast<unsigned char*>(
-        mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON | MAP_NORESERVE, -1, 0));
-#endif
-}
-
-void Dram::access(tlm::tlm_generic_payload& trans)
-{
-    if (trans.is_read())
-        executeRead(trans);
-    else
-        executeWrite(trans);
-}
-
-void Dram::executeRead(tlm::tlm_generic_payload& trans) const
-{
-    unsigned char* phyAddr = memory + trans.get_address();
+    unsigned char const* phyAddr = backingStore + trans.get_address();
 
     if (trans.get_byte_enable_ptr() == nullptr)
     {
@@ -96,9 +70,9 @@ void Dram::executeRead(tlm::tlm_generic_payload& trans) const
     }
 }
 
-void Dram::executeWrite(const tlm::tlm_generic_payload& trans)
+void executeWrite(unsigned char* backingStore, const tlm::tlm_generic_payload& trans)
 {
-    unsigned char* phyAddr = memory + trans.get_address();
+    unsigned char* phyAddr = backingStore + trans.get_address();
 
     if (trans.get_byte_enable_ptr() == nullptr)
     {
@@ -117,14 +91,4 @@ void Dram::executeWrite(const tlm::tlm_generic_payload& trans)
     }
 }
 
-void Dram::serialize(std::ostream& stream) const
-{
-    stream.write(reinterpret_cast<char const*>(memory), size);
-}
-
-void Dram::deserialize(std::istream& stream)
-{
-    stream.read(reinterpret_cast<char*>(memory), size);
-}
-
-} // namespace DRAMSys
+} // namespace DRAMSys::Dram

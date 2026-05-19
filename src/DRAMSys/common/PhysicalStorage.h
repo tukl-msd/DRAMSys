@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2026, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,26 +30,35 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Robert Gernhardt
- *    Matthias Jung
- *    Peter Ehses
- *    Eder F. Zulian
- *    Felipe S. Prado
  *    Derek Christ
- *    Marco Mörz
  */
 
-#ifndef DRAM_H
-#define DRAM_H
+#ifndef PHYSICAL_STORAGE_H
+#define PHYSICAL_STORAGE_H
+
+#include "DRAMSys/common/Deserialize.h"
+#include "DRAMSys/common/Serialize.h"
 
 #include <tlm>
 
-namespace DRAMSys::Dram
+namespace DRAMSys
 {
 
-void executeRead(unsigned char const* backingStore, tlm::tlm_generic_payload& trans);
-void executeWrite(unsigned char* backingStore, const tlm::tlm_generic_payload& trans);
+class PhysicalStorage : public Serialize, public Deserialize
+{
+private:
+    uint64_t size;
+    unsigned char* memory;
 
-} // namespace DRAMSys::Dram
+public:
+    PhysicalStorage(uint64_t size);
 
-#endif // DRAM_H
+    [[nodiscard]] unsigned char* data() { return memory; }
+
+    void serialize(std::ostream& stream) const override;
+    void deserialize(std::istream& stream) override;
+};
+
+} // namespace DRAMSys
+
+#endif // PHYSICAL_STORAGE_H

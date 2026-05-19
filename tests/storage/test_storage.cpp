@@ -38,6 +38,7 @@
 #include <gtest/gtest.h>
 
 #include <DRAMSys/DRAMSys.h>
+#include <DRAMSys/common/PhysicalStorage.h>
 #include <DRAMSys/controller/McConfig.h>
 #include <DRAMSys/simulation/Dram.h>
 
@@ -58,13 +59,16 @@ class StorageTests : public SystemCTest
 protected:
     StorageTests() :
         dramsys("StorageDRAMSys", DRAMSys::Config::from_path("storage/config.json")),
+        physicalStorage(dramsys.memorySize()),
         mm(true),
         initiator("initiator", mm)
     {
         initiator.iSocket.bind(dramsys.tSocket);
+        dramsys.setBackingStore(physicalStorage.data());
     }
 
     DRAMSys::DRAMSys dramsys;
+    DRAMSys::PhysicalStorage physicalStorage;
     DRAMSys::MemoryManager mm;
     ListInitiator initiator;
 };
