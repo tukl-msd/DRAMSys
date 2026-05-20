@@ -823,8 +823,8 @@ void Controller::end_of_simulation()
         activeTime / (sc_core::sc_time_stamp() - idleTimeCollector.getIdleTime());
 
     double maxBandwidth = (
-        // fCK in GHz e.g. 1 [GHz] (tCK in ps):
-        (1000 / memSpec.tCK.to_double())
+        // fCK in GHz e.g. 1 [GHz]:
+        (1e-9 / memSpec.tCK.to_seconds())
         // DataRate e.g. 2
         * memSpec.dataRate
         // BusWidth e.g. 8 or 64
@@ -855,8 +855,8 @@ void Controller::end_of_simulation()
             double rankBandwidth = rankActiveTime / sc_core::sc_time_stamp();
 
             double rankMaxBandwidth = (
-                // fCK in GHz e.g. 1 [GHz] (tCK in ps):
-                (1000 / memSpec.tCK.to_double())
+                // fCK in GHz e.g. 1 [GHz]:
+                (1e-9 / memSpec.tCK.to_seconds())
                 // DataRate e.g. 2
                 * memSpec.dataRate
                 // BusWidth e.g. 8 or 64
