@@ -3,13 +3,13 @@
   "version": "5.5.0",
   "dependencies": [
     "systemc",
-    "nlohmann-json",
     {
       "name": "sqlite3",
       "features": [
         "rtree"
       ]
-    }
+    },
+    "dramutils"
   ],
   "features": {
     "dev": {
@@ -18,7 +18,14 @@
         "benchmark",
         "gtest"
       ]
+    },
+    "power": {
+      "description": "Power analysis",
+      "dependencies": [
+        "drampower"
+      ]
     }
+    
   },
-  "builtin-baseline": "c59b04f668d20c7dd83f478835e8266a3cc51270"
+  "builtin-baseline": "56bb2411609227288b70117ead2c47585ba07713"
 }

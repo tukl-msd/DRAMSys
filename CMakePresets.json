@@ -81,12 +81,8 @@
         "vcpkg"
       ],
       "cacheVariables": {
-        "VCPKG_MANIFEST_FEATURES": "dev",
-        "DRAMSYS_USE_FETCH_CONTENT_SYSTEMC": "OFF",
-        "DRAMSYS_USE_FETCH_CONTENT_SQLITE3": "OFF",
-        "DRAMSYS_USE_FETCH_CONTENT_NLOHMANN_JSON": "OFF",
-        "DRAMSYS_USE_FETCH_CONTENT_GOOGLE_TEST": "OFF",
-        "DRAMSYS_USE_FETCH_CONTENT_GOOGLE_BENCHMARK": "OFF"
+        "VCPKG_MANIFEST_FEATURES": "dev;power",
+        "DRAMSYS_USE_FETCH_CONTENT": "OFF"
       }
     },
     {

@@ -2,7 +2,7 @@
 
 include(CMakeFindDependencyMacro)
 
-find_dependency(SystemC REQUIRED)
+find_dependency(SystemCLanguage REQUIRED)
 find_dependency(SQLite3 REQUIRED)
 find_dependency(DRAMUtils REQUIRED)
 find_dependency(DRAMPower REQUIRED)

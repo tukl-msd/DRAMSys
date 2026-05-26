@@ -1,0 +1,7 @@
+{
+    "name": "dramutils",
+    "version": "1.14.0",
+    "description": "Utility repository for DRAMSys and DRAMPower",
+    "homepage": "https://github.com/tukl-msd/DRAMUtils",
+    "dependencies": ["nlohmann-json"]
+}

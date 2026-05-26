@@ -113,7 +113,16 @@ set(DRAMSYS_EXTENSIONS_DIR  "${PROJECT_SOURCE_DIR}/extensions")
 ###           Library Settings              ###
 ###############################################
 
-include(FetchContent)
+if (DRAMSYS_USE_FETCH_CONTENT)
+    include(FetchContent)
+
+    FetchContent_Declare(
+        DRAMUtils
+        URL "https://github.com/tukl-msd/DRAMUtils/archive/refs/tags/v1.13.3.tar.gz"
+        OVERRIDE_FIND_PACKAGE
+    )
+    FetchContent_MakeAvailable(DRAMUtils)
+endif()
 
 if (DRAMSYS_USE_FETCH_CONTENT_NLOHMANN_JSON)
     FetchContent_Declare(nlohmann_json
@@ -122,13 +131,6 @@ if (DRAMSYS_USE_FETCH_CONTENT_NLOHMANN_JSON)
     )
     FetchContent_MakeAvailable(nlohmann_json)
 endif()
-
-FetchContent_Declare(
-    DRAMUtils
-    URL "https://github.com/tukl-msd/DRAMUtils/archive/refs/tags/v1.13.3.tar.gz"
-    OVERRIDE_FIND_PACKAGE
-)
-FetchContent_MakeAvailable(DRAMUtils)
 
 if (DRAMSYS_USE_FETCH_CONTENT_DRAMPOWER)
     FetchContent_Declare(
