@@ -35,33 +35,30 @@
 
 #pragma once
 
-#include "simulator/generator/GeneratorState.h"
+#include <DRAMSys/configuration/json/TraceSetup.h>
+#include <DRAMSys/initiators/request/RequestProducer.h>
 
-#include <optional>
-#include <random>
+#include <systemc>
 
-class RandomState : public GeneratorState
+namespace DRAMSys::Initiators
+{
+
+class RowHammer : public RequestProducer
 {
 public:
-    RandomState(uint64_t numRequests,
-                   uint64_t seed,
-                   double rwRatio,
-                   std::optional<uint64_t> minAddress,
-                   std::optional<uint64_t> maxAddress,
-                   uint64_t memorySize,
-                   unsigned int dataLength,
-                   unsigned int dataAlignment);
+    RowHammer(::DRAMSys::Config::RowHammer const& config);
 
     Request nextRequest() override;
+    sc_core::sc_time nextTrigger() override { return generatorPeriod; }
     uint64_t totalRequests() override { return numberOfRequests; }
 
+    sc_core::sc_time generatorPeriod;
     uint64_t numberOfRequests;
-    uint64_t seed;
-    double rwRatio;
+    uint64_t rowIncrement;
     unsigned int dataLength;
-    unsigned int dataAlignment;
 
-    std::default_random_engine randomGenerator;
-    std::uniform_real_distribution<double> readWriteDistribution{0.0, 1.0};
-    std::uniform_int_distribution<uint64_t> randomAddressDistribution;
+    uint64_t generatedRequests = 0;
+    uint64_t currentAddress = 0x00;
 };
+
+} // namespace DRAMSys::Initiators

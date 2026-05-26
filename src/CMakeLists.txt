@@ -45,6 +45,7 @@ add_library(dramsys
     DRAMSys/common/dramExtensions.cpp
     DRAMSys/common/utils.cpp
     DRAMSys/common/MemoryManager.cpp
+    DRAMSys/components/Cache.cpp
     DRAMSys/configuration/json/DRAMSysConfiguration.cpp
     DRAMSys/configuration/memspec/MemSpec.cpp
     DRAMSys/configuration/memspec/MemSpecDDR3.cpp
@@ -93,6 +94,12 @@ add_library(dramsys
     DRAMSys/ecc/InlineEcc.cpp
     DRAMSys/ecc/OrinScheme.cpp
     DRAMSys/ecc/TwoLevelScheme.cpp
+    DRAMSys/initiators/generator/RandomState.cpp
+    DRAMSys/initiators/generator/SequentialState.cpp
+    DRAMSys/initiators/generator/TrafficGenerator.cpp
+    DRAMSys/initiators/hammer/RowHammer.cpp
+    DRAMSys/initiators/player/StlPlayer.cpp
+    DRAMSys/initiators/request/RequestIssuer.cpp
     DRAMSys/power/DRAMPowerAdapter.cpp
     DRAMSys/simulation/AddressDecoder.cpp
     DRAMSys/simulation/Arbiter.cpp

@@ -35,9 +35,12 @@
 
 #include "RequestIssuer.h"
 
+namespace DRAMSys::Initiators
+{
+
 RequestIssuer::RequestIssuer(sc_core::sc_module_name const& name,
                              std::unique_ptr<RequestProducer> producer,
-                             DRAMSys::MemoryManager& memoryManager,
+                             ::DRAMSys::MemoryManager& memoryManager,
                              sc_core::sc_time interfaceClk,
                              std::optional<unsigned int> maxPendingReadRequests,
                              std::optional<unsigned int> maxPendingWriteRequests,
@@ -88,7 +91,7 @@ void RequestIssuer::sendNextRequest()
         payload->set_data_length(request.length);
         payload->set_streaming_width(request.length);
         payload->set_command(request.command == Request::Command::Read ? tlm::TLM_READ_COMMAND
-                                                                      : tlm::TLM_WRITE_COMMAND);
+                                                                       : tlm::TLM_WRITE_COMMAND);
 
         std::copy(request.data.cbegin(), request.data.cend(), payload->get_data_ptr());
 
@@ -163,3 +166,5 @@ void RequestIssuer::peqCallback(tlm::tlm_generic_payload& payload, const tlm::tl
         SC_REPORT_FATAL("TrafficInitiator", "PEQ was triggered with unknown phase");
     }
 }
+
+} // namespace DRAMSys::Initiators

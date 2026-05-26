@@ -42,9 +42,10 @@
 
 #include <sstream>
 
-static constexpr std::size_t LINE_BUFFER_SIZE = 10000;
+namespace DRAMSys::Initiators
+{
 
-StlPlayer::StlPlayer(DRAMSys::Config::TracePlayer const& config,
+StlPlayer::StlPlayer(::DRAMSys::Config::TracePlayer const& config,
                      std::filesystem::path const& trace,
                      TraceType traceType,
                      bool storageEnabled) :
@@ -108,7 +109,7 @@ Request StlPlayer::nextRequest()
     if (!currentLineContent.has_value())
     {
         // The file is read in completely. Nothing more to do.
-         return Request{Request::Command::Stop, 0, 0, {}};
+        return Request{Request::Command::Stop, 0, 0, {}};
     }
 
     auto command = currentLineContent->command == LineContent::Command::Read
@@ -153,6 +154,7 @@ void StlPlayer::parseTraceFile()
     auto& parseBuffer = lineBuffers.at(parseIndex);
     parseBuffer.clear();
 
+    static constexpr std::size_t LINE_BUFFER_SIZE = 10000;
     while (traceFile && !traceFile.eof() && parsedLines < LINE_BUFFER_SIZE)
     {
         // Get a new line from the input file.
@@ -241,3 +243,5 @@ void StlPlayer::swapBuffers()
     // Start new parser thread
     parserThread = std::thread(&StlPlayer::parseTraceFile, this);
 }
+
+} // namespace DRAMSys::Initiators

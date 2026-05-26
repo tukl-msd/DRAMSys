@@ -81,7 +81,7 @@ function(test_standard test_name base_config reference output_filename)
     add_test(
         NAME Regression${test_name}.CreateDatabase
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${test_name}
-        COMMAND $<TARGET_FILE:dramsys_bin> ${base_config}
+        COMMAND $<TARGET_FILE:dramsys_cli> ${base_config}
     )
     set_tests_properties(Regression${test_name}.CreateDatabase PROPERTIES FIXTURES_SETUP Regression${test_name}.CreateDatabase)
 

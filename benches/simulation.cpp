@@ -33,21 +33,28 @@
  *    Derek Christ
  */
 
-#include <simulator/Simulator.h>
+#include <DRAMSys/DRAMSys.h>
+#include <DRAMSys/common/MemoryManager.h>
+#include <DRAMSys/configuration/json/DRAMSysConfiguration.h>
+#include <DRAMSys/configuration/memspec/MemSpec.h>
+#include <DRAMSys/initiators/generator/TrafficGenerator.h>
+#include <DRAMSys/initiators/request/RequestIssuer.h>
 
 #include <benchmark/benchmark.h>
-#include <sysc/kernel/sc_simcontext.h>
 #include <filesystem>
+#include <sysc/kernel/sc_simcontext.h>
 #include <tuple>
 
 namespace Simulation
 {
 
-template<class ...Args>
+using namespace DRAMSys::Initiators;
+
+template <class... Args>
 static void example_simulation(benchmark::State& state, Args&&... args)
 {
     auto args_tuple = std::make_tuple(std::move(args)...);
-    auto *rdbuf = std::cout.rdbuf(nullptr);
+    auto* rdbuf = std::cout.rdbuf(nullptr);
 
     for (auto _ : state)
     {
@@ -55,16 +62,50 @@ static void example_simulation(benchmark::State& state, Args&&... args)
 
         std::filesystem::path configFile = std::get<0>(args_tuple);
 
-        DRAMSys::Config::Configuration configuration =
+        DRAMSys::MemoryManager memoryManager(false);
+
+        DRAMSys::Config::Configuration dramsys_config =
             DRAMSys::Config::from_path(configFile.c_str());
 
-        Simulator simulator(std::move(configuration), configFile);
-        simulator.run();
+        auto dramsys = DRAMSys::DRAMSys("dramsys", dramsys_config);
+
+        DRAMSys::Config::TrafficGenerator generator_config{
+            1000,
+            "generator",
+            std::nullopt,
+            std::nullopt,
+            std::nullopt,
+            std::nullopt,
+            64,
+            std::nullopt,
+            10000,
+            0.85,
+            DRAMSys::Config::AddressDistribution::Random,
+            std::nullopt,
+            std::nullopt,
+            std::nullopt};
+
+        auto generator = std::make_unique<TrafficGenerator>(generator_config, dramsys.memorySize());
+
+        sc_core::sc_time interfaceClk = dramsys.getMemSpec().tCK;
+        auto issuer = RequestIssuer(
+            "issuer",
+            std::move(generator),
+            memoryManager,
+            interfaceClk,
+            std::nullopt,
+            std::nullopt,
+            []() {},
+            []() { sc_core::sc_stop(); });
+
+        issuer.iSocket.bind(dramsys.tSocket);
+        sc_core::sc_start();
     }
 
     std::cout.rdbuf(rdbuf);
 }
 
+// clang-format off
 BENCHMARK_CAPTURE(example_simulation, ddr3, std::string("configs/ddr3-example.json"));
 BENCHMARK_CAPTURE(example_simulation, ddr4, std::string("configs/ddr4-example.json"));
 BENCHMARK_CAPTURE(example_simulation, lpddr4, std::string("configs/lpddr4-example.json"));
@@ -72,5 +113,6 @@ BENCHMARK_CAPTURE(example_simulation, hbm2, std::string("configs/hbm2-example.js
 BENCHMARK_CAPTURE(example_simulation, hbm3, std::string("extensions/HBM3/configs/hbm3-example.json"));
 BENCHMARK_CAPTURE(example_simulation, ddr5, std::string("extensions/DDR5/configs/ddr5-example.json"));
 BENCHMARK_CAPTURE(example_simulation, lpddr5, std::string("extensions/LPDDR5/configs/lpddr5-example.json"));
+// clang-format on
 
 } // namespace Simulation

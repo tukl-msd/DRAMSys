@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2023, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,21 +35,38 @@
 
 #pragma once
 
-#include "simulator/request/Request.h"
+#include <DRAMSys/initiators/generator/GeneratorState.h>
 
-class GeneratorState
+#include <optional>
+#include <random>
+
+namespace DRAMSys::Initiators
 {
-protected:
-    GeneratorState(const GeneratorState&) = default;
-    GeneratorState(GeneratorState&&) = default;
-    GeneratorState& operator=(const GeneratorState&) = default;
-    GeneratorState& operator=(GeneratorState&&) = default;
 
+class RandomState : public GeneratorState
+{
 public:
-    GeneratorState() = default;
-    virtual ~GeneratorState() = default;
+    RandomState(uint64_t numRequests,
+                uint64_t seed,
+                double rwRatio,
+                std::optional<uint64_t> minAddress,
+                std::optional<uint64_t> maxAddress,
+                uint64_t memorySize,
+                unsigned int dataLength,
+                unsigned int dataAlignment);
 
-    virtual Request nextRequest() = 0;
-    virtual uint64_t totalRequests() = 0;
-    virtual void reset() {}
+    Request nextRequest() override;
+    uint64_t totalRequests() override { return numberOfRequests; }
+
+    uint64_t numberOfRequests;
+    uint64_t seed;
+    double rwRatio;
+    unsigned int dataLength;
+    unsigned int dataAlignment;
+
+    std::default_random_engine randomGenerator;
+    std::uniform_real_distribution<double> readWriteDistribution{0.0, 1.0};
+    std::uniform_int_distribution<uint64_t> randomAddressDistribution;
 };
+
+} // namespace DRAMSys::Initiators

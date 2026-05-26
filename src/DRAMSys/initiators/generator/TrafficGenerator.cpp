@@ -38,7 +38,10 @@
 #include "RandomState.h"
 #include "SequentialState.h"
 
-TrafficGenerator::TrafficGenerator(DRAMSys::Config::TrafficGeneratorStateMachine const& config,
+namespace DRAMSys::Initiators
+{
+
+TrafficGenerator::TrafficGenerator(::DRAMSys::Config::TrafficGeneratorStateMachine const& config,
                                    uint64_t memorySize) :
     stateTransistions(config.transitions),
     generatorPeriod(sc_core::sc_time(1.0 / static_cast<double>(config.clkMhz), sc_core::SC_US))
@@ -96,7 +99,7 @@ TrafficGenerator::TrafficGenerator(DRAMSys::Config::TrafficGeneratorStateMachine
     }
 }
 
-TrafficGenerator::TrafficGenerator(DRAMSys::Config::TrafficGenerator const& config,
+TrafficGenerator::TrafficGenerator(::DRAMSys::Config::TrafficGenerator const& config,
                                    uint64_t memorySize) :
     generatorPeriod(sc_core::sc_time(1.0 / static_cast<double>(config.clkMhz), sc_core::SC_US))
 {
@@ -222,3 +225,5 @@ unsigned int TrafficGenerator::stateTransition(unsigned int from)
     std::size_t index = stateTransitionDistribution(randomGenerator);
     return relevantTransitions[index].to;
 }
+
+} // namespace DRAMSys::Initiators

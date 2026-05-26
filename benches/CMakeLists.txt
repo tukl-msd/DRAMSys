@@ -61,7 +61,6 @@ target_include_directories(benches_dramsys PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(benches_dramsys
     DRAMSys::DRAMSys
-    DRAMSys::simulator
     SystemC::systemc
     benchmark::benchmark
 )

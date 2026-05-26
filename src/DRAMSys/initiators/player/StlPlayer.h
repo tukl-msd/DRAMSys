@@ -40,9 +40,8 @@
 
 #pragma once
 
-#include "simulator/request/RequestProducer.h"
-
 #include <DRAMSys/configuration/json/TraceSetup.h>
+#include <DRAMSys/initiators/request/RequestProducer.h>
 
 #include <systemc>
 #include <tlm>
@@ -54,6 +53,9 @@
 #include <thread>
 #include <vector>
 
+namespace DRAMSys::Initiators
+{
+
 class StlPlayer : public RequestProducer
 {
 public:
@@ -63,13 +65,14 @@ public:
         Relative,
     };
 
-    StlPlayer(DRAMSys::Config::TracePlayer const& config,
+    StlPlayer(::DRAMSys::Config::TracePlayer const& config,
               std::filesystem::path const& trace,
               TraceType traceType,
               bool storageEnabled);
 
-    //TODO temporary fix
-    ~StlPlayer() {
+    // TODO temporary fix
+    ~StlPlayer()
+    {
         if (parserThread.joinable())
             parserThread.join();
     }
@@ -115,3 +118,5 @@ private:
 
     std::thread parserThread;
 };
+
+} // namespace DRAMSys::Initiators

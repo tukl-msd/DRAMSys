@@ -40,50 +40,24 @@
 
 find_package(Threads)
 
-add_library(simulator OBJECT
-    simulator/Cache.cpp
-    simulator/Simulator.cpp
-    simulator/generator/RandomState.cpp
-    simulator/generator/SequentialState.cpp
-    simulator/generator/TrafficGenerator.cpp
-    simulator/hammer/RowHammer.cpp
-    simulator/player/StlPlayer.cpp
-    simulator/request/RequestIssuer.cpp
-    simulator/util.cpp
+add_executable(dramsys_cli
+    main.cpp
+    Simulator.cpp
+    util.cpp
 )
 
-target_include_directories(simulator
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}
+target_compile_definitions(dramsys_cli
+    PRIVATE
+        DRAMSYS_RESOURCE_DIR="${DRAMSYS_RESOURCE_DIR}"
 )
 
-target_link_libraries(simulator
+set_target_properties(dramsys_cli PROPERTIES OUTPUT_NAME "DRAMSys")
+
+target_link_libraries(dramsys_cli
     PUBLIC
         DRAMSys::DRAMSys
     PRIVATE
         Threads::Threads
 )
 
-target_compile_definitions(simulator
-    PUBLIC
-        DRAMSYS_RESOURCE_DIR="${DRAMSYS_RESOURCE_DIR}"
-)
-
-add_library(DRAMSys::simulator ALIAS simulator)
-
-add_executable(dramsys_bin
-    main.cpp
-)
-
-set_target_properties(dramsys_bin PROPERTIES OUTPUT_NAME "DRAMSys")
-
-target_link_libraries(dramsys_bin
-    PRIVATE
-        DRAMSys::simulator
-)
-
-if(DRAMSYS_BUILD_TESTS)
-    add_subdirectory(tests)
-endif()
-
-install(TARGETS dramsys_bin)
+install(TARGETS dramsys_cli)

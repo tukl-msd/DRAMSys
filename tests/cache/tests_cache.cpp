@@ -33,29 +33,21 @@
  *    Derek Christ
  */
 
-#include "ListInitiator.h"
+#include "CacheInitiator.h"
 #include "TargetMemory.h"
+#include "util/SystemCTest.h"
 
-#include <simulator/Cache.h>
+#include <DRAMSys/components/Cache.h>
 #include <DRAMSys/common/MemoryManager.h>
 
 #include <gtest/gtest.h>
-
-class SystemCTest : public testing::Test
-{
-public:
-    ~SystemCTest() override { 
-        sc_core::sc_curr_simcontext = new sc_core::sc_simcontext();
-        sc_core::sc_default_global_context = sc_core::sc_curr_simcontext;
-    }
-};
 
 class DirectMappedCache : public SystemCTest
 {
 protected:
     DirectMappedCache() :
         memoryManager(true),
-        initiator("ListInitiator", memoryManager),
+        initiator("CacheInitiator", memoryManager),
         target("TargetMemory",
                sc_core::sc_time(1, sc_core::SC_NS),
                sc_core::sc_time(10, sc_core::SC_NS)),
@@ -76,18 +68,18 @@ protected:
     }
 
     DRAMSys::MemoryManager memoryManager;
-    ListInitiator initiator;
+    CacheInitiator initiator;
     TargetMemory target;
-    Cache cache;
+    DRAMSys::Components::Cache cache;
 };
 
 TEST_F(DirectMappedCache, Basic)
 {
     using sc_core::SC_NS;
     using sc_core::sc_time;
-    using Command = ListInitiator::TestTransactionData::Command;
+    using Command = CacheInitiator::TestTransactionData::Command;
 
-    std::vector<ListInitiator::TestTransactionData> list{
+    std::vector<CacheInitiator::TestTransactionData> list{
         // Test miss
         {sc_time(0, SC_NS), sc_time(17, SC_NS), Command::Read, 0x0, 4, 0x0},
 
@@ -113,9 +105,9 @@ TEST_F(DirectMappedCache, Basic)
 // {
 //     using sc_core::SC_NS;
 //     using sc_core::sc_time;
-//     using Command = ListInitiator::TestTransactionData::Command;
+//     using Command = CacheInitiator::TestTransactionData::Command;
 
-//     std::vector<ListInitiator::TestTransactionData> list{
+//     std::vector<CacheInitiator::TestTransactionData> list{
 //         // Allocate line
 //         {sc_time(0, SC_NS), sc_time(17, SC_NS), Command::Write, 0x0, 4, 0x0},
 

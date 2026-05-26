@@ -35,18 +35,20 @@
 
 #include "Simulator.h"
 
-#include "generator/TrafficGenerator.h"
-#include "hammer/RowHammer.h"
-#include "player/StlPlayer.h"
-#include "simulator/request/RequestIssuer.h"
 #include "util.h"
 
 #include <DRAMSys/configuration/memspec/MemSpec.h>
+#include <DRAMSys/initiators/generator/TrafficGenerator.h>
+#include <DRAMSys/initiators/hammer/RowHammer.h>
+#include <DRAMSys/initiators/player/StlPlayer.h>
+#include <DRAMSys/initiators/request/RequestIssuer.h>
 #include <DRAMSys/simulation/SimConfig.h>
 
-Simulator::Simulator(DRAMSys::Config::Configuration configuration,
+using namespace DRAMSys::Initiators;
+
+Simulator::Simulator(::DRAMSys::Config::Configuration configuration,
                      std::filesystem::path baseConfig) :
-    storageEnabled(configuration.simconfig.StoreMode == DRAMSys::Config::StoreModeType::Store),
+    storageEnabled(configuration.simconfig.StoreMode == ::DRAMSys::Config::StoreModeType::Store),
     memoryManager(storageEnabled),
     configuration(std::move(configuration)),
     dramSys(std::make_unique<DRAMSys::DRAMSys>("DRAMSys", this->configuration)),
@@ -96,7 +98,7 @@ Simulator::Simulator(DRAMSys::Config::Configuration configuration,
 }
 
 std::unique_ptr<RequestIssuer>
-Simulator::instantiateInitiator(const DRAMSys::Config::Initiator& initiator)
+Simulator::instantiateInitiator(const ::DRAMSys::Config::Initiator& initiator)
 {
     uint64_t memorySize = dramSys->memorySize();
     sc_core::sc_time interfaceClk = dramSys->getMemSpec().tCK;
@@ -105,8 +107,8 @@ Simulator::instantiateInitiator(const DRAMSys::Config::Initiator& initiator)
         [this, memorySize, interfaceClk](auto&& config) -> std::unique_ptr<RequestIssuer>
         {
             using T = std::decay_t<decltype(config)>;
-            if constexpr (std::is_same_v<T, DRAMSys::Config::TrafficGenerator> ||
-                          std::is_same_v<T, DRAMSys::Config::TrafficGeneratorStateMachine>)
+            if constexpr (std::is_same_v<T, ::DRAMSys::Config::TrafficGenerator> ||
+                          std::is_same_v<T, ::DRAMSys::Config::TrafficGeneratorStateMachine>)
             {
                 auto generator = std::make_unique<TrafficGenerator>(config, memorySize);
 
@@ -119,7 +121,7 @@ Simulator::instantiateInitiator(const DRAMSys::Config::Initiator& initiator)
                                                        finishTransaction,
                                                        terminateInitiator);
             }
-            else if constexpr (std::is_same_v<T, DRAMSys::Config::TracePlayer>)
+            else if constexpr (std::is_same_v<T, ::DRAMSys::Config::TracePlayer>)
             {
                 std::filesystem::path tracePath = baseConfig.parent_path() / config.name;
 
@@ -149,7 +151,7 @@ Simulator::instantiateInitiator(const DRAMSys::Config::Initiator& initiator)
                                                        finishTransaction,
                                                        terminateInitiator);
             }
-            else if constexpr (std::is_same_v<T, DRAMSys::Config::RowHammer>)
+            else if constexpr (std::is_same_v<T, ::DRAMSys::Config::RowHammer>)
             {
                 auto hammer = std::make_unique<RowHammer>(config);
 

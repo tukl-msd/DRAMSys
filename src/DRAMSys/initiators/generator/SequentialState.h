@@ -35,18 +35,42 @@
 
 #pragma once
 
-#include <cstdint>
-#include <vector>
+#include <DRAMSys/initiators/generator/GeneratorState.h>
 
-struct Request
+#include <optional>
+#include <random>
+
+namespace DRAMSys::Initiators
 {
-    enum class Command : uint8_t
-    {
-        Read,
-        Write,
-        Stop
-    } command;
-    uint64_t address = 0;
-    std::size_t length = 0;
-    std::vector<unsigned char> data;
+
+class SequentialState : public GeneratorState
+{
+public:
+    SequentialState(uint64_t numRequests,
+                    uint64_t seed,
+                    double rwRatio,
+                    std::optional<uint64_t> addressIncrement,
+                    std::optional<uint64_t> minAddress,
+                    std::optional<uint64_t> maxAddress,
+                    uint64_t memorySize,
+                    unsigned int dataLength);
+
+    Request nextRequest() override;
+    uint64_t totalRequests() override { return numberOfRequests; }
+    void reset() override { generatedRequests = 0; }
+
+    uint64_t numberOfRequests;
+    uint64_t addressIncrement;
+    uint64_t minAddress;
+    uint64_t maxAddress;
+    uint64_t seed;
+    double rwRatio;
+    unsigned int dataLength;
+
+    std::default_random_engine randomGenerator;
+    std::uniform_real_distribution<double> readWriteDistribution{0.0, 1.0};
+
+    uint64_t generatedRequests = 0;
 };
+
+} // namespace DRAMSys::Initiators

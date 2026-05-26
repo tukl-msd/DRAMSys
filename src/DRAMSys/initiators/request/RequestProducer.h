@@ -35,26 +35,29 @@
 
 #pragma once
 
-#include "simulator/request/RequestProducer.h"
-
-#include <DRAMSys/configuration/json/TraceSetup.h>
+#include "Request.h"
 
 #include <systemc>
 
-class RowHammer : public RequestProducer
+namespace DRAMSys::Initiators
 {
+
+class RequestProducer
+{
+protected:
+    RequestProducer(const RequestProducer&) = default;
+    RequestProducer(RequestProducer&&) = default;
+    RequestProducer& operator=(const RequestProducer&) = default;
+    RequestProducer& operator=(RequestProducer&&) = default;
+
 public:
-    RowHammer(DRAMSys::Config::RowHammer const& config);
+    RequestProducer() = default;
+    virtual ~RequestProducer() = default;
 
-    Request nextRequest() override;
-    sc_core::sc_time nextTrigger() override { return generatorPeriod; }
-    uint64_t totalRequests() override { return numberOfRequests; }
-
-    sc_core::sc_time generatorPeriod;
-    uint64_t numberOfRequests;
-    uint64_t rowIncrement;
-    unsigned int dataLength;
-
-    uint64_t generatedRequests = 0;
-    uint64_t currentAddress = 0x00;
+    virtual Request nextRequest() = 0;
+    virtual sc_core::sc_time nextTrigger() = 0;
+    virtual uint64_t totalRequests() = 0;
+    virtual void reset() {};
 };
+
+} // namespace DRAMSys::Initiators

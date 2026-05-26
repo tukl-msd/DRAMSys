@@ -35,24 +35,36 @@
 
 #pragma once
 
-#include "Request.h"
+#include <DRAMSys/DRAMSys.h>
+#include <DRAMSys/common/MemoryManager.h>
+#include <DRAMSys/configuration/json/DRAMSysConfiguration.h>
+#include <DRAMSys/initiators/request/RequestIssuer.h>
 
-#include <systemc>
-
-class RequestProducer
+class Simulator
 {
-protected:
-    RequestProducer(const RequestProducer&) = default;
-    RequestProducer(RequestProducer&&) = default;
-    RequestProducer& operator=(const RequestProducer&) = default;
-    RequestProducer& operator=(RequestProducer&&) = default;
-
 public:
-    RequestProducer() = default;
-    virtual ~RequestProducer() = default;
+    Simulator(DRAMSys::Config::Configuration configuration, std::filesystem::path baseConfig);
 
-    virtual Request nextRequest() = 0;
-    virtual sc_core::sc_time nextTrigger() = 0;
-    virtual uint64_t totalRequests() = 0;
-    virtual void reset() {};
+    void run();
+
+private:
+    std::unique_ptr<DRAMSys::Initiators::RequestIssuer>
+    instantiateInitiator(const DRAMSys::Config::Initiator& initiator);
+
+    bool storageEnabled;
+    DRAMSys::MemoryManager memoryManager;
+
+    DRAMSys::Config::Configuration configuration;
+
+    std::unique_ptr<DRAMSys::DRAMSys> dramSys;
+    std::vector<std::unique_ptr<DRAMSys::Initiators::RequestIssuer>> initiators;
+
+    std::function<void()> terminateInitiator;
+    std::function<void()> finishTransaction;
+
+    unsigned int terminatedInitiators = 0;
+    uint64_t totalTransactions{};
+    uint64_t transactionsFinished = 0;
+
+    std::filesystem::path baseConfig;
 };

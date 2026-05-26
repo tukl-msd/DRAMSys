@@ -4,6 +4,9 @@ find_package(nlohmann_json REQUIRED)
 add_executable(tests_dramsys
     AddressDecoderTests.cpp
     b_transport/b_transport.cpp
+    cache/tests_cache.cpp
+    cache/TargetMemory.cpp
+    cache/CacheInitiator.cpp
     storage/test_storage.cpp
     storage/ListInitiator.cpp
     main.cpp
@@ -11,7 +14,7 @@ add_executable(tests_dramsys
 )
 
 target_include_directories(tests_dramsys PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-set_target_properties(tests_dramsys PROPERTIES FOLDER tests)
+
 target_link_libraries(tests_dramsys
     DRAMSys::DRAMSys
     nlohmann_json::nlohmann_json

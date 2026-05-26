@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2025, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,14 +30,31 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Lukas Steiner
+ *    Derek Christ
  */
 
-#include <gtest/gtest.h>
-#include <systemc>
+#pragma once
 
-int sc_main(int argc, char** argv)
+#include <DRAMSys/initiators/request/Request.h>
+
+namespace DRAMSys::Initiators
 {
-    testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}
+
+class GeneratorState
+{
+protected:
+    GeneratorState(const GeneratorState&) = default;
+    GeneratorState(GeneratorState&&) = default;
+    GeneratorState& operator=(const GeneratorState&) = default;
+    GeneratorState& operator=(GeneratorState&&) = default;
+
+public:
+    GeneratorState() = default;
+    virtual ~GeneratorState() = default;
+
+    virtual Request nextRequest() = 0;
+    virtual uint64_t totalRequests() = 0;
+    virtual void reset() {}
+};
+
+} // namespace DRAMSys::Initiators

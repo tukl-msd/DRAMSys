@@ -35,37 +35,46 @@
 
 #pragma once
 
-#include "simulator/generator/GeneratorState.h"
+#include "GeneratorState.h"
 
-#include <optional>
+#include <DRAMSys/configuration/json/DRAMSysConfiguration.h>
+#include <DRAMSys/initiators/request/RequestProducer.h>
+
 #include <random>
 
-class SequentialState : public GeneratorState
+namespace DRAMSys::Initiators
+{
+
+class RequestProducer;
+
+class TrafficGenerator : public RequestProducer
 {
 public:
-    SequentialState(uint64_t numRequests,
-                       uint64_t seed,
-                       double rwRatio,
-                       std::optional<uint64_t> addressIncrement,
-                       std::optional<uint64_t> minAddress,
-                       std::optional<uint64_t> maxAddress,
-                       uint64_t memorySize,
-                       unsigned int dataLength);
+    TrafficGenerator(::DRAMSys::Config::TrafficGenerator const& config, uint64_t memorySize);
 
+    TrafficGenerator(::DRAMSys::Config::TrafficGeneratorStateMachine const& config,
+                     uint64_t memorySize);
+
+    uint64_t totalRequests() override;
     Request nextRequest() override;
-    uint64_t totalRequests() override { return numberOfRequests; }
-    void reset() override { generatedRequests = 0; }
+    sc_core::sc_time nextTrigger() override { return nextTriggerTime; }
 
-    uint64_t numberOfRequests;
-    uint64_t addressIncrement;
-    uint64_t minAddress;
-    uint64_t maxAddress;
-    uint64_t seed;
-    double rwRatio;
-    unsigned int dataLength;
+    unsigned int stateTransition(unsigned int from);
+
+private:
+    static constexpr unsigned int STOP_STATE = UINT_MAX;
+
+    uint64_t requestsInState = 0;
+    unsigned int currentState = 0;
+    sc_core::sc_time nextTriggerTime = sc_core::SC_ZERO_TIME;
+    std::vector<::DRAMSys::Config::TrafficGeneratorStateTransition> stateTransistions;
+
+    std::unordered_map<unsigned int, unsigned int> idleStateClks;
+    sc_core::sc_time generatorPeriod;
 
     std::default_random_engine randomGenerator;
-    std::uniform_real_distribution<double> readWriteDistribution{0.0, 1.0};
 
-    uint64_t generatedRequests = 0;
+    std::unordered_map<unsigned int, std::unique_ptr<GeneratorState>> producers;
 };
+
+} // namespace DRAMSys::Initiators

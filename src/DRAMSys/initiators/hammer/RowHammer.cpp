@@ -33,38 +33,36 @@
  *    Derek Christ
  */
 
-#pragma once
+#include "RowHammer.h"
 
-#include "simulator/request/RequestIssuer.h"
-
-#include <DRAMSys/common/MemoryManager.h>
-#include <DRAMSys/configuration/json/DRAMSysConfiguration.h>
-#include <DRAMSys/DRAMSys.h>
-
-class Simulator
+namespace DRAMSys::Initiators
 {
-public:
-    Simulator(DRAMSys::Config::Configuration configuration, std::filesystem::path baseConfig);
 
-    void run();
+RowHammer::RowHammer(::DRAMSys::Config::RowHammer const& config) :
+    generatorPeriod(sc_core::sc_time(1.0 / static_cast<double>(config.clkMhz), sc_core::SC_US)),
+    numberOfRequests(config.numRequests),
+    rowIncrement(config.rowIncrement),
+    dataLength(config.dataLength)
+{
+}
 
-private:
-    std::unique_ptr<RequestIssuer> instantiateInitiator(const DRAMSys::Config::Initiator& initiator);
+Request RowHammer::nextRequest()
+{
+    if (generatedRequests >= numberOfRequests)
+        return Request{Request::Command::Stop, 0, 0, {}};
 
-    bool storageEnabled;
-    DRAMSys::MemoryManager memoryManager;
+    generatedRequests++;
 
-    DRAMSys::Config::Configuration configuration;
+    if (currentAddress == 0x00)
+        currentAddress = rowIncrement;
+    else
+        currentAddress = 0x00;
 
-    std::unique_ptr<DRAMSys::DRAMSys> dramSys;
-    std::vector<std::unique_ptr<RequestIssuer>> initiators;
+    Request request;
+    request.address = currentAddress;
+    request.command = Request::Command::Read;
+    request.length = dataLength;
+    return request;
+}
 
-    std::function<void()> terminateInitiator;
-    std::function<void()> finishTransaction;
-
-    unsigned int terminatedInitiators = 0;
-    uint64_t totalTransactions{};
-    uint64_t transactionsFinished = 0;
-
-    std::filesystem::path baseConfig;
-};
+} // namespace DRAMSys::Initiators

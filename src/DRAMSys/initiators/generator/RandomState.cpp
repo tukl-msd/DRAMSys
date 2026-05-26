@@ -33,47 +33,54 @@
  *    Derek Christ
  */
 
-#include "SequentialState.h"
+#include "RandomState.h"
 
 #include <systemc>
 
-SequentialState::SequentialState(uint64_t numRequests,
-                                       uint64_t seed,
-                                       double rwRatio,
-                                       std::optional<uint64_t> addressIncrement,
-                                       std::optional<uint64_t> minAddress,
-                                       std::optional<uint64_t> maxAddress,
-                                       uint64_t memorySize,
-                                       unsigned int dataLength) :
+namespace DRAMSys::Initiators
+{
+
+RandomState::RandomState(uint64_t numRequests,
+                         uint64_t seed,
+                         double rwRatio,
+                         std::optional<uint64_t> minAddress,
+                         std::optional<uint64_t> maxAddress,
+                         uint64_t memorySize,
+                         unsigned int dataLength,
+                         unsigned int dataAlignment) :
     numberOfRequests(numRequests),
-    addressIncrement(addressIncrement.value_or(dataLength)),
-    minAddress(minAddress.value_or(0)),
-    maxAddress(maxAddress.value_or(memorySize - 1)),
     seed(seed),
     rwRatio(rwRatio),
     dataLength(dataLength),
-    randomGenerator(this->seed)
+    dataAlignment(dataAlignment),
+    randomGenerator(this->seed),
+    randomAddressDistribution(minAddress.value_or(0), maxAddress.value_or((memorySize)-dataLength))
 {
-    if (this->minAddress > memorySize - 1)
+    if (minAddress > memorySize - 1)
         SC_REPORT_FATAL("TrafficGenerator", "minAddress is out of range.");
 
-    if (this->maxAddress > memorySize - 1)
+    if (maxAddress > memorySize - 1)
         SC_REPORT_FATAL("TrafficGenerator", "maxAddress is out of range.");
 
-    if (this->maxAddress < this->minAddress)
+    if (maxAddress < minAddress)
         SC_REPORT_FATAL("TrafficGenerator", "maxAddress is smaller than minAddress.");
 
     rwRatio = std::clamp(rwRatio, 0.0, 1.0);
 }
 
-Request SequentialState::nextRequest()
+Request RandomState::nextRequest()
 {
     Request request;
-    request.address = generatedRequests * addressIncrement % (maxAddress - minAddress) + minAddress;
+    request.address = randomAddressDistribution(randomGenerator);
+
+    // Align address
+    request.address = request.address - (request.address % dataAlignment);
+
     request.command = readWriteDistribution(randomGenerator) < rwRatio ? Request::Command::Read
                                                                        : Request::Command::Write;
     request.length = dataLength;
 
-    generatedRequests++;
     return request;
 }
+
+} // namespace DRAMSys::Initiators

@@ -38,12 +38,12 @@
 #include <tlm_utils/peq_with_cb_and_phase.h>
 #include <tlm_utils/simple_initiator_socket.h>
 
-class ListInitiator : public sc_core::sc_module
+class CacheInitiator : public sc_core::sc_module
 {
 public:
-    tlm_utils::simple_initiator_socket<ListInitiator> iSocket;
+    tlm_utils::simple_initiator_socket<CacheInitiator> iSocket;
 
-    ListInitiator(const sc_core::sc_module_name& name, DRAMSys::MemoryManager& memoryManager);
+    CacheInitiator(const sc_core::sc_module_name& name, DRAMSys::MemoryManager& memoryManager);
 
     struct TestTransactionData
     {
@@ -99,7 +99,7 @@ private:
     std::vector<TestTransactionData> testTransactionList;
 
     sc_core::sc_event endRequest;
-    tlm_utils::peq_with_cb_and_phase<ListInitiator> peq;
+    tlm_utils::peq_with_cb_and_phase<CacheInitiator> peq;
     tlm::tlm_generic_payload* requestInProgress = nullptr;
     DRAMSys::MemoryManager& memoryManager;
 };

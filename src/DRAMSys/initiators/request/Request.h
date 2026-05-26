@@ -33,31 +33,25 @@
  *    Derek Christ
  */
 
-#include "RowHammer.h"
+#pragma once
 
-RowHammer::RowHammer(DRAMSys::Config::RowHammer const& config) :
-    generatorPeriod(sc_core::sc_time(1.0 / static_cast<double>(config.clkMhz), sc_core::SC_US)),
-    numberOfRequests(config.numRequests),
-    rowIncrement(config.rowIncrement),
-    dataLength(config.dataLength)
+#include <cstdint>
+#include <vector>
+
+namespace DRAMSys::Initiators
 {
-}
 
-Request RowHammer::nextRequest()
+struct Request
 {
-    if (generatedRequests >= numberOfRequests)
-        return Request{Request::Command::Stop, 0, 0, {}};
+    enum class Command : uint8_t
+    {
+        Read,
+        Write,
+        Stop
+    } command;
+    uint64_t address = 0;
+    std::size_t length = 0;
+    std::vector<unsigned char> data;
+};
 
-    generatedRequests++;
-
-    if (currentAddress == 0x00)
-        currentAddress = rowIncrement;
-    else
-        currentAddress = 0x00;
-
-    Request request;
-    request.address = currentAddress;
-    request.command = Request::Command::Read;
-    request.length = dataLength;
-    return request;
-}
+} // namespace DRAMSys::Initiators

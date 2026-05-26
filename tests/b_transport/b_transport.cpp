@@ -33,6 +33,8 @@
  *    Derek Christ
  */
 
+#include "util/SystemCTest.h"
+
 #include <gtest/gtest.h>
 
 #include <DRAMSys/DRAMSys.h>
@@ -40,12 +42,6 @@
 #include <DRAMSys/simulation/Dram.h>
 
 #include <tlm_utils/simple_initiator_socket.h>
-
-class SystemCTest : public testing::Test
-{
-public:
-    ~SystemCTest() override { sc_core::sc_get_curr_simcontext()->reset(); }
-};
 
 class BTransportNoStorage : public SystemCTest
 {

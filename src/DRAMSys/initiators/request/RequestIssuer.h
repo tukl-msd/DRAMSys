@@ -47,6 +47,9 @@
 
 #include <optional>
 
+namespace DRAMSys::Initiators
+{
+
 class RequestIssuer : sc_core::sc_module
 {
 public:
@@ -54,7 +57,7 @@ public:
 
     RequestIssuer(sc_core::sc_module_name const& name,
                   std::unique_ptr<RequestProducer> producer,
-                  DRAMSys::MemoryManager& memoryManager,
+                  ::DRAMSys::MemoryManager& memoryManager,
                   sc_core::sc_time interfaceClk,
                   std::optional<unsigned int> maxPendingReadRequests,
                   std::optional<unsigned int> maxPendingWriteRequests,
@@ -84,7 +87,7 @@ private:
     std::unique_ptr<RequestProducer> producer;
 
     tlm_utils::peq_with_cb_and_phase<RequestIssuer> payloadEventQueue;
-    DRAMSys::MemoryManager& memoryManager;
+    ::DRAMSys::MemoryManager& memoryManager;
 
     sc_core::sc_time interfaceClk;
 
@@ -104,3 +107,5 @@ private:
     std::function<void()> transactionFinished;
     std::function<void()> terminate;
 };
+
+} // namespace DRAMSys::Initiators

@@ -46,6 +46,9 @@
 #include <tlm_utils/simple_initiator_socket.h>
 #include <tlm_utils/simple_target_socket.h>
 
+namespace DRAMSys::Components
+{
+
 class Cache : public sc_core::sc_module
 {
 public:
@@ -217,3 +220,5 @@ private:
 
     DRAMSys::MemoryManager& memoryManager;
 };
+
+} // namespace DRAMSys::Components

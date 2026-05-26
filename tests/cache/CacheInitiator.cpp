@@ -33,27 +33,24 @@
  *    Derek Christ
  */
 
-#include "ListInitiator.h"
+#include "CacheInitiator.h"
 
 #include <iomanip>
 #include <iostream>
-#include <map>
-#include <queue>
 #include <systemc>
 #include <tlm>
-#include <utility>
 
-ListInitiator::ListInitiator(const sc_core::sc_module_name& name, DRAMSys::MemoryManager& memoryManager) :
+CacheInitiator::CacheInitiator(const sc_core::sc_module_name& name, DRAMSys::MemoryManager& memoryManager) :
     sc_core::sc_module(name),
     iSocket("iSocket"),
-    peq(this, &ListInitiator::peqCallback),
+    peq(this, &CacheInitiator::peqCallback),
     memoryManager(memoryManager)
 {
-    iSocket.register_nb_transport_bw(this, &ListInitiator::nb_transport_bw);
+    iSocket.register_nb_transport_bw(this, &CacheInitiator::nb_transport_bw);
     SC_THREAD(process);
 }
 
-void ListInitiator::process()
+void CacheInitiator::process()
 {
     for (auto& testTransactionData : testTransactionList)
     {
@@ -114,7 +111,7 @@ void ListInitiator::process()
     }
 }
 
-tlm::tlm_sync_enum ListInitiator::nb_transport_bw(tlm::tlm_generic_payload& trans,
+tlm::tlm_sync_enum CacheInitiator::nb_transport_bw(tlm::tlm_generic_payload& trans,
                                                   tlm::tlm_phase& phase,
                                                   sc_core::sc_time& delay)
 {
@@ -122,7 +119,7 @@ tlm::tlm_sync_enum ListInitiator::nb_transport_bw(tlm::tlm_generic_payload& tran
     return tlm::TLM_ACCEPTED;
 }
 
-void ListInitiator::peqCallback(tlm::tlm_generic_payload& trans, const tlm::tlm_phase& phase)
+void CacheInitiator::peqCallback(tlm::tlm_generic_payload& trans, const tlm::tlm_phase& phase)
 {
     if (phase == tlm::END_REQ || (&trans == requestInProgress && phase == tlm::BEGIN_RESP))
     {
@@ -146,7 +143,7 @@ void ListInitiator::peqCallback(tlm::tlm_generic_payload& trans, const tlm::tlm_
     }
 }
 
-void ListInitiator::checkTransaction(tlm::tlm_generic_payload& trans)
+void CacheInitiator::checkTransaction(tlm::tlm_generic_payload& trans)
 {
     if (trans.is_response_error())
     {

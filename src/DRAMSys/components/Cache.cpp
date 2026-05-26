@@ -44,6 +44,9 @@ using namespace sc_core;
 DECLARE_EXTENDED_PHASE(HIT_HANDLING);
 DECLARE_EXTENDED_PHASE(MISS_HANDLING);
 
+namespace DRAMSys::Components
+{
+
 Cache::Cache(const sc_module_name& name,
              std::size_t size,
              std::size_t associativity,
@@ -325,9 +328,9 @@ bool Cache::isHit(index_t index, tag_t tag) const
 {
     return std::find_if(lineTable[index].begin(),
                         lineTable[index].end(),
-                        [tag](const CacheLine& cacheLine) {
-                            return (cacheLine.tag == tag) && cacheLine.valid;
-                        }) != lineTable[index].end();
+                        [tag](const CacheLine& cacheLine)
+                        { return (cacheLine.tag == tag) && cacheLine.valid; }) !=
+           lineTable[index].end();
 }
 
 bool Cache::isHit(uint64_t address) const
@@ -410,9 +413,9 @@ Cache::CacheLine* Cache::evictLine(Cache::index_t index)
     }
     if (std::find_if(mshrQueue.begin(),
                      mshrQueue.end(),
-                     [index, oldestLine](const Mshr& entry) {
-                         return (index == entry.index) && (oldestLine.tag == entry.tag);
-                     }) != mshrQueue.end())
+                     [index, oldestLine](const Mshr& entry)
+                     { return (index == entry.index) && (oldestLine.tag == entry.tag); }) !=
+        mshrQueue.end())
     {
         // TODO: solve this in a more clever way
         // There are still entries in mshrQueue to the oldest line -> do not evict it
@@ -420,9 +423,9 @@ Cache::CacheLine* Cache::evictLine(Cache::index_t index)
     }
     if (std::find_if(hitQueue.begin(),
                      hitQueue.end(),
-                     [index, oldestLine](const BufferEntry& entry) {
-                         return (index == entry.index) && (oldestLine.tag == entry.tag);
-                     }) != hitQueue.end())
+                     [index, oldestLine](const BufferEntry& entry)
+                     { return (index == entry.index) && (oldestLine.tag == entry.tag); }) !=
+        hitQueue.end())
     {
         // TODO: solve this in a more clever way
         // There are still hits in hitQueue to the oldest line -> do not evict it
@@ -643,9 +646,9 @@ bool Cache::isAllocated(Cache::index_t index, Cache::tag_t tag) const
 {
     return std::find_if(lineTable[index].begin(),
                         lineTable[index].end(),
-                        [tag](const CacheLine& cacheLine) {
-                            return (cacheLine.tag == tag) && cacheLine.allocated;
-                        }) != lineTable[index].end();
+                        [tag](const CacheLine& cacheLine)
+                        { return (cacheLine.tag == tag) && cacheLine.allocated; }) !=
+           lineTable[index].end();
 }
 
 /// Process oldest hit in mshrQueue, accept pending request from initiator
@@ -712,3 +715,5 @@ sc_time Cache::ceilDelay(const sc_time& inDelay) const
     sc_time outDelay = outTime - sc_time_stamp();
     return outDelay;
 }
+
+} // namespace DRAMSys::Components

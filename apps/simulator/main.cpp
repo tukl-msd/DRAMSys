@@ -33,7 +33,7 @@
  *    Derek Christ
  */
 
-#include "simulator/Simulator.h"
+#include "Simulator.h"
 
 #include <DRAMSys/configuration/json/DRAMSysConfiguration.h>
 
