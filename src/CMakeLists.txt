@@ -100,12 +100,15 @@ add_library(dramsys
     DRAMSys/simulation/SimConfig.cpp
 )
 
-target_include_directories(dramsys PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+add_library(DRAMSys::DRAMSys ALIAS dramsys)
+
+set_target_properties(dramsys PROPERTIES
+    EXPORT_NAME DRAMSys
+)
 
 target_sources(dramsys
 PUBLIC
-    FILE_SET api
-TYPE HEADERS
+    FILE_SET HEADERS
 FILES
     DRAMSys/DRAMSys.h
     DRAMSys/configuration/json/AddressMapping.h
@@ -116,9 +119,10 @@ FILES
     DRAMSys/configuration/json/TraceSetup.h
 )
 
-install(TARGETS dramsys FILE_SET api)
-
-target_include_directories(dramsys PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(dramsys PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
+)
 
 target_compile_features(dramsys PUBLIC cxx_std_17)
 
@@ -136,4 +140,40 @@ if (DRAMSYS_USE_DRAMPOWER)
     target_compile_definitions(dramsys PUBLIC USE_DRAMPOWER)
 endif()
 
-add_library(DRAMSys::DRAMSys ALIAS dramsys)
+if (DRAMSYS_INSTALL)
+    include(GNUInstallDirs)
+    include(CMakePackageConfigHelpers)
+
+    install(
+        TARGETS dramsys
+        EXPORT  DRAMSysTargets
+        FILE_SET HEADERS
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
+
+    install(
+        EXPORT DRAMSysTargets
+        FILE DRAMSysTargets.cmake
+        NAMESPACE DRAMSys::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/DRAMSys
+    )
+
+    configure_package_config_file(
+        ${CMAKE_SOURCE_DIR}/cmake/DRAMSysConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/DRAMSysConfig.cmake
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/DRAMSys
+    )
+
+    write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/DRAMSysConfigVersion.cmake
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion
+    )
+
+    install(
+        FILES
+            ${CMAKE_CURRENT_BINARY_DIR}/DRAMSysConfig.cmake
+            ${CMAKE_CURRENT_BINARY_DIR}/DRAMSysConfigVersion.cmake
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/DRAMSys
+    )
+endif()

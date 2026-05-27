@@ -71,6 +71,7 @@ option(DRAMSYS_BUILD_TRACE_ANALYZER "Build DRAMSys Trace Analyzer" OFF)
 option(DRAMSYS_USE_DRAMPOWER "Enable DRAMPower integration" ON)
 option(DRAMSYS_USE_LEGACY_SYSTEMC_INSTALLATION "Use SystemC installed with autotools (set SYSTEMC_HOME)" OFF)
 option(DRAMSYS_USE_EXTENSIONS "Enable internal DRAMSys extensions" OFF)
+option(DRAMSYS_INSTALL "Install DRAMSys" OFF)
 
 if(DRAMSYS_BUILD_TESTS)
     enable_testing()

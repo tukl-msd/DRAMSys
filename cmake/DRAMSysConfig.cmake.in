@@ -1,0 +1,12 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+find_dependency(SystemC REQUIRED)
+find_dependency(SQLite3 REQUIRED)
+find_dependency(DRAMUtils REQUIRED)
+find_dependency(DRAMPower REQUIRED)
+
+include(${CMAKE_CURRENT_LIST_DIR}/DRAMSysTargets.cmake)
+
+check_required_components(DRAMSys)
