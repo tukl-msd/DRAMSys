@@ -122,15 +122,11 @@ target_include_directories(dramsys PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_compile_features(dramsys PUBLIC cxx_std_17)
 
-# DRAMSys module interface that modules can link against
-add_library(dramsys_modules INTERFACE)
-
 target_link_libraries(dramsys
     PUBLIC
         SystemC::systemc
         DRAMUtils::DRAMUtils
     PRIVATE
-        dramsys_modules
         SQLite3::SQLite3
 )
 
