@@ -80,6 +80,8 @@ public:
     // Currents and Voltages:
     // TODO: to be completed
 
+    void print() const override;
+
     [[nodiscard]] sc_core::sc_time
     getExecutionTime(Command command, const tlm::tlm_generic_payload& payload) const override;
     [[nodiscard]] TimeInterval

@@ -118,8 +118,6 @@ private:
     void setupDebugManager(const std::string& traceName) const;
     void setupTlmRecorders(const std::string& traceName, const Config::Configuration& configLib);
 
-    void report();
-
     std::unique_ptr<const MemSpec> memSpec;
     std::unique_ptr<SimConfig> simConfig;
     std::unique_ptr<McConfig> mcConfig;

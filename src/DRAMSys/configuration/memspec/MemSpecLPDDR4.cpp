@@ -106,15 +106,16 @@ MemSpecLPDDR4::MemSpecLPDDR4(const DRAMUtils::MemSpec::MemSpecLPDDR4& memSpec) :
     commandLengthInCycles[Command::SREFEN] = 2;
     commandLengthInCycles[Command::SREFEX] = 2;
 
-    uint64_t deviceSizeBits =
+    deviceSizeBits =
         static_cast<uint64_t>(banksPerRank) * rowsPerBank * columnsPerRow * bitWidth;
-    uint64_t deviceSizeBytes = deviceSizeBits / 8;
+    deviceSizeBytes = deviceSizeBits / 8;
     memorySizeBytes = deviceSizeBytes * devicesPerRank * ranksPerChannel * numberOfChannels;
+}
 
-    std::cout << headline << std::endl;
+void MemSpecLPDDR4::print() const
+{
     std::cout << "Memory Configuration:" << std::endl << std::endl;
-    std::cout << " Memory type:           "
-              << "LPDDR4" << std::endl;
+    std::cout << " Memory type:           " << "LPDDR4" << std::endl;
     std::cout << " Memory size in bytes:  " << memorySizeBytes << std::endl;
     std::cout << " Channels:              " << numberOfChannels << std::endl;
     std::cout << " Ranks per channel:     " << ranksPerChannel << std::endl;

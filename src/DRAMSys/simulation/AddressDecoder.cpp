@@ -403,8 +403,7 @@ uint64_t AddressDecoder::encodeAddress(DecodedAddress decAddr) const
 
 void AddressDecoder::print() const
 {
-    std::cout << headline << '\n';
-    std::cout << "Used Address Mapping:\n\n";
+    std::cout << "Address Mapping:\n\n";
 
     auto printBits = [&](const AddressComponent& component) {
         unsigned startIdx = component.idx;

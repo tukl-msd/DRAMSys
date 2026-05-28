@@ -93,15 +93,16 @@ MemSpecHBM2::MemSpecHBM2(const DRAMUtils::MemSpec::MemSpecHBM2& memSpec) :
 
     commandLengthInCycles[Command::ACT] = 2;
 
-    uint64_t deviceSizeBytes =
+    deviceSizeBytes =
         static_cast<uint64_t>(banksPerRank) * rowsPerBank * columnsPerRow * defaultDataBytesPerBurst;
-    uint64_t deviceSizeBits = deviceSizeBytes * 8;
+    deviceSizeBits = deviceSizeBytes * 8;
     memorySizeBytes = deviceSizeBytes * ranksPerChannel * numberOfChannels;
+}
 
-    std::cout << headline << std::endl;
+void MemSpecHBM2::print() const
+{
     std::cout << "Memory Configuration:" << std::endl << std::endl;
-    std::cout << " Memory type:                    "
-              << "HBM2" << std::endl;
+    std::cout << " Memory type:                    " << "HBM2" << std::endl;
     std::cout << " Memory size in bytes:           " << memorySizeBytes << std::endl;
     std::cout << " Channels:                       " << numberOfChannels << std::endl;
     std::cout << " Total bank groups per channel:  " << bankGroupsPerChannel << std::endl;

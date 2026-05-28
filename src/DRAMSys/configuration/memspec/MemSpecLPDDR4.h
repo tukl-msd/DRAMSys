@@ -89,6 +89,8 @@ public:
     // Currents and Voltages:
     // TODO: to be completed
 
+    void print() const override;
+
     [[nodiscard]] sc_core::sc_time getRefreshIntervalAB() const override;
     [[nodiscard]] sc_core::sc_time getRefreshIntervalPB() const override;
 

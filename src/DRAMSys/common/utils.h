@@ -68,8 +68,8 @@ public:
 constexpr const std::string_view headline =
     "===========================================================================";
 
-static constexpr std::string_view LOGO = R"(
-[38;5;232m■ ■ [0m[38;5;22m■  [0m[1;37mDRAMSys {}, Copyright (c) {}[0m
+static constexpr std::string_view LOGO =
+    R"([38;5;232m■ ■ [0m[38;5;22m■  [0m[1;37mDRAMSys {}, Copyright (c) {}[0m
 [38;5;232m■ [0m[38;5;22m■ [0m[38;5;28m■  [0mRPTU Kaiserslautern-Landau,
 [38;5;22m■ [0m[38;5;28m■ [0m[38;5;82m■  [0mFraunhofer IESE
 )";

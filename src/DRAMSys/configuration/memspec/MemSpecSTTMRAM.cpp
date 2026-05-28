@@ -83,15 +83,16 @@ MemSpecSTTMRAM::MemSpecSTTMRAM(const DRAMUtils::MemSpec::MemSpecSTTMRAM& memSpec
     tPRPDEN(tCK * memSpec.memtimingspec.PRPDEN),
     tRTRS(tCK * memSpec.memtimingspec.RTRS)
 {
-    uint64_t deviceSizeBits =
+    deviceSizeBits =
         static_cast<uint64_t>(banksPerRank) * rowsPerBank * columnsPerRow * bitWidth;
-    uint64_t deviceSizeBytes = deviceSizeBits / 8;
+    deviceSizeBytes = deviceSizeBits / 8;
     memorySizeBytes = deviceSizeBytes * devicesPerRank * ranksPerChannel * numberOfChannels;
+}
 
-    std::cout << headline << std::endl;
+void MemSpecSTTMRAM::print() const
+{
     std::cout << "Memory Configuration:" << std::endl << std::endl;
-    std::cout << " Memory type:           "
-              << "STT-MRAM" << std::endl;
+    std::cout << " Memory type:           " << "STT-MRAM" << std::endl;
     std::cout << " Memory size in bytes:  " << memorySizeBytes << std::endl;
     std::cout << " Channels:              " << numberOfChannels << std::endl;
     std::cout << " Ranks per channel:     " << ranksPerChannel << std::endl;

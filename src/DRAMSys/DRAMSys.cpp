@@ -86,7 +86,6 @@
 #include <fmt/base.h>
 
 #include <cstdlib>
-#include <iostream>
 #include <memory>
 #include <type_traits>
 #include <variant>
@@ -105,8 +104,13 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
     dram(std::make_unique<Dram>(memSpec->getSimMemSizeInBytes()))
 {
     fmt::print(LOGO, DRAMSYS_VERSION, DRAMSYS_YEAR);
-    addressDecoder->plausibilityCheck(*memSpec);
+    fmt::println(headline);
+    memSpec->print();
+    fmt::println(headline);
     addressDecoder->print();
+    fmt::println(headline);
+
+    addressDecoder->plausibilityCheck(*memSpec);
 
     // Setup the debug manager:
     setupDebugManager(simConfig->simulationName);
@@ -219,8 +223,6 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
                                                    { dram->access(trans); });
         }
     }
-
-    report();
 }
 
 DRAMSys::~DRAMSys() = default;
@@ -303,13 +305,6 @@ void DRAMSys::setupDebugManager([[maybe_unused]] const std::string& traceName) c
         dbg.openDebugFile(traceName + ".txt");
 #endif
 }
-
-void DRAMSys::report()
-{
-    PRINTDEBUGMESSAGE(name(), headline.data());
-    std::cout << headline << std::endl;
-}
-
 
 std::unique_ptr<const MemSpec>
 DRAMSys::createMemSpec(const DRAMUtils::MemSpec::MemSpecVariant& memSpec)

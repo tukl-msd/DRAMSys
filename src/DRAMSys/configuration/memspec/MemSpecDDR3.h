@@ -81,6 +81,8 @@ public:
     const sc_core::sc_time tREFPDEN;
     const sc_core::sc_time tRTRS;
 
+    void print() const override;
+
     [[nodiscard]] sc_core::sc_time getRefreshIntervalAB() const override;
 
     [[nodiscard]] sc_core::sc_time

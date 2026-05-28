@@ -45,7 +45,6 @@
 #include "DRAMSys/controller/Command.h"
 
 #include <cstddef>
-#include <string>
 #include <systemc>
 #include <tlm>
 #include <vector>
@@ -87,6 +86,8 @@ public:
 
     // Clock
     sc_core::sc_time tCK;
+
+    virtual void print() const = 0;
 
     [[nodiscard]] virtual sc_core::sc_time getRefreshIntervalAB() const;
     [[nodiscard]] virtual sc_core::sc_time getRefreshIntervalPB() const;
@@ -184,6 +185,8 @@ protected:
     // Command lengths in cycles on bus, usually one clock cycle
     std::vector<double> commandLengthInCycles;
     sc_core::sc_time burstDuration;
+    uint64_t deviceSizeBits = 0;
+    uint64_t deviceSizeBytes = 0;
     uint64_t memorySizeBytes = 0;
 };
 

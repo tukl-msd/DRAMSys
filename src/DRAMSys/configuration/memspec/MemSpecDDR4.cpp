@@ -111,15 +111,16 @@ MemSpecDDR4::MemSpecDDR4(const DRAMUtils::MemSpec::MemSpecDDR4& memSpec) :
                         "Invalid refresh mode! "
                         "Set 1 for normal (fixed 1x), 2 for fixed 2x or 4 for fixed 4x refresh mode.");
 
-    uint64_t deviceSizeBits =
+    deviceSizeBits =
         static_cast<uint64_t>(banksPerRank) * rowsPerBank * columnsPerRow * bitWidth;
-    uint64_t deviceSizeBytes = deviceSizeBits / 8;
+    deviceSizeBytes = deviceSizeBits / 8;
     memorySizeBytes = deviceSizeBytes * devicesPerRank * ranksPerChannel * numberOfChannels;
+}
 
-    std::cout << headline << std::endl;
+void MemSpecDDR4::print() const
+{
     std::cout << "Memory Configuration:" << std::endl << std::endl;
-    std::cout << " Memory type:           "
-              << "DDR4" << std::endl;
+    std::cout << " Memory type:           " << "DDR4" << std::endl;
     std::cout << " Memory size in bytes:  " << memorySizeBytes << std::endl;
     std::cout << " Channels:              " << numberOfChannels << std::endl;
     std::cout << " Ranks per channel:     " << ranksPerChannel << std::endl;

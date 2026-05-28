@@ -98,15 +98,16 @@ MemSpecGDDR6::MemSpecGDDR6(const DRAMUtils::MemSpec::MemSpecGDDR6& memSpec) :
     tRTRS(tCK * memSpec.memtimingspec.RTRS),
     per2BankOffset(memSpec.memarchitecturespec.per2BankOffset)
 {
-    uint64_t deviceSizeBits =
+    deviceSizeBits =
         static_cast<uint64_t>(banksPerRank) * rowsPerBank * columnsPerRow * bitWidth;
-    uint64_t deviceSizeBytes = deviceSizeBits / 8;
+    deviceSizeBytes = deviceSizeBits / 8;
     memorySizeBytes = deviceSizeBytes * ranksPerChannel * numberOfChannels;
+}
 
-    std::cout << headline << std::endl;
+void MemSpecGDDR6::print() const
+{
     std::cout << "Memory Configuration:" << std::endl << std::endl;
-    std::cout << " Memory type:           "
-              << "GDDR6" << std::endl;
+    std::cout << " Memory type:           " << "GDDR6" << std::endl;
     std::cout << " Memory size in bytes:  " << memorySizeBytes << std::endl;
     std::cout << " Channels:              " << numberOfChannels << std::endl;
     std::cout << " Ranks per channel:     " << ranksPerChannel << std::endl;
