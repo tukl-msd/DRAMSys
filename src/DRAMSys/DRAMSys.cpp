@@ -83,6 +83,8 @@
 
 #include <DRAMUtils/memspec/MemSpec.h>
 
+#include <fmt/base.h>
+
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -102,7 +104,7 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
     arbiter(createArbiter(*simConfig, *mcConfig, *memSpec, *addressDecoder)),
     dram(std::make_unique<Dram>(memSpec->getSimMemSizeInBytes()))
 {
-    logo();
+    fmt::print(LOGO, DRAMSYS_VERSION, DRAMSYS_YEAR);
     addressDecoder->plausibilityCheck(*memSpec);
     addressDecoder->print();
 
@@ -287,27 +289,6 @@ void DRAMSys::end_of_simulation()
         for (auto& tlmRecorder : tlmRecorders)
             tlmRecorder.finalize();
     }
-}
-
-void DRAMSys::logo()
-{
-#define GREENTXT(s) std::string(("\u001b[38;5;28m" + std::string((s)) + "\033[0m"))
-#define DGREENTXT(s) std::string(("\u001b[38;5;22m" + std::string((s)) + "\033[0m"))
-#define LGREENTXT(s) std::string(("\u001b[38;5;82m" + std::string((s)) + "\033[0m"))
-#define BLACKTXT(s) std::string(("\u001b[38;5;232m" + std::string((s)) + "\033[0m"))
-#define BOLDTXT(s) std::string(("\033[1;37m" + std::string((s)) + "\033[0m"))
-    std::cout << std::endl
-         << BLACKTXT("■ ■ ") << DGREENTXT("■  ") << BOLDTXT("DRAMSys5.0, Copyright (c) 2023")
-         << std::endl
-         << BLACKTXT("■ ") << DGREENTXT("■ ") << GREENTXT("■  ") << "RPTU Kaiserslautern-Landau,"
-         << std::endl
-         << DGREENTXT("■ ") << GREENTXT("■ ") << LGREENTXT("■  ") << "Fraunhofer IESE" << std::endl
-         << std::endl;
-#undef GREENTXT
-#undef DGREENTXT
-#undef LGREENTXT
-#undef BLACKTXT
-#undef BOLDTXT
 }
 
 void DRAMSys::setupDebugManager([[maybe_unused]] const std::string& traceName) const

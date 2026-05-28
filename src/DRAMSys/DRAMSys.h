@@ -103,7 +103,6 @@ public:
     void registerIdleCallback(const std::function<void()>& idleCallback);
 
 private:
-    static void logo();
     static std::unique_ptr<const MemSpec>
     createMemSpec(const DRAMUtils::MemSpec::MemSpecVariant& memSpec);
     static std::unique_ptr<Arbiter> createArbiter(const SimConfig& simConfig,

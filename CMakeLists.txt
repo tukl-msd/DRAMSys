@@ -38,9 +38,7 @@
 ###############################################
 cmake_minimum_required(VERSION 3.25)
 
-set(PROJECT_NAME "DRAMSys")
-
-project(${PROJECT_NAME} VERSION 5.5.0)
+project(DRAMSys VERSION 5.5.0)
 
 if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)

@@ -126,6 +126,12 @@ target_include_directories(dramsys PUBLIC
 
 target_compile_features(dramsys PUBLIC cxx_std_17)
 
+string(TIMESTAMP CURRENT_YEAR "%Y")
+target_compile_definitions(dramsys PRIVATE
+    DRAMSYS_VERSION="${DRAMSys_VERSION}"
+    DRAMSYS_YEAR="${CURRENT_YEAR}"
+)
+
 target_link_libraries(dramsys
     PUBLIC
         SystemC::systemc
