@@ -1,5 +1,4 @@
-/*
- * Copyright (c) 2019, RPTU Kaiserslautern-Landau
+/* * Copyright (c) 2019, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -53,10 +52,14 @@
 #include "DRAMSys/controller/respqueue/RespQueueIF.h"
 #include "DRAMSys/simulation/AddressDecoder.h"
 #include "DRAMSys/simulation/SimConfig.h"
+#include "DRAMSys/statistics/Group.h"
+#include "DRAMSys/statistics/Stat.h"
+#include "DRAMSys/statistics/StatProvider.h"
 
 #include <DRAMUtils/memspec/MemSpec.h>
 
 #include <functional>
+#include <memory>
 #include <systemc>
 #include <tlm>
 #include <tlm_utils/simple_initiator_socket.h>
@@ -65,7 +68,10 @@
 namespace DRAMSys
 {
 
-class Controller : public sc_core::sc_module, public Serialize, public Deserialize
+class Controller : public sc_core::sc_module,
+                   public Serialize,
+                   public Deserialize,
+                   public Statistics::StatProvider
 {
 public:
     tlm_utils::simple_target_socket<Controller> tSocket{"tSocket"};
@@ -92,6 +98,11 @@ public:
 
     [[nodiscard]] double getAverageBandwidthPerRank(std::size_t rank) const;
     [[nodiscard]] double getAverageBandwidth() const;
+
+    void updateStats() override;
+    void resetStats() override;
+    Statistics::Group const& getStatGroup() const override { return stats; }
+
 private:
     void end_of_simulation() override;
 
@@ -164,6 +175,35 @@ private:
 
     void createChildTranses(tlm::tlm_generic_payload& parentTrans);
 
+    class Stats : public Statistics::Group
+    {
+    public:
+        Statistics::ScalarStat& numberOfRequests;
+        Statistics::ScalarStat& numberOfReadRequests;
+        Statistics::ScalarStat& numberOfWriteRequests;
+        Statistics::ScalarStat& averageBandwidth;
+        Statistics::ScalarStat& averageBandwidthWithoutIdle;
+        Statistics::ScalarStat& maximumTheoreticalBandwidth;
+        Statistics::ScalarStat& averageUtilization;
+        Statistics::ScalarStat& averageUtilizationWithoutIdle;
+
+        class RankStats : public Statistics::Group
+        {
+        public:
+            Statistics::ScalarStat& averageBandwidth;
+            Statistics::ScalarStat& averageUtilization;
+
+            RankStats(std::string name, Group* parent);
+        };
+        std::vector<std::unique_ptr<RankStats>> rankStats;
+
+        Stats(Controller const& controller);
+    } stats;
+
+    uint64_t numberOfRequests = 0;
+    uint64_t numberOfReadRequests = 0;
+    uint64_t numberOfWriteRequests = 0;
+
     class IdleTimeCollector
     {
     public:
@@ -187,7 +227,7 @@ private:
             }
         }
 
-        sc_core::sc_time getIdleTime() { return idleTime; }
+        [[nodiscard]] sc_core::sc_time getIdleTime() const { return idleTime; }
 
     private:
         bool isIdle = false;

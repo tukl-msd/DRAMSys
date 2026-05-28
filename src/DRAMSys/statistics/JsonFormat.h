@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2026, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,29 +29,23 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Authors:
+ * Author:
  *    Derek Christ
  */
 
-#include "Simulator.h"
+#pragma once
 
-#include <DRAMSys/configuration/json/DRAMSysConfiguration.h>
+#include <nlohmann/json.hpp>
+#include <systemc>
 
-#include <filesystem>
-
-int sc_main(int argc, char* argv[])
+namespace DRAMSys::Statistics
 {
-    std::filesystem::path resourceDirectory = DRAMSYS_RESOURCE_DIR;
-    std::filesystem::path baseConfig = resourceDirectory / "ddr4-example.json";
-    if (argc >= 2)
-    {
-        baseConfig = argv[1];
-    }
 
-    DRAMSys::Config::Configuration configuration = DRAMSys::Config::from_path(baseConfig.c_str());
+namespace JsonFormat
+{
 
-    Simulator simulator("Simulator", configuration, baseConfig);
-    simulator.run();
+void collectStats(sc_core::sc_object* obj, nlohmann::json& j);
 
-    return 0;
-}
+};
+
+} // namespace DRAMSys::Statistics

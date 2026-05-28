@@ -61,12 +61,13 @@ uint64_t MemSpec::getSimMemSizeInBytes() const
 double MemSpec::getMaxBandwidth() const
 {
     return (
-        // fCK in GHz e.g. 1 [GHz]:
-        (1e-9 / tCK.to_seconds())
+        (1 / tCK.to_seconds())
         // DataRate e.g. 2
         * dataRate
         // BusWidth e.g. 8 or 64
         * bitWidth
+        // 8 bits per byte
+        / 8
         // Number of devices that form a rank, e.g., 8 on a DDR3 DIMM
         * devicesPerRank);
 }

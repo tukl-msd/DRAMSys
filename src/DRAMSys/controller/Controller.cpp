@@ -59,6 +59,7 @@
 #include "DRAMSys/controller/scheduler/SchedulerGrpFrFcfs.h"
 #include "DRAMSys/controller/scheduler/SchedulerGrpFrFcfsWm.h"
 #include "DRAMSys/ecc/InlineEcc.h"
+#include "DRAMSys/statistics/Stat.h"
 
 #include "DRAMSys/controller/checker/CheckerDDR3.h"    // IWYU pragma: keep
 #include "DRAMSys/controller/checker/CheckerDDR4.h"    // IWYU pragma: keep
@@ -70,6 +71,7 @@
 #include "DRAMSys/controller/checker/CheckerSTTMRAM.h" // IWYU pragma: keep
 #include "DRAMSys/controller/checker/CheckerWideIO.h"  // IWYU pragma: keep
 #include "DRAMSys/controller/checker/CheckerWideIO2.h" // IWYU pragma: keep
+#include <fmt/format.h>
 #ifdef DDR5_SIM
 #include "DRAMSys/controller/checker/CheckerDDR5.h" // IWYU pragma: keep
 #endif
@@ -85,7 +87,6 @@
 
 #include <cstdint>
 #include <memory>
-#include <numeric>
 #include <string>
 #include <utility>
 
@@ -111,7 +112,8 @@ Controller::Controller(const sc_module_name& name,
     gearing(config.gearing),
     windowSizeTime(simConfig.windowSize * memSpec.tCK),
     numberOfBeatsServed(memSpec.ranksPerChannel, 0),
-    memoryManager(simConfig.storageEnabled)
+    memoryManager(simConfig.storageEnabled),
+    stats(*this)
 {
     if (simConfig.databaseRecording && tlmRecorder != nullptr)
     {
@@ -521,6 +523,13 @@ Controller::nb_transport_fw(tlm_generic_payload& trans, tlm_phase& phase, sc_tim
     {
         transToAcquire.payload = &trans;
         transToAcquire.arrival = sc_time_stamp() + delay + config.thinkDelayFw;
+
+        numberOfRequests++;
+        if (trans.is_read())
+            numberOfReadRequests++;
+        else if (trans.is_write())
+            numberOfWriteRequests++;
+
         beginReqEvent.notify(delay + config.thinkDelayFw);
     }
     else if (phase == END_RESP)
@@ -814,53 +823,28 @@ void Controller::createChildTranses(tlm::tlm_generic_payload& parentTrans)
 void Controller::end_of_simulation()
 {
     idleTimeCollector.end();
+}
 
-    double bandwidth = getAverageBandwidth();
-    double maxBandwidth = memSpec.getMaxBandwidth();
+[[nodiscard]] double Controller::getAverageBandwidthPerRank(std::size_t rank) const
+{
+    sc_core::sc_time activeTime = static_cast<double>(numberOfBeatsServed[rank]) * memSpec.tCK / static_cast<double>(memSpec.dataRate);
+    return (activeTime / sc_core::sc_time_stamp()) * memSpec.getMaxBandwidth();
+}
 
-    // HBM specific, one or two pseudo channels per channel
-    if (memSpec.pseudoChannelMode())
-        maxBandwidth *= memSpec.ranksPerChannel;
-
-    std::cout << std::left << std::setw(24) << name() << std::string("  Total Time:     ")
-              << sc_core::sc_time_stamp().to_string() << std::endl;
-    std::cout << std::left << std::setw(24) << name() << std::string("  AVG BW:         ")
-              << std::fixed << std::setprecision(2) << std::setw(6) << bandwidth << " Gb/s | "
-              << std::setw(6) << (bandwidth / 8) << " GB/s | " << std::setw(6)
-              << (bandwidth / maxBandwidth * 100) << " %" << std::endl;
-
-    if (memSpec.ranksPerChannel > 1)
+[[nodiscard]] double Controller::getAverageBandwidth() const
+{
+    double totalBandwidth = 0;
+    for (std::size_t i = 0; i < memSpec.ranksPerChannel; i++)
     {
-        for (std::size_t i = 0; i < memSpec.ranksPerChannel; i++)
-        {
-            std::string baseName = memSpec.pseudoChannelMode() ? "pc" : "ra";
-            std::string rankName = "." + baseName + std::to_string(i);
-            std::string componentName = name() + rankName;
-
-            double rankBandwidth = getAverageBandwidthPerRank(i);
-
-            std::cout << std::left << std::setw(24) << componentName
-                      << std::string("  AVG BW:         ") << std::fixed << std::setprecision(2)
-                      << std::setw(6) << (rankBandwidth) << " Gb/s | " << std::setw(6)
-                      << (rankBandwidth / 8) << " GB/s | " << std::setw(6)
-                      << (rankBandwidth / maxBandwidth * 100) << " %" << std::endl;
-        }
+        totalBandwidth += getAverageBandwidthPerRank(i);
     }
 
-    double idleFactor = sc_time_stamp() / (sc_time_stamp() - idleTimeCollector.getIdleTime());
-    std::cout << std::left << std::setw(24) << name() << std::string("  AVG BW\\IDLE:    ")
-              << std::fixed << std::setprecision(2) << std::setw(6) << (idleFactor * bandwidth)
-              << " Gb/s | " << std::setw(6) << (idleFactor * bandwidth / 8) << " GB/s | "
-              << std::setw(6) << (idleFactor * bandwidth / maxBandwidth * 100) << " %" << std::endl;
-    std::cout << std::left << std::setw(24) << name() << std::string("  MAX BW:         ")
-              << std::fixed << std::setprecision(2) << std::setw(6) << maxBandwidth << " Gb/s | "
-              << std::setw(6) << maxBandwidth / 8 << " GB/s | " << std::setw(6) << 100.0 << " %"
-              << std::endl;
+    return totalBandwidth;
 }
 
 void Controller::serialize(std::ostream& stream) const
 {
-    for (auto& refreshManager : refreshManagers)
+    for (auto const& refreshManager : refreshManagers)
     {
         refreshManager->serialize(stream);
     }
@@ -874,31 +858,92 @@ void Controller::deserialize(std::istream& stream)
     }
 }
 
-[[nodiscard]] double Controller::getAverageBandwidthPerRank(std::size_t rank) const
+Controller::Stats::Stats(Controller const& controller) :
+    Group(controller.basename()),
+    numberOfRequests(addStat<Statistics::ScalarStat>(
+        "NumberOfRequests", "Total number of requests", Statistics::Quantity::Count)),
+    numberOfReadRequests(addStat<Statistics::ScalarStat>(
+        "NumberOfReadRequests", "Total number of read requests", Statistics::Quantity::Count)),
+    numberOfWriteRequests(addStat<Statistics::ScalarStat>(
+        "NumberOfWriteRequests", "Total number of write requests", Statistics::Quantity::Count)),
+    averageBandwidth(addStat<Statistics::ScalarStat>("AverageBandwidth",
+                                                     "Average bandwidth over simulation duration",
+                                                     Statistics::Quantity::Bandwidth)),
+    averageBandwidthWithoutIdle(addStat<Statistics::ScalarStat>(
+        "AverageBandwidthWithoutIdle",
+        "Average bandwidth over simulation duration with idle times being ignored",
+        Statistics::Quantity::Bandwidth)),
+    maximumTheoreticalBandwidth(
+        addStat<Statistics::ScalarStat>("MaximumTheoreticalBandwidth",
+                                        "Theoretical maximum achievable bandwidth",
+                                        Statistics::Quantity::Bandwidth)),
+    averageUtilization(
+        addStat<Statistics::ScalarStat>("AverageUtilization",
+                                        "Average utilization over simulation duration",
+                                        Statistics::Quantity::Percentage)),
+    averageUtilizationWithoutIdle(addStat<Statistics::ScalarStat>(
+        "AverageUtilizationWithoutIdle",
+        "Average utilization over simulation duration with idle times being ignored",
+        Statistics::Quantity::Percentage))
 {
-    sc_core::sc_time activeTime =
-        numberOfBeatsServed[rank] * memSpec.tCK / memSpec.dataRate;
-
-    // HBM specific, pseudo channels get averaged
-    if (memSpec.pseudoChannelMode())
-        activeTime /= memSpec.ranksPerChannel;
-
-    return (activeTime / sc_core::sc_time_stamp()) * memSpec.getMaxBandwidth();
+    for (std::size_t i = 0; i < controller.memSpec.ranksPerChannel; i++)
+    {
+        std::string rankDescriptor = controller.memSpec.pseudoChannelMode() ? "pc" : "ra";
+        rankStats.emplace_back(std::make_unique<RankStats>(fmt::format("{}{}", rankDescriptor, i), this));
+    }
 }
 
-[[nodiscard]] double Controller::getAverageBandwidth() const
+Controller::Stats::RankStats::RankStats(std::string name, Group *parent) :
+    Group(std::move(name), parent),
+    averageBandwidth(addStat<Statistics::ScalarStat>("AverageBandwidth",
+                                                     "Average bandwidth per rank over simulation duration",
+                                                     Statistics::Quantity::Bandwidth)),
+    averageUtilization(
+        addStat<Statistics::ScalarStat>("AverageUtilization",
+                                        "Average utilization per rank over simulation duration",
+                                        Statistics::Quantity::Percentage))
 {
-    double totalBandwidth = 0;
-    for (std::size_t i = 0; i < memSpec.ranksPerChannel; i++)
-    {
-        totalBandwidth += getAverageBandwidthPerRank(i);
-    }
+}
 
-    // HBM specific, pseudo channels get averaged
+void Controller::updateStats()
+{
+    stats.numberOfRequests = static_cast<double>(numberOfRequests);
+    stats.numberOfReadRequests = static_cast<double>(numberOfReadRequests);
+    stats.numberOfWriteRequests = static_cast<double>(numberOfWriteRequests);
+
+    double bandwidth = getAverageBandwidth();
+    double maxBandwidth = memSpec.getMaxBandwidth();
+    double maxRankBandwidth = maxBandwidth;
+
+    // HBM specific, one or two pseudo channels per channel
     if (memSpec.pseudoChannelMode())
-        totalBandwidth /= memSpec.ranksPerChannel;
+        maxBandwidth *= static_cast<double>(memSpec.ranksPerChannel);
 
-    return totalBandwidth;
+    double idleFactor = sc_time_stamp() / (sc_time_stamp() - idleTimeCollector.getIdleTime());
+
+    stats.averageBandwidth = bandwidth;
+    stats.averageBandwidthWithoutIdle = bandwidth * idleFactor;
+    stats.maximumTheoreticalBandwidth = maxBandwidth;
+    stats.averageUtilization = bandwidth / maxBandwidth;
+    stats.averageUtilizationWithoutIdle = bandwidth / maxBandwidth * idleFactor;
+
+    for (std::size_t i = 0; i < stats.rankStats.size(); i++)
+    {
+        double rankBandwidth = getAverageBandwidthPerRank(i);
+        double rankUtilization = getAverageBandwidthPerRank(i) / maxRankBandwidth;
+        stats.rankStats[i]->averageBandwidth = rankBandwidth;
+        stats.rankStats[i]->averageUtilization = rankUtilization;
+    }
+}
+
+void Controller::resetStats()
+{
+    numberOfRequests = 0;
+    numberOfReadRequests = 0;
+    numberOfWriteRequests = 0;
+
+    for (std::size_t i = 0; i < stats.rankStats.size(); i++)
+        numberOfBeatsServed[i] = 0;
 }
 
 } // namespace DRAMSys

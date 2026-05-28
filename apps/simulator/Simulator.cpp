@@ -43,16 +43,28 @@
 #include <DRAMSys/initiators/player/StlPlayer.h>
 #include <DRAMSys/initiators/request/RequestIssuer.h>
 #include <DRAMSys/simulation/SimConfig.h>
+#include <DRAMSys/statistics/JsonFormat.h>
+#include <DRAMSys/statistics/PrettyFormat.h>
+
+#include <fmt/format.h>
+#include <fmt/os.h>
+
+#include <chrono>
+#include <memory>
+#include <sstream>
 
 using namespace DRAMSys::Initiators;
 
-Simulator::Simulator(::DRAMSys::Config::Configuration configuration,
+Simulator::Simulator(sc_core::sc_module_name const& name,
+                     DRAMSys::Config::Configuration configuration,
                      std::filesystem::path baseConfig) :
+    sc_core::sc_module(name),
     storageEnabled(configuration.simconfig.StoreMode == ::DRAMSys::Config::StoreModeType::Store),
     memoryManager(storageEnabled),
     configuration(std::move(configuration)),
     dramSys(std::make_unique<DRAMSys::DRAMSys>("DRAMSys", this->configuration)),
-    baseConfig(std::move(baseConfig))
+    baseConfig(std::move(baseConfig)),
+    stats(*this)
 {
     terminateInitiator = [this]()
     {
@@ -171,7 +183,7 @@ Simulator::instantiateInitiator(const ::DRAMSys::Config::Initiator& initiator)
 void Simulator::run()
 {
     // Store the starting of the simulation in wall-clock time:
-    auto start = std::chrono::high_resolution_clock::now();
+    startTime = std::chrono::high_resolution_clock::now();
 
     // Start the SystemC simulation
     if (configuration.simconfig.SimulationTime.has_value())
@@ -190,7 +202,40 @@ void Simulator::run()
         sc_core::sc_stop();
     }
 
-    auto finish = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = finish - start;
-    std::cout << "Simulation took " + std::to_string(elapsed.count()) + " seconds.\n";
+    std::stringstream stats;
+    DRAMSys::Statistics::PrettyFormat::collectStats(this, stats);
+    fmt::print("{}", stats.str());
 }
+
+Simulator::Stats::Stats(Simulator const& simulator) :
+    Group(simulator.name()),
+    wallclockTime(
+        addStat<DRAMSys::Statistics::ScalarStat>("WallclockTime",
+                                                 "Wall-clock time elapsed by the simulation",
+                                                 DRAMSys::Statistics::Quantity::Time)),
+    simulationTicks(addStat<DRAMSys::Statistics::ScalarStat>(
+        "SimulationTicks",
+        fmt::format("Total simulation ticks ({})", sc_core::sc_get_time_resolution().to_string()),
+        DRAMSys::Statistics::Quantity::Count)),
+    simulationTime(addStat<DRAMSys::Statistics::ScalarStat>(
+        "SimulationTime", "Total simulation duration", DRAMSys::Statistics::Quantity::Time))
+{
+}
+
+void Simulator::updateStats()
+{
+    double wallclockTime =
+        std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - startTime)
+            .count();
+    stats.wallclockTime = wallclockTime;
+
+    sc_core::sc_time diffSimTime = sc_core::sc_time_stamp() - lastSimTime;
+    stats.simulationTime = diffSimTime.to_seconds();
+    stats.simulationTicks = static_cast<double>(diffSimTime.value());
+}
+
+void Simulator::resetStats()
+{
+    startTime = std::chrono::high_resolution_clock::now();
+    lastSimTime = sc_core::sc_time_stamp();
+ }

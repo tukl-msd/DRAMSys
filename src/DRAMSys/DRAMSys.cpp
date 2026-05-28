@@ -84,6 +84,7 @@
 #include <DRAMUtils/memspec/MemSpec.h>
 
 #include <fmt/base.h>
+#include <fmt/format.h>
 
 #include <cstdlib>
 #include <memory>
@@ -101,7 +102,8 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
     mcConfig(std::make_unique<McConfig>(config.mcconfig, *memSpec)),
     addressDecoder(std::make_unique<AddressDecoder>(config.addressmapping)),
     arbiter(createArbiter(*simConfig, *mcConfig, *memSpec, *addressDecoder)),
-    dram(std::make_unique<Dram>(memSpec->getSimMemSizeInBytes()))
+    dram(std::make_unique<Dram>(memSpec->getSimMemSizeInBytes())),
+    stats(*this)
 {
     fmt::print(LOGO, DRAMSYS_VERSION, DRAMSYS_YEAR);
     fmt::println(headline);
@@ -239,7 +241,7 @@ void DRAMSys::setupTlmRecorders(const std::string& traceName, const Config::Conf
     for (std::size_t i = 0; i < memSpec->numberOfChannels; i++)
     {
         std::string dbName =
-            std::string(name()) + "_" + traceName + "_ch" + std::to_string(i) + ".tdb";
+            std::string("DRAMSys") + "_" + traceName + "_ch" + std::to_string(i) + ".tdb";
         std::string recorderName = "tlmRecorder" + std::to_string(i);
 
         nlohmann::json mcconfig;

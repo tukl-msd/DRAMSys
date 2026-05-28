@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2026, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,29 +29,48 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Authors:
+ * Author:
  *    Derek Christ
  */
 
-#include "Simulator.h"
+#pragma once
 
-#include <DRAMSys/configuration/json/DRAMSysConfiguration.h>
+#include "DRAMSys/statistics/Stat.h"
 
-#include <filesystem>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
-int sc_main(int argc, char* argv[])
+namespace DRAMSys::Statistics
 {
-    std::filesystem::path resourceDirectory = DRAMSYS_RESOURCE_DIR;
-    std::filesystem::path baseConfig = resourceDirectory / "ddr4-example.json";
-    if (argc >= 2)
+
+class Group
+{
+public:
+    Group(std::string name, Group* parent = nullptr);
+
+    Group(const Group&) = delete;
+    Group& operator=(const Group&) = delete;
+
+    Group(Group&&) = delete;
+    Group& operator=(Group&&) = delete;
+
+    virtual ~Group() = default;
+
+    template <typename T, typename... Args>
+    T& addStat(Args&&... args)
     {
-        baseConfig = argv[1];
+        auto stat = std::make_unique<T>(std::forward<Args>(args)...);
+        T& ref = *stat;
+
+        stats.push_back(std::move(stat));
+        return ref;
     }
 
-    DRAMSys::Config::Configuration configuration = DRAMSys::Config::from_path(baseConfig.c_str());
+    std::string name;
+    std::vector<std::unique_ptr<Stat>> stats;
+    std::vector<Group*> subGroups;
+};
 
-    Simulator simulator("Simulator", configuration, baseConfig);
-    simulator.run();
-
-    return 0;
-}
+} // namespace DRAMSys::Statistics

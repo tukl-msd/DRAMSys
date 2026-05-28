@@ -103,6 +103,9 @@ add_library(dramsys
     DRAMSys/simulation/Arbiter.cpp
     DRAMSys/simulation/Dram.cpp
     DRAMSys/simulation/SimConfig.cpp
+    DRAMSys/statistics/Group.cpp
+    DRAMSys/statistics/JsonFormat.cpp
+    DRAMSys/statistics/PrettyFormat.cpp
 )
 
 add_library(DRAMSys::DRAMSys ALIAS dramsys)
@@ -122,6 +125,11 @@ FILES
     DRAMSys/configuration/json/MemSpec.h
     DRAMSys/configuration/json/SimConfig.h
     DRAMSys/configuration/json/TraceSetup.h
+    DRAMSys/statistics/Group.h
+    DRAMSys/statistics/JsonFormat.h
+    DRAMSys/statistics/PrettyFormat.h
+    DRAMSys/statistics/Stat.h
+    DRAMSys/statistics/StatProvider.h
 )
 
 target_include_directories(dramsys PUBLIC

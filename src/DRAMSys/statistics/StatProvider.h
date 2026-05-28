@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2026, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,29 +29,48 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Authors:
+ * Author:
  *    Derek Christ
  */
 
-#include "Simulator.h"
+#pragma once
 
-#include <DRAMSys/configuration/json/DRAMSysConfiguration.h>
+#include "DRAMSys/statistics/Group.h"
 
-#include <filesystem>
-
-int sc_main(int argc, char* argv[])
+namespace DRAMSys::Statistics
 {
-    std::filesystem::path resourceDirectory = DRAMSYS_RESOURCE_DIR;
-    std::filesystem::path baseConfig = resourceDirectory / "ddr4-example.json";
-    if (argc >= 2)
-    {
-        baseConfig = argv[1];
-    }
 
-    DRAMSys::Config::Configuration configuration = DRAMSys::Config::from_path(baseConfig.c_str());
+class StatProvider
+{
+public:
+    StatProvider() = default;
 
-    Simulator simulator("Simulator", configuration, baseConfig);
-    simulator.run();
+    StatProvider(const StatProvider&) = default;
+    StatProvider& operator=(const StatProvider&) = default;
 
-    return 0;
-}
+    StatProvider(StatProvider&&) = delete;
+    StatProvider& operator=(StatProvider&&) = delete;
+
+    virtual ~StatProvider() = default;
+
+    /**
+     * Updates the values in the Statistics::Group container to the current simulated values. Needs
+     * to be called before reading the statistics.
+     */
+    virtual void updateStats() {};
+
+    /**
+     * Resets all statistics to a default value.
+     */
+    virtual void resetStats() {};
+
+    /**
+     * Returns the Statistics::Group container. It is needed to call updateStats() beforehand to
+     * update the statistic values in the statistic container.
+     *
+     * @return Statistics::Group containing all statistics associated with the module.
+     */
+    [[nodiscard]] virtual Statistics::Group const& getStatGroup() const = 0;
+};
+
+} // namespace DRAMSys::Statistics

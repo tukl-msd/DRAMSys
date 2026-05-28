@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2026, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,29 +29,25 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Authors:
+ * Author:
  *    Derek Christ
  */
 
-#include "Simulator.h"
+#include "Group.h"
 
-#include <DRAMSys/configuration/json/DRAMSysConfiguration.h>
+#include <utility>
 
-#include <filesystem>
-
-int sc_main(int argc, char* argv[])
+namespace DRAMSys::Statistics
 {
-    std::filesystem::path resourceDirectory = DRAMSYS_RESOURCE_DIR;
-    std::filesystem::path baseConfig = resourceDirectory / "ddr4-example.json";
-    if (argc >= 2)
+
+Group::Group(std::string name, Group* parent)
+{
+    if (parent != nullptr)
     {
-        baseConfig = argv[1];
+        parent->subGroups.push_back(this);
     }
 
-    DRAMSys::Config::Configuration configuration = DRAMSys::Config::from_path(baseConfig.c_str());
-
-    Simulator simulator("Simulator", configuration, baseConfig);
-    simulator.run();
-
-    return 0;
+    this->name = std::move(name);
 }
+
+} // namespace DRAMSys::Statistics

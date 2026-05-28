@@ -57,6 +57,7 @@ target_link_libraries(dramsys_cli
     PUBLIC
         DRAMSys::DRAMSys
     PRIVATE
+        fmt::fmt
         Threads::Threads
 )
 

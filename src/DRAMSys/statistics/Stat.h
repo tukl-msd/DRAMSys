@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2026, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,29 +29,78 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Authors:
+ * Author:
  *    Derek Christ
  */
 
-#include "Simulator.h"
+#pragma once
 
-#include <DRAMSys/configuration/json/DRAMSysConfiguration.h>
+#include <cstdint>
+#include <string>
+#include <utility>
+#include <vector>
 
-#include <filesystem>
-
-int sc_main(int argc, char* argv[])
+namespace DRAMSys::Statistics
 {
-    std::filesystem::path resourceDirectory = DRAMSYS_RESOURCE_DIR;
-    std::filesystem::path baseConfig = resourceDirectory / "ddr4-example.json";
-    if (argc >= 2)
+
+enum class Quantity : std::uint8_t
+{
+    Bandwidth, // B/s
+    Time,      // s
+    Energy,    // J
+    Count,
+    Percentage
+};
+
+class Stat
+{
+public:
+    virtual ~Stat() = default;
+
+    Stat(const Stat&) = default;
+    Stat& operator=(const Stat&) = default;
+
+    Stat(Stat&&) = delete;
+    Stat& operator=(Stat&&) = delete;
+
+    Stat(std::string name, std::string description, Quantity quantity) :
+        name(std::move(name)),
+        description(std::move(description)),
+        quantity(quantity)
     {
-        baseConfig = argv[1];
     }
 
-    DRAMSys::Config::Configuration configuration = DRAMSys::Config::from_path(baseConfig.c_str());
+    std::string name;
+    std::string description;
+    Quantity quantity;
+};
 
-    Simulator simulator("Simulator", configuration, baseConfig);
-    simulator.run();
+class ScalarStat : public Stat
+{
+public:
+    ScalarStat(std::string name, std::string description, Quantity quantity) :
+        Stat(std::move(name), std::move(description), quantity)
+    {
+    }
 
-    return 0;
-}
+    ScalarStat& operator=(double value)
+    {
+        this->value = value;
+        return *this;
+    }
+
+    double value = 0;
+};
+
+class VectorStat : public Stat
+{
+public:
+    VectorStat(std::string name, std::string description, Quantity quantity) :
+        Stat(std::move(name), std::move(description), quantity)
+    {
+    }
+
+    std::vector<double> values;
+};
+
+} // namespace DRAMSys::Statistics
