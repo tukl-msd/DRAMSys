@@ -504,7 +504,6 @@ TraceDB::parseTransactionsFromQuery(QSqlQuery& query, bool updateVisiblePhases)
 
     bool firstIteration = true;
     ID currentID = 0;
-    int i = -1;
 
     while (query.next())
     {
@@ -512,7 +511,6 @@ TraceDB::parseTransactionsFromQuery(QSqlQuery& query, bool updateVisiblePhases)
 
         if (currentID != id || firstIteration)
         {
-            ++i;
             firstIteration = false;
             currentID = id;
             Timespan span(query.value(1).toLongLong(), query.value(2).toLongLong());
