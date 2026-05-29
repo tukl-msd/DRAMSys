@@ -75,7 +75,7 @@ public:
     uint64_t dataRate;
     uint64_t bitWidth;
     uint64_t dataBusWidth;
-    
+
     // Bursts
     uint64_t defaultBurstLength;
     uint64_t defaultBytesPerBurst;
@@ -112,6 +112,7 @@ public:
     [[nodiscard]] sc_core::sc_time getCommandLength(Command command) const;
     [[nodiscard]] double getCommandLengthInCycles(Command command) const;
     [[nodiscard]] uint64_t getSimMemSizeInBytes() const;
+    [[nodiscard]] double getMaxBandwidth() const;
 
 protected:
     [[nodiscard]] static bool allBytesEnabled(const tlm::tlm_generic_payload& trans)

@@ -90,6 +90,8 @@ public:
     void serialize(std::ostream& stream) const override;
     void deserialize(std::istream& stream) override;
 
+    [[nodiscard]] double getAverageBandwidthPerRank(std::size_t rank) const;
+    [[nodiscard]] double getAverageBandwidth() const;
 private:
     void end_of_simulation() override;
 

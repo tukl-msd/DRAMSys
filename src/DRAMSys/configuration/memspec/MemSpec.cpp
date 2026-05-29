@@ -32,7 +32,7 @@
  * Authors:
  *    Lukas Steiner
  *    Derek Christ
- *    Marco Mörz 
+ *    Marco Mörz
  */
 
 #include "MemSpec.h"
@@ -56,6 +56,19 @@ double MemSpec::getCommandLengthInCycles(Command command) const
 uint64_t MemSpec::getSimMemSizeInBytes() const
 {
     return memorySizeBytes;
+}
+
+double MemSpec::getMaxBandwidth() const
+{
+    return (
+        // fCK in GHz e.g. 1 [GHz]:
+        (1e-9 / tCK.to_seconds())
+        // DataRate e.g. 2
+        * dataRate
+        // BusWidth e.g. 8 or 64
+        * bitWidth
+        // Number of devices that form a rank, e.g., 8 on a DDR3 DIMM
+        * devicesPerRank);
 }
 
 sc_time MemSpec::getRefreshIntervalAB() const

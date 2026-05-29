@@ -805,29 +805,8 @@ void Controller::end_of_simulation()
 {
     idleTimeCollector.end();
 
-    std::uint64_t totalNumberOfBeatsServed =
-        std::accumulate(numberOfBeatsServed.begin(), numberOfBeatsServed.end(), 0);
-
-    sc_core::sc_time activeTime =
-        static_cast<double>(totalNumberOfBeatsServed) / memSpec.dataRate * memSpec.tCK;
-
-    // HBM specific, pseudo channels get averaged
-    if (memSpec.pseudoChannelMode())
-        activeTime /= memSpec.ranksPerChannel;
-
-    double bandwidth = activeTime / sc_core::sc_time_stamp();
-    double bandwidthWoIdle =
-        activeTime / (sc_core::sc_time_stamp() - idleTimeCollector.getIdleTime());
-
-    double maxBandwidth = (
-        // fCK in GHz e.g. 1 [GHz]:
-        (1e-9 / memSpec.tCK.to_seconds())
-        // DataRate e.g. 2
-        * memSpec.dataRate
-        // BusWidth e.g. 8 or 64
-        * memSpec.bitWidth
-        // Number of devices that form a rank, e.g., 8 on a DDR3 DIMM
-        * memSpec.devicesPerRank);
+    double bandwidth = getAverageBandwidth();
+    double maxBandwidth = memSpec.getMaxBandwidth();
 
     // HBM specific, one or two pseudo channels per channel
     if (memSpec.pseudoChannelMode())
@@ -836,9 +815,9 @@ void Controller::end_of_simulation()
     std::cout << std::left << std::setw(24) << name() << std::string("  Total Time:     ")
               << sc_core::sc_time_stamp().to_string() << std::endl;
     std::cout << std::left << std::setw(24) << name() << std::string("  AVG BW:         ")
-              << std::fixed << std::setprecision(2) << std::setw(6) << (bandwidth * maxBandwidth)
-              << " Gb/s | " << std::setw(6) << (bandwidth * maxBandwidth / 8) << " GB/s | "
-              << std::setw(6) << (bandwidth * 100) << " %" << std::endl;
+              << std::fixed << std::setprecision(2) << std::setw(6) << bandwidth << " Gb/s | "
+              << std::setw(6) << (bandwidth / 8) << " GB/s | " << std::setw(6)
+              << (bandwidth / maxBandwidth * 100) << " %" << std::endl;
 
     if (memSpec.ranksPerChannel > 1)
     {
@@ -846,36 +825,23 @@ void Controller::end_of_simulation()
         {
             std::string baseName = memSpec.pseudoChannelMode() ? "pc" : "ra";
             std::string rankName = "." + baseName + std::to_string(i);
-
-            sc_core::sc_time rankActiveTime =
-                numberOfBeatsServed[i] * memSpec.tCK / memSpec.dataRate;
-            double rankBandwidth = rankActiveTime / sc_core::sc_time_stamp();
-
-            double rankMaxBandwidth = (
-                // fCK in GHz e.g. 1 [GHz]:
-                (1e-9 / memSpec.tCK.to_seconds())
-                // DataRate e.g. 2
-                * memSpec.dataRate
-                // BusWidth e.g. 8 or 64
-                * memSpec.bitWidth
-                // Number of devices that form a rank, e.g., 8 on a DDR3 DIMM
-                * memSpec.devicesPerRank);
-
             std::string componentName = name() + rankName;
+
+            double rankBandwidth = getAverageBandwidthPerRank(i);
 
             std::cout << std::left << std::setw(24) << componentName
                       << std::string("  AVG BW:         ") << std::fixed << std::setprecision(2)
-                      << std::setw(6) << (rankBandwidth * rankMaxBandwidth) << " Gb/s | "
-                      << std::setw(6) << (rankBandwidth * rankMaxBandwidth / 8) << " GB/s | "
-                      << std::setw(6) << (rankBandwidth * 100) << " %" << std::endl;
+                      << std::setw(6) << (rankBandwidth) << " Gb/s | " << std::setw(6)
+                      << (rankBandwidth / 8) << " GB/s | " << std::setw(6)
+                      << (rankBandwidth / maxBandwidth * 100) << " %" << std::endl;
         }
     }
 
+    double idleFactor = sc_time_stamp() / (sc_time_stamp() - idleTimeCollector.getIdleTime());
     std::cout << std::left << std::setw(24) << name() << std::string("  AVG BW\\IDLE:    ")
-              << std::fixed << std::setprecision(2) << std::setw(6)
-              << (bandwidthWoIdle * maxBandwidth) << " Gb/s | " << std::setw(6)
-              << (bandwidthWoIdle * maxBandwidth / 8) << " GB/s | " << std::setw(6)
-              << (bandwidthWoIdle * 100) << " %" << std::endl;
+              << std::fixed << std::setprecision(2) << std::setw(6) << (idleFactor * bandwidth)
+              << " Gb/s | " << std::setw(6) << (idleFactor * bandwidth / 8) << " GB/s | "
+              << std::setw(6) << (idleFactor * bandwidth / maxBandwidth * 100) << " %" << std::endl;
     std::cout << std::left << std::setw(24) << name() << std::string("  MAX BW:         ")
               << std::fixed << std::setprecision(2) << std::setw(6) << maxBandwidth << " Gb/s | "
               << std::setw(6) << maxBandwidth / 8 << " GB/s | " << std::setw(6) << 100.0 << " %"
@@ -896,6 +862,33 @@ void Controller::deserialize(std::istream& stream)
     {
         refreshManager->deserialize(stream);
     }
+}
+
+[[nodiscard]] double Controller::getAverageBandwidthPerRank(std::size_t rank) const
+{
+    sc_core::sc_time activeTime =
+        numberOfBeatsServed[rank] * memSpec.tCK / memSpec.dataRate;
+
+    // HBM specific, pseudo channels get averaged
+    if (memSpec.pseudoChannelMode())
+        activeTime /= memSpec.ranksPerChannel;
+
+    return (activeTime / sc_core::sc_time_stamp()) * memSpec.getMaxBandwidth();
+}
+
+[[nodiscard]] double Controller::getAverageBandwidth() const
+{
+    double totalBandwidth = 0;
+    for (std::size_t i = 0; i < memSpec.ranksPerChannel; i++)
+    {
+        totalBandwidth += getAverageBandwidthPerRank(i);
+    }
+
+    // HBM specific, pseudo channels get averaged
+    if (memSpec.pseudoChannelMode())
+        totalBandwidth /= memSpec.ranksPerChannel;
+
+    return totalBandwidth;
 }
 
 } // namespace DRAMSys
