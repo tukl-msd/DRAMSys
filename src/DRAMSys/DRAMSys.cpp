@@ -54,31 +54,27 @@
 #include "DRAMSys/simulation/Dram.h"
 #include "DRAMSys/simulation/SimConfig.h"
 
-#include "DRAMSys/configuration/memspec/MemSpecDDR3.h"
-#include "DRAMSys/configuration/memspec/MemSpecDDR4.h"
-#include "DRAMSys/configuration/memspec/MemSpecGDDR5.h"
-#include "DRAMSys/configuration/memspec/MemSpecGDDR5X.h"
-#include "DRAMSys/configuration/memspec/MemSpecGDDR6.h"
-#include "DRAMSys/configuration/memspec/MemSpecHBM2.h"
-#include "DRAMSys/configuration/memspec/MemSpecLPDDR4.h"
-#include "DRAMSys/configuration/memspec/MemSpecSTTMRAM.h"
-#include "DRAMSys/configuration/memspec/MemSpecWideIO.h"
-#include "DRAMSys/configuration/memspec/MemSpecWideIO2.h"
-
+#include "DRAMSys/configuration/memspec/MemSpecDDR3.h"    // IWYU pragma: keep
+#include "DRAMSys/configuration/memspec/MemSpecDDR4.h"    // IWYU pragma: keep
+#include "DRAMSys/configuration/memspec/MemSpecGDDR5.h"   // IWYU pragma: keep
+#include "DRAMSys/configuration/memspec/MemSpecGDDR5X.h"  // IWYU pragma: keep
+#include "DRAMSys/configuration/memspec/MemSpecGDDR6.h"   // IWYU pragma: keep
+#include "DRAMSys/configuration/memspec/MemSpecHBM2.h"    // IWYU pragma: keep
+#include "DRAMSys/configuration/memspec/MemSpecLPDDR4.h"  // IWYU pragma: keep
+#include "DRAMSys/configuration/memspec/MemSpecSTTMRAM.h" // IWYU pragma: keep
+#include "DRAMSys/configuration/memspec/MemSpecWideIO.h"  // IWYU pragma: keep
+#include "DRAMSys/configuration/memspec/MemSpecWideIO2.h" // IWYU pragma: keep
 #ifdef DDR5_SIM
-#include "DRAMSys/configuration/memspec/MemSpecDDR5.h"
+#include "DRAMSys/configuration/memspec/MemSpecDDR5.h" // IWYU pragma: keep
 #endif
-
 #ifdef LPDDR5_SIM
-#include "DRAMSys/configuration/memspec/MemSpecLPDDR5.h"
+#include "DRAMSys/configuration/memspec/MemSpecLPDDR5.h" // IWYU pragma: keep
 #endif
-
 #ifdef LPDDR6_SIM
-#include "DRAMSys/configuration/memspec/MemSpecLPDDR6.h"
+#include "DRAMSys/configuration/memspec/MemSpecLPDDR6.h" // IWYU pragma: keep
 #endif
-
 #ifdef HBM3_4_SIM
-#include "DRAMSys/configuration/memspec/MemSpecHBM3_4.h"
+#include "DRAMSys/configuration/memspec/MemSpecHBM3_4.h" // IWYU pragma: keep
 #endif
 
 #ifdef USE_DRAMPOWER

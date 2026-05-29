@@ -41,17 +41,7 @@
 #include "DRAMSys/common/StandardMapping.h"
 #include "DRAMSys/common/dramExtensions.h"
 #include "DRAMSys/configuration/json/McConfig.h"
-#include "DRAMSys/controller/checker/CheckerDDR3.h"
-#include "DRAMSys/controller/checker/CheckerDDR4.h"
-#include "DRAMSys/controller/checker/CheckerGDDR5.h"
-#include "DRAMSys/controller/checker/CheckerGDDR5X.h"
-#include "DRAMSys/controller/checker/CheckerGDDR6.h"
-#include "DRAMSys/controller/checker/CheckerHBM2.h"
 #include "DRAMSys/controller/checker/CheckerIF.h"
-#include "DRAMSys/controller/checker/CheckerLPDDR4.h"
-#include "DRAMSys/controller/checker/CheckerSTTMRAM.h"
-#include "DRAMSys/controller/checker/CheckerWideIO.h"
-#include "DRAMSys/controller/checker/CheckerWideIO2.h"
 #include "DRAMSys/controller/cmdmux/CmdMuxOldest.h"
 #include "DRAMSys/controller/cmdmux/CmdMuxStrict.h"
 #include "DRAMSys/controller/powerdown/PowerDownManagerDummy.h"
@@ -70,20 +60,27 @@
 #include "DRAMSys/controller/scheduler/SchedulerGrpFrFcfsWm.h"
 #include "DRAMSys/ecc/InlineEcc.h"
 
+#include "DRAMSys/controller/checker/CheckerDDR3.h"    // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerDDR4.h"    // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerGDDR5.h"   // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerGDDR5X.h"  // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerGDDR6.h"   // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerHBM2.h"    // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerLPDDR4.h"  // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerSTTMRAM.h" // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerWideIO.h"  // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerWideIO2.h" // IWYU pragma: keep
 #ifdef DDR5_SIM
-#include "DRAMSys/controller/checker/CheckerDDR5.h"
+#include "DRAMSys/controller/checker/CheckerDDR5.h" // IWYU pragma: keep
 #endif
-
 #ifdef LPDDR5_SIM
-#include "DRAMSys/controller/checker/CheckerLPDDR5.h"
+#include "DRAMSys/controller/checker/CheckerLPDDR5.h" // IWYU pragma: keep
 #endif
-
 #ifdef LPDDR6_SIM
-#include "DRAMSys/controller/checker/CheckerLPDDR6.h"
+#include "DRAMSys/controller/checker/CheckerLPDDR6.h" // IWYU pragma: keep
 #endif
-
 #ifdef HBM3_4_SIM
-#include "DRAMSys/controller/checker/CheckerHBM3_4.h"
+#include "DRAMSys/controller/checker/CheckerHBM3_4.h" // IWYU pragma: keep
 #endif
 
 #include <cstdint>
