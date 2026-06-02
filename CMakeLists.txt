@@ -140,7 +140,7 @@ FetchContent_MakeAvailable(DRAMUtils)
 if (DRAMSYS_USE_FETCH_CONTENT_DRAMPOWER)
     FetchContent_Declare(
         DRAMPower
-        URL "https://github.com/tukl-msd/DRAMPower/archive/refs/tags/v6.0.0.tar.gz"
+        URL "https://github.com/tukl-msd/DRAMPower/archive/refs/tags/v6.0.1.tar.gz"
         OVERRIDE_FIND_PACKAGE
     )
     FetchContent_MakeAvailable(DRAMPower)

@@ -327,8 +327,9 @@ DRAMSys::createMemSpec(const DRAMUtils::MemSpec::MemSpecVariant& memSpec)
 void DRAMSys::createDRAMPowers(const DRAMUtils::MemSpec::MemSpecVariant& memSpecVar)
 {
     // DRAMPower SimConfig
-    auto drampowerSimConfig =
-        DRAMPower::config::SimConfig{simConfig->storageEnabled ? std::nullopt : simConfig->togglingRate};
+    DRAMPower::config::SimConfig drampowerSimConfig;
+    drampowerSimConfig.toggleRateDefinition =
+        simConfig->storageEnabled ? std::nullopt : simConfig->togglingRate;
 
     // DRAMPowerAdapter generator
     auto generator = [this, &memSpecVar, &drampowerSimConfig] (std::size_t channel, TlmRecorder* recorder) -> std::unique_ptr<DRAMPowerAdapter> {
