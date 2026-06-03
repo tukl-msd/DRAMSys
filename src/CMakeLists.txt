@@ -152,7 +152,7 @@ target_link_libraries(dramsys
         DRAMUtils::DRAMUtils
     PRIVATE
         SQLite3::SQLite3
-        fmt::fmt
+        fmt::fmt-header-only
 )
 
 if (DRAMSYS_USE_DRAMPOWER)
@@ -180,7 +180,7 @@ if (DRAMSYS_INSTALL)
     )
 
     configure_package_config_file(
-        ${CMAKE_SOURCE_DIR}/cmake/DRAMSysConfig.cmake.in
+        ${PROJECT_SOURCE_DIR}/cmake/DRAMSysConfig.cmake.in
         ${CMAKE_CURRENT_BINARY_DIR}/DRAMSysConfig.cmake
         INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/DRAMSys
     )

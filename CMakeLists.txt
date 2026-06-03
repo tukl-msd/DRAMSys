@@ -59,6 +59,8 @@ if (PROJECT_IS_TOP_LEVEL)
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 endif()
 
+option(BUILD_SHARED_LIBS "Build using shared libraries" ON)
+
 ### Project settings ###
 option(DRAMSYS_BUILD_TESTS "Build DRAMSys unit tests" OFF)
 option(DRAMSYS_BUILD_REGRESSION_TESTS "Build DRAMSys regression tests" OFF)
@@ -94,13 +96,6 @@ option(DRAMSYS_USE_FETCH_CONTENT_NLOHMANN_JSON "Use FetchContent to provide nloh
 option(DRAMSYS_USE_FETCH_CONTENT_FMT "Use FetchContent to provide fmt" ${DRAMSYS_USE_FETCH_CONTENT})
 option(DRAMSYS_USE_FETCH_CONTENT_GOOGLE_TEST "Enable FetchContent to provide Google Test" ${DRAMSYS_USE_FETCH_CONTENT})
 
-# TODO: Remove as soon as DRAMPower is updated
-set(DRAMSYS_SHARED_LIBS OFF)
-
-if(DEFINED DRAMSYS_SHARED_LIBS)
-    set(BUILD_SHARED_LIBS ${DRAMSYS_SHARED_LIBS})
-endif()
-
 ### DRAMSys directories ###
 set(DRAMSYS_SOURCE_DIR      "${PROJECT_SOURCE_DIR}/src")
 set(DRAMSYS_LIBRARY_DIR     "${PROJECT_SOURCE_DIR}/lib")
@@ -115,6 +110,9 @@ set(DRAMSYS_EXTENSIONS_DIR  "${PROJECT_SOURCE_DIR}/extensions")
 include(FetchContent)
 
 if (DRAMSYS_USE_FETCH_CONTENT_NLOHMANN_JSON)
+    if (DRAMSYS_INSTALL)
+        set(JSON_Install ON)
+    endif()
     FetchContent_Declare(nlohmann_json
         URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
         OVERRIDE_FIND_PACKAGE
@@ -123,6 +121,9 @@ if (DRAMSYS_USE_FETCH_CONTENT_NLOHMANN_JSON)
 endif()
 
 if (DRAMSYS_USE_FETCH_CONTENT_FMT)
+    if (DRAMSYS_INSTALL)
+        set(FMT_INSTALL ON)
+    endif()
     FetchContent_Declare(fmt
         URL https://github.com/fmtlib/fmt/releases/download/12.1.0/fmt-12.1.0.zip
         OVERRIDE_FIND_PACKAGE
@@ -130,17 +131,23 @@ if (DRAMSYS_USE_FETCH_CONTENT_FMT)
     FetchContent_MakeAvailable(fmt)
 endif()
 
+if (DRAMSYS_INSTALL)
+    set(DRAMUTILS_INSTALL ON)
+endif()
 FetchContent_Declare(
     DRAMUtils
-    URL "https://github.com/tukl-msd/DRAMUtils/archive/refs/tags/v1.13.3.tar.gz"
+    URL "https://github.com/tukl-msd/DRAMUtils/archive/refs/tags/v1.13.4.tar.gz"
     OVERRIDE_FIND_PACKAGE
 )
 FetchContent_MakeAvailable(DRAMUtils)
 
 if (DRAMSYS_USE_FETCH_CONTENT_DRAMPOWER)
+    if (DRAMSYS_INSTALL)
+        set(DRAMPOWER_INSTALL ON)
+    endif()
     FetchContent_Declare(
         DRAMPower
-        URL "https://github.com/tukl-msd/DRAMPower/archive/refs/tags/v6.0.1.tar.gz"
+        URL "https://github.com/tukl-msd/DRAMPower/archive/refs/tags/v6.0.2.tar.gz"
         OVERRIDE_FIND_PACKAGE
     )
     FetchContent_MakeAvailable(DRAMPower)
@@ -195,7 +202,9 @@ if(DRAMSYS_BUILD_TESTS)
     include(GoogleTest)
 
     if (DRAMSYS_USE_FETCH_CONTENT_GOOGLE_TEST)
-            FetchContent_Declare(
+        set(BUILD_GMOCK OFF)
+        set(INSTALL_GTEST OFF)
+        FetchContent_Declare(
             GTest
             URL https://github.com/google/googletest/releases/download/v1.17.0/googletest-1.17.0.tar.gz
             OVERRIDE_FIND_PACKAGE

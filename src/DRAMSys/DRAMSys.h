@@ -42,7 +42,6 @@
 #ifndef DRAMSYS_H
 #define DRAMSYS_H
 
-#include "DRAMSys/common/PhysicalStorage.h"
 #include "DRAMSys/configuration/json/DRAMSysConfiguration.h"
 #include "DRAMSys/statistics/Group.h"
 #include "DRAMSys/statistics/StatProvider.h"

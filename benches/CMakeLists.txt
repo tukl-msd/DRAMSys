@@ -39,6 +39,7 @@ option(DRAMSYS_USE_FETCH_CONTENT_GOOGLE_BENCHMARK "Enable FetchContent to provid
 
 if (DRAMSYS_USE_FETCH_CONTENT_GOOGLE_BENCHMARK)
     set(BENCHMARK_ENABLE_TESTING OFF)
+    set(BENCHMARK_ENABLE_INSTALL OFF)
 
     FetchContent_Declare(
         benchmark
