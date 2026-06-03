@@ -102,6 +102,16 @@ public:
      */
     void registerIdleCallback(const std::function<void()>& idleCallback);
 
+    /**
+     * Serializes the current state of DRAMSys and all submodules for saving it into a checkpoint.
+     */
+    void serialize(std::filesystem::path const& checkpointPath) const;
+
+    /**
+     * Deserialize and restore the current state of DRAMSys and all submodules from a checkpoint.
+     */
+    void deserialize(std::filesystem::path const& checkpointPath);
+
 private:
     static std::unique_ptr<const MemSpec>
     createMemSpec(const DRAMUtils::MemSpec::MemSpecVariant& memSpec);
