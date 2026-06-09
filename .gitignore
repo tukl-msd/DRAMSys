@@ -9,6 +9,7 @@ build*/
 .vscode
 .idea
 .helix
+.zed
 .cache
 .env
 CMakeUserPresets.json
