@@ -59,7 +59,8 @@ Arbiter::Arbiter(const sc_module_name& name,
     tCK(memSpec.tCK),
     arbitrationDelayFw(mcConfig.arbitrationDelayFw),
     arbitrationDelayBw(mcConfig.arbitrationDelayBw),
-    addressOffset(simConfig.addressOffset)
+    addressOffset(simConfig.addressOffset),
+    stats(*this)
 {
     iSocket.register_nb_transport_bw(this, &Arbiter::nb_transport_bw);
     tSocket.register_nb_transport_fw(this, &Arbiter::nb_transport_fw);
@@ -107,6 +108,13 @@ void Arbiter::end_of_elaboration()
     pendingRequestsOnChannel = ControllerVector<Channel, std::queue<tlm_generic_payload*>>(
         iSocket.size(), std::queue<tlm_generic_payload*>());
     nextChannelPayloadIDToAppend = ControllerVector<Channel, std::uint64_t>(iSocket.size(), 1);
+
+    numberOfRequestsPerThread.resize(tSocket.size(), 0);
+    bytesPerThread.resize(tSocket.size(), 0);
+    bytesPerChannel.resize(iSocket.size(), 0);
+    stats.numberOfRequestsPerThread.values.resize(tSocket.size());
+    stats.averageBandwidthPerThread.values.resize(tSocket.size());
+    stats.averageBandwidthPerChannel.values.resize(iSocket.size());
 }
 
 void ArbiterSimple::end_of_elaboration()
@@ -168,6 +176,9 @@ Arbiter::nb_transport_fw(int id, tlm_generic_payload& trans, tlm_phase& phase, s
                channel);
         ArbiterExtension::setAutoExtension(trans, Thread(id), Channel(channel));
         trans.acquire();
+
+        numberOfRequestsPerThread[id]++;
+        bytesPerThread[id] += trans.get_data_length();
     }
 
     PRINTDEBUGMESSAGE(name(),
@@ -223,6 +234,7 @@ void ArbiterSimple::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& c
             sc_time tDelay = arbitrationDelayFw;
 
             iSocket[static_cast<int>(channel)]->nb_transport_fw(cbTrans, tPhase, tDelay);
+            bytesPerChannel[static_cast<std::size_t>(channel)] += cbTrans.get_data_length();
         }
         else
             pendingRequestsOnChannel[channel].push(&cbTrans);
@@ -245,6 +257,7 @@ void ArbiterSimple::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& c
             sc_time tDelay = tCK + arbitrationDelayFw;
 
             iSocket[static_cast<int>(channel)]->nb_transport_fw(tPayload, tPhase, tDelay);
+            bytesPerChannel[static_cast<std::size_t>(channel)] += cbTrans.get_data_length();
         }
         else
             channelIsBusy[channel] = false;
@@ -259,7 +272,7 @@ void ArbiterSimple::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& c
             tlm_sync_enum returnValue =
                 tSocket[static_cast<int>(thread)]->nb_transport_bw(cbTrans, tPhase, tDelay);
             if (returnValue == TLM_UPDATED || returnValue == TLM_COMPLETED)
-            {                
+            {
                 if (returnValue == TLM_COMPLETED)
                     tPhase = END_RESP;
                 payloadEventQueue.notify(cbTrans, tPhase, tDelay);
@@ -290,7 +303,7 @@ void ArbiterSimple::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& c
             tlm_sync_enum returnValue =
                 tSocket[static_cast<int>(thread)]->nb_transport_bw(tPayload, tPhase, tDelay);
             if (returnValue == TLM_UPDATED || returnValue == TLM_COMPLETED)
-            {                
+            {
                 if (returnValue == TLM_COMPLETED)
                     tPhase = END_RESP;
                 payloadEventQueue.notify(tPayload, tPhase, tDelay);
@@ -388,7 +401,7 @@ void ArbiterFifo::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& cbP
                 tSocket[static_cast<int>(thread)]->nb_transport_bw(tPayload, tPhase, tDelay);
             // Early completion from initiator
             if (returnValue == TLM_UPDATED || returnValue == TLM_COMPLETED)
-            {                
+            {
                 if (returnValue == TLM_COMPLETED)
                     tPhase = END_RESP;
                 payloadEventQueue.notify(tPayload, tPhase, tDelay);
@@ -411,6 +424,7 @@ void ArbiterFifo::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& cbP
             sc_time tDelay = lastEndReqOnChannel[channel] == sc_time_stamp() ? tCK : SC_ZERO_TIME;
 
             iSocket[static_cast<int>(channel)]->nb_transport_fw(tPayload, tPhase, tDelay);
+            bytesPerChannel[static_cast<std::size_t>(channel)] += cbTrans.get_data_length();
         }
     }
     else if (cbPhase == RESP_ARBITRATION)
@@ -430,7 +444,7 @@ void ArbiterFifo::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& cbP
                 tSocket[static_cast<int>(thread)]->nb_transport_bw(tPayload, tPhase, tDelay);
             // Early completion from initiator
             if (returnValue == TLM_UPDATED || returnValue == TLM_COMPLETED)
-            {                
+            {
                 if (returnValue == TLM_COMPLETED)
                     tPhase = END_RESP;
                 payloadEventQueue.notify(tPayload, tPhase, tDelay);
@@ -529,7 +543,7 @@ void ArbiterReorder::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& 
                 tSocket[static_cast<int>(thread)]->nb_transport_bw(tPayload, tPhase, tDelay);
             // Early completion from initiator
             if (returnValue == TLM_UPDATED || returnValue == TLM_COMPLETED)
-            {                
+            {
                 if (returnValue == TLM_COMPLETED)
                     tPhase = END_RESP;
                 payloadEventQueue.notify(tPayload, tPhase, tDelay);
@@ -550,6 +564,7 @@ void ArbiterReorder::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& 
             pendingRequestsOnChannel[channel].pop();
             tlm_phase tPhase = BEGIN_REQ;
             sc_time tDelay = lastEndReqOnChannel[channel] == sc_time_stamp() ? tCK : SC_ZERO_TIME;
+            bytesPerChannel[static_cast<std::size_t>(channel)] += cbTrans.get_data_length();
 
             iSocket[static_cast<int>(channel)]->nb_transport_fw(tPayload, tPhase, tDelay);
         }
@@ -577,7 +592,7 @@ void ArbiterReorder::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& 
                     tSocket[static_cast<int>(thread)]->nb_transport_bw(tPayload, tPhase, tDelay);
                 // Early completion from initiator
                 if (returnValue == TLM_UPDATED || returnValue == TLM_COMPLETED)
-                {                
+                {
                     if (returnValue == TLM_COMPLETED)
                         tPhase = END_RESP;
                     payloadEventQueue.notify(tPayload, tPhase, tDelay);
@@ -587,6 +602,30 @@ void ArbiterReorder::peqCallback(tlm_generic_payload& cbTrans, const tlm_phase& 
     }
     else
         SC_REPORT_FATAL(0, "Payload event queue in arbiter was triggered with unknown phase");
+}
+
+void Arbiter::updateStats()
+{
+    for (std::size_t i = 0; i < tSocket.size(); i++)
+    {
+        stats.numberOfRequestsPerThread.values[i] =
+            static_cast<double>(numberOfRequestsPerThread[i]);
+        stats.averageBandwidthPerThread.values[i] =
+            static_cast<double>(bytesPerThread[i]) / sc_core::sc_time_stamp().to_seconds();
+    }
+
+    for (std::size_t i = 0; i < iSocket.size(); i++)
+    {
+        stats.averageBandwidthPerChannel.values[i] =
+            static_cast<double>(bytesPerChannel[i]) / sc_core::sc_time_stamp().to_seconds();
+    }
+}
+
+void Arbiter::resetStats()
+{
+    numberOfRequestsPerThread.assign(numberOfRequestsPerThread.size(), 0);
+    bytesPerThread.assign(bytesPerThread.size(), 0);
+    bytesPerChannel.assign(bytesPerChannel.size(), 0);
 }
 
 } // namespace DRAMSys
