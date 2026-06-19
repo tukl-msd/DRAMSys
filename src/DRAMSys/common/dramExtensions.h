@@ -128,7 +128,8 @@ public:
                                  Bank bank,
                                  Row row,
                                  Column column,
-                                 unsigned burstLength);
+                                 unsigned burstLength,
+                                 Bank dualBank);
 
     static void setExtension(tlm::tlm_generic_payload& trans,
                              uint64_t channelPayloadID,
@@ -138,7 +139,8 @@ public:
                              Bank bank,
                              Row row,
                              Column column,
-                             unsigned burstLength);
+                             unsigned burstLength,
+                             Bank dualBank);
 
     // static ControllerExtension& getExtension(const tlm::tlm_generic_payload& trans);
 
@@ -155,6 +157,8 @@ public:
     [[nodiscard]] unsigned getBurstLength() const;
     void setBankGroup(BankGroup bankGroup);
     void setBank(Bank bank);
+    [[nodiscard]] Bank getDualBank() const;
+    void setDualBank(Bank dualBank);
 
     static const ControllerExtension& getExtension(const tlm::tlm_generic_payload& trans);
     static uint64_t getChannelPayloadID(const tlm::tlm_generic_payload& trans);
@@ -167,6 +171,8 @@ public:
     static unsigned getBurstLength(const tlm::tlm_generic_payload& trans);
     static void setBankGroup(const tlm::tlm_generic_payload& trans, BankGroup bankGroup);
     static void setBank(const tlm::tlm_generic_payload& trans, Bank bank);
+    static Bank getDualBank(const tlm::tlm_generic_payload& trans);
+    static void setDualBank(const tlm::tlm_generic_payload& trans, Bank dualBank);
 
 private:
     ControllerExtension(uint64_t channelPayloadID,
@@ -176,7 +182,8 @@ private:
                         Bank bank,
                         Row row,
                         Column column,
-                        unsigned burstLength);
+                        unsigned burstLength,
+                        Bank dualBank);
     uint64_t channelPayloadID;
     Rank rank;
     Stack stack;
@@ -185,6 +192,7 @@ private:
     Row row;
     Column column;
     unsigned burstLength;
+    Bank dualBank;
 };
 
 class ChildExtension : public tlm::tlm_extension<ChildExtension>

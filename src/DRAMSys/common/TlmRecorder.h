@@ -136,7 +136,8 @@ private:
                   Bank bank,
                   Row row,
                   Column column,
-                  unsigned int burstLength) :
+                  unsigned int burstLength,
+                  Bank dualBank) :
                 name(std::move(name)),
                 interval(std::move(interval)),
                 intervalOnDataStrobe(std::move(intervalOnDataStrobe)),
@@ -145,7 +146,8 @@ private:
                 bank(bank),
                 row(row),
                 column(column),
-                burstLength(burstLength)
+                burstLength(burstLength),
+                dualBank(dualBank)
             {
             }
             std::string name;
@@ -157,6 +159,7 @@ private:
             Row row = Row(0);
             Column column = Column(0);
             unsigned int burstLength = 0;
+            Bank dualBank = Bank(0);
         };
         std::vector<Phase> recordedPhases;
     };
@@ -229,6 +232,7 @@ private:
                 Row INTEGER,
                 Column INTEGER,
                 BurstLength INTEGER,
+                DualBank INTEGER,
                 Transact INTEGER
         );
 

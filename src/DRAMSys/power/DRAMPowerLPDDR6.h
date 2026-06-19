@@ -90,7 +90,8 @@ public:
             ControllerExtension::getBankGroup(trans)) % groupsPerRank; // relative to the rank
         auto bank = static_cast<std::size_t>(
             ControllerExtension::getBank(trans)) % banksPerRank; // relative to the rank
-        auto dbank = 0;
+        auto dbank = static_cast<std::size_t>(
+            ControllerExtension::getDualBank(trans)) % banksPerRank; // relative to the rank
         auto row = static_cast<std::size_t>(ControllerExtension::getRow(trans));
         auto column = static_cast<std::size_t>(ControllerExtension::getColumn(trans));
         uint64_t cycle = std::lround((sc_core::sc_time_stamp() + delay) / tCK);

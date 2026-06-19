@@ -90,6 +90,12 @@ sc_time MemSpec::getRefreshIntervalP2B() const
     return SC_ZERO_TIME;
 }
 
+sc_time MemSpec::getRefreshIntervalDB() const
+{
+    SC_REPORT_FATAL("MemSpec", "Dual-bank refresh not supported");
+    return SC_ZERO_TIME;
+}
+
 sc_time MemSpec::getRefreshIntervalSB() const
 {
     SC_REPORT_FATAL("MemSpec", "Same-bank refresh not supported");

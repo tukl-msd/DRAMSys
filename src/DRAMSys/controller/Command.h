@@ -65,20 +65,22 @@ DECLARE_EXTENDED_PHASE(BEGIN_REFPB);  // 14
 DECLARE_EXTENDED_PHASE(BEGIN_RFMPB);  // 15
 DECLARE_EXTENDED_PHASE(BEGIN_REFP2B); // 16
 DECLARE_EXTENDED_PHASE(BEGIN_RFMP2B); // 17
-DECLARE_EXTENDED_PHASE(BEGIN_PRESB);  // 18
-DECLARE_EXTENDED_PHASE(BEGIN_REFSB);  // 19
-DECLARE_EXTENDED_PHASE(BEGIN_RFMSB);  // 20
-DECLARE_EXTENDED_PHASE(BEGIN_PREAB);  // 21
-DECLARE_EXTENDED_PHASE(BEGIN_REFAB);  // 22
-DECLARE_EXTENDED_PHASE(BEGIN_RFMAB);  // 23
+DECLARE_EXTENDED_PHASE(BEGIN_REFDB);  // 18
+DECLARE_EXTENDED_PHASE(BEGIN_RFMDB);  // 19
+DECLARE_EXTENDED_PHASE(BEGIN_PRESB);  // 20
+DECLARE_EXTENDED_PHASE(BEGIN_REFSB);  // 21
+DECLARE_EXTENDED_PHASE(BEGIN_RFMSB);  // 22
+DECLARE_EXTENDED_PHASE(BEGIN_PREAB);  // 23
+DECLARE_EXTENDED_PHASE(BEGIN_REFAB);  // 24
+DECLARE_EXTENDED_PHASE(BEGIN_RFMAB);  // 25
 
-DECLARE_EXTENDED_PHASE(BEGIN_PDNA); // 24
-DECLARE_EXTENDED_PHASE(BEGIN_PDNP); // 25
-DECLARE_EXTENDED_PHASE(BEGIN_SREF); // 26
+DECLARE_EXTENDED_PHASE(BEGIN_PDNA); // 26
+DECLARE_EXTENDED_PHASE(BEGIN_PDNP); // 27
+DECLARE_EXTENDED_PHASE(BEGIN_SREF); // 28
 
-DECLARE_EXTENDED_PHASE(END_PDNA); // 27
-DECLARE_EXTENDED_PHASE(END_PDNP); // 28
-DECLARE_EXTENDED_PHASE(END_SREF); // 29
+DECLARE_EXTENDED_PHASE(END_PDNA); // 29
+DECLARE_EXTENDED_PHASE(END_PDNP); // 30
+DECLARE_EXTENDED_PHASE(END_SREF); // 31
 
 bool phaseHasDataStrobe(tlm::tlm_phase phase);
 bool isPowerDownEntryPhase(tlm::tlm_phase phase);
@@ -104,19 +106,21 @@ public:
         RFMPB,   // 10
         REFP2B,  // 11
         RFMP2B,  // 12
-        PRESB,   // 13
-        REFSB,   // 14
-        RFMSB,   // 15
-        PREAB,   // 16
-        REFAB,   // 17
-        RFMAB,   // 18
-        PDEA,    // 19
-        PDEP,    // 20
-        SREFEN,  // 21
-        PDXA,    // 22
-        PDXP,    // 23
-        SREFEX,  // 24
-        END_ENUM // 25, To mark the end of this enumeration
+        REFDB,   // 13
+        RFMDB,   // 14
+        PRESB,   // 15
+        REFSB,   // 16
+        RFMSB,   // 17
+        PREAB,   // 18
+        REFAB,   // 19
+        RFMAB,   // 20
+        PDEA,    // 21
+        PDEP,    // 22
+        SREFEN,  // 23
+        PDXA,    // 24
+        PDXP,    // 25
+        SREFEX,  // 26
+        END_ENUM // 27, To mark the end of this enumeration
     };
 
 private:
@@ -132,6 +136,7 @@ public:
     static unsigned numberOfCommands();
     [[nodiscard]] bool isBankCommand() const;
     [[nodiscard]] bool is2BankCommand() const;
+    [[nodiscard]] bool isDualBankCommand() const;
     [[nodiscard]] bool isGroupCommand() const;
     [[nodiscard]] bool isRankCommand() const;
     [[nodiscard]] bool isCasCommand() const;

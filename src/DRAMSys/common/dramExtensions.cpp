@@ -163,7 +163,8 @@ ControllerExtension::ControllerExtension(uint64_t channelPayloadID,
                                          Bank bank,
                                          Row row,
                                          Column column,
-                                         unsigned int burstLength) :
+                                         unsigned int burstLength,
+                                         Bank dualBank) :
     channelPayloadID(channelPayloadID),
     rank(rank),
     stack(stack),
@@ -171,7 +172,8 @@ ControllerExtension::ControllerExtension(uint64_t channelPayloadID,
     bank(bank),
     row(row),
     column(column),
-    burstLength(burstLength)
+    burstLength(burstLength),
+    dualBank(dualBank)
 {
 }
 
@@ -183,7 +185,8 @@ void ControllerExtension::setAutoExtension(tlm::tlm_generic_payload& trans,
                                            Bank bank,
                                            Row row,
                                            Column column,
-                                           unsigned int burstLength)
+                                           unsigned int burstLength,
+                                           Bank dualBank)
 {
     auto* extension = trans.get_extension<ControllerExtension>();
 
@@ -197,11 +200,12 @@ void ControllerExtension::setAutoExtension(tlm::tlm_generic_payload& trans,
         extension->row = row;
         extension->column = column;
         extension->burstLength = burstLength;
+        extension->dualBank = dualBank;
     }
     else
     {
         extension = new ControllerExtension(
-            channelPayloadID, rank, stack, bankGroup, bank, row, column, burstLength);
+            channelPayloadID, rank, stack, bankGroup, bank, row, column, burstLength, dualBank);
         trans.set_auto_extension(extension);
     }
 }
@@ -214,18 +218,19 @@ void ControllerExtension::setExtension(tlm::tlm_generic_payload& trans,
                                        Bank bank,
                                        Row row,
                                        Column column,
-                                       unsigned int burstLength)
+                                       unsigned int burstLength,
+                                       Bank dualBank)
 {
     assert(trans.get_extension<ControllerExtension>() == nullptr);
     auto* extension = new ControllerExtension(
-        channelPayloadID, rank, stack, bankGroup, bank, row, column, burstLength);
+        channelPayloadID, rank, stack, bankGroup, bank, row, column, burstLength, dualBank);
     trans.set_extension(extension);
 }
 
 tlm_extension_base* ControllerExtension::clone() const
 {
     return new ControllerExtension(
-        channelPayloadID, rank, stack, bankGroup, bank, row, column, burstLength);
+        channelPayloadID, rank, stack, bankGroup, bank, row, column, burstLength, dualBank);
 }
 
 void ControllerExtension::copy_from(const tlm_extension_base& ext)
@@ -239,6 +244,7 @@ void ControllerExtension::copy_from(const tlm_extension_base& ext)
     row = cpyFrom.row;
     column = cpyFrom.column;
     burstLength = cpyFrom.burstLength;
+    dualBank = cpyFrom.dualBank;
 }
 
 uint64_t ControllerExtension::getChannelPayloadID() const
@@ -291,6 +297,16 @@ void ControllerExtension::setBank(Bank bank)
     this->bank = bank;
 }
 
+Bank ControllerExtension::getDualBank() const
+{
+    return dualBank;
+}
+
+void ControllerExtension::setDualBank(Bank dualBank)
+{
+    this->dualBank = dualBank;
+}
+
 const ControllerExtension& ControllerExtension::getExtension(const tlm::tlm_generic_payload& trans)
 {
     return *trans.get_extension<ControllerExtension>();
@@ -336,7 +352,6 @@ unsigned ControllerExtension::getBurstLength(const tlm::tlm_generic_payload& tra
     return trans.get_extension<ControllerExtension>()->burstLength;
 }
 
-
 void ControllerExtension::setBankGroup(const tlm::tlm_generic_payload& trans, BankGroup bankGroup)
 {
     trans.get_extension<ControllerExtension>()->bankGroup = bankGroup;
@@ -345,6 +360,17 @@ void ControllerExtension::setBankGroup(const tlm::tlm_generic_payload& trans, Ba
 void ControllerExtension::setBank(const tlm::tlm_generic_payload& trans, Bank bank)
 {
     trans.get_extension<ControllerExtension>()->bank = bank;
+}
+
+Bank ControllerExtension::getDualBank(const tlm::tlm_generic_payload& trans)
+{
+    return trans.get_extension<ControllerExtension>()->dualBank;
+}
+
+
+void ControllerExtension::setDualBank(const tlm::tlm_generic_payload& trans, Bank dualBank)
+{
+    trans.get_extension<ControllerExtension>()->dualBank = dualBank;
 }
 
 tlm::tlm_extension_base* ChildExtension::clone() const

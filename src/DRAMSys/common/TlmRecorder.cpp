@@ -200,7 +200,8 @@ void TlmRecorder::recordPhase(const tlm_generic_payload& trans,
             extension.getBank(),
             extension.getRow(),
             extension.getColumn(),
-            extension.getBurstLength());
+            extension.getBurstLength(),
+            extension.getDualBank());
 
         if (isRefreshCommandPhase(phase))
             removeTransactionFromSystem(trans);
@@ -219,7 +220,8 @@ void TlmRecorder::recordPhase(const tlm_generic_payload& trans,
             extension.getBank(),
             extension.getRow(),
             extension.getColumn(),
-            extension.getBurstLength());
+            extension.getBurstLength(),
+            extension.getDualBank());
     }
     else if (isPowerDownExitPhase(phase))
     {
@@ -380,9 +382,9 @@ void TlmRecorder::prepareSqlStatements()
     insertPhaseString =
         "INSERT INTO Phases "
         "(PhaseName,PhaseBegin,PhaseEnd,DataStrobeBegin,DataStrobeEnd,Rank,BankGroup,Bank,"
-        "Row,Column,BurstLength,Transact) VALUES "
+        "Row,Column,BurstLength,DualBank,Transact) VALUES "
         "(:name,:begin,:end,:strobeBegin,:strobeEnd,:rank,:bankGroup,:bank,"
-        ":row,:column,:burstLength,:transaction)";
+        ":row,:column,:burstLength,:dualBank,:transaction)";
 
     updatePhaseString =
         "UPDATE Phases SET PhaseEnd = :end WHERE Transact = :trans AND PhaseName = :name";
@@ -541,7 +543,8 @@ void TlmRecorder::insertPhaseInDB(const Transaction::Phase& phase, uint64_t tran
     sqlite3_bind_int(insertPhaseStatement, 9, static_cast<int>(phase.row));
     sqlite3_bind_int(insertPhaseStatement, 10, static_cast<int>(phase.column));
     sqlite3_bind_int(insertPhaseStatement, 11, static_cast<int>(phase.burstLength));
-    sqlite3_bind_int64(insertPhaseStatement, 12, static_cast<int64_t>(transactionID));
+    sqlite3_bind_int(insertPhaseStatement, 12, static_cast<int>(phase.dualBank));
+    sqlite3_bind_int64(insertPhaseStatement, 13, static_cast<int64_t>(transactionID));
     executeSqlStatement(insertPhaseStatement);
 }
 

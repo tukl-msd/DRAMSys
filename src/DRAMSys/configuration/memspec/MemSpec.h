@@ -92,6 +92,7 @@ public:
     [[nodiscard]] virtual sc_core::sc_time getRefreshIntervalAB() const;
     [[nodiscard]] virtual sc_core::sc_time getRefreshIntervalPB() const;
     [[nodiscard]] virtual sc_core::sc_time getRefreshIntervalP2B() const;
+    [[nodiscard]] virtual sc_core::sc_time getRefreshIntervalDB() const;
     [[nodiscard]] virtual sc_core::sc_time getRefreshIntervalSB() const;
 
     [[nodiscard]] virtual unsigned getPer2BankOffset() const;

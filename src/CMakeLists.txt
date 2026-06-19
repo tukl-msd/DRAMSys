@@ -78,6 +78,7 @@ add_library(dramsys
     DRAMSys/controller/powerdown/PowerDownManagerStaggered.cpp
     DRAMSys/controller/refresh/RefreshManagerAllBank.cpp
     DRAMSys/controller/refresh/RefreshManagerPer2Bank.cpp
+    DRAMSys/controller/refresh/RefreshManagerDualBank.cpp
     DRAMSys/controller/refresh/RefreshManagerPerBank.cpp
     DRAMSys/controller/refresh/RefreshManagerSameBank.cpp
     DRAMSys/controller/respqueue/RespQueueFifo.cpp

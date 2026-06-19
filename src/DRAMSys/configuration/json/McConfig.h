@@ -122,6 +122,7 @@ enum class RefreshPolicyType
     AllBank,
     PerBank,
     Per2Bank,
+    DualBank,
     SameBank,
     Invalid = -1
 };
@@ -132,6 +133,7 @@ NLOHMANN_JSON_SERIALIZE_ENUM(RefreshPolicyType,
                               {RefreshPolicyType::AllBank, "AllBank"},
                               {RefreshPolicyType::PerBank, "PerBank"},
                               {RefreshPolicyType::Per2Bank, "Per2Bank"},
+                              {RefreshPolicyType::DualBank, "DualBank"},
                               {RefreshPolicyType::SameBank, "SameBank"},
 
                               // Alternative conversions to provide backwards-compatibility

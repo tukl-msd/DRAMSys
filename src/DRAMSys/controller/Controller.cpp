@@ -49,6 +49,7 @@
 #include "DRAMSys/controller/refresh/RefreshManagerAllBank.h"
 #include "DRAMSys/controller/refresh/RefreshManagerDummy.h"
 #include "DRAMSys/controller/refresh/RefreshManagerPer2Bank.h"
+#include "DRAMSys/controller/refresh/RefreshManagerDualBank.h"
 #include "DRAMSys/controller/refresh/RefreshManagerPerBank.h"
 #include "DRAMSys/controller/refresh/RefreshManagerSameBank.h"
 #include "DRAMSys/controller/respqueue/RespQueueFifo.h"
@@ -290,6 +291,19 @@ Controller::Controller(const sc_module_name& name,
                                                          Rank(rankID)));
         }
     }
+    else if (config.refreshPolicy == Config::RefreshPolicyType::DualBank)
+    {
+        for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
+        {
+            // TODO: remove bankMachines in constructor
+            refreshManagers.push_back(
+                std::make_unique<RefreshManagerDualBank>(config,
+                                                         memSpec,
+                                                         bankMachinesOnRank[Rank(rankID)],
+                                                         *powerDownManagers[Rank(rankID)],
+                                                         Rank(rankID)));
+        }
+    }
     else
         SC_REPORT_FATAL("Controller", "Selected refresh mode not supported!");
 
@@ -429,6 +443,12 @@ void Controller::controllerMethod()
                 bankMachines[bank]->update(command);
                 bankMachines[Bank(static_cast<std::size_t>(bank) + memSpec.getPer2BankOffset())]
                     ->update(command);
+            }
+            else if (command.isDualBankCommand())
+            {
+                Bank dualBank = ControllerExtension::getDualBank(*trans);
+                bankMachines[bank]->update(command);
+                bankMachines[dualBank]->update(command);
             }
             else // if (isBankCommand(command))
                 bankMachines[bank]->update(command);
@@ -646,7 +666,8 @@ void Controller::manageRequests(const sc_time& delay)
                                                       Bank(decodedAddress.bank),
                                                       Row(decodedAddress.row),
                                                       Column(decodedAddress.column),
-                                                      burstLength);
+                                                      burstLength,
+                                                      Bank(0));
 
                 Rank rank = Rank(decodedAddress.rank);
                 if (ranksNumberOfPayloads[rank] == 0)
@@ -828,7 +849,8 @@ void Controller::createChildTranses(tlm::tlm_generic_payload& parentTrans)
                                               Bank(decodedAddress.bank),
                                               Row(decodedAddress.row),
                                               Column(decodedAddress.column),
-                                              memSpec.maxBurstLength);
+                                              memSpec.maxBurstLength,
+                                              Bank(0));
     }
 
     nextChannelPayloadIDToAppend++;

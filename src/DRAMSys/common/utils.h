@@ -76,7 +76,8 @@ void setUpDummy(tlm::tlm_generic_payload& payload,
                 uint64_t channelPayloadID,
                 Rank rank = Rank(0),
                 BankGroup bankGroup = BankGroup(0),
-                Bank bank = Bank(0));
+                Bank bank = Bank(0),
+                Bank dualBank = Bank(0));
 
 bool isFullCycle(sc_core::sc_time time, sc_core::sc_time cycleTime);
 sc_core::sc_time alignAtNext(sc_core::sc_time time, sc_core::sc_time alignment);

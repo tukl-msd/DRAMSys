@@ -88,7 +88,8 @@ void setUpDummy(tlm_generic_payload& payload,
                 uint64_t channelPayloadID,
                 Rank rank,
                 BankGroup bankGroup,
-                Bank bank)
+                Bank bank,
+                Bank dualBank)
 {
     payload.set_address(0);
     payload.set_command(TLM_IGNORE_COMMAND);
@@ -98,7 +99,7 @@ void setUpDummy(tlm_generic_payload& payload,
     payload.set_byte_enable_length(0);
     payload.set_streaming_width(0);
     ControllerExtension::setExtension(
-        payload, channelPayloadID, rank, Stack(0), bankGroup, bank, Row(0), Column(0), 0);
+        payload, channelPayloadID, rank, Stack(0), bankGroup, bank, Row(0), Column(0), 0, dualBank);
     ArbiterExtension::setExtension(payload, Thread(UINT_MAX), Channel(0), 0, SC_ZERO_TIME);
 }
 

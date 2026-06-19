@@ -95,6 +95,7 @@ void BankMachine::update(Command command)
         break;
     case Command::REFPB:
     case Command::REFP2B:
+    case Command::REFDB:
     case Command::REFSB:
     case Command::REFAB:
         sleeping = false;
@@ -110,6 +111,7 @@ void BankMachine::update(Command command)
         break;
     case Command::RFMPB:
     case Command::RFMP2B:
+    case Command::RFMDB:
     case Command::RFMSB:
     case Command::RFMAB:
         assert(!keepTrans);

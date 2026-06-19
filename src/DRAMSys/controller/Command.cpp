@@ -68,52 +68,55 @@ bool isFixedCommandPhase(tlm::tlm_phase phase)
 
 bool isRefreshCommandPhase(tlm::tlm_phase phase)
 {
-    return (phase == BEGIN_REFPB || phase == BEGIN_REFP2B || phase == BEGIN_REFSB ||
-            phase == BEGIN_REFAB || phase == BEGIN_RFMPB || phase == BEGIN_RFMP2B ||
-            phase == BEGIN_RFMSB || phase == BEGIN_RFMAB);
+    return (phase == BEGIN_REFPB || phase == BEGIN_REFP2B || phase == BEGIN_REFDB ||
+        phase == BEGIN_REFSB || phase == BEGIN_REFAB || phase == BEGIN_RFMPB ||
+        phase == BEGIN_RFMP2B || phase == BEGIN_RFMDB || phase == BEGIN_RFMSB ||
+        phase == BEGIN_RFMAB);
 }
 
-Command::Command(Command::Type type) : type(type)
+Command::Command(Type type) : type(type)
 {
 }
 
 Command::Command(tlm_phase phase)
 {
     assert(phase >= BEGIN_NOP && phase <= END_SREF); // TODO < END_ENUM && type >= 0
-    static constexpr std::array<Command::Type, Command::Type::END_ENUM> commandOfPhase = {
-        Command::NOP,    // 0
-        Command::RD,     // 1
-        Command::WR,     // 2
-        Command::MWR,    // 3
-        Command::RDA,    // 4
-        Command::WRA,    // 5
-        Command::MWRA,   // 6
-        Command::ACT,    // 7
-        Command::PREPB,  // 8
-        Command::REFPB,  // 9
-        Command::RFMPB,  // 10
-        Command::REFP2B, // 11
-        Command::RFMP2B, // 12
-        Command::PRESB,  // 13
-        Command::REFSB,  // 14
-        Command::RFMSB,  // 15
-        Command::PREAB,  // 16
-        Command::REFAB,  // 17
-        Command::RFMAB,  // 18
-        Command::PDEA,   // 19
-        Command::PDEP,   // 20
-        Command::SREFEN, // 21
-        Command::PDXA,   // 22
-        Command::PDXP,   // 23
-        Command::SREFEX  // 24
+    static constexpr std::array<Type, END_ENUM> commandOfPhase = {
+        NOP,    // 0
+        RD,     // 1
+        WR,     // 2
+        MWR,    // 3
+        RDA,    // 4
+        WRA,    // 5
+        MWRA,   // 6
+        ACT,    // 7
+        PREPB,  // 8
+        REFPB,  // 9
+        RFMPB,  // 10
+        REFP2B, // 11
+        RFMP2B, // 12
+        REFDB,  // 13
+        RFMDB,  // 14
+        PRESB,  // 15
+        REFSB,  // 16
+        RFMSB,  // 17
+        PREAB,  // 18
+        REFAB,  // 19
+        RFMAB,  // 20
+        PDEA,   // 21
+        PDEP,   // 22
+        SREFEN, // 23
+        PDXA,   // 24
+        PDXP,   // 25
+        SREFEX  // 26
     };
     type = commandOfPhase[phase - BEGIN_NOP];
 }
 
 std::string Command::toString() const
 {
-    assert(type >= 0 && type < Command::END_ENUM); // TODO < END_ENUM && type >= 0
-    static std::array<std::string, Command::Type::END_ENUM> stringOfCommand = {
+    assert(type >= 0 && type < END_ENUM); // TODO < END_ENUM && type >= 0
+    static std::array<std::string, END_ENUM> stringOfCommand = {
         "NOP",    // 0
         "RD",     // 1
         "WR",     // 2
@@ -127,31 +130,33 @@ std::string Command::toString() const
         "RFMPB",  // 10
         "REFP2B", // 11
         "RFMP2B", // 12
-        "PRESB",  // 13
-        "REFSB",  // 14
-        "RFMSB",  // 15
-        "PREAB",  // 16
-        "REFAB",  // 17
-        "RFMAB",  // 18
-        "PDEA",   // 19
-        "PDEP",   // 20
-        "SREFEN", // 21
-        "PDXA",   // 22
-        "PDXP",   // 23
-        "SREFEX"  // 24
+        "REFDB",  // 13
+        "RFMDB",  // 14
+        "PRESB",  // 15
+        "REFSB",  // 16
+        "RFMSB",  // 17
+        "PREAB",  // 18
+        "REFAB",  // 19
+        "RFMAB",  // 20
+        "PDEA",   // 21
+        "PDEP",   // 22
+        "SREFEN", // 23
+        "PDXA",   // 24
+        "PDXP",   // 25
+        "SREFEX"  // 26
     };
     return stringOfCommand[type];
 }
 
 unsigned Command::numberOfCommands()
 {
-    return Type::END_ENUM;
+    return END_ENUM;
 }
 
 tlm_phase Command::toPhase() const
 {
-    assert(type >= 0 && type < Command::END_ENUM);
-    static std::array<tlm_phase, Command::Type::END_ENUM> phaseOfCommand = {
+    assert(type >= 0 && type < END_ENUM);
+    static std::array<tlm_phase, END_ENUM> phaseOfCommand = {
         BEGIN_NOP,    // 0
         BEGIN_RD,     // 1
         BEGIN_WR,     // 2
@@ -165,56 +170,64 @@ tlm_phase Command::toPhase() const
         BEGIN_RFMPB,  // 10
         BEGIN_REFP2B, // 11
         BEGIN_RFMP2B, // 12
-        BEGIN_PRESB,  // 13
-        BEGIN_REFSB,  // 14
-        BEGIN_RFMSB,  // 15
-        BEGIN_PREAB,  // 16
-        BEGIN_REFAB,  // 17
-        BEGIN_RFMAB,  // 18
-        BEGIN_PDNA,   // 19
-        BEGIN_PDNP,   // 20
-        BEGIN_SREF,   // 21
-        END_PDNA,     // 22
-        END_PDNP,     // 23
-        END_SREF      // 24
+        BEGIN_REFDB,  // 13
+        BEGIN_RFMDB,  // 14
+        BEGIN_PRESB,  // 15
+        BEGIN_REFSB,  // 16
+        BEGIN_RFMSB,  // 17
+        BEGIN_PREAB,  // 18
+        BEGIN_REFAB,  // 19
+        BEGIN_RFMAB,  // 20
+        BEGIN_PDNA,   // 21
+        BEGIN_PDNP,   // 22
+        BEGIN_SREF,   // 23
+        END_PDNA,     // 24
+        END_PDNP,     // 25
+        END_SREF      // 26
     };
     return phaseOfCommand[type];
 }
 
 bool Command::isBankCommand() const
 {
-    assert(type >= Command::NOP && type <= Command::SREFEX);
-    return (type <= Command::RFMPB);
+    assert(type >= NOP && type <= SREFEX);
+    return (type <= RFMPB);
 }
 
 bool Command::is2BankCommand() const
 {
-    assert(type >= Command::NOP && type <= Command::SREFEX);
-    return (type >= Command::REFP2B && type <= Command::RFMP2B);
+    assert(type >= NOP && type <= SREFEX);
+    return (type >= REFP2B && type <= RFMP2B);
+}
+
+bool Command::isDualBankCommand() const
+{
+    assert(type >= NOP && type <= SREFEX);
+    return (type >= REFDB && type <= RFMDB);
 }
 
 bool Command::isGroupCommand() const
 {
-    assert(type >= Command::NOP && type <= Command::SREFEX);
-    return (type >= Command::PRESB && type <= Command::RFMSB);
+    assert(type >= NOP && type <= SREFEX);
+    return (type >= PRESB && type <= RFMSB);
 }
 
 bool Command::isRankCommand() const
 {
-    assert(type >= Command::NOP && type <= Command::SREFEX);
-    return (type >= Command::PREAB);
+    assert(type >= NOP && type <= SREFEX);
+    return (type >= PREAB);
 }
 
 bool Command::isCasCommand() const
 {
-    assert(type >= Command::NOP && type <= Command::SREFEX);
-    return (type <= Command::MWRA);
+    assert(type >= NOP && type <= SREFEX);
+    return (type <= MWRA);
 }
 
 bool Command::isRasCommand() const
 {
-    assert(type >= Command::NOP && type <= Command::SREFEX);
-    return (type >= Command::ACT);
+    assert(type >= NOP && type <= SREFEX);
+    return (type >= ACT);
 }
 
 } // namespace DRAMSys
