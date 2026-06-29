@@ -219,10 +219,11 @@ std::shared_ptr<Transaction> TraceDB::getNextPrecharge(traceTime time)
 std::shared_ptr<Transaction> TraceDB::getNextRefresh(traceTime time)
 {
     QSqlQuery query(database);
-    QString queryText = queryTexts.queryHead +
-                        "WHERE PhaseBegin > :traceTime AND PhaseName "
-                        "IN ('REFAB','REFA','REFB','REFPB','REFP2B','REFSB','SREF','SREFB') ORDER "
-                        "BY PhaseBegin ASC LIMIT 1";
+    QString queryText =
+        queryTexts.queryHead +
+        "WHERE PhaseBegin > :traceTime AND PhaseName "
+        "IN ('REFAB','REFA','REFB','REFPB','REFP2B','REFDB','REFSB','SREF','SREFB') ORDER BY "
+        "PhaseBegin ASC LIMIT 1";
     query.prepare(queryText);
     query.bindValue(":traceTime", time);
     executeQuery(query);
@@ -383,6 +384,8 @@ CommandLengths TraceDB::getCommandLengthsFromDB()
     double RFMPB = getCommandLength("RFMPB");
     double REFP2B = getCommandLength("REFP2B");
     double RFMP2B = getCommandLength("RFMP2B");
+    double REFDB = getCommandLength("REFDB");
+    double RFMDB = getCommandLength("RFMDB");
     double PRESB = getCommandLength("PRESB");
     double REFSB = getCommandLength("REFSB");
     double RFMSB = getCommandLength("RFMSB");
@@ -399,7 +402,7 @@ CommandLengths TraceDB::getCommandLengthsFromDB()
     double SREFEX = getCommandLength("SREFEX");
 
     return {NOP,   RD,    WR,     MWR,    RDA,   WRA,    MWRA,  ACT,   PREPB,
-            REFPB, RFMPB, REFP2B, RFMP2B, PRESB, REFSB,  RFMSB, PREAB, REFAB,
+            REFPB, RFMPB, REFP2B, RFMP2B, REFDB, RFMDB, PRESB, REFSB,  RFMSB, PREAB, REFAB,
             RFMAB, PDEA,  PDXA,   PDEP,   PDXP,  SREFEN, SREFEX};
 }
 
@@ -539,6 +542,7 @@ TraceDB::parseTransactionsFromQuery(QSqlQuery& query, bool updateVisiblePhases)
         unsigned int row = query.value(17).toUInt();
         unsigned int column = query.value(18).toUInt();
         unsigned int burstLength = query.value(19).toUInt();
+        unsigned int dualBank = query.value(20).toUInt();
         auto phase = PhaseFactory::createPhase(phaseID,
                                                phaseName,
                                                span,
@@ -549,6 +553,7 @@ TraceDB::parseTransactionsFromQuery(QSqlQuery& query, bool updateVisiblePhases)
                                                row,
                                                column,
                                                burstLength,
+                                               dualBank,
                                                result.at(result.size() - 1),
                                                *this);
         result.at(result.size() - 1)->addPhase(phase);

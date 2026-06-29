@@ -50,7 +50,7 @@ struct TransactionQueryTexts
         queryHead = "SELECT Transactions.ID AS TransactionID, Ranges.begin, Ranges.end, Address, "
                     "DataLength, Thread, Channel, Command, Phases.ID AS PhaseID, PhaseName, "
                     "PhaseBegin, PhaseEnd, DataStrobeBegin, DataStrobeEnd, Rank, BankGroup, Bank, "
-                    "Row, Column, BurstLength "
+                    "Row, Column, BurstLength, DualBank "
                     " FROM Transactions INNER JOIN Phases ON Phases.Transact = Transactions.ID "
                     "INNER JOIN Ranges ON Transactions.Range = Ranges.ID ";
 

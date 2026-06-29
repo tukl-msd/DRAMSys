@@ -59,6 +59,7 @@ public:
                                               unsigned int row,
                                               unsigned int column,
                                               unsigned int burstLength,
+                                              unsigned int dualBank,
                                               const std::shared_ptr<Transaction>& trans,
                                               TraceDB& database);
 };

@@ -217,6 +217,10 @@ std::vector<int> Phase::getYVals(const TraceDrawingProperties& drawingProperties
             shouldBeDrawn =
                 (bank == drawnBank) || ((bank + drawingProperties.per2BankOffset) == drawnBank);
             break;
+
+        case Granularity::DualBankwise:
+            shouldBeDrawn = (bank == drawnBank || dualBank == drawnBank);
+            break;
         }
 
         if (shouldBeDrawn)

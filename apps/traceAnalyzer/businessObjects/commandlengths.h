@@ -51,6 +51,8 @@ struct CommandLengths
     double RFMPB = 1;
     double REFP2B = 1;
     double RFMP2B = 1;
+    double REFDB = 1;
+    double RFMDB = 1;
     double PRESB = 1;
     double REFSB = 1;
     double RFMSB = 1;
@@ -77,6 +79,8 @@ struct CommandLengths
                    double RFMPB,
                    double REFP2B,
                    double RFMP2B,
+                   double REFDB,
+                   double RFMDB,
                    double PRESB,
                    double REFSB,
                    double RFMSB,
@@ -102,6 +106,8 @@ struct CommandLengths
         RFMPB(RFMPB),
         REFP2B(REFP2B),
         RFMP2B(RFMP2B),
+        REFDB(REFDB),
+        RFMDB(RFMDB),
         PRESB(PRESB),
         REFSB(REFSB),
         RFMSB(RFMSB),

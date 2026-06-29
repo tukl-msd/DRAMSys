@@ -61,7 +61,8 @@ enum class RelevantAttributes
     Bank = 0x04,
     Row = 0x08,
     Column = 0x10,
-    BurstLength = 0x20
+    BurstLength = 0x20,
+    DualBankGroup = 0x40
 };
 
 inline RelevantAttributes operator|(RelevantAttributes a, RelevantAttributes b)
@@ -86,6 +87,7 @@ public:
           unsigned int row,
           unsigned int column,
           unsigned int burstLength,
+          unsigned int dualBank,
           traceTime clk,
           const std::shared_ptr<Transaction>& transaction,
           std::vector<Timespan> spansOnCommandBus,
@@ -100,6 +102,7 @@ public:
         row(row),
         column(column),
         burstLength(burstLength),
+        dualBank(dualBank),
         groupsPerRank(groupsPerRank),
         banksPerGroup(banksPerGroup),
         clk(clk),
@@ -137,6 +140,8 @@ public:
 
     unsigned int getBurstLength() const { return burstLength; }
 
+    unsigned int getDualBankGroup() const { return (dualBank / banksPerGroup) % groupsPerRank; }
+
     virtual RelevantAttributes getRelevantAttributes() const = 0;
 
     virtual QString Name() const = 0;
@@ -145,7 +150,7 @@ protected:
     ID id;
     Timespan span;
     Timespan spanOnDataStrobe;
-    unsigned int rank, bankGroup, bank, row, column, burstLength;
+    unsigned int rank, bankGroup, bank, row, column, burstLength, dualBank;
     unsigned int groupsPerRank, banksPerGroup;
     traceTime clk;
     std::weak_ptr<Transaction> transaction;
@@ -179,6 +184,7 @@ protected:
     {
         Bankwise,
         TwoBankwise,
+        DualBankwise,
         Groupwise,
         Rankwise
     };
@@ -506,6 +512,44 @@ protected:
     RelevantAttributes getRelevantAttributes() const override
     {
         return RelevantAttributes::Rank | RelevantAttributes::BankGroup | RelevantAttributes::Bank;
+    }
+};
+
+class REFDB final : public AUTO_REFRESH
+{
+public:
+    using AUTO_REFRESH::AUTO_REFRESH;
+
+protected:
+    QString Name() const override { return "REFDB"; }
+    Granularity getGranularity() const override { return Granularity::DualBankwise; }
+
+    RelevantAttributes getRelevantAttributes() const override
+    {
+        return RelevantAttributes::Rank | RelevantAttributes::BankGroup | RelevantAttributes::Bank |
+               RelevantAttributes::DualBankGroup;
+    }
+};
+
+class RFMDB final : public AUTO_REFRESH
+{
+public:
+    using AUTO_REFRESH::AUTO_REFRESH;
+
+protected:
+    QString Name() const override { return "RFMDB"; }
+    Granularity getGranularity() const override { return Granularity::DualBankwise; }
+    QColor getPhaseColor() const override
+    {
+        auto phaseColor = QColor(Qt::darkRed);
+        phaseColor.setAlpha(130);
+        return phaseColor;
+    }
+
+    RelevantAttributes getRelevantAttributes() const override
+    {
+        return RelevantAttributes::Rank | RelevantAttributes::BankGroup | RelevantAttributes::Bank |
+               RelevantAttributes::DualBankGroup;
     }
 };
 

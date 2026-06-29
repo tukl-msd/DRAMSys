@@ -151,6 +151,9 @@ void TransactionTreeWidget::TransactionTreeItem::AppendPhase(QTreeWidgetItem* pa
         if (static_cast<int>(phase.getRelevantAttributes() & RelevantAttributes::BankGroup))
             addMapping("Bank Group", phase.getBankGroup());
 
+        if (static_cast<int>(phase.getRelevantAttributes() & RelevantAttributes::DualBankGroup))
+            addMapping("Dual Bank Group", phase.getDualBankGroup());
+
         if (static_cast<int>(phase.getRelevantAttributes() & RelevantAttributes::Bank))
             addMapping("Bank", phase.getBank());
 
