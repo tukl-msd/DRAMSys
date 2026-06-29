@@ -187,6 +187,7 @@ struct McConfig
     std::optional<ArbiterType> Arbiter;
     std::optional<unsigned int> MaxActiveTransactions;
     std::optional<bool> RefreshManagement;
+    std::optional<unsigned int> Gearing;
     std::optional<unsigned int> ArbitrationDelayFw;
     std::optional<unsigned int> ArbitrationDelayBw;
     std::optional<unsigned int> ThinkDelayFw;
@@ -215,6 +216,7 @@ NLOHMANN_JSONIFY_ALL_THINGS(McConfig,
                             Arbiter,
                             MaxActiveTransactions,
                             RefreshManagement,
+                            Gearing,
                             ArbitrationDelayFw,
                             ArbitrationDelayBw,
                             ThinkDelayFw,

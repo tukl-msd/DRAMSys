@@ -301,6 +301,8 @@ An example follows.
     - maximum number of active transactions per initiator (only applies to "Fifo" and "Reorder" arbiter policy)
 - *RefreshManagement* (boolean)
     - enable the sending of refresh management commands when the number of activates to one bank exceeds a certain management threshold (only supported in DDR5 and LPDDR5/6)
+- *Gearing* (unsigned int)
+    - set a gearing ratio for the controller frontend to operate slower than the memories command clock (tCK)
 - *ArbitrationDelayFw* (unsigned int)
     - number of clock cycles spent in forward arbitration to channel controllers
 - *ArbitrationDelayBw* (unsigned int)

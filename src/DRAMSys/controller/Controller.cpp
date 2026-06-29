@@ -108,6 +108,7 @@ Controller::Controller(const sc_module_name& name,
     simConfig(simConfig),
     addressDecoder(addressDecoder),
     tlmRecorder(tlmRecorder),
+    gearing(config.gearing),
     windowSizeTime(simConfig.windowSize * memSpec.tCK),
     numberOfBeatsServed(memSpec.ranksPerChannel, 0),
     memoryManager(simConfig.storageEnabled)
@@ -344,7 +345,7 @@ void Controller::controllerMethod()
             slidingAverageBufferDepth[index] += bufferDepth[index] * timeDiff;
     }
 
-    if (isFullCycle(sc_time_stamp(), memSpec.tCK))
+    if (isFullCycle(sc_time_stamp(), memSpec.tCK * gearing))
     {
         // (1) Finish last response (END_RESP) and start new response (BEGIN_RESP)
         manageResponses();

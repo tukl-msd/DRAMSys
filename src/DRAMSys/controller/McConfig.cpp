@@ -57,6 +57,7 @@ McConfig::McConfig(const Config::McConfig& config, const MemSpec& memSpec) :
     powerDownPolicy(config.PowerDownPolicy.value_or(DEFAULT_POWER_DOWN_POLICY)),
     maxActiveTransactions(config.MaxActiveTransactions.value_or(DEFAULT_MAX_ACTIVE_TRANSACTIONS)),
     refreshManagement(config.RefreshManagement.value_or(DEFAULT_REFRESH_MANAGEMENT)),
+    gearing(config.Gearing.value_or(DEFAULT_GEARING)),
     arbitrationDelayFw(config.ArbitrationDelayFw.value_or(DEFAULT_ARBITRATION_DELAY_FW) * memSpec.tCK),
     arbitrationDelayBw(config.ArbitrationDelayBw.value_or(DEFAULT_ARBITRATION_DELAY_BW) * memSpec.tCK),
     thinkDelayFw(config.ThinkDelayFw.value_or(DEFAULT_THINK_DELAY_FW) * memSpec.tCK),
@@ -109,6 +110,9 @@ McConfig::McConfig(const Config::McConfig& config, const MemSpec& memSpec) :
 
     if (thinkDelayFw == sc_core::SC_ZERO_TIME)
         SC_REPORT_WARNING("Configuration", "ThinkDelayFw should at least be 1!");
+
+    if (gearing < 1)
+        SC_REPORT_FATAL("Configuration", "Gearing must be greater or equal to 1!");
 }
 
 } // namespace DRAMSys

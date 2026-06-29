@@ -117,6 +117,12 @@ private:
 
     sc_core::sc_time scMaxTime = sc_core::sc_max_time();
 
+    /**
+     * @brief The gearing determines the divider for the controller frontend frequency.
+     * @note If set to 1, the controller is aligned with the command clock (tCK).
+    */
+    unsigned gearing;
+
     sc_core::sc_time lastTimeCalled = sc_core::SC_ZERO_TIME;
     const sc_core::sc_time windowSizeTime;
     std::vector<sc_core::sc_time> slidingAverageBufferDepth;

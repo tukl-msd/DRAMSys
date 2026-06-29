@@ -71,6 +71,8 @@ struct McConfig
     unsigned int maxActiveTransactions;
     bool refreshManagement;
 
+    unsigned int gearing;
+
     sc_core::sc_time arbitrationDelayFw;
     sc_core::sc_time arbitrationDelayBw;
     sc_core::sc_time thinkDelayFw;
@@ -108,6 +110,7 @@ struct McConfig
     static constexpr unsigned DEFAULT_PHY_DELAY_BW = 0;
     static constexpr unsigned DEFAULT_BLOCKING_READ_DELAY = 60;
     static constexpr unsigned DEFAULT_BLOCKING_WRITE_DELAY = 60;
+    static constexpr unsigned DEFAULT_GEARING = 1;
 };
 
 } // namespace DRAMSys

@@ -57,7 +57,8 @@
             "RequestBufferSize": 8,
             "RespQueue": "Fifo",
             "Scheduler": "FrFcfs",
-            "SchedulerBuffer": "Bankwise"
+            "SchedulerBuffer": "Bankwise",
+            "Gearing": 2
         },
         "memspec": {
             "memarchitecturespec": {
