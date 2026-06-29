@@ -153,6 +153,8 @@ public:
     [[nodiscard]] Row getRow() const;
     [[nodiscard]] Column getColumn() const;
     [[nodiscard]] unsigned getBurstLength() const;
+    void setBankGroup(BankGroup bankGroup);
+    void setBank(Bank bank);
 
     static const ControllerExtension& getExtension(const tlm::tlm_generic_payload& trans);
     static uint64_t getChannelPayloadID(const tlm::tlm_generic_payload& trans);
@@ -163,6 +165,8 @@ public:
     static Row getRow(const tlm::tlm_generic_payload& trans);
     static Column getColumn(const tlm::tlm_generic_payload& trans);
     static unsigned getBurstLength(const tlm::tlm_generic_payload& trans);
+    static void setBankGroup(const tlm::tlm_generic_payload& trans, BankGroup bankGroup);
+    static void setBank(const tlm::tlm_generic_payload& trans, Bank bank);
 
 private:
     ControllerExtension(uint64_t channelPayloadID,

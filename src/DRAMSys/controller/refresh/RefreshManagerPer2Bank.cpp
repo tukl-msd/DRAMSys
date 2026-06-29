@@ -67,29 +67,18 @@ RefreshManagerPer2Bank::RefreshManagerPer2Bank(
         {
             Bank firstBank = Bank(bankID);
             Bank secondBank = Bank(bankID + memSpec.getPer2BankOffset());
-            setUpDummy(refreshPayloads[bankMachinesOnRank[firstBank]],
-                       0,
-                       rank,
-                       bankMachinesOnRank[firstBank]->getBankGroup(),
-                       bankMachinesOnRank[firstBank]->getBank());
-            setUpDummy(refreshPayloads[bankMachinesOnRank[secondBank]],
-                       0,
-                       rank,
-                       bankMachinesOnRank[secondBank]->getBankGroup(),
-                       bankMachinesOnRank[secondBank]->getBank());
             allBankMachines.push_back(
                 {bankMachinesOnRank[firstBank], bankMachinesOnRank[secondBank]});
         }
     }
 
     remainingBankMachines = allBankMachines;
-    currentIterator = remainingBankMachines.begin();
-    currentRefreshPayload = &refreshPayloads.at(currentIterator->front());
+    setUpDummy(refreshPayload, 0, rank);
 }
 
 ReadyCommand RefreshManagerPer2Bank::getNextCommand()
 {
-    return {nextCommand, currentRefreshPayload, SC_ZERO_TIME};
+    return {nextCommand, &refreshPayload, SC_ZERO_TIME};
 }
 
 void RefreshManagerPer2Bank::evaluate()
@@ -120,16 +109,7 @@ void RefreshManagerPer2Bank::evaluate()
                      bankIt != remainingBankMachines.end();
                      bankIt++)
                 {
-                    bool pairIsBusy = false;
-                    for (const auto* pairIt : *bankIt)
-                    {
-                        if (!pairIt->isIdle())
-                        {
-                            pairIsBusy = true;
-                            break;
-                        }
-                    }
-                    if (!pairIsBusy)
+                    if (bankIt->first->isIdle() && bankIt->second->isIdle())
                     {
                         allBankPairsBusy = false;
                         currentIterator = bankIt;
@@ -145,23 +125,30 @@ void RefreshManagerPer2Bank::evaluate()
                 return;
             }
 
-            nextCommand = Command::REFP2B;
-            currentRefreshPayload = &refreshPayloads.at(currentIterator->front());
-            for (auto* it : *currentIterator)
+            if (currentIterator->first->isActivated())
             {
-                if (it->isActivated())
-                {
-                    nextCommand = Command::PREPB;
-                    currentRefreshPayload = &refreshPayloads.at(it);
-                    break;
-                }
+                nextCommand = Command::PREPB;
+                ControllerExtension::setBankGroup(refreshPayload, currentIterator->first->getBankGroup());
+                ControllerExtension::setBank(refreshPayload, currentIterator->first->getBank());
+            }
+            else if (currentIterator->second->isActivated())
+            {
+                nextCommand = Command::PREPB;
+                ControllerExtension::setBankGroup(refreshPayload, currentIterator->second->getBankGroup());
+                ControllerExtension::setBank(refreshPayload, currentIterator->second->getBank());
+            }
+            else
+            {
+                nextCommand = Command::REFP2B;
+                ControllerExtension::setBankGroup(refreshPayload, currentIterator->first->getBankGroup());
+                ControllerExtension::setBank(refreshPayload, currentIterator->first->getBank());
             }
 
             // TODO: banks should already be blocked for precharge and selection should be skipped
             if (nextCommand == Command::REFP2B && forcedRefresh)
             {
-                for (auto* it : *currentIterator)
-                    it->block();
+                currentIterator->first->block();
+                currentIterator->second->block();
                 skipSelection = true;
             }
             return;
@@ -174,16 +161,7 @@ void RefreshManagerPer2Bank::evaluate()
         for (auto bankIt = remainingBankMachines.begin(); bankIt != remainingBankMachines.end();
              bankIt++)
         {
-            bool pairIsBusy = false;
-            for (const auto* pairIt : *bankIt)
-            {
-                if (!pairIt->isIdle())
-                {
-                    pairIsBusy = true;
-                    break;
-                }
-            }
-            if (!pairIsBusy)
+            if (bankIt->first->isIdle() && bankIt->second->isIdle())
             {
                 allBankPairsBusy = false;
                 currentIterator = bankIt;
@@ -198,18 +176,24 @@ void RefreshManagerPer2Bank::evaluate()
             return;
         }
 
-        nextCommand = Command::REFP2B;
-        currentRefreshPayload = &refreshPayloads.at(currentIterator->front());
-        for (auto* it : *currentIterator)
+        if (currentIterator->first->isActivated())
         {
-            if (it->isActivated())
-            {
-                nextCommand = Command::PREPB;
-                currentRefreshPayload = &refreshPayloads.at(it);
-                break;
-            }
+            nextCommand = Command::PREPB;
+            ControllerExtension::setBankGroup(refreshPayload, currentIterator->first->getBankGroup());
+            ControllerExtension::setBank(refreshPayload, currentIterator->first->getBank());
         }
-        return;
+        else if (currentIterator->second->isActivated())
+        {
+            nextCommand = Command::PREPB;
+            ControllerExtension::setBankGroup(refreshPayload, currentIterator->second->getBankGroup());
+            ControllerExtension::setBank(refreshPayload, currentIterator->second->getBank());
+        }
+        else
+        {
+            nextCommand = Command::REFP2B;
+            ControllerExtension::setBankGroup(refreshPayload, currentIterator->first->getBankGroup());
+            ControllerExtension::setBank(refreshPayload, currentIterator->first->getBank());
+        }
     }
 }
 

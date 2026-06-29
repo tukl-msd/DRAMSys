@@ -281,6 +281,16 @@ unsigned ControllerExtension::getBurstLength() const
     return burstLength;
 }
 
+void ControllerExtension::setBankGroup(BankGroup bankGroup)
+{
+    this->bankGroup = bankGroup;
+}
+
+void ControllerExtension::setBank(Bank bank)
+{
+    this->bank = bank;
+}
+
 const ControllerExtension& ControllerExtension::getExtension(const tlm::tlm_generic_payload& trans)
 {
     return *trans.get_extension<ControllerExtension>();
@@ -324,6 +334,17 @@ Column ControllerExtension::getColumn(const tlm::tlm_generic_payload& trans)
 unsigned ControllerExtension::getBurstLength(const tlm::tlm_generic_payload& trans)
 {
     return trans.get_extension<ControllerExtension>()->burstLength;
+}
+
+
+void ControllerExtension::setBankGroup(const tlm::tlm_generic_payload& trans, BankGroup bankGroup)
+{
+    trans.get_extension<ControllerExtension>()->bankGroup = bankGroup;
+}
+
+void ControllerExtension::setBank(const tlm::tlm_generic_payload& trans, Bank bank)
+{
+    trans.get_extension<ControllerExtension>()->bank = bank;
 }
 
 tlm::tlm_extension_base* ChildExtension::clone() const

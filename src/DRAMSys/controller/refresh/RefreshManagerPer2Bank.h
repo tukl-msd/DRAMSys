@@ -44,8 +44,6 @@
 #include <list>
 #include <systemc>
 #include <tlm>
-#include <unordered_map>
-#include <vector>
 
 namespace DRAMSys
 {
@@ -78,14 +76,13 @@ private:
     } state = State::Regular;
     const MemSpec& memSpec;
     PowerDownManagerIF& powerDownManager;
-    std::unordered_map<BankMachine*, tlm::tlm_generic_payload> refreshPayloads;
-    tlm::tlm_generic_payload* currentRefreshPayload;
+    tlm::tlm_generic_payload refreshPayload;
     sc_core::sc_time timeForNextTrigger = sc_core::sc_max_time();
     Command nextCommand = Command::NOP;
 
-    std::list<std::vector<BankMachine*>> remainingBankMachines;
-    std::list<std::vector<BankMachine*>> allBankMachines;
-    std::list<std::vector<BankMachine*>>::iterator currentIterator;
+    std::list<std::pair<BankMachine*, BankMachine*>> remainingBankMachines;
+    std::list<std::pair<BankMachine*, BankMachine*>> allBankMachines;
+    std::list<std::pair<BankMachine*, BankMachine*>>::iterator currentIterator;
 
     int flexibilityCounter = 0;
     const int maxPostponed = 0;
