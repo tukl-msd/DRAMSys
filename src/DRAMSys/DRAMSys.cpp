@@ -110,7 +110,9 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
     addressDecoder->print();
     fmt::println(headline);
 
-    addressDecoder->plausibilityCheck(*memSpec);
+    if (!addressDecoder->plausibilityCheck(*memSpec)) {
+        SC_REPORT_FATAL("DRAMSys", "AddressDecoder configuration not plausible!");
+    }
 
     // Setup the debug manager:
     setupDebugManager(simConfig->simulationName);

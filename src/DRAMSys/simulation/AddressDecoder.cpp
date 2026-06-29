@@ -50,17 +50,6 @@ namespace DRAMSys
 /********************/
 /* Helper Functions */
 /********************/
-/**
- * @brief Creates a bitmask and stores it in a uint64_t.
- * 
- * @param numBits The number of bits to set to 1.
- * @param startIndex The index of the first bit to set to 1.
- * @return result The uint64_t where the bitmask will be stored.
- */
-uint64_t createBitmask(unsigned numBits, unsigned startIndex) {
-    // Create the mask by shifting 1's to the correct position
-    return ((UINT64_C(1) << numBits) - 1) << startIndex;
-}
 
 std::vector<std::bitset<AddressDecoder::ADDRESS_WIDTH>> AddressDecoder::transposeMatrix(const std::vector<std::bitset<ADDRESS_WIDTH>>& matrix) {
     size_t size = matrix.size();
@@ -90,7 +79,7 @@ uint64_t AddressDecoder::gf2Multiplication(const uint64_t& inputVec, const std::
         std::bitset<ADDRESS_WIDTH> resultBits;
         std::bitset<ADDRESS_WIDTH> inputBits(inputVec);
 
-        for (size_t i = 0; i < matrix.size(); ++i) {                
+        for (size_t i = 0; i < matrix.size(); ++i) {
             resultBits[i] = (inputBits & matrix[i]).count() % 2;
         }
         return resultBits.to_ullong();
@@ -126,13 +115,13 @@ AddressDecoder::AddressDecoder(const DRAMSys::Config::AddressMapping& addressMap
             }
             (*rowIndex)++;
         }
-        // Care: The rowIndex has been changed. We want the lowest bit, so we must subtract the length! 
+        // Care: The rowIndex has been changed. We want the lowest bit, so we must subtract the length!
         return AddressComponent(*rowIndex - bits.size(), bits.size(), name);
     };
 
     auto entryToVector = [](std::optional<std::vector<Config::AddressMapping::BitEntry>> const& entry) -> std::vector<Config::AddressMapping::BitEntry> {
         std::vector<Config::AddressMapping::BitEntry> bitVector;
-        
+
         if (entry.has_value())
             bitVector = entry.value();
 
@@ -153,7 +142,7 @@ AddressDecoder::AddressDecoder(const DRAMSys::Config::AddressMapping& addressMap
     transposedMappingMatrix = transposeMatrix(mappingMatrix);
 }
 
-void AddressDecoder::plausibilityCheck(const MemSpec& memSpec)
+bool AddressDecoder::plausibilityCheck(const MemSpec& memSpec) const
 {
     // Check if all address bits are used
     // TODO: Check if every bit occurs ~exactly~ once or just at least once?
@@ -161,28 +150,34 @@ void AddressDecoder::plausibilityCheck(const MemSpec& memSpec)
     for (auto bitset: mappingMatrix) {
         orBitset |= bitset;
     }
-    
+
 
     std::bitset<ADDRESS_WIDTH> mask((1ULL << (highestBitValue + 1)) - 1);
     if (orBitset != mask) {
-        SC_REPORT_FATAL("AddressDecoder", "Not all address bits are used exactly once");
+        SC_REPORT_WARNING("AddressDecoder", "Not all address bits are used exactly once");
+        return false;
     }
+
+    bool valid = true;
 
     // Check if the addresss mapping is capable of matching the requirements of the memSpec
-    checkMemSpecCompatibility(memSpec);
-    // Look for dedicated BURST_BITS. If used -> byte-bits and column-based burst-bits are combined 
+    valid &= checkMemSpecCompatibility(memSpec);
+    // Look for dedicated BURST_BITS. If used -> byte-bits and column-based burst-bits are combined
     if (burstBits.length > 0) {
         if (byteBits.length > 0) {
-            SC_REPORT_FATAL("AddressDecoder", "BURST_BITS and BYTE_BITS cannot be used at the same time."); 
+            SC_REPORT_WARNING("AddressDecoder", "BURST_BITS and BYTE_BITS cannot be used at the same time.");
+            return false;
         }
-        checkBurstBits(memSpec);
+        valid &= checkBurstBits(memSpec);
     } else {
-        checkByteBits(memSpec);
-        checkBurstLengthBits(memSpec);
+        valid &= checkByteBits(memSpec);
+        valid &= checkBurstLengthBits(memSpec);
     }
+
+    return valid;
 }
 
-void AddressDecoder::checkMemSpecCompatibility(const MemSpec& memSpec) const
+bool AddressDecoder::checkMemSpecCompatibility(const MemSpec& memSpec) const
 {
     // Check all and collect the errors
     std::vector<std::string> errors;
@@ -213,82 +208,95 @@ void AddressDecoder::checkMemSpecCompatibility(const MemSpec& memSpec) const
         for (auto& e : errors)
             all << " - " << e << '\n';
         std::string msg = all.str();
-        SC_REPORT_FATAL("AddressDecoder", msg.c_str());
+        SC_REPORT_WARNING("AddressDecoder", msg.c_str());
+        return false;
     }
+
+    return true;
 }
 
-void AddressDecoder::checkAddressableLimits(const MemSpec& memSpec) const {
-    validateAddressableLimit(memSpec.numberOfChannels, static_cast<unsigned>(std::pow(2, channelBits.length)), "Channel");
-    validateAddressableLimit(memSpec.ranksPerChannel, static_cast<unsigned>(std::pow(2, bankBits.length)), "Rank");
+bool AddressDecoder::checkAddressableLimits(const MemSpec& memSpec) const {
+    bool valid = true;
+    valid &= validateAddressableLimit(memSpec.numberOfChannels, static_cast<unsigned>(std::pow(2, channelBits.length)), "Channel");
+    valid &= validateAddressableLimit(memSpec.ranksPerChannel, static_cast<unsigned>(std::pow(2, bankBits.length)), "Rank");
     unsigned addressableBankGroups = static_cast<unsigned>(std::pow(2, bankGroupBits.length)) * static_cast<unsigned>(std::pow(2, rankBits.length));
     unsigned absoluteBanks = static_cast<unsigned>(std::pow(2, bankBits.length)) * addressableBankGroups;
-    validateAddressableLimit(memSpec.bankGroupsPerChannel, addressableBankGroups, "Bank group");
-    validateAddressableLimit(memSpec.banksPerChannel, absoluteBanks, "Bank");
-    validateAddressableLimit(memSpec.rowsPerBank, static_cast<unsigned>(std::pow(2, rowBits.length)), "Row");
-    validateAddressableLimit(memSpec.columnsPerRow, static_cast<unsigned>(std::pow(2, columnBits.length)), "Column");
+    valid &= validateAddressableLimit(memSpec.bankGroupsPerChannel, addressableBankGroups, "Bank group");
+    valid &= validateAddressableLimit(memSpec.banksPerChannel, absoluteBanks, "Bank");
+    valid &= validateAddressableLimit(memSpec.rowsPerBank, static_cast<unsigned>(std::pow(2, rowBits.length)), "Row");
+    valid &= validateAddressableLimit(memSpec.columnsPerRow, static_cast<unsigned>(std::pow(2, columnBits.length)), "Column");
+    return valid;
 }
 
-void AddressDecoder::validateAddressableLimit(unsigned memSpecValue, unsigned addressableValue, const std::string& name) {
+bool AddressDecoder::validateAddressableLimit(unsigned memSpecValue, unsigned addressableValue, const std::string& name) {
     if (memSpecValue > addressableValue || memSpecValue <= (addressableValue >> 1)) {
-        SC_REPORT_FATAL("AddressDecoder", (name + " bit mapping does not match the memspec configuration").c_str());
+        SC_REPORT_WARNING("AddressDecoder", (name + " bit mapping does not match the memspec configuration").c_str());
+        return false;
     }
+    return true;
 }
 
-void AddressDecoder::checkBurstBits(const MemSpec& memSpec) const {
+bool AddressDecoder::checkBurstBits(const MemSpec& memSpec) const {
     unsigned numOfBurstBits = std::ceil(std::log2(memSpec.defaultDataBytesPerBurst));
 
     if (burstBits.length != numOfBurstBits) {
-        SC_REPORT_FATAL("AddressDecoder", 
-            ("Burst-bits are not sufficient for this burst size or not continous starting from 0. (defaultBurstLength: " + 
-            std::to_string(memSpec.defaultBurstLength) + 
-            "B -> number of byte-bits: " + 
+        SC_REPORT_WARNING("AddressDecoder",
+            ("Burst-bits are not sufficient for this burst size or not continous starting from 0. (defaultBurstLength: " +
+            std::to_string(memSpec.defaultBurstLength) +
+            "B -> number of byte-bits: " +
             std::to_string(numOfBurstBits) + ")").c_str());
+        return false;
     }
+    return true;
 }
 
-void AddressDecoder::checkByteBits(const MemSpec& memSpec) const {
+bool AddressDecoder::checkByteBits(const MemSpec& memSpec) const {
     unsigned bytesPerBeat = memSpec.defaultBytesPerBurst / memSpec.defaultBurstLength;
     unsigned numOfByteBits = std::ceil(std::log2(bytesPerBeat));
 
     if (!isPowerOfTwo(bytesPerBeat)) {
-        SC_REPORT_WARNING("AddressDecoder", 
-            ("Bytes per beat are not power of two! \nAssuming " + 
+        SC_REPORT_WARNING("AddressDecoder",
+            ("Bytes per beat are not power of two! \nAssuming " +
                 std::to_string(numOfByteBits) + " reserved byte bits.").c_str());
     }
 
     if (byteBits.length < numOfByteBits) {
-        SC_REPORT_FATAL("AddressDecoder", 
-            ("Byte-bits are not continuous starting from 0. (bytesPerBeat: " + 
-            std::to_string(bytesPerBeat) + 
-            "B -> number of byte-bits: " + 
+        SC_REPORT_WARNING("AddressDecoder",
+            ("Byte-bits are not continuous starting from 0. (bytesPerBeat: " +
+            std::to_string(bytesPerBeat) +
+            "B -> number of byte-bits: " +
             std::to_string(numOfByteBits) + ")").c_str());
+        return false;
     }
+    return true;
 }
 
-void AddressDecoder::checkBurstLengthBits(const MemSpec& memSpec) {
+bool AddressDecoder::checkBurstLengthBits(const MemSpec& memSpec) const {
     unsigned numOfMaxBurstLengthBits = std::ceil(std::log2(memSpec.maxBurstLength));
-    burstBitMask = createBitmask(numOfMaxBurstLengthBits, byteBits.length);
 
     if (!isPowerOfTwo(memSpec.maxBurstLength)) {
-        SC_REPORT_WARNING("AddressDecoder", 
+        SC_REPORT_WARNING("AddressDecoder",
             ("Maximum burst length (" + std::to_string(memSpec.maxBurstLength) +
-            ") is not power of two! \nAssuming " + 
-            std::to_string(numOfMaxBurstLengthBits) + 
+            ") is not power of two! \nAssuming " +
+            std::to_string(numOfMaxBurstLengthBits) +
             " reserved burst bits.").c_str());
     }
 
-    std::bitset<ADDRESS_WIDTH> burstBitset(((1 << numOfMaxBurstLengthBits) - 1) << columnBits.idx); 
+    std::bitset<ADDRESS_WIDTH> burstBitset(((1 << numOfMaxBurstLengthBits) - 1) << columnBits.idx);
     std::bitset<ADDRESS_WIDTH> columnBitset;
     for (size_t i = 0; i < columnBits.length; i++) {
         columnBitset |= mappingMatrix[columnBits.idx + i];
     }
     if ((columnBits.length < numOfMaxBurstLengthBits) || ((columnBitset & burstBitset) != burstBitset)) {
-        SC_REPORT_FATAL("AddressDecoder", 
+        SC_REPORT_WARNING("AddressDecoder",
             ("No continuous column bits for maximum burst length (maximumBurstLength: " +
-            std::to_string(memSpec.maxBurstLength) + 
-            " -> required number of burst bits: " + 
+            std::to_string(memSpec.maxBurstLength) +
+            " -> required number of burst bits: " +
             std::to_string(numOfMaxBurstLengthBits) + ")").c_str());
+        return false;
     }
+
+    return true;
 }
 
 DecodedAddress AddressDecoder::decodeAddress(uint64_t address) const

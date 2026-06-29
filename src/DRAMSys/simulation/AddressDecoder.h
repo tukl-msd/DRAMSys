@@ -99,7 +99,7 @@ public:
 
     /**
      * @brief Checks if the decoded address is valid according to the memory specification.
-     * 
+     *
      * @param decAddr The address to check.
      * @return true if the address is valid, false otherwise.
      */
@@ -107,7 +107,7 @@ public:
 
     /**
      * @brief Decodes an address from a transaction payload into its address components.
-     * 
+     *
      * @param address The encoded address.
      * @return The decoded address.
      */
@@ -115,7 +115,7 @@ public:
 
     /**
      * @brief Decodes the channel component from an encoded address.
-     * 
+     *
      * @param encAddr The encoded address.
      * @return The decoded channel number.
      */
@@ -123,7 +123,7 @@ public:
 
     /**
      * @brief Encodes a DecodedAddress into an address value.
-     * 
+     *
      * @param decAddr The decoded address to encode.
      * @return The encoded address.
      */
@@ -131,10 +131,11 @@ public:
 
         /**
      * @brief Checks if all address mapping bits are used and validates compatibility with the memory specification.
-     * 
+     *
      * @param memSpec The memory specification to check.
+     * @return Whether the configured address decoder is plausible.
      */
-    void plausibilityCheck(const MemSpec& memSpec);
+    [[nodiscard]] bool plausibilityCheck(const MemSpec& memSpec) const;
 
     /**
      * @brief Prints the current address mapping configuration.
@@ -145,7 +146,6 @@ private:
     static constexpr unsigned ADDRESS_WIDTH = 64;
 
     uint64_t highestBitValue;
-    uint64_t burstBitMask;
     std::vector<std::bitset<ADDRESS_WIDTH>> mappingMatrix;
     std::vector<std::bitset<ADDRESS_WIDTH>> transposedMappingMatrix;
 
@@ -166,7 +166,7 @@ private:
 
     /**
      * @brief Checks if a given value is a power of two.
-     * 
+     *
      * @param value The value to check.
      * @return true if the value is a power of two, false otherwise.
      */
@@ -174,7 +174,7 @@ private:
 
     /**
      * @brief Transposes a matrix of 64-bit bitsets.
-     * 
+     *
      * @param matrix The matrix to transpose.
      * @return The transposed matrix.
      */
@@ -182,7 +182,7 @@ private:
 
     /**
      * @brief Multiplies a 64-bit vector with a matrix over GF(2).
-     * 
+     *
      * @param inputVec The input vector to multiply.
      * @param matrix The GF(2) matrix.
      * @return The result of the multiplication as a 64-bit unsinged integer.
@@ -191,47 +191,53 @@ private:
 
     /**
      * @brief Validates that the addressable value matches the value from the memory specification.
-     * 
+     *
      * @param memSpecValue The value from the memory specification.
      * @param addressableValue The calculated addressable value.
      * @param name The name of the component.
+     * @return Whether the check succeeds.
      */
-    static void validateAddressableLimit(unsigned memSpecValue, unsigned addressableValue, const std::string& name);
+    [[nodiscard]] static bool validateAddressableLimit(unsigned memSpecValue, unsigned addressableValue, const std::string& name);
 
     /**
      * @brief Checks if the address mapping is compatible with the memory specification.
-     * 
+     *
      * @param memSpec The memory specification.
+     * @return Whether the check succeeds.
      */
-    void checkMemSpecCompatibility(const MemSpec& memSpec) const;
+    [[nodiscard]] bool checkMemSpecCompatibility(const MemSpec& memSpec) const;
 
     /**
      * @brief Checks if the addressable limits for each memory component are sufficient.
-     * 
+     *
      * @param memSpec The memory specification.
+     * @return Whether the check succeeds.
      */
-    void checkAddressableLimits(const MemSpec& memSpec) const;
+    [[nodiscard]] bool checkAddressableLimits(const MemSpec& memSpec) const;
 
     /**
      * @brief Calculates and checks the number of byte bits required for the memory specification.
-     * 
+     *
      * @param memSpec The memory specification.
+     * @return Whether the check succeeds.
      */
-    void checkByteBits(const MemSpec& memSpec) const;
+    [[nodiscard]] bool checkByteBits(const MemSpec& memSpec) const;
 
     /**
      * @brief Calculates and checks the number of burst bits required for the memory specification.
-     * 
+     *
      * @param memSpec The memory specification.
+     * @return Whether the check succeeds.
      */
-    void checkBurstBits(const MemSpec& memSpec) const;
+    [[nodiscard]] bool checkBurstBits(const MemSpec& memSpec) const;
 
     /**
      * @brief Checks and handles burst lengths that are not a power of two.
-     * 
+     *
      * @param memSpec The memory specification.
+     * @return Whether the check succeeds.
      */
-    void checkBurstLengthBits(const MemSpec& memSpec);
+    [[nodiscard]] bool checkBurstLengthBits(const MemSpec& memSpec) const;
 };
 
 } // namespace DRAMSys

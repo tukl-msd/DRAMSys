@@ -88,7 +88,7 @@ TEST_F(AddressDecoderFixture, DecodingNP2Failure)
                     .at("memspec").get< DRAMUtils::MemSpec::MemSpecDDR4>());
 
     addressDecoder = DRAMSys::AddressDecoder(addressMappingConfig);
-    addressDecoder.plausibilityCheck(*memSpec);
+    EXPECT_TRUE(addressDecoder.plausibilityCheck(*memSpec));
 
     uint64_t address = 0x3A59'1478;
     std::ignore = addressDecoder.decodeAddress(address);
@@ -107,7 +107,7 @@ TEST_F(AddressDecoderFixture, DecodingNP2Success)
                     .at("memspec").get< DRAMUtils::MemSpec::MemSpecDDR4>());
 
     addressDecoder = DRAMSys::AddressDecoder(addressMappingConfig);
-    addressDecoder.plausibilityCheck(*memSpec);
+    EXPECT_TRUE(addressDecoder.plausibilityCheck(*memSpec));
 
     uint64_t address = 0x3A59'1477;
     auto decodedAddress = addressDecoder.decodeAddress(address);
@@ -185,54 +185,54 @@ TEST_F(AddressDecoderPlausibilityFixture, ValidPlausibilityCheck)
 {
     setupDecoder(validMemSpecJsonString, validAddressMappingJsonString);
 
-    EXPECT_NO_THROW(addressDecoder->plausibilityCheck(*memSpecDDR4));
+    EXPECT_TRUE(addressDecoder->plausibilityCheck(*memSpecDDR4));
 }
 
 TEST_F(AddressDecoderPlausibilityFixture, ValidNP2PlausibilityCheck)
 {
     setupDecoder(validNP2MemSpecJsonString, validAddressMappingJsonString);
 
-    EXPECT_NO_THROW(addressDecoder->plausibilityCheck(*memSpecDDR4));
+    EXPECT_TRUE(addressDecoder->plausibilityCheck(*memSpecDDR4));
 }
 
 TEST_F(AddressDecoderPlausibilityFixture, InvalidMaxAddress)
 {
     setupDecoder(invalidMaxAddressMemSpecJsonString, validAddressMappingJsonString);
 
-    EXPECT_DEATH(addressDecoder->plausibilityCheck(*memSpecDDR4), "");
+    EXPECT_FALSE(addressDecoder->plausibilityCheck(*memSpecDDR4));
 }
 
 TEST_F(AddressDecoderPlausibilityFixture, DuplicateBits)
 {
     setupDecoder(validMemSpecJsonString, addressMappingWithDuplicatesJsonString);
 
-    EXPECT_DEATH(addressDecoder->plausibilityCheck(*memSpecDDR4), "");
+    EXPECT_FALSE(addressDecoder->plausibilityCheck(*memSpecDDR4));
 }
 
 TEST_F(AddressDecoderPlausibilityFixture, NonContinuousByteBits)
 {
     setupDecoder(validMemSpecJsonString, nonContinuousByteBitsAddressMappingJsonString);
 
-    EXPECT_DEATH(addressDecoder->plausibilityCheck(*memSpecDDR4), "");
+    EXPECT_FALSE(addressDecoder->plausibilityCheck(*memSpecDDR4));
 }
 
 TEST_F(AddressDecoderPlausibilityFixture, InvalidChannelMapping)
 {
     setupDecoder(invalidChannelMemSpecJsonString, validAddressMappingJsonString);
 
-    EXPECT_DEATH(addressDecoder->plausibilityCheck(*memSpecDDR4), "");
+    EXPECT_FALSE(addressDecoder->plausibilityCheck(*memSpecDDR4));
 }
 
 TEST_F(AddressDecoderPlausibilityFixture, InvalidBankGroups)
 {
     setupDecoder(invalidBankGroupMemSpecJsonString, validAddressMappingJsonString);
 
-    EXPECT_DEATH(addressDecoder->plausibilityCheck(*memSpecDDR4), "");
+    EXPECT_FALSE(addressDecoder->plausibilityCheck(*memSpecDDR4));
 }
 
 TEST_F(AddressDecoderPlausibilityFixture, InvalidRanks)
 {
     setupDecoder(invalidRanksMemSpecJsonString, validAddressMappingJsonString);
 
-    EXPECT_DEATH(addressDecoder->plausibilityCheck(*memSpecDDR4), "");
+    EXPECT_FALSE(addressDecoder->plausibilityCheck(*memSpecDDR4));
 }
