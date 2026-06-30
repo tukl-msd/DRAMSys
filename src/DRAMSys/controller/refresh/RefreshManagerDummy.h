@@ -54,9 +54,6 @@ public:
 
     void serialize([[maybe_unused]] std::ostream& stream) const override {}
     void deserialize([[maybe_unused]] std::istream& stream) override {}
-
-private:
-    const sc_core::sc_time scMaxTime = sc_core::sc_max_time();
 };
 
 } // namespace DRAMSys

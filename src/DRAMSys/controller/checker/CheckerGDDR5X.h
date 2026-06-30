@@ -69,7 +69,6 @@ private:
 
     ControllerVector<Rank, unsigned> bankwiseRefreshCounter;
 
-    const sc_core::sc_time scMaxTime = sc_core::sc_max_time();
     sc_core::sc_time tBURST;
     sc_core::sc_time tRDSRE;
     sc_core::sc_time tWRSRE;

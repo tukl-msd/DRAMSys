@@ -49,7 +49,7 @@ CommandTuple::Type RefreshManagerDummy::getNextCommand()
 
 sc_time RefreshManagerDummy::getTimeForNextTrigger()
 {
-    return scMaxTime;
+    return sc_max_time();
 }
 
 } // namespace DRAMSys

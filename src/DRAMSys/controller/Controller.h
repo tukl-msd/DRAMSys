@@ -115,8 +115,6 @@ private:
 
     std::unique_ptr<SchedulerIF> scheduler;
 
-    sc_core::sc_time scMaxTime = sc_core::sc_max_time();
-
     /**
      * @brief The gearing determines the divider for the controller frontend frequency.
      * @note If set to 1, the controller is aligned with the command clock (tCK).

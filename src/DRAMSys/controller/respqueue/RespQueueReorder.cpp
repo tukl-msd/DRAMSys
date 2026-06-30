@@ -75,7 +75,7 @@ sc_time RespQueueReorder::getTriggerTime() const
                 return triggerTime;
         }
     }
-    return scMaxTime;
+    return sc_max_time();
 }
 
 } // namespace DRAMSys

@@ -52,7 +52,6 @@ public:
 private:
     uint64_t nextPayloadID = 1;
     const MemSpec& memSpec;
-    const sc_core::sc_time scMaxTime = sc_core::sc_max_time();
 };
 
 class CmdMuxStrictRasCas : public CmdMuxIF
@@ -66,7 +65,6 @@ public:
 private:
     uint64_t nextPayloadID = 1;
     const MemSpec& memSpec;
-    const sc_core::sc_time scMaxTime = sc_core::sc_max_time();
 };
 
 } // namespace DRAMSys

@@ -460,7 +460,7 @@ void Controller::controllerMethod()
                                              phyDelayBwEff + config.thinkDelayBw);
 
                 sc_time triggerTime = respQueue->getTriggerTime();
-                if (triggerTime != scMaxTime)
+                if (triggerTime != sc_max_time())
                     dataResponseEvent.notify(triggerTime - sc_time_stamp());
 
                 ranksNumberOfPayloads[rank]--; // TODO: move to a different place?
@@ -475,7 +475,7 @@ void Controller::controllerMethod()
 
     // (6) Restart bank machines, refresh managers and power-down managers to issue new requests for
     // the future
-    sc_time timeForNextTrigger = scMaxTime;
+    sc_time timeForNextTrigger = sc_max_time();
     sc_time localTime;
     for (auto& it : bankMachines)
     {
@@ -521,7 +521,7 @@ void Controller::controllerMethod()
         }
     }
 
-    if (timeForNextTrigger != scMaxTime)
+    if (timeForNextTrigger != sc_max_time())
         controllerEvent.notify(timeForNextTrigger - sc_time_stamp());
 }
 
@@ -695,7 +695,7 @@ void Controller::manageResponses()
     else
     {
         sc_time triggerTime = respQueue->getTriggerTime();
-        if (triggerTime != scMaxTime)
+        if (triggerTime != sc_max_time())
             dataResponseEvent.notify(triggerTime - sc_time_stamp());
     }
 }
@@ -723,7 +723,7 @@ void Controller::processNextTransInRespQueue(tlm::tlm_generic_payload* nextTrans
         sc_time bwDelay = SC_ZERO_TIME;
 
         sendToFrontend(*transToRelease.payload, bwPhase, bwDelay);
-        transToRelease.arrival = scMaxTime;
+        transToRelease.arrival = sc_max_time();
     }
 }
 
@@ -737,12 +737,12 @@ void Controller::processNextChildRespTrans(tlm::tlm_generic_payload* nextTransIn
         sc_time bwDelay = SC_ZERO_TIME;
 
         sendToFrontend(*transToRelease.payload, bwPhase, bwDelay);
-        transToRelease.arrival = scMaxTime;
+        transToRelease.arrival = sc_max_time();
     }
     else
     {
         sc_time triggerTime = respQueue->getTriggerTime();
-        if (triggerTime != scMaxTime)
+        if (triggerTime != sc_max_time())
             dataResponseEvent.notify(triggerTime - sc_time_stamp());
     }
 }

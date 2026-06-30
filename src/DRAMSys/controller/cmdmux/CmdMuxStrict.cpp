@@ -51,7 +51,7 @@ CmdMuxStrict::selectCommand(const ReadyCommands& readyCommands) const
     auto result = readyCommands.cend();
     uint64_t lastPayloadID = UINT64_MAX;
     uint64_t newPayloadID = 0;
-    sc_time lastTimestamp = scMaxTime;
+    sc_time lastTimestamp = sc_max_time();
     sc_time newTimestamp;
 
     for (auto it = readyCommands.cbegin(); it != readyCommands.cend(); it++)
@@ -114,7 +114,7 @@ CmdMuxStrictRasCas::selectCommand(const ReadyCommands& readyCommands) const
 
     uint64_t lastPayloadID = UINT64_MAX;
     uint64_t newPayloadID = 0;
-    sc_time lastTimestamp = scMaxTime;
+    sc_time lastTimestamp = sc_max_time();
     sc_time newTimestamp;
 
     auto resultRas = readyRasCommands.cend();
@@ -161,7 +161,7 @@ CmdMuxStrictRasCas::selectCommand(const ReadyCommands& readyCommands) const
         readyRasCasCommands.emplace_back(*resultCas);
 
     lastPayloadID = UINT64_MAX;
-    lastTimestamp = scMaxTime;
+    lastTimestamp = sc_max_time();
 
     auto result = readyCommands.cend();
 

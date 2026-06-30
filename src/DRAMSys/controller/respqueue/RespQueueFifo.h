@@ -54,7 +54,6 @@ public:
 
 private:
     std::queue<std::pair<tlm::tlm_generic_payload*, sc_core::sc_time>> buffer;
-    const sc_core::sc_time scMaxTime = sc_core::sc_max_time();
 };
 
 } // namespace DRAMSys

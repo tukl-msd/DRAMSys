@@ -50,7 +50,6 @@ public:
 
 private:
     const MemSpec& memSpec;
-    const sc_core::sc_time scMaxTime = sc_core::sc_max_time();
 };
 
 class CmdMuxOldestRasCas : public CmdMuxIF
@@ -62,7 +61,6 @@ public:
 
 private:
     const MemSpec& memSpec;
-    const sc_core::sc_time scMaxTime = sc_core::sc_max_time();
 };
 
 } // namespace DRAMSys

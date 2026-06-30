@@ -88,7 +88,6 @@ private:
 
     bool sleeping = false;
     const bool refreshManagement;
-    const sc_core::sc_time scMaxTime = sc_core::sc_max_time();
 };
 
 } // namespace DRAMSys

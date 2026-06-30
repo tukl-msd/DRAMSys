@@ -250,7 +250,7 @@ void RefreshManagerPer2Bank::update(Command command)
         break;
     case Command::SREFEN:
         sleeping = true;
-        timeForNextTrigger = scMaxTime;
+        timeForNextTrigger = sc_max_time();
         break;
     case Command::PDXA:
     case Command::PDXP:

@@ -64,7 +64,6 @@ private:
     // Four activate window
     ControllerVector<Rank, std::queue<sc_core::sc_time>> last4Activates;
 
-    const sc_core::sc_time scMaxTime = sc_core::sc_max_time();
     sc_core::sc_time tBURST;
     sc_core::sc_time tRDWR;
     sc_core::sc_time tRDWR_R;

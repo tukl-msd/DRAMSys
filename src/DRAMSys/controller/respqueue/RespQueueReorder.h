@@ -54,7 +54,6 @@ public:
 private:
     uint64_t nextPayloadID = 1;
     std::map<uint64_t, std::pair<tlm::tlm_generic_payload*, sc_core::sc_time>> buffer;
-    const sc_core::sc_time scMaxTime = sc_core::sc_max_time();
 };
 
 } // namespace DRAMSys

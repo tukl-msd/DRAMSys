@@ -67,7 +67,7 @@ sc_time RespQueueFifo::getTriggerTime() const
         if (triggerTime > sc_time_stamp())
             return triggerTime;
     }
-    return scMaxTime;
+    return sc_max_time();
 }
 
 } // namespace DRAMSys
