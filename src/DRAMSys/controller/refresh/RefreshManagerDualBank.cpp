@@ -38,7 +38,6 @@
 #include "DRAMSys/common/dramExtensions.h"
 #include "DRAMSys/controller/BankMachine.h"
 #include "DRAMSys/controller/powerdown/PowerDownManagerIF.h"
-#include "fmt/compile.h"
 
 using namespace sc_core;
 using namespace tlm;
@@ -228,7 +227,7 @@ void RefreshManagerDualBank::update(Command command)
         break;
     case Command::SREFEN:
         sleeping = true;
-        timeForNextTrigger = scMaxTime;
+        timeForNextTrigger = sc_max_time();
         break;
     case Command::PDXA:
     case Command::PDXP:

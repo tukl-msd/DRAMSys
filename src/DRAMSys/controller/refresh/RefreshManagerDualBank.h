@@ -91,8 +91,6 @@ private:
     bool sleeping = false;
     bool skipSelection = false;
 
-    const sc_core::sc_time scMaxTime = sc_core::sc_max_time();
-
     std::optional<std::pair<std::list<BankMachine*>::iterator, std::list<BankMachine*>::iterator>> searchIdleBankPair();
     std::pair<std::list<BankMachine*>::iterator, std::list<BankMachine*>::iterator> searchLegalBankPair();
 };

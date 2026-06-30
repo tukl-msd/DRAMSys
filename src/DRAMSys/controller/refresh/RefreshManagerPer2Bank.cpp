@@ -88,111 +88,114 @@ void RefreshManagerPer2Bank::evaluate()
     if (sc_time_stamp() >= timeForNextTrigger)
     {
         powerDownManager.triggerInterruption();
-        if (sleeping)
-            return;
-
-        if (sc_time_stamp() >= timeForNextTrigger + memSpec.getRefreshIntervalP2B())
+        if (!sleeping)
         {
-            timeForNextTrigger += memSpec.getRefreshIntervalP2B();
-            state = State::Regular;
-        }
-
-        if (state == State::Regular)
-        {
-            bool forcedRefresh = (flexibilityCounter == maxPostponed);
-            bool allBankPairsBusy = true;
-
-            if (!skipSelection)
+            if (sc_time_stamp() >= timeForNextTrigger + memSpec.getRefreshIntervalP2B())
             {
-                currentIterator = remainingBankMachines.begin();
-                for (auto bankIt = remainingBankMachines.begin();
-                     bankIt != remainingBankMachines.end();
-                     bankIt++)
+                timeForNextTrigger += memSpec.getRefreshIntervalP2B();
+                state = State::Regular;
+            }
+
+            if (state == State::Regular)
+            {
+                if (flexibilityCounter == maxPostponed) // forced refresh
                 {
-                    if (bankIt->first->isIdle() && bankIt->second->isIdle())
+                    if (!skipSelection)
                     {
-                        allBankPairsBusy = false;
-                        currentIterator = bankIt;
-                        break;
+                        if (auto idleBankPair = searchIdleBankPair())
+                        {
+                            currentIterator = idleBankPair.value();
+                        }
+                        else
+                        {
+                            currentIterator = remainingBankMachines.begin();
+                        }
+                        currentIterator->first->block();
+                        currentIterator->second->block();
+                        skipSelection = true;
+                    }
+
+                    if (currentIterator->first->isActivated())
+                    {
+                        nextCommand = Command::PREPB;
+                        ControllerExtension::setBankGroup(refreshPayload, currentIterator->first->getBankGroup());
+                        ControllerExtension::setBank(refreshPayload, currentIterator->first->getBank());
+                    }
+                    else if (currentIterator->second->isActivated())
+                    {
+                        nextCommand = Command::PREPB;
+                        ControllerExtension::setBankGroup(refreshPayload, currentIterator->second->getBankGroup());
+                        ControllerExtension::setBank(refreshPayload, currentIterator->second->getBank());
+                    }
+                    else
+                    {
+                        nextCommand = Command::REFP2B;
+                        ControllerExtension::setBankGroup(refreshPayload, currentIterator->first->getBankGroup());
+                        ControllerExtension::setBank(refreshPayload, currentIterator->first->getBank());
+                    }
+                }
+                else // postponable regular refresh
+                {
+                    if (auto idleBankPair = searchIdleBankPair()) // do refresh
+                    {
+                        currentIterator = idleBankPair.value();
+
+                        if (currentIterator->first->isActivated())
+                        {
+                            nextCommand = Command::PREPB;
+                            ControllerExtension::setBankGroup(refreshPayload, currentIterator->first->getBankGroup());
+                            ControllerExtension::setBank(refreshPayload, currentIterator->first->getBank());
+                        }
+                        else if (currentIterator->second->isActivated())
+                        {
+                            nextCommand = Command::PREPB;
+                            ControllerExtension::setBankGroup(refreshPayload, currentIterator->second->getBankGroup());
+                            ControllerExtension::setBank(refreshPayload, currentIterator->second->getBank());
+                        }
+                        else
+                        {
+                            nextCommand = Command::REFP2B;
+                            ControllerExtension::setBankGroup(refreshPayload, currentIterator->first->getBankGroup());
+                            ControllerExtension::setBank(refreshPayload, currentIterator->first->getBank());
+                        }
+                    }
+                    else // postpone refresh
+                    {
+                        flexibilityCounter++;
+                        timeForNextTrigger += memSpec.getRefreshIntervalP2B();
                     }
                 }
             }
-
-            if (allBankPairsBusy && !forcedRefresh)
+            else // if (state == RmState::Pulledin)
             {
-                flexibilityCounter++;
-                timeForNextTrigger += memSpec.getRefreshIntervalP2B();
-                return;
+                if (auto idleBankPair = searchIdleBankPair())
+                {
+                    currentIterator = idleBankPair.value();
+                    if (currentIterator->first->isActivated())
+                    {
+                        nextCommand = Command::PREPB;
+                        ControllerExtension::setBankGroup(refreshPayload, currentIterator->first->getBankGroup());
+                        ControllerExtension::setBank(refreshPayload, currentIterator->first->getBank());
+                    }
+                    else if (currentIterator->second->isActivated())
+                    {
+                        nextCommand = Command::PREPB;
+                        ControllerExtension::setBankGroup(refreshPayload, currentIterator->second->getBankGroup());
+                        ControllerExtension::setBank(refreshPayload, currentIterator->second->getBank());
+                    }
+                    else
+                    {
+                        nextCommand = Command::REFP2B;
+                        ControllerExtension::setBankGroup(refreshPayload, currentIterator->first->getBankGroup());
+                        ControllerExtension::setBank(refreshPayload, currentIterator->first->getBank());
+                    }
+                }
+                else
+                {
+                    state = State::Regular;
+                    timeForNextTrigger += memSpec.getRefreshIntervalP2B();
+                }
             }
-
-            if (currentIterator->first->isActivated())
-            {
-                nextCommand = Command::PREPB;
-                ControllerExtension::setBankGroup(refreshPayload, currentIterator->first->getBankGroup());
-                ControllerExtension::setBank(refreshPayload, currentIterator->first->getBank());
-            }
-            else if (currentIterator->second->isActivated())
-            {
-                nextCommand = Command::PREPB;
-                ControllerExtension::setBankGroup(refreshPayload, currentIterator->second->getBankGroup());
-                ControllerExtension::setBank(refreshPayload, currentIterator->second->getBank());
-            }
-            else
-            {
-                nextCommand = Command::REFP2B;
-                ControllerExtension::setBankGroup(refreshPayload, currentIterator->first->getBankGroup());
-                ControllerExtension::setBank(refreshPayload, currentIterator->first->getBank());
-            }
-
-            // TODO: banks should already be blocked for precharge and selection should be skipped
-            if (nextCommand == Command::REFP2B && forcedRefresh)
-            {
-                currentIterator->first->block();
-                currentIterator->second->block();
-                skipSelection = true;
-            }
-            return;
-        }
-
-        // if (state == RmState::Pulledin)
-        bool allBankPairsBusy = true;
-
-        currentIterator = remainingBankMachines.begin();
-        for (auto bankIt = remainingBankMachines.begin(); bankIt != remainingBankMachines.end();
-             bankIt++)
-        {
-            if (bankIt->first->isIdle() && bankIt->second->isIdle())
-            {
-                allBankPairsBusy = false;
-                currentIterator = bankIt;
-                break;
-            }
-        }
-
-        if (allBankPairsBusy)
-        {
-            state = State::Regular;
-            timeForNextTrigger += memSpec.getRefreshIntervalP2B();
-            return;
-        }
-
-        if (currentIterator->first->isActivated())
-        {
-            nextCommand = Command::PREPB;
-            ControllerExtension::setBankGroup(refreshPayload, currentIterator->first->getBankGroup());
-            ControllerExtension::setBank(refreshPayload, currentIterator->first->getBank());
-        }
-        else if (currentIterator->second->isActivated())
-        {
-            nextCommand = Command::PREPB;
-            ControllerExtension::setBankGroup(refreshPayload, currentIterator->second->getBankGroup());
-            ControllerExtension::setBank(refreshPayload, currentIterator->second->getBank());
-        }
-        else
-        {
-            nextCommand = Command::REFP2B;
-            ControllerExtension::setBankGroup(refreshPayload, currentIterator->first->getBankGroup());
-            ControllerExtension::setBank(refreshPayload, currentIterator->first->getBank());
         }
     }
 }
@@ -206,7 +209,6 @@ void RefreshManagerPer2Bank::update(Command command)
         remainingBankMachines.erase(currentIterator);
         if (remainingBankMachines.empty())
             remainingBankMachines = allBankMachines;
-        currentIterator = remainingBankMachines.begin();
 
         if (state == State::Pulledin)
             flexibilityCounter--;
@@ -258,6 +260,21 @@ void RefreshManagerPer2Bank::serialize(std::ostream& stream) const
 void RefreshManagerPer2Bank::deserialize(std::istream& stream)
 {
     stream.read(reinterpret_cast<char *>(&timeForNextTrigger), sizeof(timeForNextTrigger));
+}
+
+std::optional<std::list<std::pair<BankMachine*, BankMachine*>>::iterator>
+RefreshManagerPer2Bank::searchIdleBankPair()
+{
+    auto it = std::find_if(
+        remainingBankMachines.begin(),
+        remainingBankMachines.end(),
+        [](const auto& bankMachinePair)
+        { return bankMachinePair.first->isIdle() && bankMachinePair.second->isIdle(); });
+
+    if (it != remainingBankMachines.end())
+        return it;
+
+    return std::nullopt;
 }
 
 } // namespace DRAMSys

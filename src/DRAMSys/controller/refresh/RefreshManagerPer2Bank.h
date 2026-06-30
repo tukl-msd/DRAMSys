@@ -90,6 +90,8 @@ private:
 
     bool sleeping = false;
     bool skipSelection = false;
+
+    std::optional<std::list<std::pair<BankMachine*, BankMachine*>>::iterator> searchIdleBankPair();
 };
 
 } // namespace DRAMSys
