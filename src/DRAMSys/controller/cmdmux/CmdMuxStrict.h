@@ -45,7 +45,7 @@ class CmdMuxStrict : public CmdMuxIF
 {
 public:
     explicit CmdMuxStrict(const MemSpec& memSpec);
-    [[nodiscard]] std::optional<CommandTuple::Type>
+    [[nodiscard]] std::optional<ReadyCommand>
     selectCommand(const ReadyCommands& readyCommands) const override;
     void update(Command command) override;
 
@@ -58,7 +58,7 @@ class CmdMuxStrictRasCas : public CmdMuxIF
 {
 public:
     explicit CmdMuxStrictRasCas(const MemSpec& memSpec);
-    [[nodiscard]] std::optional<CommandTuple::Type>
+    [[nodiscard]] std::optional<ReadyCommand>
     selectCommand(const ReadyCommands& readyCommands) const override;
     void update(Command command) override;
 

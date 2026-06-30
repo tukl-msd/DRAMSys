@@ -40,7 +40,6 @@
 #include "DRAMSys/controller/Command.h"
 #include "DRAMSys/controller/ManagerIF.h"
 #include "DRAMSys/controller/McConfig.h"
-#include "DRAMSys/controller/checker/CheckerIF.h"
 #include "DRAMSys/controller/scheduler/SchedulerIF.h"
 
 #include <systemc>
@@ -52,7 +51,7 @@ namespace DRAMSys
 class BankMachine : public ManagerIF
 {
 public:
-    CommandTuple::Type getNextCommand() override;
+    ReadyCommand getNextCommand() override;
     void update(Command command) override;
     void block();
 

@@ -62,7 +62,7 @@ public:
                            PowerDownManagerIF& powerDownManager,
                            Rank rank);
 
-    CommandTuple::Type getNextCommand() override;
+    ReadyCommand getNextCommand() override;
     void evaluate() override;
     void update(Command command) override;
     sc_core::sc_time getTimeForNextTrigger() override;

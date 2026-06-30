@@ -55,7 +55,7 @@ public:
     void triggerExit() override;
     void triggerInterruption() override;
 
-    CommandTuple::Type getNextCommand() override;
+    ReadyCommand getNextCommand() override;
     void update(Command command) override;
     void evaluate() override;
 

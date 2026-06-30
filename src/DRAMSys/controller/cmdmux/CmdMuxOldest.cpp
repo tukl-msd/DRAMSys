@@ -45,8 +45,7 @@ CmdMuxOldest::CmdMuxOldest(const MemSpec& memSpec) : memSpec(memSpec)
 {
 }
 
-std::optional<CommandTuple::Type>
-CmdMuxOldest::selectCommand(const ReadyCommands& readyCommands) const
+std::optional<ReadyCommand> CmdMuxOldest::selectCommand(const ReadyCommands& readyCommands) const
 {
     auto result = readyCommands.cend();
     uint64_t lastPayloadID = UINT64_MAX;
@@ -56,10 +55,8 @@ CmdMuxOldest::selectCommand(const ReadyCommands& readyCommands) const
 
     for (auto it = readyCommands.cbegin(); it != readyCommands.cend(); it++)
     {
-        newTimestamp = std::get<CommandTuple::Timestamp>(*it) +
-                       memSpec.getCommandLength(std::get<CommandTuple::Command>(*it));
-        newPayloadID =
-            ControllerExtension::getChannelPayloadID(*std::get<CommandTuple::Payload>(*it));
+        newTimestamp = it->readyTime + memSpec.getCommandLength(it->command);
+        newPayloadID = ControllerExtension::getChannelPayloadID(*it->trans);
 
         if (newTimestamp < lastTimestamp)
         {
@@ -81,7 +78,7 @@ CmdMuxOldestRasCas::CmdMuxOldestRasCas(const MemSpec& memSpec) : memSpec(memSpec
 {
 }
 
-std::optional<CommandTuple::Type>
+std::optional<ReadyCommand>
 CmdMuxOldestRasCas::selectCommand(const ReadyCommands& readyCommands) const
 {
     ReadyCommands readyRasCommands;
@@ -89,7 +86,7 @@ CmdMuxOldestRasCas::selectCommand(const ReadyCommands& readyCommands) const
 
     for (auto it : readyCommands)
     {
-        if (std::get<CommandTuple::Command>(it).isRasCommand())
+        if (it.command.isRasCommand())
             readyRasCommands.emplace_back(it);
         else
             readyCasCommands.emplace_back(it);
@@ -104,10 +101,8 @@ CmdMuxOldestRasCas::selectCommand(const ReadyCommands& readyCommands) const
 
     for (auto it = readyRasCommands.cbegin(); it != readyRasCommands.cend(); it++)
     {
-        newTimestamp = std::get<CommandTuple::Timestamp>(*it) +
-                       memSpec.getCommandLength(std::get<CommandTuple::Command>(*it));
-        newPayloadID =
-            ControllerExtension::getChannelPayloadID(*std::get<CommandTuple::Payload>(*it));
+        newTimestamp = it->readyTime + memSpec.getCommandLength(it->command);
+        newPayloadID = ControllerExtension::getChannelPayloadID(*it->trans);
 
         if (newTimestamp < lastTimestamp)
         {
@@ -129,10 +124,8 @@ CmdMuxOldestRasCas::selectCommand(const ReadyCommands& readyCommands) const
 
     for (auto it = readyCasCommands.cbegin(); it != readyCasCommands.cend(); it++)
     {
-        newTimestamp = std::get<CommandTuple::Timestamp>(*it) +
-                       memSpec.getCommandLength(std::get<CommandTuple::Command>(*it));
-        newPayloadID =
-            ControllerExtension::getChannelPayloadID(*std::get<CommandTuple::Payload>(*it));
+        newTimestamp = it->readyTime + memSpec.getCommandLength(it->command);
+        newPayloadID = ControllerExtension::getChannelPayloadID(*it->trans);
 
         if (newTimestamp < lastTimestamp)
         {
@@ -161,9 +154,8 @@ CmdMuxOldestRasCas::selectCommand(const ReadyCommands& readyCommands) const
 
     for (auto it = readyRasCasCommands.cbegin(); it != readyRasCasCommands.cend(); it++)
     {
-        newTimestamp = std::get<CommandTuple::Timestamp>(*it);
-        newPayloadID =
-            ControllerExtension::getChannelPayloadID(*std::get<CommandTuple::Payload>(*it));
+        newTimestamp = it->readyTime;
+        newPayloadID = ControllerExtension::getChannelPayloadID(*it->trans);
 
         if (newTimestamp < lastTimestamp)
         {
@@ -180,7 +172,7 @@ CmdMuxOldestRasCas::selectCommand(const ReadyCommands& readyCommands) const
 
     assert(result != readyRasCasCommands.cend());
 
-    if (std::get<CommandTuple::Timestamp>(*result) != sc_time_stamp())
+    if (result->readyTime != sc_time_stamp())
         return std::nullopt;
 
     return *result;

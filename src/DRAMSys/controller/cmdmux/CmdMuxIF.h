@@ -51,10 +51,12 @@ protected:
     CmdMuxIF& operator=(CmdMuxIF&&) = default;
 
 public:
+    using ReadyCommands = std::vector<ReadyCommand>;
+
     CmdMuxIF() = default;
     virtual ~CmdMuxIF() = default;
 
-    [[nodiscard]] virtual std::optional<CommandTuple::Type>
+    [[nodiscard]] virtual std::optional<ReadyCommand>
     selectCommand(const ReadyCommands& readyCommands) const = 0;
     virtual void update([[maybe_unused]] Command command) {}
 };

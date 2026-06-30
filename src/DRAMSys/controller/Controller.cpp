@@ -129,9 +129,6 @@ Controller::Controller(const sc_module_name& name,
 
     ranksNumberOfPayloads = ControllerVector<Rank, unsigned>(memSpec.ranksPerChannel);
 
-    // reserve buffer for command tuples
-    readyCommands.reserve(memSpec.banksPerChannel);
-
     // instantiate timing checker
     checker = std::visit([this, &memSpec](const auto& v) -> std::unique_ptr<CheckerIF> {
         using T = std::decay_t<decltype(v)>;
@@ -361,55 +358,53 @@ void Controller::controllerMethod()
         it->evaluate();
 
     // clear command buffer
-    readyCommands.clear();
+    std::vector<ReadyCommand> readyCommands;
 
     // (4) Collect all ready commands from BMs, RMs and PDMs
     for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
     {
         // (4.1) Check for power-down commands (PDEA/PDEP/SREFEN or PDXA/PDXP/SREFEX)
         Rank rank = Rank(rankID);
-        auto commandTuple = powerDownManagers[rank]->getNextCommand();
-        if (std::get<CommandTuple::Command>(commandTuple) != Command::NOP)
-            readyCommands.emplace_back(commandTuple);
+        auto nextCommand = powerDownManagers[rank]->getNextCommand();
+        if (nextCommand.command != Command::NOP)
+            readyCommands.emplace_back(nextCommand);
         else
         {
             // (4.2) Check for refresh commands (PREXX or REFXX)
-            commandTuple = refreshManagers[rank]->getNextCommand();
-            if (std::get<CommandTuple::Command>(commandTuple) != Command::NOP)
-                readyCommands.emplace_back(commandTuple);
+            nextCommand = refreshManagers[rank]->getNextCommand();
+            if (nextCommand.command != Command::NOP)
+                readyCommands.emplace_back(nextCommand);
 
             // (4.3) Check for bank commands (PREPB, ACT, RD/RDA or WR/WRA)
             for (auto* it : bankMachinesOnRank[rank])
             {
-                commandTuple = it->getNextCommand();
-                if (std::get<CommandTuple::Command>(commandTuple) != Command::NOP)
-                    readyCommands.emplace_back(commandTuple);
+                nextCommand = it->getNextCommand();
+                if (nextCommand.command != Command::NOP)
+                    readyCommands.emplace_back(nextCommand);
             }
         }
     }
 
     for (auto& it : readyCommands)
     {
-        Command command = std::get<CommandTuple::Command>(it);
-        tlm_generic_payload* trans = std::get<CommandTuple::Payload>(it);
-        std::get<CommandTuple::Timestamp>(it) = checker->timeToSatisfyConstraints(command, *trans);
+        it.readyTime = checker->timeToSatisfyConstraints(it.command, *it.trans);
     }
 
     // (5) Select some of the ready commands and issue it to the DRAM
     bool readyCmdBlocked = false;
     if (!readyCommands.empty())
     {
-        auto commandTuple = cmdMux->selectCommand(readyCommands);
+        auto selectedCommand = cmdMux->selectCommand(readyCommands);
 
-        if (!commandTuple.has_value() // can happen with FIFO strict
-            || std::get<CommandTuple::Timestamp>(*commandTuple) != sc_time_stamp())
+        if (!selectedCommand.has_value() // can happen with FIFO strict
+            || selectedCommand->readyTime != sc_time_stamp())
         {
             readyCmdBlocked = true;
         }
         else
         {
-            Command command = std::get<CommandTuple::Command>(*commandTuple);
-            tlm_generic_payload* trans = std::get<CommandTuple::Payload>(*commandTuple);
+            Command command = selectedCommand->command;
+            tlm_generic_payload* trans = selectedCommand->trans;
 
             Rank rank = ControllerExtension::getRank(*trans);
             Bank bank = ControllerExtension::getBank(*trans);
@@ -480,12 +475,10 @@ void Controller::controllerMethod()
     for (auto& it : bankMachines)
     {
         it->evaluate();
-        auto commandTuple = it->getNextCommand();
-        Command command = std::get<CommandTuple::Command>(commandTuple);
-        tlm_generic_payload* trans = std::get<CommandTuple::Payload>(commandTuple);
-        if (command != Command::NOP)
+        auto nextCommand = it->getNextCommand();
+        if (nextCommand.command != Command::NOP)
         {
-            localTime = checker->timeToSatisfyConstraints(command, *trans);
+            localTime = checker->timeToSatisfyConstraints(nextCommand.command, *nextCommand.trans);
             if (!(localTime == sc_time_stamp() && readyCmdBlocked))
                 timeForNextTrigger = std::min(timeForNextTrigger, localTime);
         }
@@ -493,12 +486,10 @@ void Controller::controllerMethod()
     for (auto& it : refreshManagers)
     {
         it->evaluate();
-        auto commandTuple = it->getNextCommand();
-        Command command = std::get<CommandTuple::Command>(commandTuple);
-        tlm_generic_payload* trans = std::get<CommandTuple::Payload>(commandTuple);
-        if (command != Command::NOP)
+        auto nextCommand = it->getNextCommand();
+        if (nextCommand.command != Command::NOP)
         {
-            localTime = checker->timeToSatisfyConstraints(command, *trans);
+            localTime = checker->timeToSatisfyConstraints(nextCommand.command, *nextCommand.trans);
             if (!(localTime == sc_time_stamp() && readyCmdBlocked))
                 timeForNextTrigger = std::min(timeForNextTrigger, localTime);
         }
@@ -510,12 +501,10 @@ void Controller::controllerMethod()
     for (auto& it : powerDownManagers)
     {
         it->evaluate();
-        auto commandTuple = it->getNextCommand();
-        Command command = std::get<CommandTuple::Command>(commandTuple);
-        tlm_generic_payload* trans = std::get<CommandTuple::Payload>(commandTuple);
-        if (command != Command::NOP)
+        auto nextCommand = it->getNextCommand();
+        if (nextCommand.command != Command::NOP)
         {
-            localTime = checker->timeToSatisfyConstraints(command, *trans);
+            localTime = checker->timeToSatisfyConstraints(nextCommand.command, *nextCommand.trans);
             if (!(localTime == sc_time_stamp() && readyCmdBlocked))
                 timeForNextTrigger = std::min(timeForNextTrigger, localTime);
         }

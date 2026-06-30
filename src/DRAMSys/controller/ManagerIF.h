@@ -53,7 +53,7 @@ public:
     virtual ~ManagerIF() = default;
 
     virtual void evaluate() = 0;
-    virtual CommandTuple::Type getNextCommand() = 0;
+    virtual ReadyCommand getNextCommand() = 0;
     virtual void update(Command command) = 0;
 };
 

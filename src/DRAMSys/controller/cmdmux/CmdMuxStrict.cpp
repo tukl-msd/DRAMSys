@@ -45,8 +45,7 @@ CmdMuxStrict::CmdMuxStrict(const MemSpec& memSpec) : memSpec(memSpec)
 {
 }
 
-std::optional<CommandTuple::Type>
-CmdMuxStrict::selectCommand(const ReadyCommands& readyCommands) const
+std::optional<ReadyCommand> CmdMuxStrict::selectCommand(const ReadyCommands& readyCommands) const
 {
     auto result = readyCommands.cend();
     uint64_t lastPayloadID = UINT64_MAX;
@@ -56,15 +55,12 @@ CmdMuxStrict::selectCommand(const ReadyCommands& readyCommands) const
 
     for (auto it = readyCommands.cbegin(); it != readyCommands.cend(); it++)
     {
-        newTimestamp = std::get<CommandTuple::Timestamp>(*it) +
-                       memSpec.getCommandLength(std::get<CommandTuple::Command>(*it));
-        newPayloadID =
-            ControllerExtension::getChannelPayloadID(*std::get<CommandTuple::Payload>(*it));
+        newTimestamp = it->readyTime + memSpec.getCommandLength(it->command);
+        newPayloadID = ControllerExtension::getChannelPayloadID(*it->trans);
 
         if (newTimestamp < lastTimestamp)
         {
-            if (std::get<CommandTuple::Command>(*it).isRasCommand() ||
-                newPayloadID == nextPayloadID)
+            if (it->command.isRasCommand() || newPayloadID == nextPayloadID)
             {
                 lastTimestamp = newTimestamp;
                 lastPayloadID = newPayloadID;
@@ -73,8 +69,7 @@ CmdMuxStrict::selectCommand(const ReadyCommands& readyCommands) const
         }
         else if ((newTimestamp == lastTimestamp) && (newPayloadID < lastPayloadID))
         {
-            if (std::get<CommandTuple::Command>(*it).isRasCommand() ||
-                newPayloadID == nextPayloadID)
+            if (it->command.isRasCommand() || newPayloadID == nextPayloadID)
             {
                 lastPayloadID = newPayloadID;
                 result = it;
@@ -98,7 +93,7 @@ CmdMuxStrictRasCas::CmdMuxStrictRasCas(const MemSpec& memSpec) : memSpec(memSpec
 {
 }
 
-std::optional<CommandTuple::Type>
+std::optional<ReadyCommand>
 CmdMuxStrictRasCas::selectCommand(const ReadyCommands& readyCommands) const
 {
     ReadyCommands readyRasCommands;
@@ -106,7 +101,7 @@ CmdMuxStrictRasCas::selectCommand(const ReadyCommands& readyCommands) const
 
     for (auto it : readyCommands)
     {
-        if (std::get<CommandTuple::Command>(it).isRasCommand())
+        if (it.command.isRasCommand())
             readyRasCommands.emplace_back(it);
         else
             readyCasCommands.emplace_back(it);
@@ -121,10 +116,8 @@ CmdMuxStrictRasCas::selectCommand(const ReadyCommands& readyCommands) const
 
     for (auto it = readyRasCommands.cbegin(); it != readyRasCommands.cend(); it++)
     {
-        newTimestamp = std::get<CommandTuple::Timestamp>(*it) +
-                       memSpec.getCommandLength(std::get<CommandTuple::Command>(*it));
-        newPayloadID =
-            ControllerExtension::getChannelPayloadID(*std::get<CommandTuple::Payload>(*it));
+        newTimestamp = it->readyTime + memSpec.getCommandLength(it->command);
+        newPayloadID = ControllerExtension::getChannelPayloadID(*it->trans);
 
         if (newTimestamp < lastTimestamp)
         {
@@ -143,8 +136,7 @@ CmdMuxStrictRasCas::selectCommand(const ReadyCommands& readyCommands) const
 
     for (auto it = readyCasCommands.cbegin(); it != readyCasCommands.cend(); it++)
     {
-        newPayloadID =
-            ControllerExtension::getChannelPayloadID(*std::get<CommandTuple::Payload>(*it));
+        newPayloadID = ControllerExtension::getChannelPayloadID(*it->trans);
 
         if (newPayloadID == nextPayloadID)
         {
@@ -167,9 +159,8 @@ CmdMuxStrictRasCas::selectCommand(const ReadyCommands& readyCommands) const
 
     for (auto it = readyRasCasCommands.cbegin(); it != readyRasCasCommands.cend(); it++)
     {
-        newTimestamp = std::get<CommandTuple::Timestamp>(*it);
-        newPayloadID =
-            ControllerExtension::getChannelPayloadID(*std::get<CommandTuple::Payload>(*it));
+        newTimestamp = it->readyTime;
+        newPayloadID = ControllerExtension::getChannelPayloadID(*it->trans);
 
         if (newTimestamp < lastTimestamp)
         {

@@ -45,7 +45,7 @@ class CmdMuxOldest : public CmdMuxIF
 {
 public:
     explicit CmdMuxOldest(const MemSpec& memSpec);
-    [[nodiscard]] std::optional<CommandTuple::Type>
+    [[nodiscard]] std::optional<ReadyCommand>
     selectCommand(const ReadyCommands& readyCommands) const override;
 
 private:
@@ -56,7 +56,7 @@ class CmdMuxOldestRasCas : public CmdMuxIF
 {
 public:
     explicit CmdMuxOldestRasCas(const MemSpec& memSpec);
-    [[nodiscard]] std::optional<CommandTuple::Type>
+    [[nodiscard]] std::optional<ReadyCommand>
     selectCommand(const ReadyCommands& readyCommands) const override;
 
 private:

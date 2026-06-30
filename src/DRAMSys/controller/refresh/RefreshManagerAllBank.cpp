@@ -64,7 +64,7 @@ RefreshManagerAllBank::RefreshManagerAllBank(
     setUpDummy(refreshPayload, 0, rank);
 }
 
-CommandTuple::Type RefreshManagerAllBank::getNextCommand()
+ReadyCommand RefreshManagerAllBank::getNextCommand()
 {
     return {nextCommand, &refreshPayload, SC_ZERO_TIME};
 }

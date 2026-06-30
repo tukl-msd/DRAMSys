@@ -38,6 +38,8 @@
 #ifndef COMMAND_H
 #define COMMAND_H
 
+#include <sysc/kernel/sc_time.h>
+#include <tlm_core/tlm_2/tlm_generic_payload/tlm_gp.h>
 #ifdef USE_DRAMPOWER
 #include <DRAMPower/command/CmdType.h>
 #endif
@@ -150,18 +152,12 @@ public:
     constexpr operator uint8_t() const { return type; }
 };
 
-struct CommandTuple
+struct ReadyCommand
 {
-    using Type = std::tuple<::DRAMSys::Command, tlm::tlm_generic_payload*, sc_core::sc_time>;
-    enum Accessor
-    {
-        Command = 0,
-        Payload = 1,
-        Timestamp = 2
-    };
+    Command command;
+    tlm::tlm_generic_payload *trans;
+    sc_core::sc_time readyTime;
 };
-
-using ReadyCommands = std::vector<CommandTuple::Type>;
 
 } // namespace DRAMSys
 

@@ -68,7 +68,7 @@ RefreshManagerPerBank::RefreshManagerPerBank(
     currentIterator = remainingBankMachines.begin();
 }
 
-CommandTuple::Type RefreshManagerPerBank::getNextCommand()
+ReadyCommand RefreshManagerPerBank::getNextCommand()
 {
     return {nextCommand, &refreshPayloads.at(*currentIterator), SC_ZERO_TIME};
 }

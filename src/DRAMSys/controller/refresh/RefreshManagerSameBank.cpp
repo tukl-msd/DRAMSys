@@ -86,7 +86,7 @@ RefreshManagerSameBank::RefreshManagerSameBank(
     currentIterator = remainingBankMachines.begin();
 }
 
-CommandTuple::Type RefreshManagerSameBank::getNextCommand()
+ReadyCommand RefreshManagerSameBank::getNextCommand()
 {
     return {nextCommand,
             &refreshPayloads[static_cast<std::size_t>(currentIterator->front()->getBank()) %

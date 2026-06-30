@@ -49,7 +49,10 @@ public:
     void triggerExit() override {}
     void triggerInterruption() override {}
 
-    CommandTuple::Type getNextCommand() override;
+    ReadyCommand getNextCommand() override
+    {
+        return {Command::NOP, nullptr, sc_core::SC_ZERO_TIME};
+    };
     void update([[maybe_unused]] Command command) override {}
     void evaluate() override {}
 };

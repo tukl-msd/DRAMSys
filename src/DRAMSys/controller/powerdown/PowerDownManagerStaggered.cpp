@@ -75,7 +75,7 @@ void PowerDownManagerStaggered::triggerInterruption()
         exitTriggered = true;
 }
 
-CommandTuple::Type PowerDownManagerStaggered::getNextCommand()
+ReadyCommand PowerDownManagerStaggered::getNextCommand()
 {
     return {nextCommand, &powerDownPayload, SC_ZERO_TIME};
 }

@@ -47,10 +47,10 @@ namespace DRAMSys
 class RefreshManagerDummy final : public RefreshManagerIF
 {
 public:
-    CommandTuple::Type getNextCommand() override;
+    ReadyCommand getNextCommand() override { return {Command::NOP, nullptr, sc_core::SC_ZERO_TIME}; }
     void evaluate() override {}
     void update([[maybe_unused]] Command command) override {}
-    sc_core::sc_time getTimeForNextTrigger() override;
+    sc_core::sc_time getTimeForNextTrigger() override { return sc_core::sc_max_time(); }
 
     void serialize([[maybe_unused]] std::ostream& stream) const override {}
     void deserialize([[maybe_unused]] std::istream& stream) override {}

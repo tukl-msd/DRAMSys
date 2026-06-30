@@ -34,8 +34,6 @@
 
 #include "BankMachine.h"
 
-#include <algorithm>
-
 using namespace sc_core;
 using namespace tlm;
 
@@ -55,7 +53,7 @@ BankMachine::BankMachine(const McConfig& config,
 {
 }
 
-CommandTuple::Type BankMachine::getNextCommand()
+ReadyCommand BankMachine::getNextCommand()
 {
     return {nextCommand, currentPayload, SC_ZERO_TIME};
 }

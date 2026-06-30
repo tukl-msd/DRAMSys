@@ -87,7 +87,7 @@ RefreshManagerPer2Bank::RefreshManagerPer2Bank(
     currentRefreshPayload = &refreshPayloads.at(currentIterator->front());
 }
 
-CommandTuple::Type RefreshManagerPer2Bank::getNextCommand()
+ReadyCommand RefreshManagerPer2Bank::getNextCommand()
 {
     return {nextCommand, currentRefreshPayload, SC_ZERO_TIME};
 }

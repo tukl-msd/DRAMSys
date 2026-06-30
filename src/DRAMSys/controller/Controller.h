@@ -130,7 +130,6 @@ private:
     unsigned totalNumberOfPayloads = 0;
     std::function<void()> idleCallback;
     ControllerVector<Rank, unsigned> ranksNumberOfPayloads;
-    ReadyCommands readyCommands;
 
     ControllerVector<Bank, std::unique_ptr<BankMachine>> bankMachines;
     ControllerVector<Rank, ControllerVector<Bank, BankMachine*>> bankMachinesOnRank;
