@@ -55,25 +55,22 @@ std::optional<ReadyCommand> CmdMuxStrict::selectCommand(const ReadyCommands& rea
 
     for (auto it = readyCommands.cbegin(); it != readyCommands.cend(); it++)
     {
+        if (it->command.isCasCommand() && newPayloadID != nextPayloadID)
+            continue;
+
         newTimestamp = it->readyTime + memSpec.getCommandLength(it->command);
         newPayloadID = ControllerExtension::getChannelPayloadID(*it->trans);
 
         if (newTimestamp < lastTimestamp)
         {
-            if (it->command.isRasCommand() || newPayloadID == nextPayloadID)
-            {
-                lastTimestamp = newTimestamp;
-                lastPayloadID = newPayloadID;
-                result = it;
-            }
+            lastTimestamp = newTimestamp;
+            lastPayloadID = newPayloadID;
+            result = it;
         }
         else if ((newTimestamp == lastTimestamp) && (newPayloadID < lastPayloadID))
         {
-            if (it->command.isRasCommand() || newPayloadID == nextPayloadID)
-            {
-                lastPayloadID = newPayloadID;
-                result = it;
-            }
+            lastPayloadID = newPayloadID;
+            result = it;
         }
     }
 
