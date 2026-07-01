@@ -354,11 +354,21 @@ void DRAMSys::createDRAMPowers(
             [this, &drampowerSimConfig, recorder, channel](const auto& var) -> std::unique_ptr<DRAMPowerAdapter> {
             using T = std::decay_t<decltype(var)>;
             if constexpr (StandardMapping::has_PowerType_v<T>) {
-                using Impl = typename StandardMapping::Mapping<T>::PowerType;
-                return std::make_unique<DRAMPowerAdapter>(
-                    ("drampoweradapter" + std::to_string(channel)).c_str(), Impl(var, drampowerSimConfig),
-                    *simConfig, *memSpec, recorder
-                );
+                std::size_t channels = 1;
+                if constexpr (StandardMapping::has_PowerChannelNum_v<T>) {
+                    channels = StandardMapping::Mapping<T>::PowerChannelNum;
+                } else {
+                    SC_REPORT_WARNING("DRAMSys", "Standard has no PowerChannelNum."
+                        "DRAMPowerAdapter will be constructed for every channel");
+                }
+                if (0 == channel % channels) {
+                    using Impl = typename StandardMapping::Mapping<T>::PowerType;
+                    return std::make_unique<DRAMPowerAdapter>(
+                        ("drampoweradapter" + std::to_string(channel)).c_str(), Impl(var, drampowerSimConfig),
+                        *simConfig, *memSpec, recorder
+                    );
+                }
+                return nullptr;
             }
             SC_REPORT_FATAL("DRAMSys", "Standard does not support the power analysis");
             return nullptr;

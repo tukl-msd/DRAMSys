@@ -2,11 +2,13 @@
 #define DRAMPOWERVARIANT_H
 
 #include "DRAMSys/power/DRAMPowerWrapper.h"
+#include "DRAMSys/power/DRAMPowerLPDDR6.h"
 
 #include <DRAMPower/standards/ddr4/types.h>
 #include <DRAMPower/standards/ddr5/types.h>
 #include <DRAMPower/standards/lpddr4/types.h>
 #include <DRAMPower/standards/lpddr5/types.h>
+#include <DRAMPower/standards/lpddr6/types.h>
 
 #include <variant>
 
@@ -22,7 +24,8 @@ using DRAMPowerVariant = std::variant<
     DRAMPowerDDR4,
     DRAMPowerDDR5,
     DRAMPowerLPDDR4,
-    DRAMPowerLPDDR5
+    DRAMPowerLPDDR5,
+    DRAMPowerLPDDR6
 >;
 
 } // namespace DRAMSys
