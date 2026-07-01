@@ -3,6 +3,8 @@
 
 #include "DRAMSys/common/Deserialize.h"
 #include "DRAMSys/common/Serialize.h"
+#include "DRAMSys/common/dramExtensions.h"
+#include "DRAMSys/controller/Command.h"
 
 #include <DRAMPower/Types.h>
 #include <DRAMPower/command/Command.h>
@@ -11,7 +13,8 @@
 #include <DRAMPower/simconfig/simconfig.h>
 
 #include <algorithm>
-
+#include <systemc>
+#include <tlm>
 
 namespace DRAMSys {
 
@@ -29,6 +32,10 @@ public:
 // Public constructors / assignment operators
     DRAMPowerWrapper(const DRAMUtilsMemSpec_t& memSpec, const DRAMPower::config::SimConfig& config)
         : memSpec(memSpec)
+        , tCK(sc_core::sc_time(memSpec.memtimingspec.tCK, sc_core::SC_SEC))
+        , groupsPerRank(memSpec.memarchitecturespec.nbrOfBankGroups)
+        , banksPerGroup(memSpec.memarchitecturespec.nbrOfBanks /
+                memSpec.memarchitecturespec.nbrOfBankGroups)
         , core(memSpec)
         , interface(memSpec, config)
     {}
@@ -37,6 +44,36 @@ public:
     void doCommand(const DRAMPower::Command& command) {
         core.doCommand(command);
         interface.doCommand(command);
+    }
+
+    void doCommand([[maybe_unused]] std::size_t channel,
+                     const tlm::tlm_generic_payload& trans,
+                     const tlm::tlm_phase& phase,
+                     const sc_core::sc_time& delay) {
+        auto rank =
+            static_cast<std::size_t>(ControllerExtension::getRank(trans)); // relative to the channel
+        auto bank_group_abs = static_cast<std::size_t>(
+            ControllerExtension::getBankGroup(trans));             // relative to the channel
+        auto bank_group = bank_group_abs - (rank * groupsPerRank); // relative to the rank
+        auto bank = static_cast<std::size_t>(ControllerExtension::getBank(trans)) -
+                    (bank_group_abs * banksPerGroup); // relative to the bank_group
+        auto row = static_cast<std::size_t>(ControllerExtension::getRow(trans));
+        auto column = static_cast<std::size_t>(ControllerExtension::getColumn(trans));
+        uint64_t cycle = std::lround((sc_core::sc_time_stamp() + delay) / tCK);
+
+        // DRAMPower:
+        // banks are relative to the rank
+        // bankgroups are relative to the rank
+        bank = bank + (bank_group * banksPerGroup);
+
+        DRAMPower::TargetCoordinate target(bank, bank_group, rank, row, column);
+
+        // TODO read, write data for interface calculation
+        uint8_t* data = trans.get_data_ptr();                  // Can be nullptr if no data
+        auto datasize = trans.get_data_length() * 8; // Is always set
+
+        DRAMPower::Command command(cycle, phaseToDRAMPowerCommand(phase), target, data, datasize);
+        doCommand(command);
     }
 
     void getWindowStats(DRAMPower::timestamp_t timestamp, DRAMPower::SimulationStats& stats) {
@@ -113,6 +150,9 @@ public:
 // Private member variables
 private:
     MemSpec_t memSpec;
+    sc_core::sc_time tCK;
+    uint64_t groupsPerRank{};
+    uint64_t banksPerGroup{};
     Core_t core;
     Interface_t interface;
 };

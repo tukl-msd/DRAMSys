@@ -118,53 +118,9 @@ void DRAMPowerAdapter::handleTransaction(std::size_t channel,
                                          const sc_core::sc_time& delay)
 {
     assert(phase >= BEGIN_RD && phase <= END_SREF);
-
-    auto rank =
-        static_cast<std::size_t>(ControllerExtension::getRank(trans)); // relaitve to the channel
-    auto bank_group_abs = static_cast<std::size_t>(
-        ControllerExtension::getBankGroup(trans));             // relative to the channel
-    auto bank_group = bank_group_abs - (rank * groupsPerRank); // relative to the rank
-    auto bank = static_cast<std::size_t>(ControllerExtension::getBank(trans)) -
-                (bank_group_abs * banksPerGroup); // relative to the bank_group
-    auto row = static_cast<std::size_t>(ControllerExtension::getRow(trans));
-    auto column = static_cast<std::size_t>(ControllerExtension::getColumn(trans));
-    uint64_t cycle = std::lround((sc_core::sc_time_stamp() + delay) / tCK);
-
-    // DRAMPower:
-    // banks are relative to the rank
-    // bankgroups are relative to the rank
-    bank = bank + (bank_group * banksPerGroup);
-
-    DRAMPower::TargetCoordinate target(bank, bank_group, rank, row, column);
-
-    // TODO read, write data for interface calculation
-    uint8_t* data = trans.get_data_ptr();                  // Can be nullptr if no data
-    auto datasize = trans.get_data_length() * BITSPERBYTE; // Is always set
-
-    DRAMPower::Command command(cycle, phaseToDRAMPowerCommand(phase), target, data, datasize);
-    std::visit(
-        [channel, &command](auto& var)
-        {
-            using T = std::decay_t<decltype(var)>;
-            if constexpr (std::is_invocable_v<decltype(&T::doCommand),
-                                              T&,
-                                              std::size_t,
-                                              DRAMPower::Command>)
-            {
-                return var.doCommand(channel, command);
-            }
-            else if constexpr (std::is_invocable_v<decltype(&T::doCommand), T&, DRAMPower::Command>)
-            {
-                return var.doCommand(command);
-            }
-            else
-            {
-                static_assert(DRAMUtils::util::always_false<T>::value,
-                              "doCommand must be callable as doCommand(command) or "
-                              "doCommand(channel, command)");
-            }
-        },
-        DRAMPower);
+    std::visit([channel, &trans, &phase, &delay](auto& var) {
+        return var.doCommand(channel, trans, phase, delay);
+    }, DRAMPower);
 }
 
 void DRAMPowerAdapter::serialize(std::ostream& stream) const
