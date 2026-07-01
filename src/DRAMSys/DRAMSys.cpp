@@ -212,7 +212,7 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
 
 #ifdef USE_DRAMPOWER
             if (simConfig->powerAnalysis)
-                DRAMPowers[i]->handleTransaction(i, trans, phase, delay);
+                DRAMPowerMappings[i]->handleTransaction(i, trans, phase, delay);
 #endif
         };
 
@@ -354,10 +354,16 @@ void DRAMSys::createDRAMPowers(const DRAMUtils::MemSpec::MemSpecVariant& memSpec
     };
 
     // Create DRAMPowerAdapters
+    DRAMPowerAdapter *lastDRAMPower = nullptr;
     for (std::size_t i = 0; i < memSpec->numberOfChannels; ++i)
     {
         auto* recorder = simConfig->databaseRecording ? &tlmRecorders[i] : nullptr;
-        DRAMPowers.emplace_back(generator(i, recorder));
+        if (auto drampower = generator(i, recorder)) {
+            lastDRAMPower = drampower.get();
+            DRAMPowers.emplace_back(std::move(drampower));
+        }
+        assert(0 == i && nullptr != lastDRAMPower && "The first channel must produce a DRAMPowerAdapter object");
+        DRAMPowerMappings.emplace_back(lastDRAMPower);
     }
 }
 #endif

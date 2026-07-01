@@ -150,6 +150,7 @@ private:
 
 #ifdef USE_DRAMPOWER
     std::vector<std::unique_ptr<DRAMPowerAdapter>> DRAMPowers;
+    std::vector<DRAMPowerAdapter *> DRAMPowerMappings;
 #endif
 
     // Transaction Recorders (one per channel).
