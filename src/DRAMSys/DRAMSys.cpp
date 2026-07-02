@@ -398,48 +398,22 @@ std::unique_ptr<Arbiter> DRAMSys::createArbiter(const SimConfig& simConfig,
 
 void DRAMSys::serialize(std::filesystem::path const& checkpointPath) const
 {
-    std::function<void(sc_core::sc_object const*)> serialize;
-    serialize = [&serialize, &checkpointPath](sc_core::sc_object const* object)
+    std::ofstream stream(checkpointPath / name(), std::ios::binary);
+
+    for (auto const& controller : controllers)
     {
-        auto const* serializableObject = dynamic_cast<::DRAMSys::Serialize const*>(object);
-
-        if (serializableObject != nullptr)
-        {
-            std::string dumpFileName(object->name());
-            std::ofstream stream(checkpointPath / dumpFileName, std::ios::binary);
-            serializableObject->serialize(stream);
-        }
-
-        for (auto const* childObject : object->get_child_objects())
-        {
-            serialize(childObject);
-        }
-    };
-
-    serialize(this);
+        controller->serialize(stream);
+    }
 }
 
 void DRAMSys::deserialize(std::filesystem::path const& checkpointPath)
 {
-    std::function<void(sc_core::sc_object*)> deserialize;
-    deserialize = [&deserialize, &checkpointPath](sc_core::sc_object* object)
+    std::ifstream stream(checkpointPath / name(), std::ios::binary);
+
+    for (auto const& controller : controllers)
     {
-        auto* deserializableObject = dynamic_cast<::DRAMSys::Deserialize*>(object);
-
-        if (deserializableObject != nullptr)
-        {
-            std::string dumpFileName(object->name());
-            std::ifstream stream(checkpointPath / dumpFileName, std::ios::binary);
-            deserializableObject->deserialize(stream);
-        }
-
-        for (auto* childObject : object->get_child_objects())
-        {
-            deserialize(childObject);
-        }
-    };
-
-    deserialize(this);
+        controller->deserialize(stream);
+    }
 }
 
 } // namespace DRAMSys
