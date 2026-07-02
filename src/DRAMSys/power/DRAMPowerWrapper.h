@@ -34,8 +34,7 @@ public:
         : memSpec(memSpec)
         , tCK(sc_core::sc_time(memSpec.memtimingspec.tCK, sc_core::SC_SEC))
         , groupsPerRank(memSpec.memarchitecturespec.nbrOfBankGroups)
-        , banksPerGroup(memSpec.memarchitecturespec.nbrOfBanks /
-                memSpec.memarchitecturespec.nbrOfBankGroups)
+        , banksPerRank(memSpec.memarchitecturespec.nbrOfBanks)
         , core(memSpec)
         , interface(memSpec, config)
     {}
@@ -52,19 +51,17 @@ public:
                      const sc_core::sc_time& delay) {
         auto rank =
             static_cast<std::size_t>(ControllerExtension::getRank(trans)); // relative to the channel
-        auto bank_group_abs = static_cast<std::size_t>(
-            ControllerExtension::getBankGroup(trans));             // relative to the channel
-        auto bank_group = bank_group_abs - (rank * groupsPerRank); // relative to the rank
-        auto bank = static_cast<std::size_t>(ControllerExtension::getBank(trans)) -
-                    (bank_group_abs * banksPerGroup); // relative to the bank_group
+        auto bank_group = static_cast<std::size_t>(
+            ControllerExtension::getBankGroup(trans)) % groupsPerRank; // relative to the rank
+        auto bank = static_cast<std::size_t>(
+            ControllerExtension::getBank(trans)) % banksPerRank; // relative to the rank
         auto row = static_cast<std::size_t>(ControllerExtension::getRow(trans));
         auto column = static_cast<std::size_t>(ControllerExtension::getColumn(trans));
         uint64_t cycle = std::lround((sc_core::sc_time_stamp() + delay) / tCK);
 
-        // DRAMPower:
+        // NOTE:
         // banks are relative to the rank
         // bankgroups are relative to the rank
-        bank = bank + (bank_group * banksPerGroup);
 
         DRAMPower::TargetCoordinate target(bank, bank_group, rank, row, column);
 
@@ -152,7 +149,7 @@ private:
     MemSpec_t memSpec;
     sc_core::sc_time tCK;
     uint64_t groupsPerRank{};
-    uint64_t banksPerGroup{};
+    uint64_t banksPerRank{};
     Core_t core;
     Interface_t interface;
 };
