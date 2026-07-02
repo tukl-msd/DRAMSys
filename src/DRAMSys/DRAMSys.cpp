@@ -362,7 +362,7 @@ void DRAMSys::createDRAMPowers(const DRAMUtils::MemSpec::MemSpecVariant& memSpec
             lastDRAMPower = drampower.get();
             DRAMPowers.emplace_back(std::move(drampower));
         }
-        assert(0 == i && nullptr != lastDRAMPower && "The first channel must produce a DRAMPowerAdapter object");
+        assert((!(0 == i) || nullptr != lastDRAMPower) && "The first channel must produce a DRAMPowerAdapter object");
         DRAMPowerMappings.emplace_back(lastDRAMPower);
     }
 }
