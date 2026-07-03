@@ -31,14 +31,18 @@
  *
  * Authors:
  *    Derek Christ
+ *    Thomas Zimmermann
  */
 
 #pragma once
 
 #include <DRAMSys/initiators/generator/GeneratorState.h>
+#include <DRAMSys/initiators/UniformDistributions.h>
 
 #include <optional>
 #include <random>
+
+typedef std::minstd_rand0 default_random_engine;
 
 namespace DRAMSys::Initiators
 {
@@ -64,9 +68,9 @@ public:
     unsigned int dataLength;
     unsigned int dataAlignment;
 
-    std::default_random_engine randomGenerator;
-    std::uniform_real_distribution<double> readWriteDistribution{0.0, 1.0};
-    std::uniform_int_distribution<uint64_t> randomAddressDistribution;
+    default_random_engine randomGenerator;
+    uniform_real_distribution<double> readWriteDistribution{0.0, 1.0};
+    uniform_int_distribution<uint64_t> randomAddressDistribution;
 };
 
 } // namespace DRAMSys::Initiators
