@@ -42,7 +42,7 @@
 #include <optional>
 #include <random>
 
-typedef std::minstd_rand0 default_random_engine;
+typedef std::mt19937_64 default_random_engine;
 
 namespace DRAMSys::Initiators
 {
