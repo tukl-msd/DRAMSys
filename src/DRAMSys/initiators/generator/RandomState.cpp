@@ -35,6 +35,7 @@
 
 #include "RandomState.h"
 
+#include <algorithm>
 #include <systemc>
 
 namespace DRAMSys::Initiators
