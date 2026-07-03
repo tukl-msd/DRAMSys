@@ -497,7 +497,9 @@ void Controller::controllerMethod()
         }
         else
         {
-            timeForNextTrigger = std::min(timeForNextTrigger, it->getTimeForNextTrigger());
+            localTime = it->getTimeForNextTrigger();
+            if (localTime > sc_time_stamp())
+                timeForNextTrigger = std::min(timeForNextTrigger, localTime);
         }
     }
     for (auto& it : powerDownManagers)
