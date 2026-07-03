@@ -52,6 +52,8 @@ namespace DRAMSys::Initiators
 
 class RequestIssuer : sc_core::sc_module
 {
+    SC_HAS_PROCESS(RequestIssuer);
+
 public:
     tlm_utils::simple_initiator_socket<RequestIssuer> iSocket;
 
