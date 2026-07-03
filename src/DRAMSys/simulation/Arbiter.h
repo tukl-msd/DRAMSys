@@ -51,7 +51,6 @@
 #include <cstdint>
 #include <queue>
 #include <set>
-#include <sysc/kernel/sc_simcontext.h>
 #include <systemc>
 #include <tlm>
 #include <tlm_utils/multi_passthrough_initiator_socket.h>

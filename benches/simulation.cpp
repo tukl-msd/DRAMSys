@@ -42,7 +42,6 @@
 
 #include <benchmark/benchmark.h>
 #include <filesystem>
-#include <sysc/kernel/sc_simcontext.h>
 #include <tuple>
 
 namespace Simulation

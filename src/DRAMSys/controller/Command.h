@@ -38,8 +38,6 @@
 #ifndef COMMAND_H
 #define COMMAND_H
 
-#include <sysc/kernel/sc_time.h>
-#include <tlm_core/tlm_2/tlm_generic_payload/tlm_gp.h>
 #ifdef USE_DRAMPOWER
 #include <DRAMPower/command/CmdType.h>
 #endif
@@ -47,8 +45,6 @@
 #include <string>
 #include <systemc>
 #include <tlm>
-#include <tuple>
-#include <vector>
 
 namespace DRAMSys
 {
