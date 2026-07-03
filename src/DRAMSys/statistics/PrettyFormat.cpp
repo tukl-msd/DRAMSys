@@ -130,7 +130,7 @@ void PrettyFormat::collectStats(sc_core::sc_object* obj, std::ostream& os, std::
         auto const& group = provider->getStatGroup();
 
         std::string childPath = path.empty() ? group.name : fmt::format("{}.{}", path, group.name);
-        fmt::print(os, formatGroup(group, childPath));
+        fmt::print(os, "{}", formatGroup(group, childPath));
 
         for (auto* child : obj->get_child_objects())
             collectStats(child, os, childPath);
