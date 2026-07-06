@@ -152,7 +152,7 @@ CmdMuxStrictRasCas::selectCommand(const ReadyCommands& readyCommands) const
     lastPayloadID = UINT64_MAX;
     lastTimestamp = sc_max_time();
 
-    auto result = readyCommands.cend();
+    auto result = readyRasCasCommands.cend();
 
     for (auto it = readyRasCasCommands.cbegin(); it != readyRasCasCommands.cend(); it++)
     {
@@ -172,7 +172,7 @@ CmdMuxStrictRasCas::selectCommand(const ReadyCommands& readyCommands) const
         }
     }
 
-    if (result == readyCommands.cend())
+    if (result == readyRasCasCommands.cend())
         return std::nullopt;
 
     return *result;
