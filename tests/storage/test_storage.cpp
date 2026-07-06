@@ -110,7 +110,7 @@ TEST_F(StorageTests, Block)
     using sc_core::SC_NS;
     using sc_core::sc_time;
     using Command = ListInitiator::TestTransactionData::Command;
-    for (uint i = 0; i < 256; i++)
+    for (unsigned int i = 0; i < 256; i++)
     {
         ListInitiator::TestTransactionData writeTrans{
             sc_time(i, SC_NS), Command::Write, i * 32, std::vector<uint8_t>(32, i)};
