@@ -37,16 +37,16 @@
 
 #include "DRAMSys/statistics/Group.h"
 #include "DRAMSys/statistics/Stat.h"
-#include "DRAMSys/statistics/StatProvider.h"
+#include "DRAMSys/statistics/StatsProvider.h"
 
 #include <nlohmann/json.hpp>
 
 using json = nlohmann::json;
 
-namespace DRAMSys::Statistics
+namespace DRAMSys::Stats
 {
 
-static json formatGroup(Statistics::Group const& group)
+static json formatGroup(Stats::Group const& group)
 {
     json j = json::object();
 
@@ -81,7 +81,7 @@ static json formatGroup(Statistics::Group const& group)
 
 void JsonFormat::collectStats(sc_core::sc_object* obj, nlohmann::json& j)
 {
-    if (auto* provider = dynamic_cast<StatProvider*>(obj))
+    if (auto* provider = dynamic_cast<StatsProvider*>(obj))
     {
         provider->updateStats();
         auto const& group = provider->getStatGroup();
@@ -93,4 +93,4 @@ void JsonFormat::collectStats(sc_core::sc_object* obj, nlohmann::json& j)
     }
 }
 
-} // namespace DRAMSys::Statistics
+} // namespace DRAMSys::Stats

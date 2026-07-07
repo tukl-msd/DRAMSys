@@ -38,7 +38,7 @@
 #include <nlohmann/json.hpp>
 #include <systemc>
 
-namespace DRAMSys::Statistics
+namespace DRAMSys::Stats
 {
 
 namespace JsonFormat
@@ -48,4 +48,4 @@ void collectStats(sc_core::sc_object* obj, nlohmann::json& j);
 
 };
 
-} // namespace DRAMSys::Statistics
+} // namespace DRAMSys::Stats

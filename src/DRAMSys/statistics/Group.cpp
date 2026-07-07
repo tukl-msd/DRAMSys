@@ -37,7 +37,7 @@
 
 #include <utility>
 
-namespace DRAMSys::Statistics
+namespace DRAMSys::Stats
 {
 
 Group::Group(std::string name, Group* parent)
@@ -50,4 +50,4 @@ Group::Group(std::string name, Group* parent)
     this->name = std::move(name);
 }
 
-} // namespace DRAMSys::Statistics
+} // namespace DRAMSys::Stats

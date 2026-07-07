@@ -54,7 +54,7 @@
 #include "DRAMSys/simulation/SimConfig.h"
 #include "DRAMSys/statistics/Group.h"
 #include "DRAMSys/statistics/Stat.h"
-#include "DRAMSys/statistics/StatProvider.h"
+#include "DRAMSys/statistics/StatsProvider.h"
 
 #include <DRAMUtils/memspec/MemSpec.h>
 
@@ -71,7 +71,7 @@ namespace DRAMSys
 class Controller : public sc_core::sc_module,
                    public Serialize,
                    public Deserialize,
-                   public Statistics::StatProvider
+                   public Stats::StatsProvider
 {
 public:
     tlm_utils::simple_target_socket<Controller> tSocket{"tSocket"};
@@ -101,7 +101,7 @@ public:
 
     void updateStats() override;
     void resetStats() override;
-    Statistics::Group const& getStatGroup() const override { return stats; }
+    Stats::Group const& getStatGroup() const override { return stats; }
 
 private:
     void end_of_simulation() override;
@@ -175,29 +175,29 @@ private:
 
     void createChildTranses(tlm::tlm_generic_payload& parentTrans);
 
-    class Stats : public Statistics::Group
+    class ControllerStats : public Stats::Group
     {
     public:
-        Statistics::ScalarStat& numberOfRequests;
-        Statistics::ScalarStat& numberOfReadRequests;
-        Statistics::ScalarStat& numberOfWriteRequests;
-        Statistics::ScalarStat& averageBandwidth;
-        Statistics::ScalarStat& averageBandwidthWithoutIdle;
-        Statistics::ScalarStat& maximumTheoreticalBandwidth;
-        Statistics::ScalarStat& averageUtilization;
-        Statistics::ScalarStat& averageUtilizationWithoutIdle;
+        Stats::ScalarStat& numberOfRequests;
+        Stats::ScalarStat& numberOfReadRequests;
+        Stats::ScalarStat& numberOfWriteRequests;
+        Stats::ScalarStat& averageBandwidth;
+        Stats::ScalarStat& averageBandwidthWithoutIdle;
+        Stats::ScalarStat& maximumTheoreticalBandwidth;
+        Stats::ScalarStat& averageUtilization;
+        Stats::ScalarStat& averageUtilizationWithoutIdle;
 
-        class RankStats : public Statistics::Group
+        class RankStats : public Stats::Group
         {
         public:
-            Statistics::ScalarStat& averageBandwidth;
-            Statistics::ScalarStat& averageUtilization;
+            Stats::ScalarStat& averageBandwidth;
+            Stats::ScalarStat& averageUtilization;
 
             RankStats(std::string name, Group* parent);
         };
         std::vector<std::unique_ptr<RankStats>> rankStats;
 
-        Stats(Controller const& controller);
+        ControllerStats(Controller const& controller);
     } stats;
 
     uint64_t numberOfRequests = 0;

@@ -37,13 +37,13 @@
 
 #include "DRAMSys/statistics/Group.h"
 #include "DRAMSys/statistics/Stat.h"
-#include "DRAMSys/statistics/StatProvider.h"
+#include "DRAMSys/statistics/StatsProvider.h"
 
 #include <fmt/base.h>
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
-namespace DRAMSys::Statistics
+namespace DRAMSys::Stats
 {
 
 static std::string formatScalar(Quantity quantity, double value)
@@ -93,7 +93,7 @@ static void appendStat(std::string& out,
                    description);
 }
 
-static std::string formatGroup(Statistics::Group const& group, std::string_view context)
+static std::string formatGroup(Stats::Group const& group, std::string_view context)
 {
     std::string out;
     fmt::format_to(std::back_inserter(out), "== {} ==\n", context);
@@ -124,7 +124,7 @@ static std::string formatGroup(Statistics::Group const& group, std::string_view 
 
 void PrettyFormat::collectStats(sc_core::sc_object* obj, std::ostream& os, std::string path)
 {
-    if (auto* provider = dynamic_cast<StatProvider*>(obj))
+    if (auto* provider = dynamic_cast<StatsProvider*>(obj))
     {
         provider->updateStats();
         auto const& group = provider->getStatGroup();
@@ -137,4 +137,4 @@ void PrettyFormat::collectStats(sc_core::sc_object* obj, std::ostream& os, std::
     }
 }
 
-} // namespace DRAMSys::Statistics
+} // namespace DRAMSys::Stats

@@ -42,9 +42,9 @@
 #include <DRAMSys/initiators/request/RequestIssuer.h>
 #include <DRAMSys/statistics/Group.h>
 #include <DRAMSys/statistics/Stat.h>
-#include <DRAMSys/statistics/StatProvider.h>
+#include <DRAMSys/statistics/StatsProvider.h>
 
-class Simulator : public sc_core::sc_module, public DRAMSys::Statistics::StatProvider
+class Simulator : public sc_core::sc_module, public DRAMSys::Stats::StatsProvider
 {
 public:
     Simulator(sc_core::sc_module_name const& name, DRAMSys::Config::Configuration configuration, std::filesystem::path baseConfig);
@@ -53,7 +53,7 @@ public:
  
     void updateStats() override;
     void resetStats() override;
-    DRAMSys::Statistics::Group const& getStatGroup() const override { return stats; }
+    DRAMSys::Stats::Group const& getStatGroup() const override { return stats; }
 
 private:
     std::unique_ptr<DRAMSys::Initiators::RequestIssuer>
@@ -81,11 +81,11 @@ private:
     std::chrono::high_resolution_clock::time_point startTime;
     sc_core::sc_time lastSimTime = sc_core::SC_ZERO_TIME;
 
-    class Stats : public DRAMSys::Statistics::Group {
+    class Stats : public DRAMSys::Stats::Group {
     public:
-        DRAMSys::Statistics::ScalarStat& wallclockTime;
-        DRAMSys::Statistics::ScalarStat& simulationTicks;
-        DRAMSys::Statistics::ScalarStat& simulationTime;
+        DRAMSys::Stats::ScalarStat& wallclockTime;
+        DRAMSys::Stats::ScalarStat& simulationTicks;
+        DRAMSys::Stats::ScalarStat& simulationTime;
 
         Stats(Simulator const& simulator);
     } stats;

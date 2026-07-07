@@ -860,50 +860,51 @@ void Controller::deserialize(std::istream& stream)
     }
 }
 
-Controller::Stats::Stats(Controller const& controller) :
+Controller::ControllerStats::ControllerStats(Controller const& controller) :
     Group(controller.basename()),
-    numberOfRequests(addStat<Statistics::ScalarStat>(
-        "NumberOfRequests", "Total number of requests", Statistics::Quantity::Count)),
-    numberOfReadRequests(addStat<Statistics::ScalarStat>(
-        "NumberOfReadRequests", "Total number of read requests", Statistics::Quantity::Count)),
-    numberOfWriteRequests(addStat<Statistics::ScalarStat>(
-        "NumberOfWriteRequests", "Total number of write requests", Statistics::Quantity::Count)),
-    averageBandwidth(addStat<Statistics::ScalarStat>("AverageBandwidth",
-                                                     "Average bandwidth over simulation duration",
-                                                     Statistics::Quantity::Bandwidth)),
-    averageBandwidthWithoutIdle(addStat<Statistics::ScalarStat>(
+    numberOfRequests(addStat<Stats::ScalarStat>(
+        "NumberOfRequests", "Total number of requests", Stats::Quantity::Count)),
+    numberOfReadRequests(addStat<Stats::ScalarStat>(
+        "NumberOfReadRequests", "Total number of read requests", Stats::Quantity::Count)),
+    numberOfWriteRequests(addStat<Stats::ScalarStat>(
+        "NumberOfWriteRequests", "Total number of write requests", Stats::Quantity::Count)),
+    averageBandwidth(addStat<Stats::ScalarStat>("AverageBandwidth",
+                                                "Average bandwidth over simulation duration",
+                                                Stats::Quantity::Bandwidth)),
+    averageBandwidthWithoutIdle(addStat<Stats::ScalarStat>(
         "AverageBandwidthWithoutIdle",
         "Average bandwidth over simulation duration with idle times being ignored",
-        Statistics::Quantity::Bandwidth)),
+        Stats::Quantity::Bandwidth)),
     maximumTheoreticalBandwidth(
-        addStat<Statistics::ScalarStat>("MaximumTheoreticalBandwidth",
-                                        "Theoretical maximum achievable bandwidth",
-                                        Statistics::Quantity::Bandwidth)),
-    averageUtilization(
-        addStat<Statistics::ScalarStat>("AverageUtilization",
-                                        "Average utilization over simulation duration",
-                                        Statistics::Quantity::Percentage)),
-    averageUtilizationWithoutIdle(addStat<Statistics::ScalarStat>(
+        addStat<Stats::ScalarStat>("MaximumTheoreticalBandwidth",
+                                   "Theoretical maximum achievable bandwidth",
+                                   Stats::Quantity::Bandwidth)),
+    averageUtilization(addStat<Stats::ScalarStat>("AverageUtilization",
+                                                  "Average utilization over simulation duration",
+                                                  Stats::Quantity::Percentage)),
+    averageUtilizationWithoutIdle(addStat<Stats::ScalarStat>(
         "AverageUtilizationWithoutIdle",
         "Average utilization over simulation duration with idle times being ignored",
-        Statistics::Quantity::Percentage))
+        Stats::Quantity::Percentage))
 {
     for (std::size_t i = 0; i < controller.memSpec.ranksPerChannel; i++)
     {
         std::string rankDescriptor = controller.memSpec.pseudoChannelMode() ? "pc" : "ra";
-        rankStats.emplace_back(std::make_unique<RankStats>(fmt::format("{}{}", rankDescriptor, i), this));
+        rankStats.emplace_back(
+            std::make_unique<RankStats>(fmt::format("{}{}", rankDescriptor, i), this));
     }
 }
 
-Controller::Stats::RankStats::RankStats(std::string name, Group *parent) :
+Controller::ControllerStats::RankStats::RankStats(std::string name, Group* parent) :
     Group(std::move(name), parent),
-    averageBandwidth(addStat<Statistics::ScalarStat>("AverageBandwidth",
-                                                     "Average bandwidth per rank over simulation duration",
-                                                     Statistics::Quantity::Bandwidth)),
+    averageBandwidth(
+        addStat<Stats::ScalarStat>("AverageBandwidth",
+                                   "Average bandwidth per rank over simulation duration",
+                                   Stats::Quantity::Bandwidth)),
     averageUtilization(
-        addStat<Statistics::ScalarStat>("AverageUtilization",
-                                        "Average utilization per rank over simulation duration",
-                                        Statistics::Quantity::Percentage))
+        addStat<Stats::ScalarStat>("AverageUtilization",
+                                   "Average utilization per rank over simulation duration",
+                                   Stats::Quantity::Percentage))
 {
 }
 

@@ -37,24 +37,24 @@
 
 #include "DRAMSys/statistics/Group.h"
 
-namespace DRAMSys::Statistics
+namespace DRAMSys::Stats
 {
 
-class StatProvider
+class StatsProvider
 {
 public:
-    StatProvider() = default;
+    StatsProvider() = default;
 
-    StatProvider(const StatProvider&) = default;
-    StatProvider& operator=(const StatProvider&) = default;
+    StatsProvider(const StatsProvider&) = default;
+    StatsProvider& operator=(const StatsProvider&) = default;
 
-    StatProvider(StatProvider&&) = delete;
-    StatProvider& operator=(StatProvider&&) = delete;
+    StatsProvider(StatsProvider&&) = delete;
+    StatsProvider& operator=(StatsProvider&&) = delete;
 
-    virtual ~StatProvider() = default;
+    virtual ~StatsProvider() = default;
 
     /**
-     * Updates the values in the Statistics::Group container to the current simulated values. Needs
+     * Updates the values in the Stats::Group container to the current simulated values. Needs
      * to be called before reading the statistics.
      */
     virtual void updateStats() {};
@@ -65,12 +65,12 @@ public:
     virtual void resetStats() {};
 
     /**
-     * Returns the Statistics::Group container. It is needed to call updateStats() beforehand to
+     * Returns the Stats::Group container. It is needed to call updateStats() beforehand to
      * update the statistic values in the statistic container.
      *
-     * @return Statistics::Group containing all statistics associated with the module.
+     * @return Stats::Group containing all statistics associated with the module.
      */
-    [[nodiscard]] virtual Statistics::Group const& getStatGroup() const = 0;
+    [[nodiscard]] virtual Stats::Group const& getStatGroup() const = 0;
 };
 
-} // namespace DRAMSys::Statistics
+} // namespace DRAMSys::Stats

@@ -37,7 +37,7 @@
 
 #include <systemc>
 
-namespace DRAMSys::Statistics
+namespace DRAMSys::Stats
 {
 
 namespace PrettyFormat
@@ -47,4 +47,4 @@ void collectStats(sc_core::sc_object* obj, std::ostream& os, std::string path = 
 
 };
 
-} // namespace DRAMSys::Statistics
+} // namespace DRAMSys::Stats

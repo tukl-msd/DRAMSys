@@ -42,7 +42,7 @@
 #include <utility>
 #include <vector>
 
-namespace DRAMSys::Statistics
+namespace DRAMSys::Stats
 {
 
 class Group
@@ -73,4 +73,4 @@ public:
     std::vector<Group*> subGroups;
 };
 
-} // namespace DRAMSys::Statistics
+} // namespace DRAMSys::Stats

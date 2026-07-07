@@ -130,7 +130,7 @@ FILES
     DRAMSys/statistics/JsonFormat.h
     DRAMSys/statistics/PrettyFormat.h
     DRAMSys/statistics/Stat.h
-    DRAMSys/statistics/StatProvider.h
+    DRAMSys/statistics/StatsProvider.h
 )
 
 target_include_directories(dramsys PUBLIC

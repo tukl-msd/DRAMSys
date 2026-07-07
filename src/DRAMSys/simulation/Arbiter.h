@@ -46,7 +46,7 @@
 #include "DRAMSys/simulation/SimConfig.h"
 #include "DRAMSys/statistics/Group.h"
 #include "DRAMSys/statistics/Stat.h"
-#include "DRAMSys/statistics/StatProvider.h"
+#include "DRAMSys/statistics/StatsProvider.h"
 
 #include <cstdint>
 #include <queue>
@@ -63,13 +63,13 @@ namespace DRAMSys
 DECLARE_EXTENDED_PHASE(REQ_ARBITRATION);
 DECLARE_EXTENDED_PHASE(RESP_ARBITRATION);
 
-class Arbiter : public sc_core::sc_module, public Statistics::StatProvider
+class Arbiter : public sc_core::sc_module, public Stats::StatsProvider
 {
 public:
     tlm_utils::multi_passthrough_initiator_socket<Arbiter> iSocket;
     tlm_utils::multi_passthrough_target_socket<Arbiter> tSocket;
 
-    Statistics::Group const& getStatGroup() const override { return stats; }
+    Stats::Group const& getStatGroup() const override { return stats; }
 
     void updateStats() override;
     void resetStats() override;
@@ -117,26 +117,26 @@ protected:
     std::vector<uint64_t> bytesPerThread;
     std::vector<uint64_t> bytesPerChannel;
 
-    struct Stats : public Statistics::Group
+    struct ArbiterStats : public Stats::Group
     {
-        Statistics::VectorStat &numberOfRequestsPerThread;
-        Statistics::VectorStat &averageBandwidthPerThread;
-        Statistics::VectorStat &averageBandwidthPerChannel;
+        Stats::VectorStat &numberOfRequestsPerThread;
+        Stats::VectorStat &averageBandwidthPerThread;
+        Stats::VectorStat &averageBandwidthPerChannel;
 
-        Stats(Arbiter& arbiter) :
+        ArbiterStats(Arbiter& arbiter) :
             Group(arbiter.basename()),
-            numberOfRequestsPerThread(addStat<Statistics::VectorStat>(
+            numberOfRequestsPerThread(addStat<Stats::VectorStat>(
                 "NumberOfRequestsPerThread",
                 "Total number of requests per thread",
-                Statistics::Quantity::Count)),
-            averageBandwidthPerThread(addStat<Statistics::VectorStat>(
+                Stats::Quantity::Count)),
+            averageBandwidthPerThread(addStat<Stats::VectorStat>(
                 "AverageBandwidthPerThread",
                 "Average bandwidth over simulation duration per thread",
-                Statistics::Quantity::Bandwidth)),
-            averageBandwidthPerChannel(addStat<Statistics::VectorStat>(
+                Stats::Quantity::Bandwidth)),
+            averageBandwidthPerChannel(addStat<Stats::VectorStat>(
                 "AverageBandwidthPerChannel",
                 "Average bandwidth over simulation duration per channel",
-                Statistics::Quantity::Bandwidth))
+                Stats::Quantity::Bandwidth))
         {
         }
     } stats;

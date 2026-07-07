@@ -209,22 +209,22 @@ void Simulator::run()
     }
 
     std::stringstream stats;
-    DRAMSys::Statistics::PrettyFormat::collectStats(this, stats);
+    DRAMSys::Stats::PrettyFormat::collectStats(this, stats);
     fmt::print("{}", stats.str());
 }
 
 Simulator::Stats::Stats(Simulator const& simulator) :
     Group(simulator.name()),
     wallclockTime(
-        addStat<DRAMSys::Statistics::ScalarStat>("WallclockTime",
+        addStat<DRAMSys::Stats::ScalarStat>("WallclockTime",
                                                  "Wall-clock time elapsed by the simulation",
-                                                 DRAMSys::Statistics::Quantity::Time)),
-    simulationTicks(addStat<DRAMSys::Statistics::ScalarStat>(
+                                                 DRAMSys::Stats::Quantity::Time)),
+    simulationTicks(addStat<DRAMSys::Stats::ScalarStat>(
         "SimulationTicks",
         fmt::format("Total simulation ticks ({})", sc_core::sc_get_time_resolution().to_string()),
-        DRAMSys::Statistics::Quantity::Count)),
-    simulationTime(addStat<DRAMSys::Statistics::ScalarStat>(
-        "SimulationTime", "Total simulation duration", DRAMSys::Statistics::Quantity::Time))
+        DRAMSys::Stats::Quantity::Count)),
+    simulationTime(addStat<DRAMSys::Stats::ScalarStat>(
+        "SimulationTime", "Total simulation duration", DRAMSys::Stats::Quantity::Time))
 {
 }
 

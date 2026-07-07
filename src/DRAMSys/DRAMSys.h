@@ -44,7 +44,7 @@
 
 #include "DRAMSys/configuration/json/DRAMSysConfiguration.h"
 #include "DRAMSys/statistics/Group.h"
-#include "DRAMSys/statistics/StatProvider.h"
+#include "DRAMSys/statistics/StatsProvider.h"
 
 #include <memory>
 #include <string>
@@ -69,7 +69,7 @@ class SimConfig;
 class TlmATRecorder;
 class TlmRecorder;
 
-class DRAMSys : public sc_core::sc_module, public Statistics::StatProvider
+class DRAMSys : public sc_core::sc_module, public Stats::StatsProvider
 {
 public:
     tlm_utils::multi_passthrough_target_socket<DRAMSys> tSocket{"DRAMSys_tSocket"};
@@ -118,7 +118,7 @@ public:
      */
     void deserialize(std::filesystem::path const& checkpointPath);
 
-    [[nodiscard]] Statistics::Group const& getStatGroup() const override { return stats; }
+    [[nodiscard]] Stats::Group const& getStatGroup() const override { return stats; }
 
 private:
     static std::unique_ptr<const MemSpec>
@@ -162,10 +162,10 @@ private:
     std::vector<std::unique_ptr<TlmATRecorder>> tlmATRecorders;
     std::vector<std::unique_ptr<DramATRecorder>> dramATRecorders;
 
-    class Stats : public Statistics::Group
+    class DRAMSysStats : public Stats::Group
     {
     public:
-        Stats(DRAMSys& dramsys) : Statistics::Group(dramsys.basename()) {}
+        DRAMSysStats(DRAMSys& dramsys) : Stats::Group(dramsys.basename()) {}
     } stats;
 };
 

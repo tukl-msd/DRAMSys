@@ -40,7 +40,7 @@
 #include <utility>
 #include <vector>
 
-namespace DRAMSys::Statistics
+namespace DRAMSys::Stats
 {
 
 enum class Quantity : std::uint8_t
@@ -103,4 +103,4 @@ public:
     std::vector<double> values;
 };
 
-} // namespace DRAMSys::Statistics
+} // namespace DRAMSys::Stats
