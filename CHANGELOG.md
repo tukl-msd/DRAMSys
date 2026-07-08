@@ -1,3 +1,99 @@
+## [5.6.0] - 2026-07-08
+
+### 🚀 Features
+
+- *(LPDDR6)* Add LPDDR6 support
+- *(standard)* Add HBM4 support
+- Implement public API for serde
+- Implement gearing/slotting mechanism for the controller frontend
+- Implement statistic framework
+- Add simulation statistics for Arbiter
+- Enable external physical storage support
+
+### 🐛 Bug Fixes
+
+- *(configs)* Correct tCK of MICRON_6Gb_LPDDR4-3200_32bit_A
+- *(build)* Support build without DRAMPower
+- *(tests)* Link DRAMPower as public again
+- Apply phyDelayBW for read commands only
+- Resolve deprecation warning regarding the SQLite::SQLite3 alias
+- *(simulator)* Stop simulation also when DRAMSys is already idle
+- Resolve build issue with DRAMPower support disabled
+- Only access physical memory for CAS commands
+- Add missing response status in b_transport
+- Make bandwidth calculation time resolution independent
+- Add DRAMSys support for TLM_COMPLETED early completion
+- *(ta)* Remove unused variable in tracedb.cpp
+- Resolve build issue with DRAMPower
+- DRAMPower generator
+- DRAMPower generator assertion
+- Remove non-standard SystemC headers
+- Prevent infinite loop when refresh triggers during power-down exit
+- Add missing include
+- Use fmt::print correctly in PrettyFormat
+- Add SC_HAS_PROCESS for issuer again for SystemC 2 compat
+- Use compiler-independent RNG and distribution implementations
+- Use RNG with uint64 range
+
+### 💼 Other
+
+- *(deps)* Update DRAMSys Extensions
+- Provide DRAMSysConfig.cmake for consuming the library
+- Add libfmt for better formatting
+- *(vcpkg)* Update baseline
+- Update the dramsys-extensions version
+- Enable all install targets when using FetchContent
+
+### 🚜 Refactor
+
+- Update DRAMPower to v6.0.0 and migrate to new its API
+- *(tests)* Clean up some tests
+- Remove unused memoryId in MemSpec
+- *(power)* Migrate to new API of DRAMPower
+- *(config)* Remove unused UseMalloc config
+- Implement DRAM access callbacks
+- Remove dramsys_modules CMake target
+- Forward declare Dram in DRAMSys.h
+- Ignore some clangd warnings for unused headers
+- Use raw string for DRAMSys logo
+- Move print of memory configuration out of constructor
+- Simplify bandwidth calculation in controller
+- Move simulation modules into main library
+- Add return value fore address decoder plausibility check
+- Split up controllerMethod into separate functions
+- Use a const interface for the CmdMux
+- Port away from own scMaxTime const
+- Port away from ReadyCommand tuple
+- Simplify logic in CmdMuxStrict
+- Move command creation to power variant
+- TargetCoordinate calculation DRAMPowerWrapper
+- Explicitly serde all top-level DRAMSys components
+- Rename Statistics namespace to Stats
+- Move USE_DRAMPOWER define out of public header
+
+### 📚 Documentation
+
+- Refine terms for academic licences
+
+### 🧪 Testing
+
+- Add test for storage of physical data
+- Delete reference databases on download failure
+- Update regression reference databases
+
+### ⚙️ Miscellaneous Tasks
+
+- *(python)* Update dependency lock file
+- Update DRAMSysExtensions dependency
+- Provide sample gem5 config
+- Fix running of regression tests for standards in extensions
+- *(python)* Update dependency lock file
+- Add workspaces to gitignore
+- *(ta)* Migrate to new Python CLI API and remove pybind dependency
+- Update gitignore
+- Ignore all tdb files
+- *(python)* Reduce minimum required Python version to 3.11
+- Add .zed to gitignore
 ## [5.5.0] - 2026-03-27
 
 ### 🐛 Bug Fixes
