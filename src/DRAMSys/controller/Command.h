@@ -38,10 +38,6 @@
 #ifndef COMMAND_H
 #define COMMAND_H
 
-#ifdef USE_DRAMPOWER
-#include <DRAMPower/command/CmdType.h>
-#endif
-
 #include <string>
 #include <systemc>
 #include <tlm>
@@ -83,10 +79,6 @@ DECLARE_EXTENDED_PHASE(BEGIN_SREF); // 26
 DECLARE_EXTENDED_PHASE(END_PDNA); // 27
 DECLARE_EXTENDED_PHASE(END_PDNP); // 28
 DECLARE_EXTENDED_PHASE(END_SREF); // 29
-
-#ifdef USE_DRAMPOWER
-DRAMPower::CmdType phaseToDRAMPowerCommand(tlm::tlm_phase phase);
-#endif
 
 bool phaseHasDataStrobe(tlm::tlm_phase phase);
 bool isPowerDownEntryPhase(tlm::tlm_phase phase);

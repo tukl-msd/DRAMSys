@@ -59,9 +59,7 @@ namespace DRAMSys
 class AddressDecoder;
 class Arbiter;
 class Controller;
-#ifdef USE_DRAMPOWER
 class DRAMPowerAdapter;
-#endif
 class DramATRecorder;
 class McConfig;
 class MemSpec;
@@ -127,9 +125,7 @@ private:
                                                   const McConfig& mcConfig,
                                                   const MemSpec& memSpec,
                                                   const AddressDecoder& addressDecoder);
-#ifdef USE_DRAMPOWER
     void createDRAMPowers(const DRAMUtils::MemSpec::MemSpecVariant& memSpecVar);
-#endif
 
     void end_of_simulation() override;
 
@@ -150,10 +146,8 @@ private:
 
     unsigned char* backingStore = nullptr;
 
-#ifdef USE_DRAMPOWER
     std::vector<std::unique_ptr<DRAMPowerAdapter>> DRAMPowers;
     std::vector<DRAMPowerAdapter*> DRAMPowerMappings;
-#endif
 
     // Transaction Recorders (one per channel).
     // They generate the output databases.

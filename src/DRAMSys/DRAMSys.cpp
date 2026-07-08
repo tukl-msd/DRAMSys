@@ -79,6 +79,11 @@
 
 #ifdef USE_DRAMPOWER
 #include "DRAMSys/power/DRAMPowerAdapter.h"
+#else
+namespace DRAMSys
+{
+    class DRAMPowerAdapter{};
+}
 #endif
 
 #include <DRAMUtils/memspec/MemSpec.h>
@@ -226,7 +231,7 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
                 [this](tlm::tlm_generic_payload& trans)
                 {
                     assert(backingStore != nullptr);
-                    
+
                     if (trans.is_read())
                         Dram::executeRead(backingStore, trans);
                     else
@@ -334,9 +339,10 @@ DRAMSys::createMemSpec(const DRAMUtils::MemSpec::MemSpecVariant& memSpec)
         memSpec.getVariant());
 }
 
-#ifdef USE_DRAMPOWER
-void DRAMSys::createDRAMPowers(const DRAMUtils::MemSpec::MemSpecVariant& memSpecVar)
+void DRAMSys::createDRAMPowers(
+    [[maybe_unused]] const DRAMUtils::MemSpec::MemSpecVariant& memSpecVar)
 {
+#ifdef USE_DRAMPOWER
     // DRAMPower SimConfig
     DRAMPower::config::SimConfig drampowerSimConfig;
     drampowerSimConfig.toggleRateDefinition =
@@ -372,8 +378,8 @@ void DRAMSys::createDRAMPowers(const DRAMUtils::MemSpec::MemSpecVariant& memSpec
         assert((!(0 == i) || nullptr != lastDRAMPower) && "The first channel must produce a DRAMPowerAdapter object");
         DRAMPowerMappings.emplace_back(lastDRAMPower);
     }
-}
 #endif
+}
 
 std::unique_ptr<Arbiter> DRAMSys::createArbiter(const SimConfig& simConfig,
                                                 const McConfig& mcConfig,
