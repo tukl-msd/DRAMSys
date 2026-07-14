@@ -413,7 +413,11 @@ bool ParentExtension::notifyChildTransCompletion()
     {
         std::for_each(childTranses.begin(),
                       childTranses.end(),
-                      [](tlm::tlm_generic_payload* childTrans) { childTrans->release(); });
+                      [](tlm::tlm_generic_payload* childTrans)
+                      {
+                          childTrans->set_data_ptr(nullptr);
+                          childTrans->release();
+                      });
         childTranses.clear();
         return true;
     }

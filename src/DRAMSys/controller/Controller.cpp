@@ -112,7 +112,7 @@ Controller::Controller(const sc_module_name& name,
     gearing(config.gearing),
     windowSizeTime(simConfig.windowSize * memSpec.tCK),
     numberOfBeatsServed(memSpec.ranksPerChannel, 0),
-    memoryManager(simConfig.storageEnabled),
+    memoryManager(false),
     stats(*this)
 {
     if (simConfig.databaseRecording && tlmRecorder != nullptr)
@@ -780,7 +780,7 @@ void Controller::createChildTranses(tlm::tlm_generic_payload& parentTrans)
 
     for (unsigned childId = 0; childId < numChildTranses; childId++)
     {
-        tlm_generic_payload* childTrans = memoryManager.allocate();
+        tlm_generic_payload* childTrans = memoryManager.allocate(memSpec.maxDataBytesPerBurst);
         childTrans->acquire();
 
         // TODO:
@@ -790,7 +790,6 @@ void Controller::createChildTranses(tlm::tlm_generic_payload& parentTrans)
         // This problem solves itself when the transaction splitting is moved out of the controller.
         childTrans->set_command(parentTrans.get_command());
         childTrans->set_address(startAddress + childId * memSpec.maxBytesPerBurst);
-        childTrans->set_data_length(memSpec.maxDataBytesPerBurst);
         childTrans->set_data_ptr(startDataPtr + childId * memSpec.maxBytesPerBurst);
 
         ChildExtension::setExtension(*childTrans, parentTrans);
