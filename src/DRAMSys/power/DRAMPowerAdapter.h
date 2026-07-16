@@ -60,8 +60,6 @@ private:
     static constexpr int FLOATPRECISION = 6;
 
     sc_core::sc_time tCK;
-    uint64_t groupsPerRank;
-    uint64_t banksPerGroup;
 
     // Data Storage:
     TlmRecorder* const tlmRecorder;

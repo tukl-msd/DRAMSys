@@ -46,7 +46,6 @@
 
 #include <cassert>
 #include <cstdlib>
-#include <type_traits>
 
 namespace DRAMSys
 {
@@ -58,8 +57,6 @@ DRAMPowerAdapter::DRAMPowerAdapter(const sc_core::sc_module_name& name,
                                    TlmRecorder* tlmRecorder) :
     sc_module(name),
     tCK(memSpec.tCK),
-    groupsPerRank(memSpec.groupsPerRank),
-    banksPerGroup(memSpec.banksPerGroup),
     tlmRecorder(tlmRecorder),
     powerWindowSize(memSpec.tCK * simConfig.windowSize),
     DRAMPower(std::move(DRAMPower))
