@@ -104,6 +104,71 @@
                 "XP": 8,
                 "XS": 216,
                 "tCK": 1000e-12
+            },
+            "mempowerspec": {
+                "vdd": 1.2,
+                "idd0": 0,
+                "idd2n": 0,
+                "idd3n": 0,
+                "idd4r": 0,
+                "idd4w": 0,
+                "idd6n": 0,
+                "idd2p": 0,
+                "idd3p": 0,
+
+                "vpp": 2.5,
+                "ipp0": 0,
+                "ipp2n": 0,
+                "ipp3n": 0,
+                "ipp4r": 0,
+                "ipp4w": 0,
+                "ipp6n": 0,
+                "ipp2p": 0,
+                "ipp3p": 0,
+                
+                "idd5b": 0,
+                "idd5bpb": 0,
+                "ipp5b": 0,
+                "ipp5bpb": 0,
+                
+                "vddq": 1.2,
+                
+                "iBeta_vdd": 1,
+                "iBeta_vpp": 1
+            },
+            "memimpedancespec": {
+                "ck_termination": false,
+                "ck_R_eq": 1e9,
+                "ck_dyn_E": 1e-9,
+
+                "cke_termination": false,
+                "cke_R_eq": 1e9,
+                "cke_dyn_E": 1e-9,
+
+                "ca_termination": false,
+                "ca_R_eq": 1e9,
+                "ca_dyn_E": 1e-9,
+
+                "rdq_termination": false,
+                "rdq_R_eq": 1e9,
+                "rdq_dyn_E": 1e-9,
+                "wdq_termination": false,
+                "wdq_R_eq": 1e9,
+                "wdq_dyn_E": 1e-9,
+
+                "rdqs_termination": false,
+                "rdqs_R_eq": 1e9,
+                "rdqs_dyn_E": 1e-9,
+                "wdqs_termination": false,
+                "wdqs_R_eq": 1e9,
+                "wdqs_dyn_E": 1e-9,
+
+                "rdbi_termination": false,
+                "rdbi_R_eq": 1e9,
+                "rdbi_dyn_E": 1e-9,
+                "wdbi_termination": false,
+                "wdbi_R_eq": 1e9,
+                "wdbi_dyn_E": 1e-9
             }
         },
         "simconfig": {
