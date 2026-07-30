@@ -9,6 +9,7 @@
 #include <DRAMPower/standards/lpddr4/types.h>
 #include <DRAMPower/standards/lpddr5/types.h>
 #include <DRAMPower/standards/lpddr6/types.h>
+#include <DRAMPower/standards/hbm2/types.h>
 
 #include <variant>
 
@@ -19,13 +20,15 @@ using DRAMPowerDDR4 = DRAMPowerWrapper<DRAMPower::DDR4Types>;
 using DRAMPowerDDR5 = DRAMPowerWrapper<DRAMPower::DDR5Types>;
 using DRAMPowerLPDDR4 = DRAMPowerWrapper<DRAMPower::LPDDR4Types>;
 using DRAMPowerLPDDR5 = DRAMPowerWrapper<DRAMPower::LPDDR5Types>;
+using DRAMPowerHBM2 = DRAMPowerWrapper<DRAMPower::HBM2Types>;
 
 using DRAMPowerVariant = std::variant<
     DRAMPowerDDR4,
     DRAMPowerDDR5,
     DRAMPowerLPDDR4,
     DRAMPowerLPDDR5,
-    DRAMPowerLPDDR6
+    DRAMPowerLPDDR6,
+    DRAMPowerHBM2
 >;
 
 } // namespace DRAMSys

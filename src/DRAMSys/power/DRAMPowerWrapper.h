@@ -6,11 +6,14 @@
 #include "DRAMSys/common/dramExtensions.h"
 #include "DRAMSys/power/DRAMPowerTypes.h"
 
+#include <DRAMUtils/memspec/standards/MemSpecHBM2.h>
+
 #include <DRAMPower/Types.h>
 #include <DRAMPower/command/Command.h>
 #include <DRAMPower/data/energy.h>
 #include <DRAMPower/data/stats.h>
 #include <DRAMPower/simconfig/simconfig.h>
+#include <DRAMPower/standards/hbm2/HBM2Command.h>
 
 #include <algorithm>
 #include <systemc>
@@ -29,6 +32,8 @@ public:
     using CalcCore_t = typename Standard::CalcCore_t;
     using CalcInterface_t = typename Standard::CalcInterface_t;
 
+    template <typename MemSpec> struct MemSpecTag {};
+
 // Public constructors / assignment operators
     DRAMPowerWrapper(const DRAMUtilsMemSpec_t& memSpec, const DRAMPower::config::SimConfig& config)
         : memSpec(memSpec)
@@ -40,12 +45,15 @@ public:
     {}
 
 // Public member functions:
-    void doCommand(const DRAMPower::Command& command) {
+    template<typename Command_t>
+    void doCommand(const Command_t& command) {
         core.doCommand(command);
         interface.doCommand(command);
     }
 
-    void doCommand([[maybe_unused]] std::size_t channel,
+    template <typename DRAMUtilsMemSpec>
+    void doCommandImpl(MemSpecTag<DRAMUtilsMemSpec>,
+                     [[maybe_unused]] std::size_t channel,
                      const tlm::tlm_generic_payload& trans,
                      const tlm::tlm_phase& phase,
                      const sc_core::sc_time& delay) {
@@ -71,6 +79,46 @@ public:
 
         DRAMPower::Command command(cycle, phaseToDRAMPowerCommand(phase), target, data, datasize);
         doCommand(command);
+    }
+
+    void doCommandImpl(MemSpecTag<DRAMUtils::MemSpec::MemSpecHBM2>,
+                    [[maybe_unused]] std::size_t channel,
+                     const tlm::tlm_generic_payload& trans,
+                     const tlm::tlm_phase& phase,
+                     const sc_core::sc_time& delay) {
+        auto pseudoChannel =
+            static_cast<std::size_t>(ControllerExtension::getRank(trans)); // relative to the channel
+        auto stack = static_cast<std::size_t>(ControllerExtension::getStack(trans)); // relative to the channel
+        auto bank = static_cast<std::size_t>(
+            ControllerExtension::getBank(trans)) % banksPerRank; // relative to the pseudoChannel
+        auto row = static_cast<std::size_t>(ControllerExtension::getRow(trans));
+        auto column = static_cast<std::size_t>(ControllerExtension::getColumn(trans));
+        uint64_t cycle = std::lround((sc_core::sc_time_stamp() + delay) / tCK);
+
+        // NOTE:
+        // banks are relative to the rank
+        // bankgroups are relative to the rank
+
+        DRAMPower::HBM2TargetCoordinate target;
+        target.bank = bank;
+        target.row = row;
+        target.column = column;
+        target.pseudoChannel = pseudoChannel;
+        target.stack = stack;
+
+        // TODO read, write data for interface calculation
+        uint8_t* data = trans.get_data_ptr();                  // Can be nullptr if no data
+        auto datasize = trans.get_data_length() * 8; // Is always set
+
+        DRAMPower::HBM2Command command(cycle, phaseToDRAMPowerCommand(phase), target, data, datasize);
+        doCommand(command);
+    }
+
+    void doCommand([[maybe_unused]] std::size_t channel,
+                     const tlm::tlm_generic_payload& trans,
+                     const tlm::tlm_phase& phase,
+                     const sc_core::sc_time& delay) {
+        doCommandImpl(MemSpecTag<DRAMUtilsMemSpec_t>{}, channel, trans, phase, delay);
     }
 
     void getWindowStats(DRAMPower::timestamp_t timestamp, DRAMPower::SimulationStats& stats) {

@@ -48,6 +48,7 @@ struct DDR5Types;
 struct LPDDR4Types;
 struct LPDDR5Types;
 struct LPDDR6Types;
+struct HBM2Types;
 
 } // namespace DRAMPower
 #endif
@@ -100,6 +101,9 @@ class MemSpecWideIO2;
 class CheckerWideIO2;
 class MemSpecHBM2;
 class CheckerHBM2;
+#ifdef USE_DRAMPOWER
+using DRAMPowerHBM2 = DRAMPowerWrapper<DRAMPower::HBM2Types>;
+#endif
 #ifdef HBM3_4_SIM
 class MemSpecHBM3_4;
 class CheckerHBM3_4;
@@ -217,6 +221,10 @@ struct Mapping<DRAMUtils::MemSpec::MemSpecHBM2>
 {
     using MemSpecType = MemSpecHBM2;
     using CheckerType = CheckerHBM2;
+#ifdef USE_DRAMPOWER
+    using PowerType = DRAMPowerHBM2;
+    static constexpr std::size_t PowerChannelNum = 1;
+#endif
 };
 
 #ifdef HBM3_4_SIM
