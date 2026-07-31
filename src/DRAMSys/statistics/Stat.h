@@ -49,7 +49,8 @@ enum class Quantity : std::uint8_t
     Time,      // s
     Energy,    // J
     Count,
-    Percentage
+    Percentage,
+    Ratio
 };
 
 class Stat

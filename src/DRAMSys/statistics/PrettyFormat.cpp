@@ -54,6 +54,8 @@ static std::string formatScalar(Quantity quantity, double value)
     {
     case Quantity::Bandwidth:
         return fmt::format("{:>6.2f}", value / GIGA);
+    case Quantity::Ratio:
+        return fmt::format("{:.2f}", value);
     case Quantity::Percentage:
         return fmt::format("{:.2f}", value * PERCENT);
     default:
