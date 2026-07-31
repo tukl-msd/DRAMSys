@@ -181,6 +181,7 @@ private:
         Stats::ScalarStat& numberOfRequests;
         Stats::ScalarStat& numberOfReadRequests;
         Stats::ScalarStat& numberOfWriteRequests;
+        Stats::ScalarStat& averageAccessesPerActivate;
         Stats::ScalarStat& averageBandwidth;
         Stats::ScalarStat& averageBandwidthWithoutIdle;
         Stats::ScalarStat& maximumTheoreticalBandwidth;
@@ -203,6 +204,9 @@ private:
     uint64_t numberOfRequests = 0;
     uint64_t numberOfReadRequests = 0;
     uint64_t numberOfWriteRequests = 0;
+
+    uint64_t numberOfActivates = 0;
+    uint64_t numberOfCasCommands = 0;
 
     class IdleTimeCollector
     {

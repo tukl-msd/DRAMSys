@@ -439,8 +439,15 @@ void Controller::controllerMethod()
             powerDownManagers[rank]->update(command);
             checker->insert(command, *trans);
 
+            if (command == Command::ACT)
+            {
+                numberOfActivates++;
+            }
+
             if (command.isCasCommand())
             {
+                numberOfCasCommands++;
+
                 scheduler->removeRequest(*trans);
                 manageRequests(config.thinkDelayFw);
 
@@ -828,7 +835,8 @@ void Controller::end_of_simulation()
 
 [[nodiscard]] double Controller::getAverageBandwidthPerRank(std::size_t rank) const
 {
-    sc_core::sc_time activeTime = static_cast<double>(numberOfBeatsServed[rank]) * memSpec.tCK / static_cast<double>(memSpec.dataRate);
+    sc_core::sc_time activeTime = static_cast<double>(numberOfBeatsServed[rank]) * memSpec.tCK /
+                                  static_cast<double>(memSpec.dataRate);
     return (activeTime / sc_core::sc_time_stamp()) * memSpec.getMaxBandwidth();
 }
 
@@ -867,6 +875,10 @@ Controller::ControllerStats::ControllerStats(Controller const& controller) :
         "NumberOfReadRequests", "Total number of read requests", Stats::Quantity::Count)),
     numberOfWriteRequests(addStat<Stats::ScalarStat>(
         "NumberOfWriteRequests", "Total number of write requests", Stats::Quantity::Count)),
+    averageAccessesPerActivate(
+        addStat<Stats::ScalarStat>("AverageAccessesPerActivate",
+                                   "Average ratio of CAS commands per ACT command over all banks",
+                                   Stats::Quantity::Ratio)),
     averageBandwidth(addStat<Stats::ScalarStat>("AverageBandwidth",
                                                 "Average bandwidth over simulation duration",
                                                 Stats::Quantity::Bandwidth)),
@@ -913,6 +925,9 @@ void Controller::updateStats()
     stats.numberOfReadRequests = static_cast<double>(numberOfReadRequests);
     stats.numberOfWriteRequests = static_cast<double>(numberOfWriteRequests);
 
+    stats.averageAccessesPerActivate =
+        static_cast<double>(numberOfCasCommands) / static_cast<double>(numberOfActivates);
+
     double bandwidth = getAverageBandwidth();
     double maxBandwidth = memSpec.getMaxBandwidth();
     double maxRankBandwidth = maxBandwidth;
@@ -943,6 +958,8 @@ void Controller::resetStats()
     numberOfRequests = 0;
     numberOfReadRequests = 0;
     numberOfWriteRequests = 0;
+    numberOfActivates = 0;
+    numberOfCasCommands = 0;
 
     for (std::size_t i = 0; i < stats.rankStats.size(); i++)
         numberOfBeatsServed[i] = 0;
