@@ -182,6 +182,7 @@ private:
         Stats::ScalarStat& numberOfReadRequests;
         Stats::ScalarStat& numberOfWriteRequests;
         Stats::ScalarStat& averageAccessesPerActivate;
+        Stats::ScalarStat& averageAccessesPerReadWriteSwitch;
         Stats::ScalarStat& averageBandwidth;
         Stats::ScalarStat& averageBandwidthWithoutIdle;
         Stats::ScalarStat& maximumTheoreticalBandwidth;
@@ -207,6 +208,13 @@ private:
 
     uint64_t numberOfActivates = 0;
     uint64_t numberOfCasCommands = 0;
+    uint64_t numberOfReadWriteSwitches = 0;
+
+    enum class AccessType {
+        Read,
+        Write,
+        Unknown
+    } lastAccessType = AccessType::Unknown;
 
     class IdleTimeCollector
     {

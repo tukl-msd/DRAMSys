@@ -448,6 +448,13 @@ void Controller::controllerMethod()
             {
                 numberOfCasCommands++;
 
+                AccessType newAccessType = trans->is_read() ? AccessType::Read : AccessType::Write;
+                if (lastAccessType != newAccessType)
+                {
+                    lastAccessType = newAccessType;
+                    numberOfReadWriteSwitches++;
+                }
+
                 scheduler->removeRequest(*trans);
                 manageRequests(config.thinkDelayFw);
 
@@ -879,6 +886,10 @@ Controller::ControllerStats::ControllerStats(Controller const& controller) :
         addStat<Stats::ScalarStat>("AverageAccessesPerActivate",
                                    "Average ratio of CAS commands per ACT command over all banks",
                                    Stats::Quantity::Ratio)),
+    averageAccessesPerReadWriteSwitch(addStat<Stats::ScalarStat>(
+        "averageAccessesPerReadWriteSwitch",
+        "Average ratio of CAS commands per read/write switch over all banks",
+        Stats::Quantity::Ratio)),
     averageBandwidth(addStat<Stats::ScalarStat>("AverageBandwidth",
                                                 "Average bandwidth over simulation duration",
                                                 Stats::Quantity::Bandwidth)),
@@ -927,6 +938,8 @@ void Controller::updateStats()
 
     stats.averageAccessesPerActivate =
         static_cast<double>(numberOfCasCommands) / static_cast<double>(numberOfActivates);
+    stats.averageAccessesPerReadWriteSwitch =
+        static_cast<double>(numberOfCasCommands) / static_cast<double>(numberOfReadWriteSwitches);
 
     double bandwidth = getAverageBandwidth();
     double maxBandwidth = memSpec.getMaxBandwidth();
@@ -960,6 +973,7 @@ void Controller::resetStats()
     numberOfWriteRequests = 0;
     numberOfActivates = 0;
     numberOfCasCommands = 0;
+    numberOfReadWriteSwitches = 0;
 
     for (std::size_t i = 0; i < stats.rankStats.size(); i++)
         numberOfBeatsServed[i] = 0;
