@@ -887,7 +887,7 @@ Controller::ControllerStats::ControllerStats(Controller const& controller) :
                                    "Average ratio of CAS commands per ACT command over all banks",
                                    Stats::Quantity::Ratio)),
     averageAccessesPerReadWriteSwitch(addStat<Stats::ScalarStat>(
-        "averageAccessesPerReadWriteSwitch",
+        "AverageAccessesPerReadWriteSwitch",
         "Average ratio of CAS commands per read/write switch over all banks",
         Stats::Quantity::Ratio)),
     averageBandwidth(addStat<Stats::ScalarStat>("AverageBandwidth",
