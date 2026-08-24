@@ -109,7 +109,7 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
     arbiter(createArbiter(*simConfig, *mcConfig, *memSpec, *addressDecoder)),
     stats(*this)
 {
-    fmt::print(LOGO, DRAMSYS_VERSION, DRAMSYS_YEAR);
+    printLogo();
     fmt::println(headline);
     memSpec->print();
     fmt::println(headline);

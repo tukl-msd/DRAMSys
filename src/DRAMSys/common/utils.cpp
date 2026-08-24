@@ -39,6 +39,7 @@
 
 #include "utils.h"
 
+#include <fmt/base.h>
 #include <sstream>
 
 using namespace sc_core;
@@ -46,6 +47,17 @@ using namespace tlm;
 
 namespace DRAMSys
 {
+
+void printLogo()
+{
+    static constexpr std::string_view LOGO =
+        R"([38;5;232m■ ■ [0m[38;5;22m■  [0m[1;37mDRAMSys {}, Copyright (c) {}[0m
+[38;5;232m■ [0m[38;5;22m■ [0m[38;5;28m■  [0mRPTU Kaiserslautern-Landau
+[38;5;22m■ [0m[38;5;28m■ [0m[38;5;82m■  [0mFraunhofer IESE
+       Julius-Maximilians-Universität Würzburg
+)";
+    fmt::print(LOGO, DRAMSYS_VERSION, DRAMSYS_YEAR);
+}
 
 bool TimeInterval::timeIsInInterval(const sc_time& time) const
 {
