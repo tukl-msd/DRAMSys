@@ -4,6 +4,7 @@
   "dependencies": [
     "systemc",
     "fmt",
+    "nlohmann-json",
     {
       "name": "sqlite3",
       "features": [
