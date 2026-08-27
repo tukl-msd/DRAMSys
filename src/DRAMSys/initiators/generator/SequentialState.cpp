@@ -44,26 +44,19 @@ namespace DRAMSys::Initiators
 SequentialState::SequentialState(uint64_t numRequests,
                                  uint64_t seed,
                                  double rwRatio,
-                                 std::optional<uint64_t> addressIncrement,
-                                 std::optional<uint64_t> minAddress,
-                                 std::optional<uint64_t> maxAddress,
-                                 uint64_t memorySize,
+                                 uint64_t addressIncrement,
+                                 uint64_t minAddress,
+                                 uint64_t maxAddress,
                                  unsigned int dataLength) :
     numberOfRequests(numRequests),
-    addressIncrement(addressIncrement.value_or(dataLength)),
-    minAddress(minAddress.value_or(0)),
-    maxAddress(maxAddress.value_or(memorySize - 1)),
+    addressIncrement(addressIncrement),
+    minAddress(minAddress),
+    maxAddress(maxAddress),
     seed(seed),
     rwRatio(rwRatio),
     dataLength(dataLength),
     randomGenerator(this->seed)
 {
-    if (this->minAddress > memorySize - 1)
-        SC_REPORT_FATAL("TrafficGenerator", "minAddress is out of range.");
-
-    if (this->maxAddress > memorySize - 1)
-        SC_REPORT_FATAL("TrafficGenerator", "maxAddress is out of range.");
-
     if (this->maxAddress < this->minAddress)
         SC_REPORT_FATAL("TrafficGenerator", "maxAddress is smaller than minAddress.");
 

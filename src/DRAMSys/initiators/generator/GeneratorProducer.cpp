@@ -33,7 +33,7 @@
  *    Derek Christ
  */
 
-#include "TrafficGenerator.h"
+#include "GeneratorProducer.h"
 
 #include "RandomState.h"
 #include "SequentialState.h"
@@ -41,18 +41,44 @@
 namespace DRAMSys::Initiators
 {
 
-TrafficGenerator::TrafficGenerator(::DRAMSys::Config::TrafficGeneratorStateMachine const& config,
-                                   uint64_t memorySize) :
-    stateTransistions(config.transitions),
-    generatorPeriod(sc_core::sc_time(1.0 / static_cast<double>(config.clkMhz), sc_core::SC_US))
+GeneratorProducer::GeneratorProducer(unsigned clkMhz,
+                                     uint64_t numRequests,
+                                     unsigned int dataLength,
+                                     unsigned int dataAlignment,
+                                     double rwRatio,
+                                     AddressDistribution addressDistribution,
+                                     uint64_t addressIncrement,
+                                     uint64_t minAddress,
+                                     uint64_t maxAddress,
+                                     uint64_t seed) :
+    generatorPeriod(sc_core::sc_time(1.0 / static_cast<double>(clkMhz), sc_core::SC_US))
 {
-    unsigned int dataLength = config.dataLength;
-    unsigned int dataAlignment = config.dataAlignment.value_or(dataLength);
+    if (addressDistribution == AddressDistribution::Random)
+    {
+        auto producer = std::make_unique<RandomState>(
+            numRequests, seed, rwRatio, minAddress, maxAddress, dataLength, dataAlignment);
+        producers.emplace(0, std::move(producer));
+    }
+    else
+    {
+        auto producer = std::make_unique<SequentialState>(
+            numRequests, seed, rwRatio, addressIncrement, minAddress, maxAddress, dataLength);
+        producers.emplace(0, std::move(producer));
+    }
+}
 
-    for (auto const& state : config.states)
+GeneratorProducer::GeneratorProducer(
+    StateMachineDescriptor const& desc) :
+    stateTransistions(desc.transitions),
+    generatorPeriod(sc_core::sc_time(1.0 / static_cast<double>(desc.clkMhz), sc_core::SC_US))
+{
+    unsigned int dataLength = desc.dataLength;
+    unsigned int dataAlignment = desc.dataAlignment;
+
+    for (auto const& state : desc.states)
     {
         std::visit(
-            [this, memorySize, dataLength, dataAlignment, &config](auto&& arg)
+            [=](auto&& arg)
             {
                 using DRAMSys::Config::TrafficGeneratorActiveState;
                 using DRAMSys::Config::TrafficGeneratorIdleState;
@@ -64,11 +90,10 @@ TrafficGenerator::TrafficGenerator(::DRAMSys::Config::TrafficGeneratorStateMachi
                         DRAMSys::Config::AddressDistribution::Random)
                     {
                         auto producer = std::make_unique<RandomState>(activeState.numRequests,
-                                                                      config.seed.value_or(0),
+                                                                      desc.seed,
                                                                       activeState.rwRatio,
                                                                       activeState.minAddress,
                                                                       activeState.maxAddress,
-                                                                      memorySize,
                                                                       dataLength,
                                                                       dataAlignment);
 
@@ -78,12 +103,11 @@ TrafficGenerator::TrafficGenerator(::DRAMSys::Config::TrafficGeneratorStateMachi
                     {
                         auto producer =
                             std::make_unique<SequentialState>(activeState.numRequests,
-                                                              config.seed.value_or(0),
+                                                              desc.seed,
                                                               activeState.rwRatio,
                                                               activeState.addressIncrement,
                                                               activeState.minAddress,
                                                               activeState.maxAddress,
-                                                              memorySize,
                                                               dataLength);
 
                         producers.emplace(activeState.id, std::move(producer));
@@ -99,40 +123,7 @@ TrafficGenerator::TrafficGenerator(::DRAMSys::Config::TrafficGeneratorStateMachi
     }
 }
 
-TrafficGenerator::TrafficGenerator(::DRAMSys::Config::TrafficGenerator const& config,
-                                   uint64_t memorySize) :
-    generatorPeriod(sc_core::sc_time(1.0 / static_cast<double>(config.clkMhz), sc_core::SC_US))
-{
-    unsigned int dataLength = config.dataLength;
-    unsigned int dataAlignment = config.dataAlignment.value_or(dataLength);
-
-    if (config.addressDistribution == DRAMSys::Config::AddressDistribution::Random)
-    {
-        auto producer = std::make_unique<RandomState>(config.numRequests,
-                                                      config.seed.value_or(0),
-                                                      config.rwRatio,
-                                                      config.minAddress,
-                                                      config.maxAddress,
-                                                      memorySize,
-                                                      dataLength,
-                                                      dataAlignment);
-        producers.emplace(0, std::move(producer));
-    }
-    else
-    {
-        auto producer = std::make_unique<SequentialState>(config.numRequests,
-                                                          config.seed.value_or(0),
-                                                          config.rwRatio,
-                                                          config.addressIncrement,
-                                                          config.minAddress,
-                                                          config.maxAddress,
-                                                          memorySize,
-                                                          dataLength);
-        producers.emplace(0, std::move(producer));
-    }
-}
-
-Request TrafficGenerator::nextRequest()
+Request GeneratorProducer::nextRequest()
 {
     if (currentState == STOP_STATE)
         return Request{Request::Command::Stop, 0, 0, {}};
@@ -170,7 +161,7 @@ Request TrafficGenerator::nextRequest()
     return request;
 }
 
-uint64_t TrafficGenerator::totalRequests()
+uint64_t GeneratorProducer::totalRequests()
 {
     // Store current state of random generator
     std::default_random_engine tempGenerator(randomGenerator);
@@ -198,9 +189,9 @@ uint64_t TrafficGenerator::totalRequests()
     return totalRequests;
 }
 
-unsigned int TrafficGenerator::stateTransition(unsigned int from)
+unsigned int GeneratorProducer::stateTransition(unsigned int from)
 {
-    using Transition = DRAMSys::Config::TrafficGeneratorStateTransition;
+    using Transition = StateTransitionDescriptor;
 
     std::vector<Transition> relevantTransitions;
     std::copy_if(stateTransistions.cbegin(),

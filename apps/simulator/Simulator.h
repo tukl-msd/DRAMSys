@@ -48,9 +48,9 @@ class Simulator : public sc_core::sc_module, public DRAMSys::Stats::StatsProvide
 {
 public:
     Simulator(sc_core::sc_module_name const& name, DRAMSys::Config::Configuration configuration, std::filesystem::path baseConfig);
- 
+
     void run();
- 
+
     void updateStats() override;
     void resetStats() override;
     DRAMSys::Stats::Group const& getStatGroup() const override { return stats; }
@@ -60,7 +60,6 @@ private:
     instantiateInitiator(const DRAMSys::Config::Initiator& initiator);
 
     bool storageEnabled;
-    DRAMSys::MemoryManager memoryManager;
 
     DRAMSys::Config::Configuration configuration;
 

@@ -95,10 +95,10 @@ add_library(dramsys
     DRAMSys/ecc/OrinScheme.cpp
     DRAMSys/ecc/TwoLevelScheme.cpp
     DRAMSys/initiators/generator/RandomState.cpp
+    DRAMSys/initiators/generator/GeneratorProducer.cpp
+    DRAMSys/initiators/generator/RowHammerProducer.cpp
     DRAMSys/initiators/generator/SequentialState.cpp
-    DRAMSys/initiators/generator/TrafficGenerator.cpp
-    DRAMSys/initiators/hammer/RowHammer.cpp
-    DRAMSys/initiators/player/StlPlayer.cpp
+    DRAMSys/initiators/player/StlProducer.cpp
     DRAMSys/initiators/request/RequestIssuer.cpp
     DRAMSys/power/DRAMPowerAdapter.cpp
     DRAMSys/simulation/AddressDecoder.cpp

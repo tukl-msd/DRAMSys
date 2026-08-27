@@ -38,15 +38,18 @@
 namespace DRAMSys::Initiators
 {
 
-RowHammer::RowHammer(::DRAMSys::Config::RowHammer const& config) :
-    generatorPeriod(sc_core::sc_time(1.0 / static_cast<double>(config.clkMhz), sc_core::SC_US)),
-    numberOfRequests(config.numRequests),
-    rowIncrement(config.rowIncrement),
-    dataLength(config.dataLength)
+RowHammerProducer::RowHammerProducer(unsigned clkMhz,
+                                     uint64_t numRequests,
+                                     uint64_t rowIncrement,
+                                     unsigned int dataLength) :
+    generatorPeriod(sc_core::sc_time(1.0 / static_cast<double>(clkMhz), sc_core::SC_US)),
+    numberOfRequests(numRequests),
+    rowIncrement(rowIncrement),
+    dataLength(dataLength)
 {
 }
 
-Request RowHammer::nextRequest()
+Request RowHammerProducer::nextRequest()
 {
     if (generatedRequests >= numberOfRequests)
         return Request{Request::Command::Stop, 0, 0, {}};

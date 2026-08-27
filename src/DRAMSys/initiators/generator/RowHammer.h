@@ -35,64 +35,35 @@
 
 #pragma once
 
-#include <DRAMSys/initiators/generator/GeneratorProducer.h>
-#include <DRAMSys/initiators/request/RequestIssuer.h>
+#include "RowHammerProducer.h"
 
-#include <cstdint>
-#include <optional>
-#include <string>
+#include <DRAMSys/common/MemoryManager.h>
+#include <DRAMSys/initiators/request/RequestIssuer.h>
 
 namespace DRAMSys::Initiators
 {
 
-struct TrafficGeneratorDescriptor
+struct RowHammerDescriptor
 {
     std::string name;
     uint64_t clkMhz;
     uint64_t numRequests;
-    GeneratorProducer::AddressDistribution addressDistribution;
-    uint64_t seed;
+    unsigned rowIncrement;
     unsigned dataLength;
-    unsigned dataAlignment;
-    double rwRatio;
-    uint64_t addressIncrement;
-    uint64_t minAddress;
-    uint64_t maxAddress;
     std::optional<unsigned int> maxPendingReadRequests;
     std::optional<unsigned int> maxPendingWriteRequests;
 };
 
-class TrafficGenerator : public Initiators::RequestIssuer
+class RowHammer : public Initiators::RequestIssuer
 {
 public:
-    TrafficGenerator(Initiators::TrafficGeneratorDescriptor const& desc) :
+    RowHammer(RowHammerDescriptor const& desc) :
         RequestIssuer(desc.name.c_str(),
-                      std::make_unique<Initiators::GeneratorProducer>(desc.clkMhz,
-                                                                      desc.numRequests,
-                                                                      desc.dataLength,
-                                                                      desc.dataAlignment,
-                                                                      desc.rwRatio,
-                                                                      desc.addressDistribution,
-                                                                      desc.addressIncrement,
-                                                                      desc.minAddress,
-                                                                      desc.maxAddress,
-                                                                      desc.seed),
+                      std::make_unique<RowHammerProducer>(
+                          desc.clkMhz, desc.numRequests, desc.rowIncrement, desc.dataLength),
                       false,
                       desc.maxPendingReadRequests,
                       desc.maxPendingWriteRequests)
-    {
-    }
-};
-
-class TrafficGeneratorStateMachine : public Initiators::RequestIssuer
-{
-public:
-    TrafficGeneratorStateMachine(GeneratorProducer::StateMachineDescriptor const& desc) :
-        RequestIssuer(desc.name.c_str(),
-        std::make_unique<GeneratorProducer>(desc),
-        false,
-        desc.maxPendingReadRequests,
-        desc.maxPendingWriteRequests)
     {
     }
 };

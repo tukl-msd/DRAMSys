@@ -43,10 +43,13 @@
 namespace DRAMSys::Initiators
 {
 
-class RowHammer : public RequestProducer
+class RowHammerProducer : public RequestProducer
 {
 public:
-    RowHammer(::DRAMSys::Config::RowHammer const& config);
+    RowHammerProducer(unsigned clkMhz,
+                      uint64_t numRequests,
+                      uint64_t rowIncrement,
+                      unsigned int dataLength);
 
     Request nextRequest() override;
     sc_core::sc_time nextTrigger() override { return generatorPeriod; }

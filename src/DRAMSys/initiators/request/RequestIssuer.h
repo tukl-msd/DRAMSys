@@ -46,6 +46,7 @@
 #include <tlm_utils/simple_initiator_socket.h>
 
 #include <optional>
+#include <utility>
 
 namespace DRAMSys::Initiators
 {
@@ -59,14 +60,21 @@ public:
 
     RequestIssuer(sc_core::sc_module_name const& name,
                   std::unique_ptr<RequestProducer> producer,
-                  ::DRAMSys::MemoryManager& memoryManager,
-                  sc_core::sc_time interfaceClk,
+                  bool storeData,
                   std::optional<unsigned int> maxPendingReadRequests,
-                  std::optional<unsigned int> maxPendingWriteRequests,
-                  std::function<void()> transactionFinished,
-                  std::function<void()> terminate);
+                  std::optional<unsigned int> maxPendingWriteRequests);
 
     uint64_t totalRequests() { return producer->totalRequests(); };
+
+    void registerTransactionFinishedCallback(std::function<void()> transactionFinishedCallback)
+    {
+        this->transactionFinishedCallback = std::move(transactionFinishedCallback);
+    }
+
+    void registerFinishedCallback(std::function<void()> finishedCallback)
+    {
+        this->finishedCallback = std::move(finishedCallback);
+    }
 
 private:
     void sendNextRequest();
@@ -89,9 +97,7 @@ private:
     std::unique_ptr<RequestProducer> producer;
 
     tlm_utils::peq_with_cb_and_phase<RequestIssuer> payloadEventQueue;
-    ::DRAMSys::MemoryManager& memoryManager;
-
-    sc_core::sc_time interfaceClk;
+    MemoryManager memoryManager;
 
     bool requestInProgress = false;
     bool transactionPostponed = false;
@@ -106,8 +112,8 @@ private:
     std::optional<unsigned int> maxPendingReadRequests;
     std::optional<unsigned int> maxPendingWriteRequests;
 
-    std::function<void()> transactionFinished;
-    std::function<void()> terminate;
+    std::function<void()> transactionFinishedCallback;
+    std::function<void()> finishedCallback;
 };
 
 } // namespace DRAMSys::Initiators

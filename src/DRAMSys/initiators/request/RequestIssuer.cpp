@@ -40,21 +40,15 @@ namespace DRAMSys::Initiators
 
 RequestIssuer::RequestIssuer(sc_core::sc_module_name const& name,
                              std::unique_ptr<RequestProducer> producer,
-                             ::DRAMSys::MemoryManager& memoryManager,
-                             sc_core::sc_time interfaceClk,
+                             bool storeData,
                              std::optional<unsigned int> maxPendingReadRequests,
-                             std::optional<unsigned int> maxPendingWriteRequests,
-                             std::function<void()> transactionFinished,
-                             std::function<void()> terminate) :
+                             std::optional<unsigned int> maxPendingWriteRequests) :
     sc_module(name),
     producer(std::move(producer)),
     payloadEventQueue(this, &RequestIssuer::peqCallback),
-    memoryManager(memoryManager),
-    interfaceClk(interfaceClk),
+    memoryManager(storeData),
     maxPendingReadRequests(maxPendingReadRequests),
-    maxPendingWriteRequests(maxPendingWriteRequests),
-    transactionFinished(std::move(transactionFinished)),
-    terminate(std::move(terminate))
+    maxPendingWriteRequests(maxPendingWriteRequests)
 {
     SC_THREAD(sendNextRequest);
     iSocket.register_nb_transport_bw(this, &RequestIssuer::nb_transport_bw);
@@ -142,7 +136,8 @@ void RequestIssuer::peqCallback(tlm::tlm_generic_payload& payload, const tlm::tl
     else if (phase == tlm::BEGIN_RESP)
     {
         transactionsReceived++;
-        transactionFinished();
+        if (transactionFinishedCallback)
+            transactionFinishedCallback();
 
         if (payload.get_command() == tlm::TLM_READ_COMMAND)
             pendingReadRequests--;
@@ -153,16 +148,16 @@ void RequestIssuer::peqCallback(tlm::tlm_generic_payload& payload, const tlm::tl
 
         // Send END_RESP
         tlm::tlm_phase nextPhase = tlm::END_RESP;
-        sc_core::sc_time delay = interfaceClk;
+        sc_core::sc_time delay = sc_core::sc_time::from_value(1); // Minimal delay, that is not 0
         iSocket->nb_transport_fw(payload, nextPhase, delay);
         payload.release();
 
         // If all answers were received:
-        if (finished && transactionsSent == transactionsReceived)
-            terminate();
+        if (finished && transactionsSent == transactionsReceived && finishedCallback)
+            finishedCallback();
     }
     else
-    {
+      {
         SC_REPORT_FATAL("TrafficInitiator", "PEQ was triggered with unknown phase");
     }
 }

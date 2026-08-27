@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2026, RPTU Kaiserslautern-Landau
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,93 +30,46 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Janik Schlemminger
- *    Robert Gernhardt
- *    Matthias Jung
- *    Éder F. Zulian
- *    Felipe S. Prado
  *    Derek Christ
  */
 
 #pragma once
 
-#include <DRAMSys/configuration/json/TraceSetup.h>
-#include <DRAMSys/initiators/request/RequestProducer.h>
+#include <DRAMSys/initiators/player/StlProducer.h>
+#include <DRAMSys/initiators/request/RequestIssuer.h>
 
-#include <systemc>
-#include <tlm>
-
-#include <array>
-#include <filesystem>
-#include <fstream>
+#include <cstdint>
 #include <optional>
-#include <thread>
-#include <vector>
+#include <string>
 
 namespace DRAMSys::Initiators
 {
 
-class StlPlayer : public RequestProducer
+struct StlPlayerDescriptor
+{
+    std::string name;
+    uint64_t clkMhz;
+    unsigned dataLength;
+    std::filesystem::path tracePath;
+    StlProducer::TraceType traceType;
+    bool storageEnabled;
+    std::optional<unsigned int> maxPendingReadRequests;
+    std::optional<unsigned int> maxPendingWriteRequests;
+};
+
+class StlPlayer : public Initiators::RequestIssuer
 {
 public:
-    enum class TraceType : uint8_t
+    StlPlayer(Initiators::StlPlayerDescriptor const& desc) :
+        RequestIssuer(
+            desc.name.c_str(),
+            std::make_unique<Initiators::StlProducer>(
+                desc.clkMhz, desc.dataLength, desc.tracePath, desc.traceType, desc.storageEnabled),
+            desc.storageEnabled,
+            desc.maxPendingReadRequests,
+            desc.maxPendingWriteRequests)
     {
-        Absolute,
-        Relative,
-    };
-
-    StlPlayer(::DRAMSys::Config::TracePlayer const& config,
-              std::filesystem::path const& trace,
-              TraceType traceType,
-              bool storageEnabled);
-
-    // TODO temporary fix
-    ~StlPlayer()
-    {
-        if (parserThread.joinable())
-            parserThread.join();
     }
-
-    Request nextRequest() override;
-    sc_core::sc_time nextTrigger() override;
-    uint64_t totalRequests() override { return numberOfLines; }
-
-private:
-    struct LineContent
-    {
-        unsigned cycle{};
-        enum class Command : uint8_t
-        {
-            Read,
-            Write
-        } command{};
-        uint64_t address{};
-        std::optional<unsigned> dataLength;
-        std::vector<uint8_t> data;
-    };
-
-    std::optional<LineContent> currentLine() const;
-
-    void parseTraceFile();
-    void swapBuffers();
-    void incrementLine();
-
-    TraceType traceType;
-    bool storageEnabled;
-    sc_core::sc_time playerPeriod;
-    unsigned int defaultDataLength;
-
-    std::ifstream traceFile;
-    uint64_t currentParsedLine = 0;
-    uint64_t numberOfLines = 0;
-
-    std::array<std::vector<LineContent>, 2> lineBuffers;
-    std::size_t parseIndex = 0;
-    std::size_t consumeIndex = 1;
-
-    std::vector<LineContent>::const_iterator readoutIt;
-
-    std::thread parserThread;
 };
 
 } // namespace DRAMSys::Initiators

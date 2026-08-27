@@ -39,7 +39,6 @@
 #include <DRAMSys/initiators/generator/GeneratorState.h>
 #include <DRAMSys/initiators/UniformDistributions.h>
 
-#include <optional>
 #include <random>
 
 typedef std::mt19937_64 default_random_engine;
@@ -53,10 +52,9 @@ public:
     SequentialState(uint64_t numRequests,
                     uint64_t seed,
                     double rwRatio,
-                    std::optional<uint64_t> addressIncrement,
-                    std::optional<uint64_t> minAddress,
-                    std::optional<uint64_t> maxAddress,
-                    uint64_t memorySize,
+                    uint64_t addressIncrement,
+                    uint64_t minAddress,
+                    uint64_t maxAddress,
                     unsigned int dataLength);
 
     Request nextRequest() override;

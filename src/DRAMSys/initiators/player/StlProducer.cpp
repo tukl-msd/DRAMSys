@@ -38,21 +38,22 @@
  *    Derek Christ
  */
 
-#include "StlPlayer.h"
+#include "StlProducer.h"
 
 #include <sstream>
 
 namespace DRAMSys::Initiators
 {
 
-StlPlayer::StlPlayer(::DRAMSys::Config::TracePlayer const& config,
-                     std::filesystem::path const& trace,
-                     TraceType traceType,
-                     bool storageEnabled) :
+StlProducer::StlProducer(unsigned clkMhz,
+                         unsigned int dataLength,
+                         std::filesystem::path const& trace,
+                         TraceType traceType,
+                         bool storageEnabled) :
     traceType(traceType),
     storageEnabled(storageEnabled),
-    playerPeriod(sc_core::sc_time(1.0 / static_cast<double>(config.clkMhz), sc_core::SC_US)),
-    defaultDataLength(config.dataLength),
+    playerPeriod(sc_core::sc_time(1.0 / static_cast<double>(clkMhz), sc_core::SC_US)),
+    defaultDataLength(dataLength),
     traceFile(trace)
 {
     if (!traceFile.is_open())
@@ -77,7 +78,7 @@ StlPlayer::StlPlayer(::DRAMSys::Config::TracePlayer const& config,
     readoutIt = lineBuffers.at(consumeIndex).cbegin();
 }
 
-void StlPlayer::incrementLine()
+void StlProducer::incrementLine()
 {
     readoutIt++;
 
@@ -94,7 +95,7 @@ void StlPlayer::incrementLine()
     }
 }
 
-std::optional<StlPlayer::LineContent> StlPlayer::currentLine() const
+std::optional<StlProducer::LineContent> StlProducer::currentLine() const
 {
     if (readoutIt == lineBuffers.at(consumeIndex).cend())
         return std::nullopt;
@@ -102,7 +103,7 @@ std::optional<StlPlayer::LineContent> StlPlayer::currentLine() const
     return *readoutIt;
 }
 
-Request StlPlayer::nextRequest()
+Request StlProducer::nextRequest()
 {
     auto currentLineContent = currentLine();
 
@@ -126,7 +127,7 @@ Request StlPlayer::nextRequest()
     return request;
 }
 
-sc_core::sc_time StlPlayer::nextTrigger()
+sc_core::sc_time StlProducer::nextTrigger()
 {
     auto currentLineContent = currentLine();
     sc_core::sc_time nextTrigger = sc_core::SC_ZERO_TIME;
@@ -148,7 +149,7 @@ sc_core::sc_time StlPlayer::nextTrigger()
     return nextTrigger;
 }
 
-void StlPlayer::parseTraceFile()
+void StlProducer::parseTraceFile()
 {
     unsigned parsedLines = 0;
     auto& parseBuffer = lineBuffers.at(parseIndex);
@@ -231,7 +232,7 @@ void StlPlayer::parseTraceFile()
     }
 }
 
-void StlPlayer::swapBuffers()
+void StlProducer::swapBuffers()
 {
     // Wait for parser to finish
     if (parserThread.joinable())
@@ -241,7 +242,7 @@ void StlPlayer::swapBuffers()
     std::swap(parseIndex, consumeIndex);
 
     // Start new parser thread
-    parserThread = std::thread(&StlPlayer::parseTraceFile, this);
+    parserThread = std::thread(&StlProducer::parseTraceFile, this);
 }
 
 } // namespace DRAMSys::Initiators

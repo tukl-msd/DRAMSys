@@ -34,13 +34,16 @@
  */
 
 #include "Simulator.h"
-
 #include "util.h"
 
+#include <DRAMSys/configuration/json/TraceSetup.h>
 #include <DRAMSys/configuration/memspec/MemSpec.h>
+#include <DRAMSys/initiators/generator/GeneratorProducer.h>
+#include <DRAMSys/initiators/generator/RowHammer.h>
 #include <DRAMSys/initiators/generator/TrafficGenerator.h>
-#include <DRAMSys/initiators/hammer/RowHammer.h>
 #include <DRAMSys/initiators/player/StlPlayer.h>
+#include <DRAMSys/initiators/player/StlProducer.h>
+#include <DRAMSys/initiators/request/Request.h>
 #include <DRAMSys/initiators/request/RequestIssuer.h>
 #include <DRAMSys/simulation/SimConfig.h>
 #include <DRAMSys/statistics/JsonFormat.h>
@@ -60,7 +63,6 @@ Simulator::Simulator(sc_core::sc_module_name const& name,
                      std::filesystem::path baseConfig) :
     sc_core::sc_module(name),
     storageEnabled(configuration.simconfig.StoreMode == ::DRAMSys::Config::StoreModeType::Store),
-    memoryManager(storageEnabled),
     configuration(std::move(configuration)),
     dramSys(std::make_unique<DRAMSys::DRAMSys>("DRAMSys", this->configuration)),
     baseConfig(std::move(baseConfig)),
@@ -105,6 +107,8 @@ Simulator::Simulator(sc_core::sc_module_name const& name,
     for (const auto& initiatorConfig : *this->configuration.tracesetup)
     {
         auto initiator = instantiateInitiator(initiatorConfig);
+        initiator->registerTransactionFinishedCallback(finishTransaction);
+        initiator->registerFinishedCallback(terminateInitiator);
         totalTransactions += initiator->totalRequests();
 
         initiator->iSocket.bind(dramSys->tSocket);
@@ -116,37 +120,97 @@ std::unique_ptr<RequestIssuer>
 Simulator::instantiateInitiator(const ::DRAMSys::Config::Initiator& initiator)
 {
     uint64_t memorySize = dramSys->memorySize();
-    sc_core::sc_time interfaceClk = dramSys->getMemSpec().tCK;
 
     return std::visit(
-        [this, memorySize, interfaceClk](auto&& config) -> std::unique_ptr<RequestIssuer>
+        [this, memorySize](auto&& config) -> std::unique_ptr<RequestIssuer>
         {
             using T = std::decay_t<decltype(config)>;
-            if constexpr (std::is_same_v<T, ::DRAMSys::Config::TrafficGenerator> ||
-                          std::is_same_v<T, ::DRAMSys::Config::TrafficGeneratorStateMachine>)
+            if constexpr (std::is_same_v<T, ::DRAMSys::Config::TrafficGenerator>)
             {
-                auto generator = std::make_unique<TrafficGenerator>(config, memorySize);
+                TrafficGeneratorDescriptor desc;
+                desc.name = config.name;
+                desc.clkMhz = config.clkMhz;
+                desc.numRequests = config.numRequests;
+                desc.addressDistribution =
+                    config.addressDistribution == DRAMSys::Config::AddressDistribution::Sequential
+                        ? GeneratorProducer::AddressDistribution::Sequential
+                        : GeneratorProducer::AddressDistribution::Random;
+                desc.seed = config.seed.value_or(0);
+                desc.dataLength = config.dataLength;
+                desc.dataAlignment = config.dataAlignment.value_or(desc.dataLength);
+                desc.rwRatio = config.rwRatio;
+                desc.addressIncrement = config.addressIncrement.value_or(desc.dataLength);
+                desc.minAddress = config.minAddress.value_or(0);
+                desc.maxAddress = config.maxAddress.value_or(memorySize - desc.dataLength);
+                desc.maxPendingReadRequests = config.maxPendingReadRequests;
+                desc.maxPendingWriteRequests = config.maxPendingWriteRequests;
 
-                return std::make_unique<RequestIssuer>(config.name.c_str(),
-                                                       std::move(generator),
-                                                       memoryManager,
-                                                       interfaceClk,
-                                                       config.maxPendingReadRequests,
-                                                       config.maxPendingWriteRequests,
-                                                       finishTransaction,
-                                                       terminateInitiator);
+                return std::make_unique<TrafficGenerator>(desc);
+            }
+            else if constexpr (std::is_same_v<T, ::DRAMSys::Config::TrafficGeneratorStateMachine>)
+            {
+                GeneratorProducer::StateMachineDescriptor desc;
+                desc.clkMhz = config.clkMhz;
+                desc.name = config.name;
+                desc.maxPendingReadRequests = config.maxPendingReadRequests;
+                desc.maxPendingWriteRequests = config.maxPendingWriteRequests;
+                desc.seed = config.seed.value_or(0);
+                desc.dataLength = config.dataLength;
+
+                for (auto const& state : config.states)
+                {
+                    std::visit(
+                        [&](auto&& state)
+                        {
+                            using R = std::decay_t<decltype(state)>;
+                            if constexpr (std::is_same_v<R,
+                                                         GeneratorProducer::ActiveStateDescriptor>)
+                            {
+                                GeneratorProducer::ActiveStateDescriptor state_desc{};
+                                state_desc.id = state.id;
+                                state_desc.numRequests = state.numRequests;
+                                state_desc.rwRatio = state.rwRatio;
+                                state_desc.addressDistribution = state.addressDistribution;
+                                state_desc.addressIncrement = state.addressIncrement;
+                                state_desc.minAddress = state.minAddress;
+                                state_desc.maxAddress = state.maxAddress;
+                                desc.states.emplace_back(state_desc);
+                            }
+                            else if constexpr (std::is_same_v<
+                                                   R,
+                                                   GeneratorProducer::IdleStateDescriptor>)
+                            {
+                                GeneratorProducer::IdleStateDescriptor state_desc{};
+                                state_desc.id = state.id;
+                                state_desc.idleClks = state.idleClks;
+                                desc.states.emplace_back(state_desc);
+                            }
+                        },
+                        state);
+                }
+
+                for (auto const& transition : desc.transitions)
+                {
+                    GeneratorProducer::StateTransitionDescriptor trans_desc{};
+                    trans_desc.from = transition.from;
+                    trans_desc.to = transition.to;
+                    trans_desc.probability = transition.probability;
+                    desc.transitions.emplace_back(trans_desc);
+                }
+
+                return std::make_unique<TrafficGeneratorStateMachine>(desc);
             }
             else if constexpr (std::is_same_v<T, ::DRAMSys::Config::TracePlayer>)
             {
                 std::filesystem::path tracePath = baseConfig.parent_path() / config.name;
 
-                std::optional<StlPlayer::TraceType> traceType;
+                std::optional<StlProducer::TraceType> traceType;
 
                 auto extension = tracePath.extension();
                 if (extension == ".stl")
-                    traceType = StlPlayer::TraceType::Absolute;
+                    traceType = StlProducer::TraceType::Absolute;
                 else if (extension == ".rstl")
-                    traceType = StlPlayer::TraceType::Relative;
+                    traceType = StlProducer::TraceType::Relative;
 
                 if (!traceType.has_value())
                 {
@@ -154,30 +218,30 @@ Simulator::instantiateInitiator(const ::DRAMSys::Config::Initiator& initiator)
                     SC_REPORT_FATAL("Simulator", report.c_str());
                 }
 
-                auto player = std::make_unique<StlPlayer>(
-                    config, tracePath.c_str(), *traceType, storageEnabled);
+                StlPlayerDescriptor desc;
+                desc.name = config.name;
+                desc.clkMhz = config.clkMhz;
+                desc.dataLength = config.dataLength;
+                desc.tracePath = tracePath;
+                desc.traceType = traceType.value();
+                desc.storageEnabled = storageEnabled;
+                desc.maxPendingReadRequests = config.maxPendingReadRequests;
+                desc.maxPendingWriteRequests = config.maxPendingWriteRequests;
 
-                return std::make_unique<RequestIssuer>(tracePath.stem().string().c_str(),
-                                                       std::move(player),
-                                                       memoryManager,
-                                                       interfaceClk,
-                                                       std::nullopt,
-                                                       std::nullopt,
-                                                       finishTransaction,
-                                                       terminateInitiator);
+                return std::make_unique<StlPlayer>(desc);
             }
             else if constexpr (std::is_same_v<T, ::DRAMSys::Config::RowHammer>)
             {
-                auto hammer = std::make_unique<RowHammer>(config);
+                RowHammerDescriptor desc;
+                desc.name = config.name;
+                desc.clkMhz = config.clkMhz;
+                desc.numRequests = config.numRequests;
+                desc.rowIncrement = config.rowIncrement;
+                desc.dataLength = config.dataLength;
+                desc.maxPendingReadRequests = config.maxPendingReadRequests;
+                desc.maxPendingWriteRequests = config.maxPendingWriteRequests;
 
-                return std::make_unique<RequestIssuer>(config.name.c_str(),
-                                                       std::move(hammer),
-                                                       memoryManager,
-                                                       interfaceClk,
-                                                       1,
-                                                       1,
-                                                       finishTransaction,
-                                                       terminateInitiator);
+                return std::make_unique<RowHammer>(desc);
             }
         },
         initiator.getVariant());
@@ -212,10 +276,9 @@ void Simulator::run()
 
 Simulator::Stats::Stats(Simulator const& simulator) :
     Group(simulator.name()),
-    wallclockTime(
-        addStat<DRAMSys::Stats::ScalarStat>("WallclockTime",
-                                                 "Wall-clock time elapsed by the simulation",
-                                                 DRAMSys::Stats::Quantity::Time)),
+    wallclockTime(addStat<DRAMSys::Stats::ScalarStat>("WallclockTime",
+                                                      "Wall-clock time elapsed by the simulation",
+                                                      DRAMSys::Stats::Quantity::Time)),
     simulationTicks(addStat<DRAMSys::Stats::ScalarStat>(
         "SimulationTicks",
         fmt::format("Total simulation ticks ({})", sc_core::sc_get_time_resolution().to_string()),

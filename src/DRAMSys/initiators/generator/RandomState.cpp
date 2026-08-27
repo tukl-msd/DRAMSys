@@ -44,9 +44,8 @@ namespace DRAMSys::Initiators
 RandomState::RandomState(uint64_t numRequests,
                          uint64_t seed,
                          double rwRatio,
-                         std::optional<uint64_t> minAddress,
-                         std::optional<uint64_t> maxAddress,
-                         uint64_t memorySize,
+                         uint64_t minAddress,
+                         uint64_t maxAddress,
                          unsigned int dataLength,
                          unsigned int dataAlignment) :
     numberOfRequests(numRequests),
@@ -55,14 +54,8 @@ RandomState::RandomState(uint64_t numRequests,
     dataLength(dataLength),
     dataAlignment(dataAlignment),
     randomGenerator(this->seed),
-    randomAddressDistribution(minAddress.value_or(0), maxAddress.value_or((memorySize)-dataLength))
+    randomAddressDistribution(minAddress, maxAddress)
 {
-    if (minAddress > memorySize - 1)
-        SC_REPORT_FATAL("TrafficGenerator", "minAddress is out of range.");
-
-    if (maxAddress > memorySize - 1)
-        SC_REPORT_FATAL("TrafficGenerator", "maxAddress is out of range.");
-
     if (maxAddress < minAddress)
         SC_REPORT_FATAL("TrafficGenerator", "maxAddress is smaller than minAddress.");
 

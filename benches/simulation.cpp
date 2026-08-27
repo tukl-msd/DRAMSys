@@ -33,15 +33,17 @@
  *    Derek Christ
  */
 
+#include "DRAMSys/initiators/generator/TrafficGenerator.h"
 #include <DRAMSys/DRAMSys.h>
 #include <DRAMSys/common/MemoryManager.h>
 #include <DRAMSys/configuration/json/DRAMSysConfiguration.h>
 #include <DRAMSys/configuration/memspec/MemSpec.h>
-#include <DRAMSys/initiators/generator/TrafficGenerator.h>
+#include <DRAMSys/initiators/generator/GeneratorProducer.h>
 #include <DRAMSys/initiators/request/RequestIssuer.h>
 
 #include <benchmark/benchmark.h>
 #include <filesystem>
+#include <sysc/kernel/sc_time.h>
 #include <tuple>
 
 namespace Simulation
@@ -68,36 +70,22 @@ static void example_simulation(benchmark::State& state, Args&&... args)
 
         auto dramsys = DRAMSys::DRAMSys("dramsys", dramsys_config);
 
-        DRAMSys::Config::TrafficGenerator generator_config{
-            1000,
-            "generator",
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt,
-            64,
-            std::nullopt,
-            10000,
-            0.85,
-            DRAMSys::Config::AddressDistribution::Random,
-            std::nullopt,
-            std::nullopt,
-            std::nullopt};
+        DRAMSys::Initiators::TrafficGeneratorDescriptor desc;
+        desc.name = "generator";
+        desc.clkMhz = 1000;
+        desc.numRequests = 10000;
+        desc.addressDistribution = GeneratorProducer::AddressDistribution::Random;
+        desc.seed = 0;
+        desc.dataLength = 64;
+        desc.dataAlignment = 64;
+        desc.rwRatio = 0.85;
+        desc.addressIncrement = 64;
+        desc.minAddress = 0;
+        desc.maxAddress = 107374182; // 1 GiB
 
-        auto generator = std::make_unique<TrafficGenerator>(generator_config, dramsys.memorySize());
+        auto generator = TrafficGenerator(desc);
 
-        sc_core::sc_time interfaceClk = dramsys.getMemSpec().tCK;
-        auto issuer = RequestIssuer(
-            "issuer",
-            std::move(generator),
-            memoryManager,
-            interfaceClk,
-            std::nullopt,
-            std::nullopt,
-            []() {},
-            []() { sc_core::sc_stop(); });
-
-        issuer.iSocket.bind(dramsys.tSocket);
+        generator.iSocket.bind(dramsys.tSocket);
         sc_core::sc_start();
     }
 

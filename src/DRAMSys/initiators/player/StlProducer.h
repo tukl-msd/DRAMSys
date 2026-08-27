@@ -30,45 +30,94 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
+ *    Janik Schlemminger
+ *    Robert Gernhardt
+ *    Matthias Jung
+ *    Éder F. Zulian
+ *    Felipe S. Prado
  *    Derek Christ
- *    Thomas Zimmermann
  */
 
 #pragma once
 
-#include <DRAMSys/initiators/generator/GeneratorState.h>
-#include <DRAMSys/initiators/UniformDistributions.h>
+#include <DRAMSys/configuration/json/TraceSetup.h>
+#include <DRAMSys/initiators/request/RequestProducer.h>
 
-#include <random>
+#include <systemc>
+#include <tlm>
 
-typedef std::mt19937_64 default_random_engine;
+#include <array>
+#include <filesystem>
+#include <fstream>
+#include <optional>
+#include <thread>
+#include <vector>
 
 namespace DRAMSys::Initiators
 {
 
-class RandomState : public GeneratorState
+class StlProducer : public RequestProducer
 {
 public:
-    RandomState(uint64_t numRequests,
-                uint64_t seed,
-                double rwRatio,
-                uint64_t minAddress,
-                uint64_t maxAddress,
+    enum class TraceType : uint8_t
+    {
+        Absolute,
+        Relative,
+    };
+
+    StlProducer(unsigned clkMhz,
                 unsigned int dataLength,
-                unsigned int dataAlignment);
+                std::filesystem::path const& trace,
+                TraceType traceType,
+                bool storageEnabled);
+
+    // TODO temporary fix
+    ~StlProducer()
+    {
+        if (parserThread.joinable())
+            parserThread.join();
+    }
 
     Request nextRequest() override;
-    uint64_t totalRequests() override { return numberOfRequests; }
+    sc_core::sc_time nextTrigger() override;
+    uint64_t totalRequests() override { return numberOfLines; }
 
-    uint64_t numberOfRequests;
-    uint64_t seed;
-    double rwRatio;
-    unsigned int dataLength;
-    unsigned int dataAlignment;
+private:
+    struct LineContent
+    {
+        unsigned cycle{};
+        enum class Command : uint8_t
+        {
+            Read,
+            Write
+        } command{};
+        uint64_t address{};
+        std::optional<unsigned> dataLength;
+        std::vector<uint8_t> data;
+    };
 
-    default_random_engine randomGenerator;
-    uniform_real_distribution<double> readWriteDistribution{0.0, 1.0};
-    uniform_int_distribution<uint64_t> randomAddressDistribution;
+    std::optional<LineContent> currentLine() const;
+
+    void parseTraceFile();
+    void swapBuffers();
+    void incrementLine();
+
+    TraceType traceType;
+    bool storageEnabled;
+    sc_core::sc_time playerPeriod;
+    unsigned int defaultDataLength;
+
+    std::ifstream traceFile;
+    uint64_t currentParsedLine = 0;
+    uint64_t numberOfLines = 0;
+
+    std::array<std::vector<LineContent>, 2> lineBuffers;
+    std::size_t parseIndex = 0;
+    std::size_t consumeIndex = 1;
+
+    std::vector<LineContent>::const_iterator readoutIt;
+
+    std::thread parserThread;
 };
 
 } // namespace DRAMSys::Initiators
