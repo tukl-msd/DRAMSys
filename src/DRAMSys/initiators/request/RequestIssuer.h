@@ -39,24 +39,26 @@
 
 #include <DRAMSys/common/MemoryManager.h>
 
-#include <memory>
 #include <systemc>
 #include <tlm>
 #include <tlm_utils/peq_with_cb_and_phase.h>
 #include <tlm_utils/simple_initiator_socket.h>
 
+#include <memory>
 #include <optional>
-#include <utility>
 
 namespace DRAMSys::Initiators
 {
 
-class RequestIssuer : sc_core::sc_module
+class RequestIssuer : public sc_core::sc_module
 {
     SC_HAS_PROCESS(RequestIssuer);
 
 public:
     tlm_utils::simple_initiator_socket<RequestIssuer> iSocket;
+
+    sc_core::sc_event transactionCompletedEvent;
+    sc_core::sc_event finishedEvent;
 
     RequestIssuer(sc_core::sc_module_name const& name,
                   std::unique_ptr<RequestProducer> producer,
@@ -66,21 +68,21 @@ public:
 
     uint64_t totalRequests() { return producer->totalRequests(); };
 
-    void registerTransactionFinishedCallback(std::function<void()> transactionFinishedCallback)
+    void start()
     {
-        this->transactionFinishedCallback = std::move(transactionFinishedCallback);
+        shouldStart = true;
+        startEvent.notify(sc_core::SC_ZERO_TIME);
     }
 
-    void registerFinishedCallback(std::function<void()> finishedCallback)
-    {
-        this->finishedCallback = std::move(finishedCallback);
-    }
+    [[nodiscard]] bool isFinished() const { return finished; }
 
 private:
     void sendNextRequest();
     bool nextRequestSendable() const;
 
+    bool shouldStart = false;
     sc_core::sc_event nextTrigger;
+    sc_core::sc_event startEvent;
     sc_core::sc_event endReq;
     sc_core::sc_event beginResp;
 
@@ -111,9 +113,6 @@ private:
     unsigned int pendingWriteRequests = 0;
     std::optional<unsigned int> maxPendingReadRequests;
     std::optional<unsigned int> maxPendingWriteRequests;
-
-    std::function<void()> transactionFinishedCallback;
-    std::function<void()> finishedCallback;
 };
 
 } // namespace DRAMSys::Initiators

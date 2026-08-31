@@ -36,8 +36,8 @@
 #pragma once
 
 #include <DRAMSys/DRAMSys.h>
-#include <DRAMSys/common/PhysicalStorage.h>
 #include <DRAMSys/common/MemoryManager.h>
+#include <DRAMSys/common/PhysicalStorage.h>
 #include <DRAMSys/configuration/json/DRAMSysConfiguration.h>
 #include <DRAMSys/initiators/request/RequestIssuer.h>
 #include <DRAMSys/statistics/Group.h>
@@ -47,7 +47,10 @@
 class Simulator : public sc_core::sc_module, public DRAMSys::Stats::StatsProvider
 {
 public:
-    Simulator(sc_core::sc_module_name const& name, DRAMSys::Config::Configuration configuration, std::filesystem::path baseConfig);
+    SC_HAS_PROCESS(Simulator);
+    Simulator(sc_core::sc_module_name const& name,
+              DRAMSys::Config::Configuration configuration,
+              std::filesystem::path baseConfig);
 
     void run();
 
@@ -59,6 +62,9 @@ private:
     std::unique_ptr<DRAMSys::Initiators::RequestIssuer>
     instantiateInitiator(const DRAMSys::Config::Initiator& initiator);
 
+    void simulationControlThread();
+    void progressBarThread();
+
     bool storageEnabled;
 
     DRAMSys::Config::Configuration configuration;
@@ -68,7 +74,6 @@ private:
 
     std::unique_ptr<DRAMSys::PhysicalStorage> physicalStorage;
 
-    std::function<void()> terminateInitiator;
     std::function<void()> finishTransaction;
 
     unsigned int terminatedInitiators = 0;
@@ -80,7 +85,8 @@ private:
     std::chrono::high_resolution_clock::time_point startTime;
     sc_core::sc_time lastSimTime = sc_core::SC_ZERO_TIME;
 
-    class Stats : public DRAMSys::Stats::Group {
+    class Stats : public DRAMSys::Stats::Group
+    {
     public:
         DRAMSys::Stats::ScalarStat& wallclockTime;
         DRAMSys::Stats::ScalarStat& simulationTicks;

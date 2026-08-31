@@ -56,6 +56,9 @@ RequestIssuer::RequestIssuer(sc_core::sc_module_name const& name,
 
 void RequestIssuer::sendNextRequest()
 {
+    if (!shouldStart)
+        wait(startEvent);
+
     while (true)
     {
         Request request = producer->nextRequest();
@@ -136,8 +139,7 @@ void RequestIssuer::peqCallback(tlm::tlm_generic_payload& payload, const tlm::tl
     else if (phase == tlm::BEGIN_RESP)
     {
         transactionsReceived++;
-        if (transactionFinishedCallback)
-            transactionFinishedCallback();
+        transactionCompletedEvent.notify();
 
         if (payload.get_command() == tlm::TLM_READ_COMMAND)
             pendingReadRequests--;
@@ -153,11 +155,13 @@ void RequestIssuer::peqCallback(tlm::tlm_generic_payload& payload, const tlm::tl
         payload.release();
 
         // If all answers were received:
-        if (finished && transactionsSent == transactionsReceived && finishedCallback)
-            finishedCallback();
+        if (finished && transactionsSent == transactionsReceived)
+        {
+            finishedEvent.notify();
+        }
     }
     else
-      {
+    {
         SC_REPORT_FATAL("TrafficInitiator", "PEQ was triggered with unknown phase");
     }
 }
