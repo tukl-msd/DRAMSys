@@ -136,7 +136,7 @@ if (DRAMSYS_INSTALL)
 endif()
 FetchContent_Declare(
     DRAMUtils
-    URL "https://github.com/tukl-msd/DRAMUtils/archive/refs/tags/v1.14.0.tar.gz"
+    URL "https://github.com/tukl-msd/DRAMUtils/archive/refs/tags/v1.16.0.tar.gz"
     OVERRIDE_FIND_PACKAGE
 )
 FetchContent_MakeAvailable(DRAMUtils)
@@ -147,7 +147,7 @@ if (DRAMSYS_USE_FETCH_CONTENT_DRAMPOWER)
     endif()
     FetchContent_Declare(
         DRAMPower
-        URL "https://github.com/tukl-msd/DRAMPower/archive/refs/tags/v6.2.0.tar.gz"
+        URL "https://github.com/tukl-msd/DRAMPower/archive/refs/tags/v6.3.1.tar.gz"
         OVERRIDE_FIND_PACKAGE
     )
     FetchContent_MakeAvailable(DRAMPower)
@@ -253,7 +253,7 @@ if (DRAMSYS_USE_EXTENSIONS)
         endif()
         FetchContent_Declare(DRAMSysExtensions
             GIT_REPOSITORY "https://${EXTENSIONS_AUTH}erbenschell.iese.fraunhofer.de/dramsys/dramsys-extensions.git"
-            GIT_TAG v5.1.6
+            GIT_TAG v5.1.8
         )
         FetchContent_MakeAvailable(DRAMSysExtensions)
     endif()
