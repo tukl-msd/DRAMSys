@@ -45,6 +45,7 @@
 #include "DRAMSys/configuration/json/DRAMSysConfiguration.h"
 #include "DRAMSys/statistics/Group.h"
 #include "DRAMSys/statistics/StatsProvider.h"
+#include "DRAMUtils/memspec/MemSpec.h"
 
 #include <memory>
 #include <string>
@@ -57,6 +58,7 @@ namespace DRAMSys
 {
 
 class AddressDecoder;
+class AddressMapping;
 class Arbiter;
 class Controller;
 class DRAMPowerAdapter;
@@ -71,6 +73,13 @@ class DRAMSys : public sc_core::sc_module, public Stats::StatsProvider
 {
 public:
     tlm_utils::multi_passthrough_target_socket<DRAMSys> tSocket{"DRAMSys_tSocket"};
+
+    DRAMSys(const sc_core::sc_module_name& name,
+            std::string simid,
+            SimConfig const& simconfig,
+            McConfig const& mcconfig,
+            DRAMUtils::MemSpec::MemSpecVariant const& memspec,
+            AddressMapping const& addressmapping);
 
     DRAMSys(const sc_core::sc_module_name& name, const Config::Configuration& config);
 
@@ -130,7 +139,7 @@ private:
     void end_of_simulation() override;
 
     void setupDebugManager(const std::string& traceName) const;
-    void setupTlmRecorders(const std::string& traceName, const Config::Configuration& configLib);
+    void setupTlmRecorders(const std::string& traceName);
 
     std::unique_ptr<const MemSpec> memSpec;
     std::unique_ptr<SimConfig> simConfig;

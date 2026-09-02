@@ -47,13 +47,13 @@ SchedulerFifo::SchedulerFifo(const McConfig& config, const MemSpec& memSpec)
 {
     buffer = ControllerVector<Bank, std::deque<tlm_generic_payload*>>(memSpec.banksPerChannel);
 
-    if (config.schedulerBuffer == Config::SchedulerBufferType::Bankwise)
+    if (config.schedulerBuffer == McConfig::SchedulerBuffer::Bankwise)
         bufferCounter = std::make_unique<BufferCounterBankwise>(config.requestBufferSize,
                                                                 memSpec.banksPerChannel);
-    else if (config.schedulerBuffer == Config::SchedulerBufferType::ReadWrite)
+    else if (config.schedulerBuffer == McConfig::SchedulerBuffer::ReadWrite)
         bufferCounter = std::make_unique<BufferCounterReadWrite>(config.requestBufferSizeRead,
                                                                  config.requestBufferSizeWrite);
-    else if (config.schedulerBuffer == Config::SchedulerBufferType::Shared)
+    else if (config.schedulerBuffer == McConfig::SchedulerBuffer::Shared)
         bufferCounter = std::make_unique<BufferCounterShared>(config.requestBufferSize);
 }
 

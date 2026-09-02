@@ -46,28 +46,71 @@ namespace DRAMSys
 
 struct McConfig
 {
-    McConfig(const Config::McConfig& config, const MemSpec& memSpec);
+    McConfig(const Config::McConfig& config, sc_core::sc_time tCK);
 
-    Config::PagePolicyType pagePolicy;
-    Config::SchedulerType scheduler;
-    Config::SchedulerBufferType schedulerBuffer;
+    enum class PagePolicy : uint8_t
+    {
+        Open,
+        OpenAdaptive,
+        Closed,
+        ClosedAdaptive,
+    } pagePolicy;
+    enum class Scheduler : uint8_t
+    {
+        Fifo,
+        FrFcfs,
+        FrFcfsGrp,
+        GrpFrFcfs,
+        GrpFrFcfsWm,
+    } scheduler;
+    enum class SchedulerBuffer : uint8_t
+    {
+        Bankwise,
+        ReadWrite,
+        Shared,
+    } schedulerBuffer;
 
     unsigned int lowWatermark;
     unsigned int highWatermark;
 
-    Config::CmdMuxType cmdMux;
-    Config::RespQueueType respQueue;
-    Config::ArbiterType arbiter;
+    enum class CmdMux : uint8_t
+    {
+        Oldest,
+        Strict,
+    } cmdMux;
+    enum class RespQueue : uint8_t
+    {
+        Fifo,
+        Reorder,
+    } respQueue;
+    enum class Arbiter : uint8_t
+    {
+        Simple,
+        Fifo,
+        Reorder,
+    } arbiter;
 
     unsigned int requestBufferSize;
     unsigned int requestBufferSizeRead;
     unsigned int requestBufferSizeWrite;
 
-    Config::RefreshPolicyType refreshPolicy;
+    enum class RefreshPolicy : uint8_t
+    {
+        NoRefresh,
+        AllBank,
+        PerBank,
+        Per2Bank,
+        SameBank,
+        DualBank,
+    } refreshPolicy;
     unsigned int refreshMaxPostponed;
     unsigned int refreshMaxPulledin;
 
-    Config::PowerDownPolicyType powerDownPolicy;
+    enum class PowerDownPolicy : uint8_t
+    {
+        NoPowerDown,
+        Staggered,
+    } powerDownPolicy;
     unsigned int maxActiveTransactions;
     bool refreshManagement;
 

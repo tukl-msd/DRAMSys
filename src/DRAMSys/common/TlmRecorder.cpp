@@ -44,7 +44,6 @@
 #include "DRAMSys/common/DebugManager.h"
 
 #include <filesystem>
-#include <fstream>
 #include <sqlite3.h>
 
 using namespace sc_core;
@@ -57,10 +56,7 @@ TlmRecorder::TlmRecorder(const std::string& name,
                          const SimConfig& simConfig,
                          const McConfig& mcConfig,
                          const MemSpec& memSpec,
-                         const std::string& dbName,
-                         const std::string& mcConfigString,
-                         const std::string& memSpecString,
-                         const std::string& traces) :
+                         const std::string& dbName) :
     name(name),
     simConfig(simConfig),
     mcConfig(mcConfig),
@@ -83,7 +79,6 @@ TlmRecorder::TlmRecorder(const std::string& name,
     executeInitialSqlCommand();
     prepareSqlStatements();
 
-    insertGeneralInfo(mcConfigString, memSpecString, traces);
     insertCommandLengths();
 
     PRINTDEBUGMESSAGE(name, "Starting new database transaction");
@@ -435,10 +430,11 @@ void TlmRecorder::insertDebugMessageInDB(const std::string& message, const sc_ti
     executeSqlStatement(insertDebugMessageStatement);
 }
 
-void TlmRecorder::insertGeneralInfo(const std::string& mcConfigString,
-                                    const std::string& memSpecString,
-                                    const std::string& traces)
+void TlmRecorder::insertGeneralInfo(const std::string& traces,
+                                    const std::string& mcConfigString,
+                                    const std::string& memSpecString)
 {
+    sqlite3_exec(db, "DELETE FROM GeneralInfo;", nullptr, nullptr, nullptr);
     sqlite3_bind_int(insertGeneralInfoStatement, 1, static_cast<int>(memSpec.ranksPerChannel));
     sqlite3_bind_int(insertGeneralInfoStatement, 2, static_cast<int>(memSpec.bankGroupsPerChannel));
     sqlite3_bind_int(insertGeneralInfoStatement, 3, static_cast<int>(memSpec.banksPerChannel));

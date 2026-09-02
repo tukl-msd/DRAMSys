@@ -79,7 +79,6 @@ public:
     SC_HAS_PROCESS(Controller);
     Controller(const sc_core::sc_module_name& name,
                const McConfig& config,
-               const DRAMUtils::MemSpec::MemSpecVariant& memSpecVar,
                const MemSpec& memSpec,
                const SimConfig& simConfig,
                const AddressDecoder& addressDecoder,

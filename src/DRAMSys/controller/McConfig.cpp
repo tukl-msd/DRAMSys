@@ -38,66 +38,45 @@
 namespace DRAMSys
 {
 
-McConfig::McConfig(const Config::McConfig& config, const MemSpec& memSpec) :
-    pagePolicy(config.PagePolicy.value_or(DEFAULT_PAGE_POLICY)),
-    scheduler(config.Scheduler.value_or(DEFAULT_SCHEDULER)),
-    schedulerBuffer(config.SchedulerBuffer.value_or(DEFAULT_SCHEDULER_BUFFER)),
+McConfig::McConfig(const Config::McConfig& config, sc_core::sc_time tCK) :
+    pagePolicy(static_cast<PagePolicy>(config.PagePolicy.value_or(DEFAULT_PAGE_POLICY))),
+    scheduler(static_cast<Scheduler>(config.Scheduler.value_or(DEFAULT_SCHEDULER))),
+    schedulerBuffer(
+        static_cast<SchedulerBuffer>(config.SchedulerBuffer.value_or(DEFAULT_SCHEDULER_BUFFER))),
     lowWatermark(config.LowWatermark.value_or(DEFAULT_LOW_WATERMARK)),
     highWatermark(config.HighWatermark.value_or(DEFAULT_HIGH_WATERMARK)),
-    cmdMux(config.CmdMux.value_or(DEFAULT_CMD_MUX)),
-    respQueue(config.RespQueue.value_or(DEFAULT_RESP_QUEUE)),
-    arbiter(config.Arbiter.value_or(DEFAULT_ARBITER)),
+    cmdMux(static_cast<CmdMux>(config.CmdMux.value_or(DEFAULT_CMD_MUX))),
+    respQueue(static_cast<RespQueue>(config.RespQueue.value_or(DEFAULT_RESP_QUEUE))),
+    arbiter(static_cast<Arbiter>(config.Arbiter.value_or(DEFAULT_ARBITER))),
     requestBufferSize(config.RequestBufferSize.value_or(DEFAULT_REQUEST_BUFFER_SIZE)),
     requestBufferSizeRead(config.RequestBufferSizeRead.value_or(DEFAULT_REQUEST_BUFFER_SIZE_READ)),
     requestBufferSizeWrite(
         config.RequestBufferSizeWrite.value_or(DEFAULT_REQUEST_BUFFER_SIZE_WRITE)),
-    refreshPolicy(config.RefreshPolicy.value_or(DEFAULT_REFRESH_POLICY)),
+    refreshPolicy(
+        static_cast<RefreshPolicy>(config.RefreshPolicy.value_or(DEFAULT_REFRESH_POLICY))),
     refreshMaxPostponed(config.RefreshMaxPostponed.value_or(DEFAULT_REFRESH_MAX_POSTPONED)),
     refreshMaxPulledin(config.RefreshMaxPulledin.value_or(DEFAULT_REFRESH_MAX_PULLEDIN)),
-    powerDownPolicy(config.PowerDownPolicy.value_or(DEFAULT_POWER_DOWN_POLICY)),
+    powerDownPolicy(
+        static_cast<PowerDownPolicy>(config.PowerDownPolicy.value_or(DEFAULT_POWER_DOWN_POLICY))),
     maxActiveTransactions(config.MaxActiveTransactions.value_or(DEFAULT_MAX_ACTIVE_TRANSACTIONS)),
     refreshManagement(config.RefreshManagement.value_or(DEFAULT_REFRESH_MANAGEMENT)),
     gearing(config.Gearing.value_or(DEFAULT_GEARING)),
-    arbitrationDelayFw(config.ArbitrationDelayFw.value_or(DEFAULT_ARBITRATION_DELAY_FW) * memSpec.tCK),
-    arbitrationDelayBw(config.ArbitrationDelayBw.value_or(DEFAULT_ARBITRATION_DELAY_BW) * memSpec.tCK),
-    thinkDelayFw(config.ThinkDelayFw.value_or(DEFAULT_THINK_DELAY_FW) * memSpec.tCK),
-    thinkDelayBw(config.ThinkDelayBw.value_or(DEFAULT_THINK_DELAY_BW) * memSpec.tCK),
-    phyDelayFw(config.PhyDelayFw.value_or(DEFAULT_PHY_DELAY_FW) * memSpec.tCK),
-    phyDelayBw(config.PhyDelayBw.value_or(DEFAULT_PHY_DELAY_BW) * memSpec.tCK),
-    blockingReadDelay(config.BlockingReadDelay.value_or(DEFAULT_BLOCKING_READ_DELAY) * memSpec.tCK),
-    blockingWriteDelay(config.BlockingWriteDelay.value_or(DEFAULT_BLOCKING_WRITE_DELAY) * memSpec.tCK)
+    arbitrationDelayFw(config.ArbitrationDelayFw.value_or(DEFAULT_ARBITRATION_DELAY_FW) * tCK),
+    arbitrationDelayBw(config.ArbitrationDelayBw.value_or(DEFAULT_ARBITRATION_DELAY_BW) * tCK),
+    thinkDelayFw(config.ThinkDelayFw.value_or(DEFAULT_THINK_DELAY_FW) * tCK),
+    thinkDelayBw(config.ThinkDelayBw.value_or(DEFAULT_THINK_DELAY_BW) * tCK),
+    phyDelayFw(config.PhyDelayFw.value_or(DEFAULT_PHY_DELAY_FW) * tCK),
+    phyDelayBw(config.PhyDelayBw.value_or(DEFAULT_PHY_DELAY_BW) * tCK),
+    blockingReadDelay(config.BlockingReadDelay.value_or(DEFAULT_BLOCKING_READ_DELAY) * tCK),
+    blockingWriteDelay(config.BlockingWriteDelay.value_or(DEFAULT_BLOCKING_WRITE_DELAY) * tCK)
 {
-    if (schedulerBuffer == Config::SchedulerBufferType::ReadWrite &&
+    if (schedulerBuffer == SchedulerBuffer::ReadWrite &&
         config.RequestBufferSize.has_value())
     {
         SC_REPORT_WARNING("McConfig",
                           "RequestBufferSize ignored when using ReadWrite SchedulerBuffer. Use "
                           "RequestBufferSizeRead and RequestBufferSizeWrite instead!");
     }
-
-    if (pagePolicy == Config::PagePolicyType::Invalid)
-        SC_REPORT_FATAL("McConfig", "Invalid PagePolicy");
-
-    if (scheduler == Config::SchedulerType::Invalid)
-        SC_REPORT_FATAL("McConfig", "Invalid Scheduler");
-
-    if (schedulerBuffer == Config::SchedulerBufferType::Invalid)
-        SC_REPORT_FATAL("McConfig", "Invalid SchedulerBuffer");
-
-    if (cmdMux == Config::CmdMuxType::Invalid)
-        SC_REPORT_FATAL("McConfig", "Invalid CmdMux");
-
-    if (respQueue == Config::RespQueueType::Invalid)
-        SC_REPORT_FATAL("McConfig", "Invalid RespQueue");
-
-    if (refreshPolicy == Config::RefreshPolicyType::Invalid)
-        SC_REPORT_FATAL("McConfig", "Invalid RefreshPolicy");
-
-    if (powerDownPolicy == Config::PowerDownPolicyType::Invalid)
-        SC_REPORT_FATAL("Configuration", "Invalid PowerDownPolicy");
-
-    if (arbiter == Config::ArbiterType::Invalid)
-        SC_REPORT_FATAL("Arbiter", "Invalid Arbiter");
 
     if (requestBufferSize < 1)
         SC_REPORT_FATAL("Configuration", "Minimum request buffer size is 1!");

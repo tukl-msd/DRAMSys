@@ -68,10 +68,7 @@ public:
                 const SimConfig& simConfig,
                 const McConfig& mcConfig,
                 const MemSpec& memSpec,
-                const std::string& dbName,
-                const std::string& mcconfig,
-                const std::string& memspec,
-                const std::string& traces);
+                const std::string& dbName);
     TlmRecorder(const TlmRecorder&) = delete;
     TlmRecorder(TlmRecorder&&) = default;
     TlmRecorder& operator=(const TlmRecorder&) = delete;
@@ -86,6 +83,10 @@ public:
     void recordBandwidth(double timeInSeconds, double averageBandwidth);
     void recordDebugMessage(const std::string& message, const sc_core::sc_time& time);
     void finalize();
+
+    void insertGeneralInfo(const std::string& traces,
+                           const std::string& mcConfigString = "",
+                           const std::string& memSpecString = "");
 
 private:
     std::string name;
@@ -176,9 +177,6 @@ private:
 
     void terminateRemainingTransactions();
     void commitRecordedDataToDB();
-    void insertGeneralInfo(const std::string& mcConfigString,
-                           const std::string& memSpecString,
-                           const std::string& traces);
     void insertCommandLengths();
     void insertTransactionInDB(const Transaction& recordingData);
     void insertRangeInDB(uint64_t id, const sc_core::sc_time& begin, const sc_core::sc_time& end);

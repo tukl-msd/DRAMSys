@@ -41,6 +41,7 @@
 #include "DRAMSys/common/StandardMapping.h"
 #include "DRAMSys/common/dramExtensions.h"
 #include "DRAMSys/configuration/json/McConfig.h"
+#include "DRAMSys/controller/McConfig.h"
 #include "DRAMSys/controller/checker/CheckerIF.h"
 #include "DRAMSys/controller/cmdmux/CmdMuxOldest.h"
 #include "DRAMSys/controller/cmdmux/CmdMuxStrict.h"
@@ -99,7 +100,6 @@ namespace DRAMSys
 
 Controller::Controller(const sc_module_name& name,
                        const McConfig& config,
-                       const DRAMUtils::MemSpec::MemSpecVariant& memSpecVar,
                        const MemSpec& memSpec,
                        const SimConfig& simConfig,
                        const AddressDecoder& addressDecoder,
@@ -132,47 +132,103 @@ Controller::Controller(const sc_module_name& name,
 
     ranksNumberOfPayloads = ControllerVector<Rank, unsigned>(memSpec.ranksPerChannel);
 
+
     // instantiate timing checker
-    checker = std::visit([this, &memSpec](const auto& v) -> std::unique_ptr<CheckerIF> {
-        using T = std::decay_t<decltype(v)>;
-        if constexpr (StandardMapping::has_CheckerType_v<T> && StandardMapping::has_MemSpecType_v<T>) {
-            using CheckerType = typename StandardMapping::Mapping<T>::CheckerType;
-            using MemSpecType = typename StandardMapping::Mapping<T>::MemSpecType;
-            try
-            {
-                return std::make_unique<CheckerType>(dynamic_cast<const MemSpecType&>(memSpec));
-            }
-            catch (const std::bad_cast& e)
-            {
-                // Indicates invalid mapping in DRAMSysMapping.h
-                SC_REPORT_FATAL(sc_module::name(), "Invalid Mapping");
-                return nullptr;
-            }
+    try
+    {
+        if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecDDR3::id)
+        {
+            checker = std::make_unique<CheckerDDR3>(dynamic_cast<const MemSpecDDR3&>(memSpec));
         }
-        SC_REPORT_FATAL("Configuration", ("Unsupported DRAM type: " + std::string(T::id)).c_str());
-        return nullptr;
-    }, memSpecVar.getVariant());
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecDDR4::id)
+        {
+            checker = std::make_unique<CheckerDDR4>(dynamic_cast<const MemSpecDDR4&>(memSpec));
+        }
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecWideIO::id)
+        {
+            checker = std::make_unique<CheckerWideIO>(dynamic_cast<const MemSpecWideIO&>(memSpec));
+        }
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecLPDDR4::id)
+        {
+            checker = std::make_unique<CheckerLPDDR4>(dynamic_cast<const MemSpecLPDDR4&>(memSpec));
+        }
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecWideIO2::id)
+        {
+            checker =
+                std::make_unique<CheckerWideIO2>(dynamic_cast<const MemSpecWideIO2&>(memSpec));
+        }
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecHBM2::id)
+        {
+            checker = std::make_unique<CheckerHBM2>(dynamic_cast<const MemSpecHBM2&>(memSpec));
+        }
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecGDDR5::id)
+        {
+            checker = std::make_unique<CheckerGDDR5>(dynamic_cast<const MemSpecGDDR5&>(memSpec));
+        }
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecGDDR5X::id)
+        {
+            checker = std::make_unique<CheckerGDDR5X>(dynamic_cast<const MemSpecGDDR5X&>(memSpec));
+        }
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecGDDR6::id)
+        {
+            checker = std::make_unique<CheckerGDDR6>(dynamic_cast<const MemSpecGDDR6&>(memSpec));
+        }
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecSTTMRAM::id)
+        {
+            checker =
+                std::make_unique<CheckerSTTMRAM>(dynamic_cast<const MemSpecSTTMRAM&>(memSpec));
+        }
+#ifdef DDR5_SIM
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecDDR5::id)
+        {
+            checker = std::make_unique<CheckerDDR5>(dynamic_cast<const MemSpecDDR5&>(memSpec));
+        }
+#endif
+#ifdef LPDDR5_SIM
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecLPDDR5::id)
+        {
+            checker = std::make_unique<CheckerLPDDR5>(dynamic_cast<const MemSpecLPDDR5&>(memSpec));
+        }
+#endif
+#ifdef LPDDR6_SIM
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecLPDDR6::id)
+        {
+            checker = std::make_unique<CheckerLPDDR6>(dynamic_cast<const MemSpecLPDDR6&>(memSpec));
+        }
+#endif
+#ifdef HBM3_4_SIM
+        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecHBM3::id ||
+                 memSpec.memoryType == DRAMUtils::MemSpec::MemSpecHBM4::id)
+        {
+            checker = std::make_unique<CheckerHBM3_4>(dynamic_cast<const MemSpecHBM3_4&>(memSpec));
+        }
+#endif
+    }
+    catch (const std::bad_cast& e)
+    {
+        SC_REPORT_FATAL(sc_module::name(), "Wrong MemSpec chosen");
+    }
 
     // instantiate scheduler and command mux
-    if (config.scheduler == Config::SchedulerType::Fifo)
+    if (config.scheduler == McConfig::Scheduler::Fifo)
         scheduler = std::make_unique<SchedulerFifo>(config, memSpec);
-    else if (config.scheduler == Config::SchedulerType::FrFcfs)
+    else if (config.scheduler == McConfig::Scheduler::FrFcfs)
         scheduler = std::make_unique<SchedulerFrFcfs>(config, memSpec);
-    else if (config.scheduler == Config::SchedulerType::FrFcfsGrp)
+    else if (config.scheduler == McConfig::Scheduler::FrFcfsGrp)
         scheduler = std::make_unique<SchedulerFrFcfsGrp>(config, memSpec);
-    else if (config.scheduler == Config::SchedulerType::GrpFrFcfs)
+    else if (config.scheduler == McConfig::Scheduler::GrpFrFcfs)
         scheduler = std::make_unique<SchedulerGrpFrFcfs>(config, memSpec);
-    else if (config.scheduler == Config::SchedulerType::GrpFrFcfsWm)
+    else if (config.scheduler == McConfig::Scheduler::GrpFrFcfsWm)
         scheduler = std::make_unique<SchedulerGrpFrFcfsWm>(config, memSpec);
 
-    if (config.cmdMux == Config::CmdMuxType::Oldest)
+    if (config.cmdMux == McConfig::CmdMux::Oldest)
     {
         if (memSpec.hasRasAndCasBus())
             cmdMux = std::make_unique<CmdMuxOldestRasCas>(memSpec);
         else
             cmdMux = std::make_unique<CmdMuxOldest>(memSpec);
     }
-    else if (config.cmdMux == Config::CmdMuxType::Strict)
+    else if (config.cmdMux == McConfig::CmdMux::Strict)
     {
         if (memSpec.hasRasAndCasBus())
             cmdMux = std::make_unique<CmdMuxStrictRasCas>(memSpec);
@@ -180,31 +236,31 @@ Controller::Controller(const sc_module_name& name,
             cmdMux = std::make_unique<CmdMuxStrict>(memSpec);
     }
 
-    if (config.respQueue == Config::RespQueueType::Fifo)
+    if (config.respQueue == McConfig::RespQueue::Fifo)
         respQueue = std::make_unique<RespQueueFifo>();
-    else if (config.respQueue == Config::RespQueueType::Reorder)
+    else if (config.respQueue == McConfig::RespQueue::Reorder)
         respQueue = std::make_unique<RespQueueReorder>();
 
     // instantiate bank machines (one per bank)
-    if (config.pagePolicy == Config::PagePolicyType::Open)
+    if (config.pagePolicy == McConfig::PagePolicy::Open)
     {
         for (unsigned bankID = 0; bankID < memSpec.banksPerChannel; bankID++)
             bankMachines.push_back(
                 std::make_unique<BankMachineOpen>(config, memSpec, *scheduler, Bank(bankID)));
     }
-    else if (config.pagePolicy == Config::PagePolicyType::OpenAdaptive)
+    else if (config.pagePolicy == McConfig::PagePolicy::OpenAdaptive)
     {
         for (unsigned bankID = 0; bankID < memSpec.banksPerChannel; bankID++)
             bankMachines.push_back(std::make_unique<BankMachineOpenAdaptive>(
                 config, memSpec, *scheduler, Bank(bankID)));
     }
-    else if (config.pagePolicy == Config::PagePolicyType::Closed)
+    else if (config.pagePolicy == McConfig::PagePolicy::Closed)
     {
         for (unsigned bankID = 0; bankID < memSpec.banksPerChannel; bankID++)
             bankMachines.push_back(
                 std::make_unique<BankMachineClosed>(config, memSpec, *scheduler, Bank(bankID)));
     }
-    else if (config.pagePolicy == Config::PagePolicyType::ClosedAdaptive)
+    else if (config.pagePolicy == McConfig::PagePolicy::ClosedAdaptive)
     {
         for (unsigned bankID = 0; bankID < memSpec.banksPerChannel; bankID++)
             bankMachines.push_back(std::make_unique<BankMachineClosedAdaptive>(
@@ -221,12 +277,12 @@ Controller::Controller(const sc_module_name& name,
     }
 
     // instantiate power-down managers (one per rank)
-    if (config.powerDownPolicy == Config::PowerDownPolicyType::NoPowerDown)
+    if (config.powerDownPolicy == McConfig::PowerDownPolicy::NoPowerDown)
     {
         for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
             powerDownManagers.push_back(std::make_unique<PowerDownManagerDummy>());
     }
-    else if (config.powerDownPolicy == Config::PowerDownPolicyType::Staggered)
+    else if (config.powerDownPolicy == McConfig::PowerDownPolicy::Staggered)
     {
         for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
         {
@@ -236,12 +292,12 @@ Controller::Controller(const sc_module_name& name,
     }
 
     // instantiate refresh managers (one per rank)
-    if (config.refreshPolicy == Config::RefreshPolicyType::NoRefresh)
+    if (config.refreshPolicy == McConfig::RefreshPolicy::NoRefresh)
     {
         for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
             refreshManagers.push_back(std::make_unique<RefreshManagerDummy>());
     }
-    else if (config.refreshPolicy == Config::RefreshPolicyType::AllBank)
+    else if (config.refreshPolicy == McConfig::RefreshPolicy::AllBank)
     {
         for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
         {
@@ -253,7 +309,7 @@ Controller::Controller(const sc_module_name& name,
                                                         Rank(rankID)));
         }
     }
-    else if (config.refreshPolicy == Config::RefreshPolicyType::SameBank)
+    else if (config.refreshPolicy == McConfig::RefreshPolicy::SameBank)
     {
         for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
         {
@@ -265,7 +321,7 @@ Controller::Controller(const sc_module_name& name,
                                                          Rank(rankID)));
         }
     }
-    else if (config.refreshPolicy == Config::RefreshPolicyType::PerBank)
+    else if (config.refreshPolicy == McConfig::RefreshPolicy::PerBank)
     {
         for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
         {
@@ -278,7 +334,7 @@ Controller::Controller(const sc_module_name& name,
                                                         Rank(rankID)));
         }
     }
-    else if (config.refreshPolicy == Config::RefreshPolicyType::Per2Bank)
+    else if (config.refreshPolicy == McConfig::RefreshPolicy::Per2Bank)
     {
         for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
         {
@@ -291,7 +347,7 @@ Controller::Controller(const sc_module_name& name,
                                                          Rank(rankID)));
         }
     }
-    else if (config.refreshPolicy == Config::RefreshPolicyType::DualBank)
+    else if (config.refreshPolicy == McConfig::RefreshPolicy::DualBank)
     {
         for (unsigned rankID = 0; rankID < memSpec.ranksPerChannel; rankID++)
         {

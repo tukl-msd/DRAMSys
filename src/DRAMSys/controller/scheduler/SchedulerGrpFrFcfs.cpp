@@ -48,13 +48,13 @@ SchedulerGrpFrFcfs::SchedulerGrpFrFcfs(const McConfig& config, const MemSpec& me
     readBuffer = ControllerVector<Bank, std::list<tlm_generic_payload*>>(memSpec.banksPerChannel);
     writeBuffer = ControllerVector<Bank, std::list<tlm_generic_payload*>>(memSpec.banksPerChannel);
 
-    if (config.schedulerBuffer == Config::SchedulerBufferType::Bankwise)
+    if (config.schedulerBuffer == McConfig::SchedulerBuffer::Bankwise)
         bufferCounter = std::make_unique<BufferCounterBankwise>(config.requestBufferSize,
                                                                 memSpec.banksPerChannel);
-    else if (config.schedulerBuffer == Config::SchedulerBufferType::ReadWrite)
+    else if (config.schedulerBuffer == McConfig::SchedulerBuffer::ReadWrite)
         bufferCounter = std::make_unique<BufferCounterReadWrite>(config.requestBufferSizeRead,
                                                                  config.requestBufferSizeWrite);
-    else if (config.schedulerBuffer == Config::SchedulerBufferType::Shared)
+    else if (config.schedulerBuffer == McConfig::SchedulerBuffer::Shared)
         bufferCounter = std::make_unique<BufferCounterShared>(config.requestBufferSize);
 
     SC_REPORT_WARNING("SchedulerGrpFrFcfs", "Hazard detection not yet implemented!");

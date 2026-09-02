@@ -46,12 +46,12 @@
 #include "DRAMSys/common/StandardMapping.h"
 #include "DRAMSys/common/TlmATRecorder.h"
 #include "DRAMSys/common/utils.h"
-#include "DRAMSys/configuration/json/MemSpec.h"
 #include "DRAMSys/controller/Controller.h"
 #include "DRAMSys/controller/McConfig.h"
 #include "DRAMSys/simulation/AddressDecoder.h"
 #include "DRAMSys/simulation/Arbiter.h"
 #include "DRAMSys/simulation/Dram.h"
+#include "DRAMSys/simulation/AddressMapping.h"
 #include "DRAMSys/simulation/SimConfig.h"
 
 #include "DRAMSys/configuration/memspec/MemSpecDDR3.h"    // IWYU pragma: keep
@@ -101,11 +101,35 @@ namespace DRAMSys
 {
 
 DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuration& config) :
+    DRAMSys(name,
+            config.simulationid,
+            SimConfig(config.simconfig),
+            McConfig(config.mcconfig, createMemSpec(config.memspec)->tCK),
+            config.memspec,
+            config.addressmapping)
+{
+    for (auto& recorder : tlmRecorders)
+    {
+        nlohmann::json mcconfig_json;
+        nlohmann::json memspec_json;
+        mcconfig_json["mcconfig"] = config.mcconfig;
+        memspec_json["memspec"] = config.memspec;
+        recorder.insertGeneralInfo(
+            this->simConfig->simulationName, mcconfig_json.dump(), memspec_json.dump());
+    }
+}
+
+DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
+                 std::string simid,
+                 SimConfig const& simconfig,
+                 McConfig const& mcconfig,
+                 DRAMUtils::MemSpec::MemSpecVariant const& memspec,
+                 AddressMapping const& addressmapping) :
     sc_module(name),
-    memSpec(createMemSpec(config.memspec)),
-    simConfig(std::make_unique<SimConfig>(config.simconfig)),
-    mcConfig(std::make_unique<McConfig>(config.mcconfig, *memSpec)),
-    addressDecoder(std::make_unique<AddressDecoder>(config.addressmapping)),
+    memSpec(createMemSpec(memspec)),
+    simConfig(std::make_unique<SimConfig>(simconfig)),
+    mcConfig(std::make_unique<McConfig>(mcconfig)),
+    addressDecoder(std::make_unique<AddressDecoder>(addressmapping)),
     arbiter(createArbiter(*simConfig, *mcConfig, *memSpec, *addressDecoder)),
     stats(*this)
 {
@@ -132,12 +156,11 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
     if (simConfig->databaseRecording)
     {
         std::string traceName = simConfig->simulationName;
-        if (!config.simulationid.empty())
-            traceName = config.simulationid + '_' + traceName;
+        traceName = simid + '_' + traceName;
 
         // Create and properly initialize TLM recorders.
         // They need to be ready before creating some modules.
-        setupTlmRecorders(traceName, config);
+        setupTlmRecorders(traceName);
 
         // Create controllers and DRAMs
         for (std::size_t i = 0; i < memSpec->numberOfChannels; i++)
@@ -145,7 +168,6 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
             controllers.emplace_back(
                 std::make_unique<Controller>(("controller" + std::to_string(i)).c_str(),
                                              *mcConfig,
-                                             config.memspec,
                                              *memSpec,
                                              *simConfig,
                                              *addressDecoder,
@@ -175,7 +197,6 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
             controllers.emplace_back(
                 std::make_unique<Controller>(("controller" + std::to_string(i)).c_str(),
                                              *mcConfig,
-                                             config.memspec,
                                              *memSpec,
                                              *simConfig,
                                              *addressDecoder,
@@ -187,7 +208,7 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
 #ifdef USE_DRAMPOWER
     if (simConfig->powerAnalysis)
     {
-        createDRAMPowers(config.memspec);
+        createDRAMPowers(memspec);
     }
 #endif
 
@@ -241,7 +262,7 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
 
 DRAMSys::~DRAMSys() = default;
 
-void DRAMSys::setupTlmRecorders(const std::string& traceName, const Config::Configuration& config)
+void DRAMSys::setupTlmRecorders(const std::string& traceName)
 {
     // Create TLM Recorders, one per channel.
     // Reserve is required because the recorders use double buffers that are accessed with pointers.
@@ -254,19 +275,9 @@ void DRAMSys::setupTlmRecorders(const std::string& traceName, const Config::Conf
             std::string("DRAMSys") + "_" + traceName + "_ch" + std::to_string(i) + ".tdb";
         std::string recorderName = "tlmRecorder" + std::to_string(i);
 
-        nlohmann::json mcconfig;
-        nlohmann::json memspec;
-        mcconfig[Config::McConfig::KEY] = config.mcconfig;
-        memspec[Config::MemSpecConstants::KEY] = config.memspec;
-
-        tlmRecorders.emplace_back(recorderName,
-                                  *simConfig,
-                                  *mcConfig,
-                                  *memSpec,
-                                  dbName,
-                                  mcconfig.dump(),
-                                  memspec.dump(),
-                                  simConfig->simulationName);
+        auto& recorder =
+            tlmRecorders.emplace_back(recorderName, *simConfig, *mcConfig, *memSpec, dbName);
+        recorder.insertGeneralInfo(this->simConfig->simulationName);
     }
 }
 
@@ -394,15 +405,15 @@ std::unique_ptr<Arbiter> DRAMSys::createArbiter(const SimConfig& simConfig,
                                                 const MemSpec& memSpec,
                                                 const AddressDecoder& addressDecoder)
 {
-    if (mcConfig.arbiter == Config::ArbiterType::Simple)
+    if (mcConfig.arbiter == McConfig::Arbiter::Simple)
         return std::make_unique<ArbiterSimple>(
             "arbiter", simConfig, mcConfig, memSpec, addressDecoder);
 
-    if (mcConfig.arbiter == Config::ArbiterType::Fifo)
+    if (mcConfig.arbiter == McConfig::Arbiter::Fifo)
         return std::make_unique<ArbiterFifo>(
             "arbiter", simConfig, mcConfig, memSpec, addressDecoder);
 
-    if (mcConfig.arbiter == Config::ArbiterType::Reorder)
+    if (mcConfig.arbiter == McConfig::Arbiter::Reorder)
         return std::make_unique<ArbiterReorder>(
             "arbiter", simConfig, mcConfig, memSpec, addressDecoder);
 
