@@ -40,8 +40,10 @@
 #ifndef ADDRESSDECODER_H
 #define ADDRESSDECODER_H
 
-#include "DRAMSys/configuration/memspec/MemSpec.h"
-#include "DRAMSys/configuration/json/AddressMapping.h"
+#include "AddressMapping.h"
+
+#include <DRAMSys/configuration/memspec/MemSpec.h>
+
 #include <vector>
 #include <bitset>
 
@@ -95,7 +97,7 @@ struct AddressComponent {
 class AddressDecoder
 {
 public:
-    AddressDecoder(const ::DRAMSys::Config::AddressMapping& addressMapping);
+    AddressDecoder(AddressMapping const& addressMapping);
 
     /**
      * @brief Checks if the decoded address is valid according to the memory specification.
@@ -161,8 +163,6 @@ private:
     AddressComponent stackBits;
 
     uint64_t upperBoundAddress;
-
-    static unsigned int getHighestBit(Config::AddressMapping const& addressMapping);
 
     /**
      * @brief Checks if a given value is a power of two.

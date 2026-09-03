@@ -101,6 +101,7 @@ add_library(dramsys
     DRAMSys/initiators/request/RequestIssuer.cpp
     DRAMSys/power/DRAMPowerAdapter.cpp
     DRAMSys/simulation/AddressDecoder.cpp
+    DRAMSys/simulation/AddressMapping.cpp
     DRAMSys/simulation/Arbiter.cpp
     DRAMSys/simulation/Dram.cpp
     DRAMSys/simulation/SimConfig.cpp

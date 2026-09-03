@@ -38,7 +38,6 @@
  */
 
 #include "AddressDecoder.h"
-#include "DRAMSys/configuration/json/AddressMapping.h"
 
 #include <bitset>
 #include <cmath>
@@ -92,20 +91,47 @@ uint64_t AddressDecoder::gf2Multiplication(const uint64_t& inputVec, const std::
     // }
 }
 
+static unsigned int getHighestBit(AddressMapping const& addressMapping)
+{
+    unsigned int highestBit = std::numeric_limits<unsigned int>::min();
+
+    auto checkAndUpdate = [&](std::vector<AddressMapping::BitEntry> const& bits)
+    {
+        for (const auto& vector : bits)
+        {
+            for (const auto& bit : vector)
+            {
+                highestBit = std::max(bit, highestBit);
+            }
+        }
+    };
+
+    checkAndUpdate(addressMapping.byteBits);
+    checkAndUpdate(addressMapping.burstBits);
+    checkAndUpdate(addressMapping.columnBits);
+    checkAndUpdate(addressMapping.rowBits);
+    checkAndUpdate(addressMapping.bankBits);
+    checkAndUpdate(addressMapping.bankGroupBits);
+    checkAndUpdate(addressMapping.rankBits);
+    checkAndUpdate(addressMapping.stackBits);
+    checkAndUpdate(addressMapping.pseudochannelBits);
+    checkAndUpdate(addressMapping.channelBits);
+
+    return highestBit;
+}
 
 /****************************/
 /* AddressDecoder Functions */
 /****************************/
 
-AddressDecoder::AddressDecoder(const DRAMSys::Config::AddressMapping& addressMapping) :
+AddressDecoder::AddressDecoder(AddressMapping const& addressMapping) :
     highestBitValue(getHighestBit(addressMapping)),
     mappingMatrix(std::vector<std::bitset<ADDRESS_WIDTH>>(highestBitValue + 1)),
     upperBoundAddress(static_cast<uint64_t>(std::pow(2, highestBitValue + 1) - 1))
 {
-    auto addBitsToMatrix =
-        [&](std::vector<Config::AddressMapping::BitEntry> const& bits,
-            int* rowIndex,
-            std::string_view name) -> AddressComponent
+    auto addBitsToMatrix = [&](std::vector<AddressMapping::BitEntry> const& bits,
+                               int* rowIndex,
+                               std::string_view name) -> AddressComponent
     {
         for (auto const& row : bits)
         {
@@ -119,26 +145,17 @@ AddressDecoder::AddressDecoder(const DRAMSys::Config::AddressMapping& addressMap
         return AddressComponent(*rowIndex - bits.size(), bits.size(), name);
     };
 
-    auto entryToVector = [](std::optional<std::vector<Config::AddressMapping::BitEntry>> const& entry) -> std::vector<Config::AddressMapping::BitEntry> {
-        std::vector<Config::AddressMapping::BitEntry> bitVector;
-
-        if (entry.has_value())
-            bitVector = entry.value();
-
-        return bitVector;
-    };
-
     int rowIndex = 0;
-    byteBits          = addBitsToMatrix(entryToVector(addressMapping.BYTE_BIT), &rowIndex, "By");
-    burstBits         = addBitsToMatrix(entryToVector(addressMapping.BURST_BIT), &rowIndex, "Bu");
-    columnBits        = addBitsToMatrix(entryToVector(addressMapping.COLUMN_BIT), &rowIndex, "Co");
-    bankGroupBits     = addBitsToMatrix(entryToVector(addressMapping.BANKGROUP_BIT), &rowIndex, "BG");
-    bankBits          = addBitsToMatrix(entryToVector(addressMapping.BANK_BIT), &rowIndex, "Ba");
-    rowBits           = addBitsToMatrix(entryToVector(addressMapping.ROW_BIT), &rowIndex, "Ro");
-    pseudochannelBits = addBitsToMatrix(entryToVector(addressMapping.PSEUDOCHANNEL_BIT), &rowIndex, "PC");
-    channelBits       = addBitsToMatrix(entryToVector(addressMapping.CHANNEL_BIT), &rowIndex, "Ch");
-    rankBits          = addBitsToMatrix(entryToVector(addressMapping.RANK_BIT), &rowIndex, "Ra");
-    stackBits         = addBitsToMatrix(entryToVector(addressMapping.STACK_BIT), &rowIndex, "St");
+    byteBits = addBitsToMatrix(addressMapping.byteBits, &rowIndex, "By");
+    burstBits = addBitsToMatrix(addressMapping.burstBits, &rowIndex, "Bu");
+    columnBits = addBitsToMatrix(addressMapping.columnBits, &rowIndex, "Co");
+    bankGroupBits = addBitsToMatrix(addressMapping.bankGroupBits, &rowIndex, "BG");
+    bankBits = addBitsToMatrix(addressMapping.bankBits, &rowIndex, "Ba");
+    rowBits = addBitsToMatrix(addressMapping.rowBits, &rowIndex, "Ro");
+    pseudochannelBits = addBitsToMatrix(addressMapping.pseudochannelBits, &rowIndex, "PC");
+    channelBits = addBitsToMatrix(addressMapping.channelBits, &rowIndex, "Ch");
+    rankBits = addBitsToMatrix(addressMapping.rankBits, &rowIndex, "Ra");
+    stackBits = addBitsToMatrix(addressMapping.stackBits, &rowIndex, "St");
     transposedMappingMatrix = transposeMatrix(mappingMatrix);
 }
 
@@ -446,46 +463,6 @@ void AddressDecoder::print() const
 
 bool AddressDecoder::isPowerOfTwo(unsigned value) {
     return value != 0 && (value & (value - 1)) == 0;
-}
-
-unsigned int AddressDecoder::getHighestBit(Config::AddressMapping const& addressMapping)
-{
-    unsigned int highestBit = std::numeric_limits<unsigned int>::min();
-    bool found = false;
-
-    auto checkAndUpdate =
-        [&](const std::optional<std::vector<Config::AddressMapping::BitEntry>>& bits)
-    {
-        if (bits)
-        {
-            for (const auto& vector : *bits)
-            {
-                for (const auto& bit : vector)
-                {
-                    if (bit > highestBit)
-                    {
-                        highestBit = bit;
-                        found = true;
-                    }
-                }
-            }
-        }
-    };
-
-    checkAndUpdate(addressMapping.BYTE_BIT);
-    checkAndUpdate(addressMapping.BURST_BIT);
-    checkAndUpdate(addressMapping.COLUMN_BIT);
-    checkAndUpdate(addressMapping.ROW_BIT);
-    checkAndUpdate(addressMapping.BANK_BIT);
-    checkAndUpdate(addressMapping.BANKGROUP_BIT);
-    checkAndUpdate(addressMapping.RANK_BIT);
-    checkAndUpdate(addressMapping.STACK_BIT);
-    checkAndUpdate(addressMapping.PSEUDOCHANNEL_BIT);
-    checkAndUpdate(addressMapping.CHANNEL_BIT);
-
-    return found ? highestBit
-                 : std::numeric_limits<unsigned int>::min(); // Rückgabe des höchsten Wertes oder
-                                                             // des minimalen Wertes
 }
 
 } // namespace DRAMSys
