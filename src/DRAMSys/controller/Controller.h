@@ -210,6 +210,8 @@ private:
     uint64_t numberOfCasCommands = 0;
     uint64_t numberOfReadWriteSwitches = 0;
 
+    sc_core::sc_time activeStatsWindow = sc_core::SC_ZERO_TIME;
+
     enum class AccessType {
         Read,
         Write,

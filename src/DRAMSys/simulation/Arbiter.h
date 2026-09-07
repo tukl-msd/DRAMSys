@@ -117,6 +117,8 @@ protected:
     std::vector<uint64_t> bytesPerThread;
     std::vector<uint64_t> bytesPerChannel;
 
+    sc_core::sc_time activeStatsWindow = sc_core::SC_ZERO_TIME;
+
     struct ArbiterStats : public Stats::Group
     {
         Stats::VectorStat &numberOfRequestsPerThread;

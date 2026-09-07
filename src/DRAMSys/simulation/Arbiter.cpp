@@ -611,18 +611,19 @@ void Arbiter::updateStats()
         stats.numberOfRequestsPerThread.values[i] =
             static_cast<double>(numberOfRequestsPerThread[i]);
         stats.averageBandwidthPerThread.values[i] =
-            static_cast<double>(bytesPerThread[i]) / sc_core::sc_time_stamp().to_seconds();
+            static_cast<double>(bytesPerThread[i]) / (sc_core::sc_time_stamp() - activeStatsWindow).to_seconds();
     }
 
     for (std::size_t i = 0; i < iSocket.size(); i++)
     {
         stats.averageBandwidthPerChannel.values[i] =
-            static_cast<double>(bytesPerChannel[i]) / sc_core::sc_time_stamp().to_seconds();
+            static_cast<double>(bytesPerChannel[i]) / (sc_core::sc_time_stamp() - activeStatsWindow).to_seconds();
     }
 }
 
 void Arbiter::resetStats()
 {
+    activeStatsWindow = sc_time_stamp();
     numberOfRequestsPerThread.assign(numberOfRequestsPerThread.size(), 0);
     bytesPerThread.assign(bytesPerThread.size(), 0);
     bytesPerChannel.assign(bytesPerChannel.size(), 0);

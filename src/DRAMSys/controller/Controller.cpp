@@ -844,7 +844,8 @@ void Controller::end_of_simulation()
 {
     sc_core::sc_time activeTime = static_cast<double>(numberOfBeatsServed[rank]) * memSpec.tCK /
                                   static_cast<double>(memSpec.dataRate);
-    return (activeTime / sc_core::sc_time_stamp()) * memSpec.getMaxBandwidth();
+    return (activeTime / (sc_core::sc_time_stamp() - activeStatsWindow)) *
+           memSpec.getMaxBandwidth();
 }
 
 [[nodiscard]] double Controller::getAverageBandwidth() const
@@ -968,6 +969,7 @@ void Controller::updateStats()
 
 void Controller::resetStats()
 {
+    activeStatsWindow = sc_time_stamp();
     numberOfRequests = 0;
     numberOfReadRequests = 0;
     numberOfWriteRequests = 0;
