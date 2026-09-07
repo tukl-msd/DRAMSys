@@ -43,6 +43,9 @@
 namespace DRAMSys
 {
 
+static constexpr std::size_t DUMMY_REGION_SIZE = 512;
+std::array<unsigned char, DUMMY_REGION_SIZE> dummyRegion = {};
+
 MemoryManager::MemoryManager(bool storageEnabled) : storageEnabled(storageEnabled) {};
 
 MemoryManager::~MemoryManager()
@@ -55,9 +58,7 @@ MemoryManager::~MemoryManager()
             if (storageEnabled)
             {
                 unsigned char* ptr = payload->get_data_ptr();
-                if (ptr != nullptr) {
-                    delete[] ptr;
-                }
+                delete[] ptr;
             }
 
             payload->reset();
@@ -81,7 +82,9 @@ tlm::tlm_generic_payload* MemoryManager::allocate(std::size_t dataLength)
             std::fill(data, data + dataLength, 0);
             payload->set_data_ptr(data);
         } else {
-            payload->set_data_ptr(nullptr);
+            // Pass dummy region to payload as nullptr is not standard-compliant
+            payload->set_data_ptr(dummyRegion.data());
+            payload->set_auto_extension(new NoDataExtension);
         }
         payload->set_data_length(static_cast<unsigned>(dataLength));
         return payload;

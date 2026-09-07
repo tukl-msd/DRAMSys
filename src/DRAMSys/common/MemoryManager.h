@@ -46,6 +46,14 @@
 namespace DRAMSys
 {
 
+class NoDataExtension : public tlm::tlm_extension<NoDataExtension> {
+public:
+    [[nodiscard]] tlm::tlm_extension_base* clone() const override {
+        return new NoDataExtension(*this);
+    }
+    void copy_from([[maybe_unused]] tlm::tlm_extension_base const &ext) override {}
+};
+
 class MemoryManager : public tlm::tlm_mm_interface
 {
 public:
