@@ -73,6 +73,9 @@ public:
         shouldStart = true;
         startEvent.notify(sc_core::SC_ZERO_TIME);
     }
+    
+    void pause() { paused = true; }
+    void resume() { paused = false; }
 
     [[nodiscard]] bool isFinished() const { return finished; }
 
@@ -103,6 +106,7 @@ private:
 
     bool requestInProgress = false;
     bool transactionPostponed = false;
+    bool paused = false;
     bool finished = false;
 
     uint64_t transactionsSent = 0;

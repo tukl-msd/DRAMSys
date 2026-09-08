@@ -121,6 +121,10 @@ bool RequestIssuer::nextRequestSendable() const
         pendingWriteRequests >= maxPendingWriteRequests.value())
         return false;
 
+    if (paused) {
+       return false;
+    }
+
     return true;
 }
 
