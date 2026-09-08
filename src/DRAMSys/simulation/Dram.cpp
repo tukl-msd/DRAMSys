@@ -40,6 +40,7 @@
  */
 
 #include "Dram.h"
+#include <DRAMSys/common/MemoryManager.h>
 
 #include <cassert>
 
@@ -51,6 +52,11 @@ namespace DRAMSys::Dram
 
 void executeRead(unsigned char const* backingStore, tlm::tlm_generic_payload& trans)
 {
+    if (trans.get_extension<NoDataExtension>() != nullptr)
+        return;
+
+    assert(backingStore != nullptr);
+
     unsigned char const* phyAddr = backingStore + trans.get_address();
 
     if (trans.get_byte_enable_ptr() == nullptr)
@@ -72,6 +78,11 @@ void executeRead(unsigned char const* backingStore, tlm::tlm_generic_payload& tr
 
 void executeWrite(unsigned char* backingStore, const tlm::tlm_generic_payload& trans)
 {
+    if (trans.get_extension<NoDataExtension>() != nullptr)
+        return;
+
+    assert(backingStore != nullptr);
+
     unsigned char* phyAddr = backingStore + trans.get_address();
 
     if (trans.get_byte_enable_ptr() == nullptr)

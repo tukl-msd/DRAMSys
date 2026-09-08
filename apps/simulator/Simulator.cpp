@@ -99,11 +99,8 @@ Simulator::Simulator(sc_core::sc_module_name const& name,
         std::abort(); // Silence warning
     }
 
-    if (dramSys->getSimConfig().storageEnabled)
-    {
-        physicalStorage = std::make_unique<DRAMSys::PhysicalStorage>(dramSys->memorySize());
-        dramSys->setBackingStore(physicalStorage->data());
-    }
+    physicalStorage = std::make_unique<DRAMSys::PhysicalStorage>(dramSys->memorySize());
+    dramSys->setBackingStore(physicalStorage->data());
 
     for (const auto& initiatorConfig : *this->configuration.tracesetup)
     {

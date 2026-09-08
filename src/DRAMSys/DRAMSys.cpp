@@ -225,19 +225,17 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name, const Config::Configuratio
             controllers[i]->registerTraceCallback(traceCallback);
         }
 
-        if (simConfig->storageEnabled)
-        {
-            controllers[i]->registerAccessCallback(
-                [this](tlm::tlm_generic_payload& trans)
-                {
-                    assert(backingStore != nullptr);
+        controllers[i]->registerAccessCallback(
+            [this](tlm::tlm_generic_payload& trans)
+            {
+                if (backingStore == nullptr)
+                    return;
 
-                    if (trans.is_read())
-                        Dram::executeRead(backingStore, trans);
-                    else
-                        Dram::executeWrite(backingStore, trans);
-                });
-        }
+                if (trans.is_read())
+                    Dram::executeRead(backingStore, trans);
+                else
+                    Dram::executeWrite(backingStore, trans);
+            });
     }
 }
 
