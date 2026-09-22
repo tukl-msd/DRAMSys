@@ -49,12 +49,15 @@ class BTransportNoStorage : public SystemCTest
 protected:
     BTransportNoStorage() :
         no_storage_config(DRAMSys::Config::from_path("b_transport/configs/no_storage.json")),
-        dramSysNoStorage("NoStorageDRAMSys", no_storage_config)
+        dramSysNoStorage("NoStorageDRAMSys", no_storage_config),
+        physicalStorage(dramSysNoStorage.memorySize())
     {
+        dramSysNoStorage.setBackingStore(physicalStorage.data());
     }
 
     DRAMSys::Config::Configuration no_storage_config;
     DRAMSys::DRAMSys dramSysNoStorage;
+    DRAMSys::PhysicalStorage physicalStorage;
 };
 
 class BTransportStorage : public SystemCTest

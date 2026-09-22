@@ -42,14 +42,64 @@
 #ifndef DRAM_H
 #define DRAM_H
 
-#include <tlm>
+#include <DRAMSys/common/DramATRecorder.h>
+#include <DRAMSys/configuration/memspec/MemSpec.h>
+#include <DRAMSys/controller/Command.h>
 
-namespace DRAMSys::Dram
+#ifdef USE_DRAMPOWER
+#include <DRAMSys/power/DRAMPowerAdapter.h>
+#else
+class DRAMPowerAdapter;
+#endif
+
+#include <systemc>
+#include <tlm>
+#include <tlm_utils/multi_passthrough_target_socket.h>
+
+namespace DRAMSys
 {
 
-void executeRead(unsigned char const* backingStore, tlm::tlm_generic_payload& trans);
-void executeWrite(unsigned char* backingStore, const tlm::tlm_generic_payload& trans);
+class Dram : sc_core::sc_module
+{
+public:
+    tlm_utils::multi_passthrough_target_socket<Dram> tSocket{"tSocket"};
 
-} // namespace DRAMSys::Dram
+    Dram(sc_core::sc_module_name const& name,
+         unsigned char** backingStore,
+         MemSpec const* memspec,
+         bool recording,
+         std::vector<std::unique_ptr<DramATRecorder>>* dramATRecorders,
+         bool power,
+         std::vector<DRAMPowerAdapter*>* DRAMPowerMappings) :
+        sc_core::sc_module(name),
+        backingStore(backingStore),
+        memspec(memspec),
+        recording(recording),
+        dramATRecorders(dramATRecorders),
+        power(power),
+        DRAMPowerMappings(DRAMPowerMappings)
+    {
+        tSocket.register_b_transport(this, &Dram::b_transport);
+        tSocket.register_transport_dbg(this, &Dram::transport_dbg);
+    }
+
+private:
+    void b_transport(int id, tlm::tlm_generic_payload& trans, sc_core::sc_time& delay);
+    unsigned int transport_dbg(int id, tlm::tlm_generic_payload& trans);
+
+    void executeRead(tlm::tlm_generic_payload& trans) const;
+    void executeWrite(const tlm::tlm_generic_payload& trans);
+
+    unsigned char** backingStore;
+    MemSpec const* memspec;
+
+    bool recording;
+    std::vector<std::unique_ptr<DramATRecorder>>* dramATRecorders;
+
+    bool power;
+    std::vector<DRAMPowerAdapter*>* DRAMPowerMappings;
+};
+
+} // namespace DRAMSys
 
 #endif // DRAM_H

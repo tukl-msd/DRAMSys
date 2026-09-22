@@ -372,19 +372,6 @@ void Controller::registerIdleCallback(std::function<void()> idleCallback)
     this->idleCallback = std::move(idleCallback);
 }
 
-void Controller::registerAccessCallback(
-    std::function<void(tlm::tlm_generic_payload&)> accessCallback)
-{
-    this->accessCallback = std::move(accessCallback);
-}
-
-void Controller::registerTraceCallback(std::function<void(tlm::tlm_generic_payload const&,
-                                                          tlm::tlm_phase const&,
-                                                          sc_core::sc_time const&)> traceCallback)
-{
-    this->traceCallback = std::move(traceCallback);
-}
-
 void Controller::recordBufferDepth()
 {
     while (true)
@@ -534,9 +521,6 @@ void Controller::controllerMethod()
                 scheduler->removeRequest(*trans);
                 manageRequests(config.thinkDelayFw);
 
-                if (accessCallback)
-                    accessCallback(*trans);
-
                 sc_time phyDelayBwEff = trans->is_read()
                                 ? config.phyDelayBw
                                 : SC_ZERO_TIME;
@@ -555,8 +539,11 @@ void Controller::controllerMethod()
             if (ranksNumberOfPayloads[rank] == 0)
                 powerDownManagers[rank]->triggerEntry();
 
-            if (traceCallback)
-                traceCallback(*trans, command.toPhase(), config.phyDelayFw);
+            auto delay = config.phyDelayFw;
+            CommandExtension ext{command};
+            trans->set_extension<CommandExtension>(&ext);
+            iSocket->b_transport(*trans, delay);
+            trans->clear_extension<CommandExtension>();
         }
     }
 
@@ -653,18 +640,16 @@ void Controller::b_transport(tlm_generic_payload& trans, sc_time& delay)
 
     delay += trans.is_write() ? config.blockingWriteDelay : config.blockingReadDelay;
 
-    if (accessCallback)
-        accessCallback(trans);
-
-    trans.set_response_status(tlm::TLM_OK_RESPONSE);
+    // Create dummy command for b_transport
+    CommandExtension ext{trans.is_write() ? Command::WR : Command::RD};
+    trans.set_extension<CommandExtension>(&ext);
+    iSocket->b_transport(trans, delay);
+    trans.clear_extension<CommandExtension>();
 }
 
 unsigned int Controller::transport_dbg(tlm_generic_payload& trans)
 {
-    if (accessCallback)
-        accessCallback(trans);
-
-    return trans.get_data_length();
+    return iSocket->transport_dbg(trans);
 }
 
 void Controller::manageRequests(const sc_time& delay)

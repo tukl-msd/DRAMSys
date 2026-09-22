@@ -45,7 +45,6 @@
 #include "DRAMSys/configuration/json/DRAMSysConfiguration.h"
 #include "DRAMSys/statistics/Group.h"
 #include "DRAMSys/statistics/StatsProvider.h"
-#include "DRAMUtils/memspec/MemSpec.h"
 
 #include <memory>
 #include <string>
@@ -61,6 +60,7 @@ class AddressDecoder;
 class AddressMapping;
 class Arbiter;
 class Controller;
+class Dram;
 class DRAMPowerAdapter;
 class DramATRecorder;
 class McConfig;
@@ -97,7 +97,7 @@ public:
     /**
      * Sets the physical storage when simulation with data is enabled.
      */
-    void setBackingStore(unsigned char* backingStore) { this->backingStore = backingStore; }
+    void setBackingStore(unsigned char* backingStore);
 
     /**
      * Returns true if all memory controllers are in idle state.
@@ -153,6 +153,7 @@ private:
     // Each DRAM unit has a controller
     std::vector<std::unique_ptr<Controller>> controllers;
 
+    std::unique_ptr<Dram> dram;
     unsigned char* backingStore = nullptr;
 
     std::vector<std::unique_ptr<DRAMPowerAdapter>> DRAMPowers;

@@ -420,6 +420,17 @@ bool ChildExtension::isChildTrans(const tlm::tlm_generic_payload& trans)
     return trans.get_extension<ChildExtension>() != nullptr;
 }
 
+tlm_extension_base* CommandExtension::clone() const
+{
+    return new CommandExtension{command};
+}
+
+void CommandExtension::copy_from(const tlm_extension_base& ext)
+{
+    const auto& cpyFrom = dynamic_cast<const CommandExtension&>(ext);
+    command = cpyFrom.command;
+}
+
 tlm_extension_base* ParentExtension::clone() const
 {
     return new ParentExtension(childTranses);

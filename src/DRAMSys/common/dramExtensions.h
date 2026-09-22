@@ -38,10 +38,12 @@
 #ifndef DRAMEXTENSIONS_H
 #define DRAMEXTENSIONS_H
 
-#include <vector>
+#include <DRAMSys/controller/Command.h>
 
 #include <systemc>
 #include <tlm>
+
+#include <vector>
 
 namespace DRAMSys
 {
@@ -193,6 +195,17 @@ private:
     Column column;
     unsigned burstLength;
     Bank dualBank;
+};
+
+class CommandExtension : public tlm::tlm_extension<CommandExtension>
+{
+public:
+    CommandExtension(Command command) : command(command) {}
+
+    [[nodiscard]] tlm::tlm_extension_base* clone() const override;
+    void copy_from(const tlm::tlm_extension_base& ext) override;
+
+    Command command;
 };
 
 class ChildExtension : public tlm::tlm_extension<ChildExtension>

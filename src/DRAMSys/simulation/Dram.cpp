@@ -40,24 +40,75 @@
  */
 
 #include "Dram.h"
+
 #include <DRAMSys/common/MemoryManager.h>
+#include <DRAMSys/common/dramExtensions.h>
 
 #include <cassert>
 
 using namespace sc_core;
 using namespace tlm;
 
-namespace DRAMSys::Dram
+namespace DRAMSys
 {
 
-void executeRead(unsigned char const* backingStore, tlm::tlm_generic_payload& trans)
+void Dram::b_transport(int id, tlm_generic_payload& trans, [[maybe_unused]] sc_time& delay)
 {
+    trans.set_response_status(tlm::TLM_OK_RESPONSE);
+
+    auto* ext = trans.get_extension<CommandExtension>();
+
+    if (recording)
+    {
+        (*dramATRecorders)[id]->record(trans, ext->command.toPhase(), delay);
+    }
+
+#ifdef USE_DRAMPOWER
+    if (power)
+    {
+        (*DRAMPowerMappings)[id]->handleTransaction(id, trans, ext->command.toPhase(), delay);
+    }
+#endif
+
     if (trans.get_extension<NoDataExtension>() != nullptr)
         return;
 
-    assert(backingStore != nullptr);
+    assert(*backingStore != nullptr);
 
-    unsigned char const* phyAddr = backingStore + trans.get_address();
+    if (ext->command.isCasCommand())
+    {
+        if (trans.is_read())
+        {
+            executeRead(trans);
+        }
+        else if (trans.is_write())
+        {
+            executeWrite(trans);
+        }
+    }
+
+    trans.set_response_status(TLM_OK_RESPONSE);
+}
+
+unsigned int Dram::transport_dbg([[maybe_unused]] int id, tlm::tlm_generic_payload& trans)
+{
+    assert(*backingStore != nullptr);
+
+    if (trans.is_read())
+    {
+        executeRead(trans);
+    }
+    else if (trans.is_write())
+    {
+        executeWrite(trans);
+    }
+
+    return trans.get_data_length();
+}
+
+void Dram::executeRead(tlm::tlm_generic_payload& trans) const
+{
+    unsigned char const* phyAddr = *backingStore + trans.get_address();
 
     if (trans.get_byte_enable_ptr() == nullptr)
     {
@@ -76,14 +127,9 @@ void executeRead(unsigned char const* backingStore, tlm::tlm_generic_payload& tr
     }
 }
 
-void executeWrite(unsigned char* backingStore, const tlm::tlm_generic_payload& trans)
+void Dram::executeWrite(const tlm::tlm_generic_payload& trans)
 {
-    if (trans.get_extension<NoDataExtension>() != nullptr)
-        return;
-
-    assert(backingStore != nullptr);
-
-    unsigned char* phyAddr = backingStore + trans.get_address();
+    unsigned char* phyAddr = *backingStore + trans.get_address();
 
     if (trans.get_byte_enable_ptr() == nullptr)
     {
@@ -102,4 +148,4 @@ void executeWrite(unsigned char* backingStore, const tlm::tlm_generic_payload& t
     }
 }
 
-} // namespace DRAMSys::Dram
+} // namespace DRAMSys

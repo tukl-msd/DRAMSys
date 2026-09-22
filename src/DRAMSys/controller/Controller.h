@@ -75,6 +75,7 @@ class Controller : public sc_core::sc_module,
 {
 public:
     tlm_utils::simple_target_socket<Controller> tSocket{"tSocket"};
+    tlm_utils::simple_initiator_socket<Controller> iSocket{"iSocket"};
 
     SC_HAS_PROCESS(Controller);
     Controller(const sc_core::sc_module_name& name,
@@ -87,10 +88,6 @@ public:
     [[nodiscard]] bool idle() const { return totalNumberOfPayloads == 0; }
 
     void registerIdleCallback(std::function<void()> idleCallback);
-    void registerAccessCallback(std::function<void(tlm::tlm_generic_payload&)> accessCallback);
-    void registerTraceCallback(std::function<void(tlm::tlm_generic_payload const&,
-                                                  tlm::tlm_phase const&,
-                                                  sc_core::sc_time const&)> traceCallback);
 
     void serialize(std::ostream& stream) const override;
     void deserialize(std::istream& stream) override;
@@ -148,11 +145,6 @@ private:
     std::unique_ptr<RespQueueIF> respQueue;
     ControllerVector<Rank, std::unique_ptr<RefreshManagerIF>> refreshManagers;
     ControllerVector<Rank, std::unique_ptr<PowerDownManagerIF>> powerDownManagers;
-
-    std::function<void(tlm::tlm_generic_payload&)> accessCallback;
-    std::function<void(
-        tlm::tlm_generic_payload const&, tlm::tlm_phase const&, sc_core::sc_time const&)>
-        traceCallback;
 
     uint64_t nextChannelPayloadIDToAppend = 1;
 

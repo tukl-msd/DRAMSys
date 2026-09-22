@@ -131,6 +131,13 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
     mcConfig(std::make_unique<McConfig>(mcconfig)),
     addressDecoder(std::make_unique<AddressDecoder>(addressmapping)),
     arbiter(createArbiter(*simConfig, *mcConfig, *memSpec, *addressDecoder)),
+    dram(std::make_unique<Dram>("Dram",
+                                &backingStore,
+                                memSpec.get(),
+                                simconfig.databaseRecording,
+                                &dramATRecorders,
+                                simconfig.powerAnalysis,
+                                &DRAMPowerMappings)),
     stats(*this)
 {
     printLogo();
@@ -228,35 +235,7 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
             arbiter->iSocket.bind(controllers[i]->tSocket);
         }
 
-        auto traceCallback = [this, i](tlm::tlm_generic_payload const& trans,
-                                       tlm::tlm_phase const& phase,
-                                       sc_core::sc_time const& delay)
-        {
-            if (simConfig->databaseRecording)
-                dramATRecorders[i]->record(trans, phase, delay);
-
-#ifdef USE_DRAMPOWER
-            if (simConfig->powerAnalysis)
-                DRAMPowerMappings[i]->handleTransaction(i, trans, phase, delay);
-#endif
-        };
-
-        if (simConfig->databaseRecording || simConfig->powerAnalysis)
-        {
-            controllers[i]->registerTraceCallback(traceCallback);
-        }
-
-        controllers[i]->registerAccessCallback(
-            [this](tlm::tlm_generic_payload& trans)
-            {
-                if (backingStore == nullptr)
-                    return;
-
-                if (trans.is_read())
-                    Dram::executeRead(backingStore, trans);
-                else
-                    Dram::executeWrite(backingStore, trans);
-            });
+        controllers[i]->iSocket.bind(dram->tSocket);
     }
 }
 
@@ -279,6 +258,11 @@ void DRAMSys::setupTlmRecorders(const std::string& traceName)
             tlmRecorders.emplace_back(recorderName, *simConfig, *mcConfig, *memSpec, dbName);
         recorder.insertGeneralInfo(this->simConfig->simulationName);
     }
+}
+
+void DRAMSys::setBackingStore(unsigned char* backingStore)
+{
+    this->backingStore = backingStore;
 }
 
 bool DRAMSys::idle() const
