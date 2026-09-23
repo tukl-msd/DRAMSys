@@ -181,42 +181,42 @@ void TraceNavigator::selectLastTransaction()
 
 void TraceNavigator::selectNextRefresh(traceTime time)
 {
-    shared_ptr<Transaction> nextRefresh;
-
-    nextRefresh = traceFile.getNextRefresh(time);
-
-    if (nextRefresh)
-        selectTransaction(nextRefresh);
+    // shared_ptr<Transaction> nextRefresh;
+    //
+    // nextRefresh = traceFile.getNextRefresh(time);
+    //
+    // if (nextRefresh)
+    //     selectTransaction(nextRefresh);
 }
 
 void TraceNavigator::selectNextActivate(traceTime time)
 {
-    shared_ptr<Transaction> nextActivate;
-
-    nextActivate = traceFile.getNextActivate(time);
-
-    if (nextActivate)
-        selectTransaction(nextActivate);
+    // shared_ptr<Transaction> nextActivate;
+    //
+    // nextActivate = traceFile.getNextActivate(time);
+    //
+    // if (nextActivate)
+    //     selectTransaction(nextActivate);
 }
 
 void TraceNavigator::selectNextPrecharge(traceTime time)
 {
-    shared_ptr<Transaction> nextPrecharge;
-
-    nextPrecharge = traceFile.getNextPrecharge(time);
-
-    if (nextPrecharge)
-        selectTransaction(nextPrecharge);
+    // shared_ptr<Transaction> nextPrecharge;
+    //
+    // nextPrecharge = traceFile.getNextPrecharge(time);
+    //
+    // if (nextPrecharge)
+    //     selectTransaction(nextPrecharge);
 }
 
 void TraceNavigator::selectNextCommand(traceTime time)
 {
-    shared_ptr<Transaction> nextCommand;
-
-    nextCommand = traceFile.getNextCommand(time);
-
-    if (nextCommand)
-        selectTransaction(nextCommand);
+    // shared_ptr<Transaction> nextCommand;
+    //
+    // nextCommand = traceFile.getNextCommand(time);
+    //
+    // if (nextCommand)
+    //     selectTransaction(nextCommand);
 }
 
 // void TraceNavigator::selectNextActb()

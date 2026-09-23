@@ -77,10 +77,6 @@ public:
     std::vector<std::shared_ptr<Transaction>>
     getTransactionsWithCustomQuery(const QString& queryText);
     std::vector<std::shared_ptr<Transaction>> getTransactionsInTimespan(const Timespan& span);
-    std::shared_ptr<Transaction> getNextPrecharge(traceTime time);
-    std::shared_ptr<Transaction> getNextActivate(traceTime time);
-    std::shared_ptr<Transaction> getNextRefresh(traceTime time);
-    std::shared_ptr<Transaction> getNextCommand(traceTime time);
 
     std::shared_ptr<Transaction> getTransactionByID(ID id);
 
@@ -96,35 +92,75 @@ private:
 
     QSqlQuery selectTransactionsByTimespan;
     QSqlQuery selectTransactionById;
+    QSqlQuery selectPhasesByTransaction;
+    QSqlQuery selectCommandPhasesByTransaction;
 
-    QString queryHead = R"(
-SELECT Transactions.ID AS TransactionID,
-       Ranges.begin,
-       Ranges.end,
-       Address,
-       DataLength,
-       Thread,
-       Channel,
-       Command,
-       Phases.ID AS PhaseID,
-       PhaseName,
-       PhaseBegin,
-       PhaseEnd,
-       DataStrobeBegin,
-       DataStrobeEnd,
-       Rank,
-       BankGroup,
-       Bank,
-       Row,
-       Column,
-       BurstLength,
-       DualBank
-FROM Transactions
-INNER JOIN Phases ON Phases.Transact = Transactions.ID
-INNER JOIN Ranges ON Transactions.Range = Ranges.ID
-    )";
+    QString transactionQueryHead = R"(
+SELECT
+    t.id,
+	t.address,
+    t.data_length,
+	n.signal_id,
+    t.thread,
+	t.tlm_command,
+
+    MAX(n.timestamp) FILTER (WHERE p.stage='REQ' AND p.type='BEGIN') AS req_begin,
+    MAX(n.timestamp) FILTER (WHERE p.stage='REQ' AND p.type='END') AS req_end,
+    MAX(n.timestamp) FILTER (WHERE p.stage='RESP' AND p.type='BEGIN') AS resp_begin,
+    MAX(n.timestamp) FILTER (WHERE p.stage='RESP' AND p.type='END') AS resp_end
+
+FROM nb_transports AS n
+JOIN phases AS p
+    ON n.phase_id = p.id
+JOIN transactions as t
+    ON n.transaction_id = t.id
+)";
+
+    QString phaseQuery = R"(
+SELECT
+	pb.stage AS PhaseName,
+    b.timestamp AS PhaseBegin,
+    e.timestamp AS PhaseEnd
+FROM nb_transports AS b
+JOIN nb_transports AS e
+    ON e.transaction_id = b.transaction_id
+JOIN phases AS pb
+    ON b.phase_id = pb.id
+JOIN phases AS pe
+    ON e.phase_id = pe.id
+   AND pe.stage = pb.stage
+   AND pe.type = 'END'
+WHERE
+    pb.type = 'BEGIN'
+AND
+    b.transaction_id = :tid
+)";
+
+    QString commandPhaseQuery = R"(
+SELECT
+	c.name AS PhaseName,
+	state.begin as DramStateBegin,
+	state.end as DramStateEnd,
+	ds.begin AS DataStrobeBegin,
+	ds.end AS DataStrobeEnd,
+	cs.rank,
+	cs.bank_group,
+	cs.bank,
+	cs.row,
+	cs.column,
+	ds.burst_length
+FROM command_strobes AS cs
+JOIN commands AS c
+    ON cs.command_id == c.id
+JOIN data_strobes as ds
+    ON ds.command_strobe_id == cs.id
+JOIN dram_states as state
+    ON cs.id == state.command_strobe_id
+WHERE cs.transaction_id = :tid
+)";
 
     void prepareQueries();
+    void prepareTables();
     void executeQuery(QSqlQuery query);
     std::shared_ptr<Transaction> parseTransactionFromQuery(QSqlQuery& query);
     std::vector<std::shared_ptr<Transaction>> parseTransactionsFromQuery(QSqlQuery& query);
@@ -134,7 +170,7 @@ INNER JOIN Ranges ON Transactions.Range = Ranges.ID
     uint64_t getNumberOfTransactions();
     GeneralInfo getGeneralInfoFromDB();
     std::unordered_map<std::string, double> getCommandLengthsFromDB();
-    QVariant getParameterFromTable(const std::string& parameter, const std::string& table);
+    QVariant getParameterFromGeneralInfo(const std::string& parameter);
 };
 
 class sqlException : public std::exception

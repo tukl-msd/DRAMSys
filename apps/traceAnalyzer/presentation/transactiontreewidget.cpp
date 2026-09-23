@@ -92,29 +92,24 @@ TransactionTreeWidget::TransactionTreeItem::TransactionTreeItem(
     this->setText(0, QString::number(transaction->id));
     this->id = transaction->id;
 
-    bool isControllerTransaction = false;
-
     auto* time = new QTreeWidgetItem({"Timespan"});
     AppendTimespan(time, transaction->span);
     this->addChild(time);
-    if (!isControllerTransaction)
-    {
-        if (transaction->command == "R")
-            this->addChild(new QTreeWidgetItem({"Command", "Read"}));
-        else // if (transaction->command == "W")
-            this->addChild(new QTreeWidgetItem({"Command", "Write"}));
-    }
+
+    if (transaction->command == "R")
+        this->addChild(new QTreeWidgetItem({"Command", "Read"}));
+    else // if (transaction->command == "W")
+        this->addChild(new QTreeWidgetItem({"Command", "Write"}));
     this->addChild(
         new QTreeWidgetItem({"Length", prettyFormatTime(transaction->span.timeCovered())}));
-    if (!isControllerTransaction)
-        this->addChild(new QTreeWidgetItem(
-            {"Address", QString("0x") + QString::number(transaction->address, 16)}));
-    if (!isControllerTransaction)
-        this->addChild(
-            new QTreeWidgetItem({"Data Length", QString::number(transaction->dataLength)}));
+
+    this->addChild(new QTreeWidgetItem(
+        {"Address", QString("0x") + QString::number(transaction->address, 16)}));
+
+    this->addChild(new QTreeWidgetItem({"Data Length", QString::number(transaction->dataLength)}));
     this->addChild(new QTreeWidgetItem({"Channel", QString::number(transaction->channel)}));
-    if (!isControllerTransaction)
-        this->addChild(new QTreeWidgetItem({"Thread", QString::number(transaction->thread)}));
+
+    this->addChild(new QTreeWidgetItem({"Thread", QString::number(transaction->thread)}));
 
     auto* phasesNode = new QTreeWidgetItem(this);
     phasesNode->setText(0, "Phases");
