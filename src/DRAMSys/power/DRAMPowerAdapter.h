@@ -118,7 +118,6 @@ public:
     ~DRAMPowerAdapter() override = default;
 
     void reportPower();
-    const DRAMPowerVariant& getDRAMPowerVariant() const;
 
     void updateStats() override;
     Stats::Group const& getStatGroup() const override { return stats; }

@@ -141,7 +141,6 @@ struct Mapping<DRAMUtils::MemSpec::MemSpecDDR4>
     using MemSpecType = MemSpecDDR4;
 #ifdef USE_DRAMPOWER
     using PowerType = DRAMPowerDDR4;
-    static constexpr std::size_t PowerChannelNum = 1;
 #endif
 };
 
@@ -154,7 +153,6 @@ struct Mapping<DRAMUtils::MemSpec::MemSpecDDR5>
     using MemSpecType = MemSpecDDR5;
 #ifdef USE_DRAMPOWER
     using PowerType = DRAMPowerDDR5;
-    static constexpr std::size_t PowerChannelNum = 1;
 #endif
 };
 #endif
@@ -167,7 +165,6 @@ struct Mapping<DRAMUtils::MemSpec::MemSpecLPDDR4>
     using CheckerType = CheckerLPDDR4;
 #ifdef USE_DRAMPOWER
     using PowerType = DRAMPowerLPDDR4;
-    static constexpr std::size_t PowerChannelNum = 1;
 #endif
 };
 
@@ -180,7 +177,6 @@ struct Mapping<DRAMUtils::MemSpec::MemSpecLPDDR5>
     using CheckerType = CheckerLPDDR5;
 #ifdef USE_DRAMPOWER
     using PowerType = DRAMPowerLPDDR5;
-    static constexpr std::size_t PowerChannelNum = 1;
 #endif
 };
 #endif
@@ -194,7 +190,6 @@ struct Mapping<DRAMUtils::MemSpec::MemSpecLPDDR6>
     using CheckerType = CheckerLPDDR6;
 #ifdef USE_DRAMPOWER
     using PowerType = DRAMPowerLPDDR6;
-    static constexpr std::size_t PowerChannelNum = 2;
 #endif
 };
 #endif
@@ -223,7 +218,6 @@ struct Mapping<DRAMUtils::MemSpec::MemSpecHBM2>
     using CheckerType = CheckerHBM2;
 #ifdef USE_DRAMPOWER
     using PowerType = DRAMPowerHBM2;
-    static constexpr std::size_t PowerChannelNum = 1;
 #endif
 };
 
@@ -312,19 +306,6 @@ struct has_PowerType<T, std::void_t<typename StandardMapping ::Mapping<T>::Power
 };
 template <typename T>
 inline constexpr bool has_PowerType_v = has_PowerType<T>::value;
-
-
-template <typename T, typename = void>
-struct has_PowerChannelNum : std::false_type
-{
-};
-template <typename T>
-struct has_PowerChannelNum<T, std::void_t<decltype(StandardMapping ::Mapping<T>::PowerChannelNum)>>
-    : std::true_type
-{
-};
-template <typename T>
-inline constexpr bool has_PowerChannelNum_v = has_PowerChannelNum<T>::value;
 
 } // namespace StandardMapping
 

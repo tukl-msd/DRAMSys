@@ -68,11 +68,6 @@ DRAMPowerAdapter::DRAMPowerAdapter(const sc_core::sc_module_name& name,
         SC_THREAD(powerWindow);
 }
 
-const DRAMPowerVariant& DRAMPowerAdapter::getDRAMPowerVariant() const
-{
-    return DRAMPower;
-}
-
 void DRAMPowerAdapter::reportPower()
 {
     // Record the final average power of the whole simulation into the trace database:

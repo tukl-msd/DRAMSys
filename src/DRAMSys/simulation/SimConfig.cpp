@@ -32,6 +32,7 @@
  * Authors:
  *    Derek Christ
  *    Marco Mörz
+ *    Thomas Zimmermann
  */
 
 #include "SimConfig.h"
@@ -52,7 +53,8 @@ SimConfig::SimConfig(const Config::SimConfig& simConfig) :
     simulationProgressBar(
         simConfig.SimulationProgressBar.value_or(DEFAULT_SIMULATION_PROGRESS_BAR)),
     addressOffset(simConfig.AddressOffset.value_or(DEFAULT_ADDRESS_OFFSET)),
-    togglingRate(simConfig.TogglingRate)
+    togglingRate(simConfig.TogglingRate),
+    efficiencyMode(simConfig.EfficiencyMode.value_or(DEFAULT_EFFICIENCY_MODE))
 {
     if (simConfig.StoreMode.has_value())
     {

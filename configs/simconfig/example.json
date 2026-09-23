@@ -8,6 +8,7 @@
         "SimulationName": "example",
         "SimulationProgressBar": true,
         "StoreMode": "NoStorage",
+        "EfficiencyMode": false,
         "WindowSize": 1000,
         "TogglingRate": {
             "togglingRateRead": 0.5,
