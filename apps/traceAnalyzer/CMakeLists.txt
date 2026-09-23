@@ -63,7 +63,6 @@ add_executable(TraceAnalyzer
     evaluationtool.cpp
     gototimedialog.cpp
     main.cpp
-    presentation/debugmessagetreewidget.cpp
     presentation/selectedtransactiontreewidget.cpp
     presentation/tracePlotMouseLabel.cpp
     presentation/tracedrawing.cpp
@@ -78,9 +77,7 @@ add_executable(TraceAnalyzer
     presentation/util/colorgenerator.cpp
     presentation/util/colorobject.cpp
     presentation/util/customlabelscaledraw.cpp
-    presentation/util/testlight.cpp
     presentation/util/togglecollapsedaction.cpp
-    queryeditor.cpp
     selectmetrics.cpp
     traceanalyzer.cpp
     tracefiletab.cpp

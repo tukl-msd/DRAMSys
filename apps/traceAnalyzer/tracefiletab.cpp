@@ -48,14 +48,11 @@
 
 #include <qwt_plot_canvas.h>
 
-#include <fstream>
-
 #ifdef EXTENSION_ENABLED
 #include <plots.h>
 #endif
 
-TraceFileTab::TraceFileTab(std::string_view traceFilePath,
-                           QWidget* parent) :
+TraceFileTab::TraceFileTab(std::string_view traceFilePath, QWidget* parent) :
     QWidget(parent),
     traceFilePath(traceFilePath),
     ui(new Ui::TraceFileTab),
@@ -69,8 +66,6 @@ TraceFileTab::TraceFileTab(std::string_view traceFilePath,
     savingChangesToDB(false)
 {
     ui->setupUi(this);
-
-    std::cout << "Opening new tab for \"" << traceFilePath << "\"" << std::endl;
 
     ui->mcConfigView->setModel(mcConfigModel);
     ui->mcConfigView->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);

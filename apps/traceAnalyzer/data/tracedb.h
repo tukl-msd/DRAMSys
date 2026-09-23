@@ -40,22 +40,21 @@
 #ifndef TRACEDB_H
 #define TRACEDB_H
 
-#include "QueryTexts.h"
-
-#include "businessObjects/commandlengths.h"
 #include "businessObjects/commentmodel.h"
 #include "businessObjects/generalinfo.h"
 #include "businessObjects/phases/phasefactory.h"
 #include "businessObjects/transaction.h"
+
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QSqlTableModel>
 #include <QString>
 #include <exception>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
-/*  TraceDB handles the connection to a SQLLite database containing trace data.
+/*  TraceDB handles the connection to an SQLite database containing trace data.
  *  A TraceDB object always holds an open connection to a valid database.
  */
 
@@ -64,35 +63,28 @@ class TraceDB : public QObject
     Q_OBJECT
 
 public:
-    TraceDB(const QString& path, bool openExisting);
-    const QString& getPathToDB() const { return pathToDB; }
+    TraceDB(QString path);
 
     void updateComments(const std::vector<CommentModel::Comment>& comments);
-    void updateFileDescription(const QString& description);
     void refreshData();
 
     const GeneralInfo& getGeneralInfo() const { return generalInfo; }
-    const CommandLengths& getCommandLengths() const { return commandLengths; }
+    const std::unordered_map<std::string, double>& getCommandLengths() const
+    {
+        return commandLengths;
+    }
 
     std::vector<std::shared_ptr<Transaction>>
     getTransactionsWithCustomQuery(const QString& queryText);
-    std::vector<std::shared_ptr<Transaction>>
-    getTransactionsInTimespan(const Timespan& span, bool updateVisiblePhases = false);
+    std::vector<std::shared_ptr<Transaction>> getTransactionsInTimespan(const Timespan& span);
     std::shared_ptr<Transaction> getNextPrecharge(traceTime time);
     std::shared_ptr<Transaction> getNextActivate(traceTime time);
     std::shared_ptr<Transaction> getNextRefresh(traceTime time);
     std::shared_ptr<Transaction> getNextCommand(traceTime time);
-    //     std::shared_ptr<Transaction> getNextPreb(ID currentTransactionId);
-    //     std::shared_ptr<Transaction> getNextActb(ID currentTransactionId);
-    //     std::shared_ptr<Transaction> getNextRefb(ID currentTransactionId);
 
     std::shared_ptr<Transaction> getTransactionByID(ID id);
-    ID getTransactionIDFromPhaseID(ID phaseID);
 
     std::vector<CommentModel::Comment> getComments();
-    std::vector<CommentModel::Comment> getDebugMessagesInTimespan(const Timespan& span);
-    std::vector<CommentModel::Comment> getDebugMessagesInTimespan(const Timespan& span,
-                                                                  unsigned int limit);
 
     QSqlDatabase getDatabase() const;
 
@@ -100,36 +92,49 @@ private:
     QString pathToDB;
     QSqlDatabase database;
     GeneralInfo generalInfo;
-    CommandLengths commandLengths;
+    std::unordered_map<std::string, double> commandLengths;
 
-    QSqlQuery insertPhaseQuery;
-    QSqlQuery insertTransactionQuery;
     QSqlQuery selectTransactionsByTimespan;
     QSqlQuery selectTransactionById;
-    QSqlQuery selectDebugMessagesByTimespan;
-    QSqlQuery selectDebugMessagesByTimespanWithLimit;
 
-    TransactionQueryTexts queryTexts;
+    QString queryHead = R"(
+SELECT Transactions.ID AS TransactionID,
+       Ranges.begin,
+       Ranges.end,
+       Address,
+       DataLength,
+       Thread,
+       Channel,
+       Command,
+       Phases.ID AS PhaseID,
+       PhaseName,
+       PhaseBegin,
+       PhaseEnd,
+       DataStrobeBegin,
+       DataStrobeEnd,
+       Rank,
+       BankGroup,
+       Bank,
+       Row,
+       Column,
+       BurstLength,
+       DualBank
+FROM Transactions
+INNER JOIN Phases ON Phases.Transact = Transactions.ID
+INNER JOIN Ranges ON Transactions.Range = Ranges.ID
+    )";
+
     void prepareQueries();
     void executeQuery(QSqlQuery query);
-    static QString queryToString(const QSqlQuery& query);
     std::shared_ptr<Transaction> parseTransactionFromQuery(QSqlQuery& query);
-    std::vector<std::shared_ptr<Transaction>>
-    parseTransactionsFromQuery(QSqlQuery& query, bool updateVisiblePhases = false);
+    std::vector<std::shared_ptr<Transaction>> parseTransactionsFromQuery(QSqlQuery& query);
     static std::vector<CommentModel::Comment> parseCommentsFromQuery(QSqlQuery& query);
-
-    void executeScriptFile(const QString& fileName);
-    void dropAndCreateTables();
 
     uint64_t getTraceLength();
     uint64_t getNumberOfTransactions();
-    uint64_t getNumberOfPhases();
     GeneralInfo getGeneralInfoFromDB();
-    CommandLengths getCommandLengthsFromDB();
+    std::unordered_map<std::string, double> getCommandLengthsFromDB();
     QVariant getParameterFromTable(const std::string& parameter, const std::string& table);
-
-    std::map<unsigned int, std::shared_ptr<Phase>>
-        _visiblePhases; // Updated at parseTransactionsFromQuery
 };
 
 class sqlException : public std::exception

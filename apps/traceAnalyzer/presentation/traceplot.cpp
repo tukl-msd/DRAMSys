@@ -42,7 +42,6 @@
 #include "businessObjects/traceplotlinemodel.h"
 #include "gototimedialog.h"
 #include "tracePlotMouseLabel.h"
-#include "tracedrawing.h"
 #include "util/clkgrid.h"
 #include "util/customlabelscaledraw.h"
 #include "util/engineeringScaleDraw.h"
@@ -56,8 +55,6 @@
 #include <QMouseEvent>
 #include <QPushButton>
 #include <QWheelEvent>
-#include <cmath>
-#include <iostream>
 #include <qfiledialog.h>
 #include <qwt_plot_grid.h>
 #include <qwt_plot_renderer.h>
@@ -111,7 +108,6 @@ void TracePlot::init(TraceNavigator* navigator,
     setUpGrid();
     setUpTracePlotItem();
     setUpZoom();
-    setUpQueryEditor();
     mouseLabel = new TracePlotMouseLabel(
         this, navigator->GeneralTraceInfo().clkPeriod, this->mouseDownData.zoomSpan);
     getAndDrawComments();
@@ -135,14 +131,6 @@ void TracePlot::setUpActions()
 
     deselectAll = new QAction("Deselect all", this);
     QObject::connect(deselectAll, SIGNAL(triggered()), this, SLOT(on_deselectAll()));
-
-    goToPhase = new QAction("Go to phase", this);
-    QObject::connect(goToPhase, SIGNAL(triggered()), this, SLOT(on_goToPhase()));
-
-    showQueryEditor = new QAction("Execute query", this);
-    showQueryEditor->setShortcut(QKeySequence("ctrl+e"));
-    addAction(showQueryEditor);
-    QObject::connect(showQueryEditor, SIGNAL(triggered()), this, SLOT(on_executeQuery()));
 
     selectNextRefresh = new QAction("Select next refresh", this);
     addAction(selectNextRefresh);
@@ -241,18 +229,19 @@ void TracePlot::setUpContextMenu()
     contextMenu->addMenu(colorGroupingSubMenu);
 
     QMenu* goToSubMenu = new QMenu("Go to", contextMenu);
-    goToSubMenu->addActions({goToPhase, goToTransaction, goToTime});
+    goToSubMenu->addActions({goToTransaction, goToTime});
     contextMenu->addMenu(goToSubMenu);
 
     QMenu* selectSubMenu = new QMenu("Select", contextMenu);
-    selectSubMenu->addActions(
-        {selectNextRefresh,
-         selectNextActivate,
-         selectNextPrecharge,
-         selectNextCommand /*, selectNextActb, selectNextPreb, selectNextRefb */});
+    selectSubMenu->addActions({
+        selectNextRefresh,
+        selectNextActivate,
+        selectNextPrecharge,
+        selectNextCommand,
+    });
     contextMenu->addMenu(selectSubMenu);
 
-    contextMenu->addActions({showQueryEditor, insertComment, exportToPdf, toggleCollapsedState});
+    contextMenu->addActions({insertComment, exportToPdf, toggleCollapsedState});
 }
 
 void TracePlot::connectNavigatorQ_SIGNALS()
@@ -286,15 +275,6 @@ void TracePlot::setUpDrawingProperties()
     drawingProperties.groupsPerRank = navigator->GeneralTraceInfo().groupsPerRank;
     drawingProperties.banksPerGroup = navigator->GeneralTraceInfo().banksPerGroup;
     drawingProperties.per2BankOffset = navigator->GeneralTraceInfo().per2BankOffset;
-}
-
-void TracePlot::setUpQueryEditor()
-{
-    queryEditor = new QueryEditor(this);
-    queryEditor->setWindowFlags(Qt::Window);
-    queryEditor->setWindowTitle("Query " +
-                                QFileInfo(navigator->TraceFile().getPathToDB()).baseName());
-    queryEditor->init(navigator);
 }
 
 void TracePlot::setUpTracePlotItem()
@@ -560,7 +540,8 @@ void TracePlot::currentTraceTimeChanged()
 
     if (!loadedTimespan.contains(newTimespan))
     {
-        loadedTimespan = Timespan{newTimespan.Begin() - newTimespan.timeCovered(), newTimespan.End() + newTimespan.timeCovered()};
+        loadedTimespan = Timespan{newTimespan.Begin() - newTimespan.timeCovered(),
+                                  newTimespan.End() + newTimespan.timeCovered()};
 
         transactions = navigator->TraceFile().getTransactionsInTimespan(loadedTimespan);
     }
@@ -579,11 +560,6 @@ void TracePlot::commentsChanged()
     detachItems(QwtPlotItem::Rtti_PlotMarker);
     getAndDrawComments();
     replot();
-}
-
-void TracePlot::on_executeQuery()
-{
-    queryEditor->show();
 }
 
 void TracePlot::on_selectNextRefresh()
@@ -670,26 +646,6 @@ void TracePlot::on_goToTransaction()
     {
         navigator->clearSelectedTransactions();
         navigator->selectTransaction(transactionID);
-    }
-}
-
-void TracePlot::on_goToPhase()
-{
-    bool ok;
-    int maxID = navigator->GeneralTraceInfo().numberOfPhases;
-    int phaseID = QInputDialog::getInt(this,
-                                       "Go to phase",
-                                       "Enter phase ID (1 - " + QString::number(maxID) + ")",
-                                       0,
-                                       1,
-                                       maxID,
-                                       1,
-                                       &ok);
-
-    if (ok)
-    {
-        navigator->clearSelectedTransactions();
-        navigator->selectTransaction(navigator->TraceFile().getTransactionIDFromPhaseID(phaseID));
     }
 }
 

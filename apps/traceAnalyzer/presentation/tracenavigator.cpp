@@ -47,7 +47,7 @@ using namespace std;
 
 TraceNavigator::TraceNavigator(QString path, CommentModel* commentModel, QObject* parent) :
     QObject(parent),
-    traceFile(path, true),
+    traceFile(path),
     commentModel(commentModel),
     changesToCommitExist(false)
 {
@@ -120,7 +120,7 @@ void TraceNavigator::refreshData()
 
 void TraceNavigator::addSelectedTransactions(const vector<shared_ptr<Transaction>>& transactions)
 {
-    for (const auto &transaction : transactions)
+    for (const auto& transaction : transactions)
     {
         selectedTransactions.push_back(transaction);
     }

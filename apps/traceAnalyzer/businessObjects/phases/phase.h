@@ -78,8 +78,7 @@ inline RelevantAttributes operator&(RelevantAttributes a, RelevantAttributes b)
 class Phase
 {
 public:
-    Phase(ID id,
-          Timespan span,
+    Phase(Timespan span,
           Timespan spanOnDataStrobe,
           unsigned int rank,
           unsigned int bankGroup,
@@ -93,7 +92,6 @@ public:
           std::vector<Timespan> spansOnCommandBus,
           unsigned int groupsPerRank,
           unsigned int banksPerGroup) :
-        id(id),
         span(span),
         spanOnDataStrobe(spanOnDataStrobe),
         rank(rank),
@@ -126,8 +124,6 @@ public:
 
     const Timespan& Span() const { return span; }
 
-    ID Id() const { return id; }
-
     unsigned int getRank() const { return rank; }
 
     unsigned int getBankGroup() const { return bankGroup % groupsPerRank; }
@@ -147,7 +143,6 @@ public:
     virtual QString Name() const = 0;
 
 protected:
-    ID id;
     Timespan span;
     Timespan spanOnDataStrobe;
     unsigned int rank, bankGroup, bank, row, column, burstLength, dualBank;

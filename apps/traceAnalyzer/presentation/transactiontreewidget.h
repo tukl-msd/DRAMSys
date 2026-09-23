@@ -41,7 +41,6 @@
 #include "tracenavigator.h"
 #include <QMenu>
 #include <QTreeWidget>
-#include <iostream>
 
 class TransactionTreeWidget : public QTreeWidget
 {
@@ -68,9 +67,7 @@ private:
     {
     public:
         static constexpr int transactionTreeItemType = 1001;
-        TransactionTreeItem(QTreeWidget* parent,
-                            const std::shared_ptr<Transaction>& trans,
-                            const GeneralInfo& generalInfo);
+        TransactionTreeItem(QTreeWidget* parent, const std::shared_ptr<Transaction>& trans);
         ID Id() const { return id; }
 
     private:

@@ -36,10 +36,8 @@
  */
 
 #include "transactiontreewidget.h"
-#include "data/tracedb.h"
 #include <QHeaderView>
 #include <memory>
-#include <vector>
 
 using namespace std;
 
@@ -65,8 +63,7 @@ void TransactionTreeWidget::init(TraceNavigator* _navigator)
 
 void TransactionTreeWidget::AppendTransaction(const shared_ptr<Transaction>& transaction)
 {
-    QTreeWidgetItem* node =
-        new TransactionTreeItem(this, transaction, navigator->GeneralTraceInfo());
+    QTreeWidgetItem* node = new TransactionTreeItem(this, transaction);
     addTopLevelItem(node);
 }
 
@@ -89,15 +86,13 @@ void TransactionTreeWidget::ContextMenuRequested(QPoint point)
 }
 
 TransactionTreeWidget::TransactionTreeItem::TransactionTreeItem(
-    QTreeWidget* parent,
-    const shared_ptr<Transaction>& transaction,
-    const GeneralInfo& generalInfo) :
+    QTreeWidget* parent, const shared_ptr<Transaction>& transaction) :
     QTreeWidgetItem(parent, transactionTreeItemType)
 {
     this->setText(0, QString::number(transaction->id));
     this->id = transaction->id;
 
-    bool isControllerTransaction = (transaction->thread == generalInfo.controllerThread);
+    bool isControllerTransaction = false;
 
     auto* time = new QTreeWidgetItem({"Timespan"});
     AppendTimespan(time, transaction->span);
@@ -133,7 +128,7 @@ void TransactionTreeWidget::TransactionTreeItem::AppendPhase(QTreeWidgetItem* pa
                                                              const Phase& phase)
 {
     auto* node = new QTreeWidgetItem(parent);
-    node->setText(0, phase.Name() + QString(" [") + QString::number(phase.Id()) + QString("]"));
+    node->setText(0, phase.Name());
 
     AppendTimespan(node, phase.Span());
 

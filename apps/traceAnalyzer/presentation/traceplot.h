@@ -41,7 +41,6 @@
 #define TRACEPLOT_H
 
 #include "markerplotitem.h"
-#include "queryeditor.h"
 #include "tracenavigator.h"
 #include "traceplotitem.h"
 #include "util/togglecollapsedaction.h"
@@ -100,20 +99,15 @@ Q_SIGNALS:
     void colorGroupingChanged(ColorGrouping colorgrouping);
 
 private Q_SLOTS:
-    void on_executeQuery();
     void on_selectNextRefresh();
     void on_selectNextActivate();
     void on_selectNextPrecharge();
     void on_selectNextCommand();
-    //     void on_selectNextActb();
-    //     void on_selectNextPreb();
-    //     void on_selectNextRefb();
     void on_colorGroupingPhase();
     void on_colorGroupingTransaction();
     void on_colorGroupingThread();
     void on_colorGroupingRainbowTransaction();
     void on_goToTransaction();
-    void on_goToPhase();
     void on_deselectAll();
     void on_insertComment();
     void on_goToTime();
@@ -127,7 +121,6 @@ private:
     TracePlotItem* tracePlotItem;
     QwtPlotZoneItem* zoomZone;
     std::vector<std::shared_ptr<Transaction>> transactions;
-    QueryEditor* queryEditor;
     QMenu* contextMenu;
     QScrollBar* scrollBar;
     CustomLabelScaleDraw* customLabelScaleDraw;
@@ -143,7 +136,6 @@ private:
     void setUpGrid();
     void setUpAxis();
     void setUpZoom();
-    void setUpQueryEditor();
     void setUpActions();
     void setUpContextMenu();
 
@@ -176,17 +168,12 @@ private:
 
     QAction* goToTime;
     QAction* goToTransaction;
-    QAction* goToPhase;
-    QAction* showQueryEditor;
     QAction* insertComment;
     QAction* deselectAll;
     QAction* selectNextRefresh;
     QAction* selectNextActivate;
     QAction* selectNextPrecharge;
     QAction* selectNextCommand;
-    //     QAction *selectNextActb;
-    //     QAction *selectNextPreb;
-    //     QAction *selectNextRefb;
     QAction* setColorGroupingPhase;
     QAction* setColorGroupingTransaction;
     QAction* setColorGroupingThread;

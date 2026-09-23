@@ -49,8 +49,7 @@ class PhaseFactory
 {
 public:
     PhaseFactory() = delete;
-    static std::shared_ptr<Phase> createPhase(ID id,
-                                              const QString& dbPhaseName,
+    static std::shared_ptr<Phase> createPhase(const QString& dbPhaseName,
                                               Timespan span,
                                               Timespan spanOnDataStrobe,
                                               unsigned int rank,

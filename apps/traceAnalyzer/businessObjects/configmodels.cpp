@@ -79,15 +79,13 @@ void McConfigModel::parseJson(const QString& jsonString)
 
 void McConfigModel::addAdditionalInfos(const GeneralInfo& generalInfo)
 {
-    auto addEntry = [this](const QString& key, const QString& value) {
-        entries.push_back({key, value});
-    };
+    auto addEntry = [this](const QString& key, const QString& value)
+    { entries.push_back({key, value}); };
 
     addEntry("Number of Transactions", QString::number(generalInfo.numberOfTransactions));
     addEntry("Clock period",
              QString::number(generalInfo.clkPeriod) + " " + generalInfo.unitOfTime.toLower());
     addEntry("Length of trace", prettyFormatTime(generalInfo.span.End()));
-    addEntry("Window size", QString::number(generalInfo.windowSize));
 }
 
 int McConfigModel::rowCount(const QModelIndex& parent) const
