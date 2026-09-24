@@ -88,6 +88,7 @@ public Q_SLOTS:
     void currentTraceTimeChanged();
     void selectedTransactionsChanged();
     void commentsChanged();
+    void channelChanged();
     void verticalScrollbarChanged(int value);
     void updateScrollbar();
     void recreateCollapseButtons();

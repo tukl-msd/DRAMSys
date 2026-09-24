@@ -79,12 +79,22 @@ public:
     std::vector<std::shared_ptr<Transaction>> getTransactionsInTimespan(const Timespan& span);
 
     std::shared_ptr<Transaction> getTransactionByID(ID id);
+    std::vector<unsigned> getDistinctChannels();
+    unsigned getCurrentChannel() const { return currentChannel; }
+    void setCurrentChannel(unsigned channel) { currentChannel = channel; }
+
+    // Returns the transaction ID directly after (forward == true) or before
+    // (forward == false) the given ID on the given channel.
+    // Returns 0 if there is no such transaction.
+    ID getAdjacentTransactionID(unsigned channel, ID id, bool forward);
 
     std::vector<CommentModel::Comment> getComments();
 
     QSqlDatabase getDatabase() const;
 
 private:
+    unsigned currentChannel = 0;
+
     QString pathToDB;
     QSqlDatabase database;
     GeneralInfo generalInfo;

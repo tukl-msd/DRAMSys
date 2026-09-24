@@ -39,6 +39,7 @@
 
 #include "tracenavigator.h"
 #include "businessObjects/commentmodel.h"
+#include <limits>
 #include "vector"
 #include <QInputDialog>
 #include <QLineEdit>
@@ -88,6 +89,23 @@ void TraceNavigator::navigateToTime(traceTime time)
 void TraceNavigator::navigateToTransaction(ID id)
 {
     navigateToTime(traceFile.getTransactionByID(id)->span.Begin());
+}
+
+unsigned TraceNavigator::currentChannel() const
+{
+    return traceFile.getCurrentChannel();
+}
+
+void TraceNavigator::setCurrentChannel(unsigned channel)
+{
+    if (channel == currentChannel())
+        return;
+
+    // Discard the selection as it may reference transactions of another channel.
+    clearSelectedTransactions();
+
+    traceFile.setCurrentChannel(channel);
+    Q_EMIT channelChanged(channel);
 }
 
 /* DB
@@ -154,29 +172,48 @@ void TraceNavigator::selectTransaction(const shared_ptr<Transaction>& transactio
 
 void TraceNavigator::selectNextTransaction()
 {
-    if (selectedTransactions.empty() ||
-        selectedTransactions.front()->id == traceFile.getGeneralInfo().numberOfTransactions)
+    unsigned channel = currentChannel();
+    ID id = selectedTransactions.empty() ? 0 : selectedTransactions.front()->id;
+
+    ID next = traceFile.getAdjacentTransactionID(channel, id, true);
+    if (next == 0)
         selectFirstTransaction();
     else
-        selectTransaction(selectedTransactions.front()->id + 1);
+        selectTransaction(next);
 }
 
 void TraceNavigator::selectPreviousTransaction()
 {
-    if (selectedTransactions.empty() || selectedTransactions.front()->id == 1)
+    unsigned channel = currentChannel();
+    ID id = selectedTransactions.empty()
+                ? std::numeric_limits<ID>::max()
+                : selectedTransactions.front()->id;
+
+    ID previous = traceFile.getAdjacentTransactionID(channel, id, false);
+    if (previous == 0)
         selectLastTransaction();
     else
-        selectTransaction(selectedTransactions.front()->id - 1);
+        selectTransaction(previous);
 }
 
 void TraceNavigator::selectFirstTransaction()
 {
-    selectTransaction(1);
+    ID first = traceFile.getAdjacentTransactionID(currentChannel(), 0, true);
+    if (first == 0)
+        return;
+
+    selectTransaction(first);
 }
 
 void TraceNavigator::selectLastTransaction()
 {
-    selectTransaction(traceFile.getGeneralInfo().numberOfTransactions);
+    ID last = traceFile.getAdjacentTransactionID(currentChannel(),
+                                                 std::numeric_limits<ID>::max(),
+                                                 false);
+    if (last == 0)
+        return;
+
+    selectTransaction(last);
 }
 
 void TraceNavigator::selectNextRefresh(traceTime time)

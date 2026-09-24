@@ -79,6 +79,21 @@ TraceFileTab::TraceFileTab(std::string_view traceFilePath, QWidget* parent) :
     setUpTraceplotScrollbar();
     setUpCommentView();
 
+    for (unsigned channel : navigator->TraceFile().getDistinctChannels())
+    {
+        // Store the actual channel number as item data, so that the combo
+        // index does not need to match the channel number.
+        ui->channelSelector->addItem(QString("Channel %1").arg(channel), channel);
+    }
+
+    connect(ui->channelSelector,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            [this](int index)
+            { navigator->setCurrentChannel(ui->channelSelector->itemData(index).toUInt()); });
+
+    if (ui->channelSelector->count() > 0)
+        navigator->setCurrentChannel(ui->channelSelector->itemData(0).toUInt());
+
 #ifndef EXTENSION_ENABLED
     addDisclaimer();
 #endif

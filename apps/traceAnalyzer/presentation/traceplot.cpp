@@ -252,6 +252,7 @@ void TracePlot::connectNavigatorQ_SIGNALS()
                      SIGNAL(selectedTransactionsChanged()),
                      this,
                      SLOT(selectedTransactionsChanged()));
+    QObject::connect(navigator, &TraceNavigator::channelChanged, this, &TracePlot::channelChanged);
 }
 
 void TracePlot::setUpDrawingProperties()
@@ -553,6 +554,14 @@ void TracePlot::currentTraceTimeChanged()
 void TracePlot::selectedTransactionsChanged()
 {
     replot();
+}
+
+void TracePlot::channelChanged()
+{
+    // The transaction cache is keyed by timespan only. Since the channel
+    // filter may have changed, invalidate the cache and reload the data.
+    loadedTimespan = Timespan(0, 0);
+    currentTraceTimeChanged();
 }
 
 void TracePlot::commentsChanged()

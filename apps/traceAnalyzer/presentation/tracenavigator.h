@@ -66,6 +66,9 @@ public:
     void navigateToTime(traceTime time);
     void navigateToTransaction(ID id);
 
+    unsigned currentChannel() const;
+    void setCurrentChannel(unsigned channel);
+
     /* Transaction selection
      * (selecting a single transactions also navigates to that transaction)
      */
@@ -107,6 +110,7 @@ public:
 Q_SIGNALS:
     void currentTraceTimeChanged();
     void selectedTransactionsChanged();
+    void channelChanged(unsigned channel);
 
 public Q_SLOTS:
     void traceFileModified();

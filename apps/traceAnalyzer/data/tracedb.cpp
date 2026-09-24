@@ -80,9 +80,9 @@ TraceDB::TraceDB(QString path) : pathToDB(std::move(path))
 void TraceDB::prepareQueries()
 {
     selectTransactionsByTimespan = QSqlQuery(database);
-    if (!selectTransactionsByTimespan.prepare(
-            transactionQueryHead +
-            " WHERE n.timestamp >= :begin AND n.timestamp <= :end AND t.channel = 0 GROUP BY t.id"))
+    if (!selectTransactionsByTimespan.prepare(transactionQueryHead +
+                                               " WHERE n.timestamp >= :begin AND n.timestamp <= "
+                                               ":end AND t.channel = :channel GROUP BY t.id"))
         qDebug() << database.lastError().text();
 
     selectTransactionById = QSqlQuery(database);
@@ -119,6 +119,36 @@ CREATE INDEX IF NOT EXISTS idx_nbt_txn_signal ON nb_transports(transaction_id, s
     executeQuery(query);
 }
 
+std::vector<unsigned> TraceDB::getDistinctChannels()
+{
+    QSqlQuery query(database);
+    query.prepare("SELECT DISTINCT channel FROM transactions ORDER BY channel");
+    executeQuery(query);
+
+    std::vector<unsigned> channels;
+    while (query.next())
+        channels.push_back(query.value(0).toUInt());
+    return channels;
+}
+
+ID TraceDB::getAdjacentTransactionID(unsigned channel, ID id, bool forward)
+{
+    QSqlQuery query(database);
+    query.prepare(QString("SELECT id FROM transactions"
+                          " WHERE channel = :channel AND id %1 :id"
+                          " ORDER BY id %2"
+                          " LIMIT 1")
+                      .arg(forward ? ">" : "<")
+                      .arg(forward ? "ASC" : "DESC"));
+    query.bindValue(":channel", channel);
+    query.bindValue(":id", id);
+    executeQuery(query);
+
+    if (query.next())
+        return query.value(0).toUInt();
+    return 0;
+}
+
 void TraceDB::updateComments(const std::vector<CommentModel::Comment>& comments)
 {
     QSqlQuery query(database);
@@ -144,6 +174,7 @@ std::vector<std::shared_ptr<Transaction>> TraceDB::getTransactionsInTimespan(con
 {
     selectTransactionsByTimespan.bindValue(":begin", span.Begin());
     selectTransactionsByTimespan.bindValue(":end", span.End());
+    selectTransactionsByTimespan.bindValue(":channel", currentChannel);
     executeQuery(selectTransactionsByTimespan);
     return parseTransactionsFromQuery(selectTransactionsByTimespan);
 }
