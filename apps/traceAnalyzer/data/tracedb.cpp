@@ -385,7 +385,7 @@ std::vector<std::shared_ptr<Transaction>> TraceDB::parseTransactionsFromQuery(QS
 
     while (query.next())
     {
-        ID id = query.value(0).toInt();
+        ID id = query.value(0).toUInt();
         Timespan span(query.value(7).toLongLong(), query.value(10).toLongLong());
         uint64_t address = query.value(1).toULongLong();
         unsigned int dataLength = query.value(2).toUInt();
@@ -404,7 +404,16 @@ std::vector<std::shared_ptr<Transaction>> TraceDB::parseTransactionsFromQuery(QS
         result.push_back(transaction);
 
         const bool isInternal = isInternalCol >= 0 && query.value(isInternalCol).toUInt() == 1;
-        (isInternal ? internalByID : realByID)[id] = transaction;
+        if (isInternal)
+        {
+            // Internal entries carry the high bit (see the list query). The phase
+            // lookup uses the raw command_strobe ID, so key the map by that.
+            internalByID[id & 0x7FFFFFFFu] = transaction;
+        }
+        else
+        {
+            realByID[id] = transaction;
+        }
     }
 
     if (result.empty())
@@ -491,10 +500,10 @@ void TraceDB::attachCommandPhases(QSqlQuery& commandPhasesQuery,
         unsigned int rank = commandPhasesQuery.value(6).toUInt();
         unsigned int bankGroup = commandPhasesQuery.value(7).toUInt();
         unsigned int bank = commandPhasesQuery.value(8).toUInt();
-        unsigned int row = commandPhasesQuery.value(9).toUInt();
-        unsigned int column = commandPhasesQuery.value(10).toUInt();
-        unsigned int burstLength = commandPhasesQuery.value(11).toUInt();
-        unsigned int dualBank = 0;
+        unsigned int dualBank = commandPhasesQuery.value(9).toUInt();
+        unsigned int row = commandPhasesQuery.value(10).toUInt();
+        unsigned int column = commandPhasesQuery.value(11).toUInt();
+        unsigned int burstLength = commandPhasesQuery.value(12).toUInt();
         auto phase = PhaseFactory::createPhase(phaseName,
                                                span,
                                                spanOnDataStrobe,

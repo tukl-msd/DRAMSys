@@ -127,8 +127,10 @@ JOIN transactions as t
 
     // Timeline list: initiator transactions plus the internal commands (refresh,
     // power-down, ...) that the memory controller issues on its own. Those have no
-    // transaction, so they are listed under their command_strobe ID and flagged
-    // with is_internal = 1 (their phase rows are looked up by that ID).
+    // transaction, so they are listed under their command_strobe ID (with the high
+    // bit set, so the ID can never collide with a real transaction ID) and flagged
+    // with is_internal = 1 (their phase rows are looked up by the raw command_strobe
+    // ID).
     QString transactionQueryHeadByTimespan = R"(
 SELECT
     t.id,
@@ -159,12 +161,12 @@ GROUP BY t.id
 UNION ALL
 
 SELECT
-    cs.id,
+    cs.id + 2147483648,
     0,
     0,
     0,
     0,
-    0,
+    cs.channel,
     c.id,
 
     state.begin,
@@ -180,6 +182,8 @@ JOIN dram_states AS state
     ON state.command_strobe_id = cs.id
 WHERE
     cs.transaction_id IS NULL
+AND
+    cs.channel = :channel
 AND
     state.end >= :begin AND state.begin <= :end
 )";
@@ -222,6 +226,7 @@ SELECT
 	cs.rank,
 	cs.bank_group,
 	cs.bank,
+	cs.dual_bank,
 	cs.row,
 	cs.column,
 	ds.burst_length
