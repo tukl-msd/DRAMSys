@@ -134,18 +134,13 @@ CREATE INDEX IF NOT EXISTS idx_ds_cs ON data_strobes(command_strobe_id);
 CREATE INDEX IF NOT EXISTS idx_state_strobe ON dram_states(command_strobe_id);
 )");
     executeQuery(query);
-
-    // Channel filtering and first/next/last transaction navigation.
-    query.prepare(R"(
-CREATE INDEX IF NOT EXISTS idx_tx_channel ON transactions(channel, id);
-)");
-    executeQuery(query);
 }
 
 std::vector<unsigned> TraceDB::getDistinctChannels()
 {
+    // A channel is present for every bus recorded in the signals table.
     QSqlQuery query(database);
-    query.prepare("SELECT DISTINCT channel FROM transactions ORDER BY channel");
+    query.prepare("SELECT DISTINCT channel FROM signals ORDER BY channel");
     executeQuery(query);
 
     std::vector<unsigned> channels;
@@ -156,10 +151,14 @@ std::vector<unsigned> TraceDB::getDistinctChannels()
 
 ID TraceDB::getAdjacentTransactionID(unsigned channel, ID id, bool forward)
 {
+    // A transaction's channel is the channel of the TLM bus it was seen on,
+    // so the channel is resolved via the nb_transports/signal tables.
     QSqlQuery query(database);
-    query.prepare(QString("SELECT id FROM transactions"
-                          " WHERE channel = :channel AND id %1 :id"
-                          " ORDER BY id %2"
+    query.prepare(QString("SELECT DISTINCT t.id FROM transactions AS t"
+                          " JOIN nb_transports AS n ON n.transaction_id = t.id"
+                          " JOIN signals AS s ON s.id = n.signal_id"
+                          " WHERE s.channel = :channel AND t.id %1 :id"
+                          " ORDER BY t.id %2"
                           " LIMIT 1")
                       .arg(forward ? ">" : "<")
                       .arg(forward ? "ASC" : "DESC"));

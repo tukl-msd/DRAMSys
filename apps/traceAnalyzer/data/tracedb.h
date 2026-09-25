@@ -110,7 +110,7 @@ SELECT
     t.data_length,
 	n.signal_id,
     t.thread,
-    t.channel,
+    s.channel,
 	t.tlm_command,
 
     MAX(n.timestamp) FILTER (WHERE p.stage='REQ' AND p.type='BEGIN') AS req_begin,
@@ -123,6 +123,8 @@ JOIN phases AS p
     ON n.phase_id = p.id
 JOIN transactions as t
     ON n.transaction_id = t.id
+JOIN signals AS s
+    ON s.id = n.signal_id
 )";
 
     // Timeline list: initiator transactions plus the internal commands (refresh,
@@ -138,7 +140,7 @@ SELECT
     t.data_length,
 	n.signal_id,
     t.thread,
-    t.channel,
+    s.channel,
 	t.tlm_command,
 
     MAX(n.timestamp) FILTER (WHERE p.stage='REQ' AND p.type='BEGIN') AS req_begin,
@@ -152,10 +154,12 @@ JOIN phases AS p
     ON n.phase_id = p.id
 JOIN transactions as t
     ON n.transaction_id = t.id
+JOIN signals AS s
+    ON s.id = n.signal_id
 WHERE
     n.timestamp >= :begin AND n.timestamp <= :end
 AND
-    t.channel = :channel
+    s.channel = :channel
 GROUP BY t.id
 
 UNION ALL
@@ -166,7 +170,7 @@ SELECT
     0,
     0,
     0,
-    cs.channel,
+    sig.channel,
     c.id,
 
     state.begin,
@@ -180,10 +184,12 @@ JOIN commands AS c
     ON cs.command_id = c.id
 JOIN dram_states AS state
     ON state.command_strobe_id = cs.id
+JOIN signals AS sig
+    ON sig.id = cs.signal_id
 WHERE
     cs.transaction_id IS NULL
 AND
-    cs.channel = :channel
+    sig.channel = :channel
 AND
     state.end >= :begin AND state.begin <= :end
 )";
