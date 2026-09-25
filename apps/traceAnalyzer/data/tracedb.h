@@ -125,6 +125,65 @@ JOIN transactions as t
     ON n.transaction_id = t.id
 )";
 
+    // Timeline list: initiator transactions plus the internal commands (refresh,
+    // power-down, ...) that the memory controller issues on its own. Those have no
+    // transaction, so they are listed under their command_strobe ID and flagged
+    // with is_internal = 1 (their phase rows are looked up by that ID).
+    QString transactionQueryHeadByTimespan = R"(
+SELECT
+    t.id,
+	t.address,
+    t.data_length,
+	n.signal_id,
+    t.thread,
+    t.channel,
+	t.tlm_command,
+
+    MAX(n.timestamp) FILTER (WHERE p.stage='REQ' AND p.type='BEGIN') AS req_begin,
+    MAX(n.timestamp) FILTER (WHERE p.stage='REQ' AND p.type='END') AS req_end,
+    MAX(n.timestamp) FILTER (WHERE p.stage='RESP' AND p.type='BEGIN') AS resp_begin,
+    MAX(n.timestamp) FILTER (WHERE p.stage='RESP' AND p.type='END') AS resp_end,
+    0 AS is_internal
+
+FROM nb_transports AS n
+JOIN phases AS p
+    ON n.phase_id = p.id
+JOIN transactions as t
+    ON n.transaction_id = t.id
+WHERE
+    n.timestamp >= :begin AND n.timestamp <= :end
+AND
+    t.channel = :channel
+GROUP BY t.id
+
+UNION ALL
+
+SELECT
+    cs.id,
+    0,
+    0,
+    0,
+    0,
+    0,
+    c.id,
+
+    state.begin,
+    state.end,
+    state.begin,
+    state.end,
+    1 AS is_internal
+
+FROM command_strobes AS cs
+JOIN commands AS c
+    ON cs.command_id = c.id
+JOIN dram_states AS state
+    ON state.command_strobe_id = cs.id
+WHERE
+    cs.transaction_id IS NULL
+AND
+    state.end >= :begin AND state.begin <= :end
+)";
+
     // The caller appends a list of transaction IDs after "IN", e.g. "(1, 2, 3)".
     QString phaseQuery = R"(
 SELECT
@@ -147,10 +206,14 @@ AND
     b.transaction_id IN
 )";
 
-    // The caller appends a list of transaction IDs after "IN", e.g. "(1, 2, 3)".
-    QString commandPhaseQuery = R"(
+    // SELECT part of the command phase lookup. The first column resolves to the
+    // transaction ID for real transactions and to the command_strobe ID for internal
+    // commands (which have no transaction). commandPhasesReal / commandPhasesInternal
+    // are assembled in prepareQueries() by appending the matching WHERE clause;
+    // the caller appends a parenthesized ID list, e.g. "(1, 2, 3)".
+    QString commandPhaseQuerySelect = R"(
 SELECT
-    cs.transaction_id,
+    COALESCE(cs.transaction_id, cs.id) AS transaction_id,
 	c.name AS PhaseName,
 	state.begin as DramStateBegin,
 	state.end as DramStateEnd,
@@ -165,18 +228,21 @@ SELECT
 FROM command_strobes AS cs
 JOIN commands AS c
     ON cs.command_id == c.id
-JOIN data_strobes as ds
+LEFT JOIN data_strobes as ds
     ON ds.command_strobe_id == cs.id
 JOIN dram_states as state
     ON cs.id == state.command_strobe_id
-WHERE cs.transaction_id IN
 )";
+    QString commandPhasesReal;
+    QString commandPhasesInternal;
 
     void prepareQueries();
     void prepareTables();
     void executeQuery(QSqlQuery query);
     std::shared_ptr<Transaction> parseTransactionFromQuery(QSqlQuery& query);
     std::vector<std::shared_ptr<Transaction>> parseTransactionsFromQuery(QSqlQuery& query);
+    void attachCommandPhases(QSqlQuery& query,
+                             std::unordered_map<ID, std::shared_ptr<Transaction>>& transactionsByID);
     static std::vector<CommentModel::Comment> parseCommentsFromQuery(QSqlQuery& query);
 
     uint64_t getTraceLength();

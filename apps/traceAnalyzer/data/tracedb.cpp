@@ -44,6 +44,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QSqlError>
+#include <QSqlRecord>
 #include <QString>
 #include <QStringList>
 #include <QTextStream>
@@ -80,14 +81,16 @@ TraceDB::TraceDB(QString path) : pathToDB(std::move(path))
 void TraceDB::prepareQueries()
 {
     selectTransactionsByTimespan = QSqlQuery(database);
-    if (!selectTransactionsByTimespan.prepare(transactionQueryHead +
-                                               " WHERE n.timestamp >= :begin AND n.timestamp <= "
-                                               ":end AND t.channel = :channel GROUP BY t.id"))
+    if (!selectTransactionsByTimespan.prepare(transactionQueryHeadByTimespan))
         qDebug() << database.lastError().text();
 
     selectTransactionById = QSqlQuery(database);
     if (!selectTransactionById.prepare(transactionQueryHead + " WHERE t.id = :id GROUP BY t.id"))
         qDebug() << database.lastError().text();
+
+    commandPhasesReal = commandPhaseQuerySelect + " WHERE cs.transaction_id IN ";
+    commandPhasesInternal =
+        commandPhaseQuerySelect + " WHERE cs.transaction_id IS NULL AND cs.id IN ";
 }
 
 void TraceDB::prepareTables()
@@ -361,9 +364,24 @@ QSqlDatabase TraceDB::getDatabase() const
  *
  */
 
+QString joinIds(const std::unordered_map<ID, std::shared_ptr<Transaction>>& transactions)
+{
+    QStringList ids;
+    for (const auto& pair : transactions)
+        ids << QString::number(pair.first);
+    return ids.join(", ");
+}
+
 std::vector<std::shared_ptr<Transaction>> TraceDB::parseTransactionsFromQuery(QSqlQuery& query)
 {
     std::vector<std::shared_ptr<Transaction>> result;
+
+    // Internal commands (refresh, power-down, ...) are listed with their command_strobe
+    // ID and flagged via the is_internal column; their phase rows are looked up by
+    // that ID instead of a transaction ID.
+    const int isInternalCol = query.record().indexOf("is_internal");
+    std::unordered_map<ID, std::shared_ptr<Transaction>> realByID;
+    std::unordered_map<ID, std::shared_ptr<Transaction>> internalByID;
 
     while (query.next())
     {
@@ -374,39 +392,35 @@ std::vector<std::shared_ptr<Transaction>> TraceDB::parseTransactionsFromQuery(QS
         unsigned int thread = query.value(4).toUInt();
         unsigned int channel = query.value(5).toUInt();
         QString command = (query.value(6).toUInt() == 1) ? "R" : "W"; // 1 == TLM_READ_COMMAND
-        auto transaction =
-            result.emplace_back(std::make_shared<Transaction>(id,
-                                                              std::move(command),
-                                                              address,
-                                                              dataLength,
-                                                              thread,
-                                                              channel,
-                                                              span,
-                                                              generalInfo.clkPeriod));
+
+        auto transaction = std::make_shared<Transaction>(id,
+                                                         std::move(command),
+                                                         address,
+                                                         dataLength,
+                                                         thread,
+                                                         channel,
+                                                         span,
+                                                         generalInfo.clkPeriod);
+        result.push_back(transaction);
+
+        const bool isInternal = isInternalCol >= 0 && query.value(isInternalCol).toUInt() == 1;
+        (isInternal ? internalByID : realByID)[id] = transaction;
     }
 
     if (result.empty())
         return result;
 
-    // Look up the phase information of all transactions with two batch queries
-    // instead of two queries *per transaction*.
-    std::unordered_map<ID, std::shared_ptr<Transaction>> transactionsByID;
-    QString idList;
-    for (const auto& transaction : result)
-    {
-        transactionsByID[transaction->id] = transaction;
-        idList += (idList.isEmpty() ? "" : ", ") + QString::number(transaction->id);
-    }
-
+    // REQ/RESP information: real transactions only (internal commands have none).
+    if (!realByID.empty())
     {
         QSqlQuery phasesQuery(database);
-        phasesQuery.prepare(phaseQuery + "(" + idList + ")");
+        phasesQuery.prepare(phaseQuery + "(" + joinIds(realByID) + ")");
         executeQuery(phasesQuery);
 
         while (phasesQuery.next())
         {
-            auto it = transactionsByID.find(phasesQuery.value(0).toUInt());
-            if (it == transactionsByID.end())
+            auto it = realByID.find(phasesQuery.value(0).toUInt());
+            if (it == realByID.end())
                 continue;
 
             auto& transaction = it->second;
@@ -437,48 +451,64 @@ std::vector<std::shared_ptr<Transaction>> TraceDB::parseTransactionsFromQuery(QS
         }
     }
 
+    // Look up the command phase information of all entries with one batch query each
+    // instead of one query *per transaction*.
+    if (!realByID.empty())
     {
         QSqlQuery commandPhasesQuery(database);
-        commandPhasesQuery.prepare(commandPhaseQuery + "(" + idList + ")");
+        commandPhasesQuery.prepare(commandPhasesReal + "(" + joinIds(realByID) + ")");
         executeQuery(commandPhasesQuery);
+        attachCommandPhases(commandPhasesQuery, realByID);
+    }
 
-        while (commandPhasesQuery.next())
-        {
-            auto it = transactionsByID.find(commandPhasesQuery.value(0).toUInt());
-            if (it == transactionsByID.end())
-                continue;
-
-            auto& transaction = it->second;
-
-            QString phaseName = commandPhasesQuery.value(1).toString();
-            Timespan span(commandPhasesQuery.value(2).toLongLong(),
-                          commandPhasesQuery.value(3).toLongLong());
-            Timespan spanOnDataStrobe(commandPhasesQuery.value(4).toLongLong(),
-                                      commandPhasesQuery.value(5).toLongLong());
-            unsigned int rank = commandPhasesQuery.value(6).toUInt();
-            unsigned int bankGroup = commandPhasesQuery.value(7).toUInt();
-            unsigned int bank = commandPhasesQuery.value(8).toUInt();
-            unsigned int row = commandPhasesQuery.value(9).toUInt();
-            unsigned int column = commandPhasesQuery.value(10).toUInt();
-            unsigned int burstLength = commandPhasesQuery.value(11).toUInt();
-            unsigned int dualBank = 0;
-            auto phase = PhaseFactory::createPhase(phaseName,
-                                                   span,
-                                                   spanOnDataStrobe,
-                                                   rank,
-                                                   bankGroup,
-                                                   bank,
-                                                   row,
-                                                   column,
-                                                   burstLength,
-                                                   dualBank,
-                                                   transaction,
-                                                   *this);
-            transaction->addPhase(phase);
-        }
+    if (!internalByID.empty())
+    {
+        QSqlQuery commandPhasesQuery(database);
+        commandPhasesQuery.prepare(commandPhasesInternal + "(" + joinIds(internalByID) + ")");
+        executeQuery(commandPhasesQuery);
+        attachCommandPhases(commandPhasesQuery, internalByID);
     }
 
     return result;
+}
+
+void TraceDB::attachCommandPhases(QSqlQuery& commandPhasesQuery,
+                                  std::unordered_map<ID, std::shared_ptr<Transaction>>& transactionsByID)
+{
+    while (commandPhasesQuery.next())
+    {
+        auto it = transactionsByID.find(commandPhasesQuery.value(0).toUInt());
+        if (it == transactionsByID.end())
+            continue;
+
+        auto& transaction = it->second;
+
+        QString phaseName = commandPhasesQuery.value(1).toString();
+        Timespan span(commandPhasesQuery.value(2).toLongLong(),
+                      commandPhasesQuery.value(3).toLongLong());
+        Timespan spanOnDataStrobe(commandPhasesQuery.value(4).toLongLong(),
+                                  commandPhasesQuery.value(5).toLongLong());
+        unsigned int rank = commandPhasesQuery.value(6).toUInt();
+        unsigned int bankGroup = commandPhasesQuery.value(7).toUInt();
+        unsigned int bank = commandPhasesQuery.value(8).toUInt();
+        unsigned int row = commandPhasesQuery.value(9).toUInt();
+        unsigned int column = commandPhasesQuery.value(10).toUInt();
+        unsigned int burstLength = commandPhasesQuery.value(11).toUInt();
+        unsigned int dualBank = 0;
+        auto phase = PhaseFactory::createPhase(phaseName,
+                                               span,
+                                               spanOnDataStrobe,
+                                               rank,
+                                               bankGroup,
+                                               bank,
+                                               row,
+                                               column,
+                                               burstLength,
+                                               dualBank,
+                                               transaction,
+                                               *this);
+        transaction->addPhase(phase);
+    }
 }
 
 std::vector<CommentModel::Comment> TraceDB::parseCommentsFromQuery(QSqlQuery& query)

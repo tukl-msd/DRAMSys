@@ -88,7 +88,14 @@ void TraceNavigator::navigateToTime(traceTime time)
 
 void TraceNavigator::navigateToTransaction(ID id)
 {
-    navigateToTime(traceFile.getTransactionByID(id)->span.Begin());
+    try
+    {
+        navigateToTime(traceFile.getTransactionByID(id)->span.Begin());
+    }
+    catch (std::exception const&)
+    {
+        // No transaction with this ID (e.g. an internal-command reference) — ignore.
+    }
 }
 
 unsigned TraceNavigator::currentChannel() const
@@ -153,7 +160,16 @@ void TraceNavigator::addSelectedTransaction(const shared_ptr<Transaction>& trans
 
 void TraceNavigator::addSelectedTransaction(ID id)
 {
-    shared_ptr<Transaction> transaction = TraceFile().getTransactionByID(id);
+    std::shared_ptr<Transaction> transaction;
+    try
+    {
+        transaction = TraceFile().getTransactionByID(id);
+    }
+    catch (std::exception const&)
+    {
+        // No transaction with this ID (e.g. an internal-command reference) — ignore.
+        return;
+    }
     selectedTransactions.push_back(transaction);
     Q_EMIT selectedTransactionsChanged();
 }
