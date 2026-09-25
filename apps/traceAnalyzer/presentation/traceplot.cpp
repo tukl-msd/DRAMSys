@@ -541,8 +541,9 @@ void TracePlot::currentTraceTimeChanged()
 
     if (!loadedTimespan.contains(newTimespan))
     {
-        loadedTimespan = Timespan{newTimespan.Begin() - newTimespan.timeCovered(),
-                                  newTimespan.End() + newTimespan.timeCovered()};
+        // Cache a span wider than the visible one to avoid re-queries while scrolling.
+        loadedTimespan = Timespan{newTimespan.Begin() - 2 * newTimespan.timeCovered(),
+                                  newTimespan.End() + 2 * newTimespan.timeCovered()};
 
         transactions = navigator->TraceFile().getTransactionsInTimespan(loadedTimespan);
     }

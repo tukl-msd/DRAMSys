@@ -102,8 +102,6 @@ private:
 
     QSqlQuery selectTransactionsByTimespan;
     QSqlQuery selectTransactionById;
-    QSqlQuery selectPhasesByTransaction;
-    QSqlQuery selectCommandPhasesByTransaction;
 
     QString transactionQueryHead = R"(
 SELECT
@@ -112,6 +110,7 @@ SELECT
     t.data_length,
 	n.signal_id,
     t.thread,
+    t.channel,
 	t.tlm_command,
 
     MAX(n.timestamp) FILTER (WHERE p.stage='REQ' AND p.type='BEGIN') AS req_begin,
@@ -126,8 +125,10 @@ JOIN transactions as t
     ON n.transaction_id = t.id
 )";
 
+    // The caller appends a list of transaction IDs after "IN", e.g. "(1, 2, 3)".
     QString phaseQuery = R"(
 SELECT
+    b.transaction_id,
 	pb.stage AS PhaseName,
     b.timestamp AS PhaseBegin,
     e.timestamp AS PhaseEnd
@@ -143,11 +144,13 @@ JOIN phases AS pe
 WHERE
     pb.type = 'BEGIN'
 AND
-    b.transaction_id = :tid
+    b.transaction_id IN
 )";
 
+    // The caller appends a list of transaction IDs after "IN", e.g. "(1, 2, 3)".
     QString commandPhaseQuery = R"(
 SELECT
+    cs.transaction_id,
 	c.name AS PhaseName,
 	state.begin as DramStateBegin,
 	state.end as DramStateEnd,
@@ -166,7 +169,7 @@ JOIN data_strobes as ds
     ON ds.command_strobe_id == cs.id
 JOIN dram_states as state
     ON cs.id == state.command_strobe_id
-WHERE cs.transaction_id = :tid
+WHERE cs.transaction_id IN
 )";
 
     void prepareQueries();

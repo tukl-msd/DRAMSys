@@ -88,14 +88,6 @@ void TraceDB::prepareQueries()
     selectTransactionById = QSqlQuery(database);
     if (!selectTransactionById.prepare(transactionQueryHead + " WHERE t.id = :id GROUP BY t.id"))
         qDebug() << database.lastError().text();
-
-    selectPhasesByTransaction = QSqlQuery(database);
-    if (!selectPhasesByTransaction.prepare(phaseQuery))
-        qDebug() << database.lastError().text();
-
-    selectCommandPhasesByTransaction = QSqlQuery(database);
-    if (!selectCommandPhasesByTransaction.prepare(commandPhaseQuery))
-        qDebug() << database.lastError().text();
 }
 
 void TraceDB::prepareTables()
@@ -115,6 +107,34 @@ CREATE INDEX IF NOT EXISTS idx_phases_lookup ON phases(id, stage, type);
 
     query.prepare(R"(
 CREATE INDEX IF NOT EXISTS idx_nbt_txn_signal ON nb_transports(transaction_id, signal_id, phase_id, timestamp);
+)");
+    executeQuery(query);
+
+    // Covering index for the time-range scan used by the main transaction query.
+    query.prepare(R"(
+CREATE INDEX IF NOT EXISTS idx_nbt_ts ON nb_transports(timestamp, transaction_id, phase_id, signal_id);
+)");
+    executeQuery(query);
+
+    // Lookups per transaction ID in the strobe/state tables.
+    query.prepare(R"(
+CREATE INDEX IF NOT EXISTS idx_cs_txn ON command_strobes(transaction_id);
+)");
+    executeQuery(query);
+
+    query.prepare(R"(
+CREATE INDEX IF NOT EXISTS idx_ds_cs ON data_strobes(command_strobe_id);
+)");
+    executeQuery(query);
+
+    query.prepare(R"(
+CREATE INDEX IF NOT EXISTS idx_state_strobe ON dram_states(command_strobe_id);
+)");
+    executeQuery(query);
+
+    // Channel filtering and first/next/last transaction navigation.
+    query.prepare(R"(
+CREATE INDEX IF NOT EXISTS idx_tx_channel ON transactions(channel, id);
 )");
     executeQuery(query);
 }
@@ -348,12 +368,12 @@ std::vector<std::shared_ptr<Transaction>> TraceDB::parseTransactionsFromQuery(QS
     while (query.next())
     {
         ID id = query.value(0).toInt();
-        Timespan span(query.value(6).toLongLong(), query.value(9).toLongLong());
+        Timespan span(query.value(7).toLongLong(), query.value(10).toLongLong());
         uint64_t address = query.value(1).toULongLong();
         unsigned int dataLength = query.value(2).toUInt();
         unsigned int thread = query.value(4).toUInt();
-        unsigned int channel = 0;
-        QString command = query.value(6).toUInt() == 1 ? "W" : "R";
+        unsigned int channel = query.value(5).toUInt();
+        QString command = (query.value(6).toUInt() == 1) ? "R" : "W"; // 1 == TLM_READ_COMMAND
         auto transaction =
             result.emplace_back(std::make_shared<Transaction>(id,
                                                               std::move(command),
@@ -363,14 +383,36 @@ std::vector<std::shared_ptr<Transaction>> TraceDB::parseTransactionsFromQuery(QS
                                                               channel,
                                                               span,
                                                               generalInfo.clkPeriod));
+    }
 
-        selectPhasesByTransaction.bindValue(":tid", id);
-        executeQuery(selectPhasesByTransaction);
-        while (selectPhasesByTransaction.next())
+    if (result.empty())
+        return result;
+
+    // Look up the phase information of all transactions with two batch queries
+    // instead of two queries *per transaction*.
+    std::unordered_map<ID, std::shared_ptr<Transaction>> transactionsByID;
+    QString idList;
+    for (const auto& transaction : result)
+    {
+        transactionsByID[transaction->id] = transaction;
+        idList += (idList.isEmpty() ? "" : ", ") + QString::number(transaction->id);
+    }
+
+    {
+        QSqlQuery phasesQuery(database);
+        phasesQuery.prepare(phaseQuery + "(" + idList + ")");
+        executeQuery(phasesQuery);
+
+        while (phasesQuery.next())
         {
-            QString phaseName = selectPhasesByTransaction.value(0).toString();
-            Timespan span(selectPhasesByTransaction.value(1).toLongLong(),
-                          selectPhasesByTransaction.value(2).toLongLong());
+            auto it = transactionsByID.find(phasesQuery.value(0).toUInt());
+            if (it == transactionsByID.end())
+                continue;
+
+            auto& transaction = it->second;
+
+            QString phaseName = phasesQuery.value(1).toString();
+            Timespan span(phasesQuery.value(2).toLongLong(), phasesQuery.value(3).toLongLong());
             Timespan spanOnDataStrobe(0, 0);
             unsigned int rank = 0;
             unsigned int bankGroup = 0;
@@ -393,22 +435,32 @@ std::vector<std::shared_ptr<Transaction>> TraceDB::parseTransactionsFromQuery(QS
                                                    *this);
             transaction->addPhase(phase);
         }
+    }
 
-        selectCommandPhasesByTransaction.bindValue(":tid", id);
-        executeQuery(selectCommandPhasesByTransaction);
-        while (selectCommandPhasesByTransaction.next())
+    {
+        QSqlQuery commandPhasesQuery(database);
+        commandPhasesQuery.prepare(commandPhaseQuery + "(" + idList + ")");
+        executeQuery(commandPhasesQuery);
+
+        while (commandPhasesQuery.next())
         {
-            QString phaseName = selectCommandPhasesByTransaction.value(0).toString();
-            Timespan span(selectCommandPhasesByTransaction.value(1).toLongLong(),
-                          selectCommandPhasesByTransaction.value(2).toLongLong());
-            Timespan spanOnDataStrobe(selectCommandPhasesByTransaction.value(3).toLongLong(),
-                                      selectCommandPhasesByTransaction.value(4).toLongLong());
-            unsigned int rank = selectCommandPhasesByTransaction.value(5).toUInt();
-            unsigned int bankGroup = selectCommandPhasesByTransaction.value(6).toUInt();
-            unsigned int bank = selectCommandPhasesByTransaction.value(7).toUInt();
-            unsigned int row = selectCommandPhasesByTransaction.value(8).toUInt();
-            unsigned int column = selectCommandPhasesByTransaction.value(9).toUInt();
-            unsigned int burstLength = selectCommandPhasesByTransaction.value(10).toUInt();
+            auto it = transactionsByID.find(commandPhasesQuery.value(0).toUInt());
+            if (it == transactionsByID.end())
+                continue;
+
+            auto& transaction = it->second;
+
+            QString phaseName = commandPhasesQuery.value(1).toString();
+            Timespan span(commandPhasesQuery.value(2).toLongLong(),
+                          commandPhasesQuery.value(3).toLongLong());
+            Timespan spanOnDataStrobe(commandPhasesQuery.value(4).toLongLong(),
+                                      commandPhasesQuery.value(5).toLongLong());
+            unsigned int rank = commandPhasesQuery.value(6).toUInt();
+            unsigned int bankGroup = commandPhasesQuery.value(7).toUInt();
+            unsigned int bank = commandPhasesQuery.value(8).toUInt();
+            unsigned int row = commandPhasesQuery.value(9).toUInt();
+            unsigned int column = commandPhasesQuery.value(10).toUInt();
+            unsigned int burstLength = commandPhasesQuery.value(11).toUInt();
             unsigned int dualBank = 0;
             auto phase = PhaseFactory::createPhase(phaseName,
                                                    span,
@@ -425,6 +477,7 @@ std::vector<std::shared_ptr<Transaction>> TraceDB::parseTransactionsFromQuery(QS
             transaction->addPhase(phase);
         }
     }
+
     return result;
 }
 

@@ -51,7 +51,36 @@ void Phase::draw(QPainter* painter,
                  bool highlight,
                  const TraceDrawingProperties& drawingProperties) const
 {
-    Q_UNUSED(canvasRect);
+    // Fast culling: skip phases that lie completely outside the visible x range
+    // (time axis). This keeps the per-frame drawing cost proportional to the
+    // rendered content instead of the number of loaded transactions.
+    {
+        traceTime tBegin = span.Begin();
+        traceTime tEnd = span.End();
+
+        for (const auto& phaseSpanOnCommandBus : spansOnCommandBus)
+        {
+            if (phaseSpanOnCommandBus.Begin() < tBegin)
+                tBegin = phaseSpanOnCommandBus.Begin();
+            if (phaseSpanOnCommandBus.End() > tEnd)
+                tEnd = phaseSpanOnCommandBus.End();
+        }
+
+        if (spanOnDataStrobe.End() != 0)
+        {
+            if (spanOnDataStrobe.Begin() < tBegin)
+                tBegin = spanOnDataStrobe.Begin();
+            if (spanOnDataStrobe.End() > tEnd)
+                tEnd = spanOnDataStrobe.End();
+        }
+
+        traceTime visibleBegin = static_cast<traceTime>(xMap.invTransform(canvasRect.left()));
+        traceTime visibleEnd = static_cast<traceTime>(xMap.invTransform(canvasRect.right()));
+        traceTime margin = clk / 2; // account for zoom-dependent expansion of zero-width phases
+
+        if (tEnd + margin < visibleBegin || tBegin - margin > visibleEnd)
+            return;
+    }
 
     QColor color = getColor(drawingProperties);
     painter->setBrush(QBrush(getColor(drawingProperties), getBrushStyle()));
