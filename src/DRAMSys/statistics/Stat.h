@@ -48,6 +48,7 @@ enum class Quantity : std::uint8_t
     Bandwidth, // B/s
     Time,      // s
     Energy,    // J
+    Power,     // W
     Count,
     Percentage,
     Ratio

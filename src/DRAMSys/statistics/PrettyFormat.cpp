@@ -73,6 +73,8 @@ static std::string getUnit(Quantity quantity)
         return "GB/s";
     case Quantity::Energy:
         return "J";
+    case Quantity::Power:
+        return "W";
     case Quantity::Time:
         return "s";
     case Quantity::Percentage:

@@ -59,7 +59,8 @@ DRAMPowerAdapter::DRAMPowerAdapter(const sc_core::sc_module_name& name,
     tCK(memSpec.tCK),
     tlmRecorder(tlmRecorder),
     powerWindowSize(memSpec.tCK * simConfig.windowSize),
-    DRAMPower(std::move(DRAMPower))
+    DRAMPower(std::move(DRAMPower)),
+    stats(*this)
 {
     assert(simConfig.powerAnalysis && "DRAMPowerObject created for simConfig.powerAnalysis=false");
 
@@ -74,39 +75,51 @@ const DRAMPowerVariant& DRAMPowerAdapter::getDRAMPowerVariant() const
 
 void DRAMPowerAdapter::reportPower()
 {
-    double coreEnergy = 0;
-    double interfaceEnergy = 0;
-    double energy = 0;
-    double time = 0;
-    std::visit(
-        [&coreEnergy, &interfaceEnergy, &energy, &time](auto& var)
-        {
-            coreEnergy = var.calcCoreEnergy(var.getLastCommandTime()).total();
-            interfaceEnergy = var.calcInterfaceEnergy(var.getLastCommandTime()).total();
-            energy = coreEnergy + interfaceEnergy;
-            time = var.getLastCommandTime();
-        },
-        DRAMPower);
-    time *= tCK.to_seconds();
-
-    // Print the final total energy and the average power for
-    // the simulation:
-    std::cout << name() << std::string("  Total Energy:   ") << std::defaultfloat
-              << std::setprecision(FLOATPRECISION) << energy << std::string(" J") << "\n";
-
-    std::cout << name() << std::string("  Core Energy:   ") << std::defaultfloat
-              << std::setprecision(FLOATPRECISION) << coreEnergy << std::string(" J") << "\n";
-
-    std::cout << name() << std::string("  Interface Energy:   ") << std::defaultfloat
-              << std::setprecision(FLOATPRECISION) << interfaceEnergy << std::string(" J") << "\n";
-
-    std::cout << name() << std::string("  Average Power:  ") << std::defaultfloat
-              << std::setprecision(FLOATPRECISION) << energy / time << std::string(" W") << "\n";
-
+    // Record the final average power of the whole simulation into the trace database:
     if (tlmRecorder != nullptr)
     {
-        tlmRecorder->recordPower(sc_core::sc_time_stamp().to_seconds(), energy / time);
+        tlmRecorder->recordPower(sc_core::sc_time_stamp().to_seconds(),
+                                 computePowerData().averagePower);
     }
+}
+
+DRAMPowerAdapter::PowerData DRAMPowerAdapter::computePowerData()
+{
+    PowerData data;
+    std::visit(
+        [this, &data](auto& var)
+        {
+            data.coreEnergy = var.calcCoreEnergy(var.getLastCommandTime()).total();
+            data.interfaceEnergy = var.calcInterfaceEnergy(var.getLastCommandTime()).total();
+            data.totalEnergy = data.coreEnergy + data.interfaceEnergy;
+            double time = var.getLastCommandTime();
+            time *= tCK.to_seconds();
+            data.averagePower = data.totalEnergy / time;
+        },
+        DRAMPower);
+    return data;
+}
+
+DRAMPowerAdapter::PowerStats::PowerStats(DRAMPowerAdapter const& adapter) :
+    Group(adapter.basename()),
+    totalEnergy(addStat<Stats::ScalarStat>(
+        "TotalEnergy", "Total energy consumed by the memory", Stats::Quantity::Energy)),
+    coreEnergy(addStat<Stats::ScalarStat>(
+        "CoreEnergy", "Energy consumed by the memory core", Stats::Quantity::Energy)),
+    interfaceEnergy(addStat<Stats::ScalarStat>(
+        "InterfaceEnergy", "Energy consumed by the memory interface", Stats::Quantity::Energy)),
+    averagePower(addStat<Stats::ScalarStat>(
+        "AveragePower", "Average power over the simulation duration", Stats::Quantity::Power))
+{
+}
+
+void DRAMPowerAdapter::updateStats()
+{
+    PowerData data = computePowerData();
+    stats.totalEnergy = data.totalEnergy;
+    stats.coreEnergy = data.coreEnergy;
+    stats.interfaceEnergy = data.interfaceEnergy;
+    stats.averagePower = data.averagePower;
 }
 
 void DRAMPowerAdapter::handleTransaction(std::size_t channel,

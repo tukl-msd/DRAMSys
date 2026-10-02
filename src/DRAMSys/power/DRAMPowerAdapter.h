@@ -42,6 +42,9 @@
 #include "DRAMSys/configuration/memspec/MemSpec.h"
 #include "DRAMSys/power/DRAMPowerVariant.h"
 #include "DRAMSys/simulation/SimConfig.h"
+#include "DRAMSys/statistics/Group.h"
+#include "DRAMSys/statistics/Stat.h"
+#include "DRAMSys/statistics/StatsProvider.h"
 
 #include <DRAMPower/command/CmdType.h>
 #include <DRAMPower/dram/dram_base.h>
@@ -52,12 +55,14 @@
 namespace DRAMSys
 {
 
-class DRAMPowerAdapter : public sc_core::sc_module, public Serialize, public Deserialize
+class DRAMPowerAdapter : public sc_core::sc_module,
+                         public Serialize,
+                         public Deserialize,
+                         public Stats::StatsProvider
 {
 private:
     static constexpr double MINENERGYPERWINDOW = 1e-15;
     static constexpr unsigned char BITSPERBYTE = 8;
-    static constexpr int FLOATPRECISION = 6;
 
     sc_core::sc_time tCK;
 
@@ -71,6 +76,28 @@ private:
     // It estimates the current average power which will be stored in the trace database for
     // visualization purposes.
     void powerWindow();
+
+    // Snapshot of the power model at a given point in time.
+    struct PowerData
+    {
+        double coreEnergy = 0;
+        double interfaceEnergy = 0;
+        double totalEnergy = 0;
+        double averagePower = 0;
+    };
+
+    [[nodiscard]] PowerData computePowerData();
+
+    class PowerStats : public Stats::Group
+    {
+    public:
+        Stats::ScalarStat& totalEnergy;
+        Stats::ScalarStat& coreEnergy;
+        Stats::ScalarStat& interfaceEnergy;
+        Stats::ScalarStat& averagePower;
+
+        PowerStats(DRAMPowerAdapter const& adapter);
+    } stats;
 
 public:
     void handleTransaction(std::size_t channel,
@@ -92,6 +119,9 @@ public:
 
     void reportPower();
     const DRAMPowerVariant& getDRAMPowerVariant() const;
+
+    void updateStats() override;
+    Stats::Group const& getStatGroup() const override { return stats; }
 
     void serialize(std::ostream& stream) const override;
     void deserialize(std::istream& stream) override;
