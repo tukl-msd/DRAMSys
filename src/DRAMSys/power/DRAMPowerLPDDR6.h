@@ -82,7 +82,7 @@ public:
 
     void doCommand([[maybe_unused]] std::size_t channel,
                      const tlm::tlm_generic_payload& trans,
-                     const tlm::tlm_phase& phase,
+                     Command dramCommand,
                      const sc_core::sc_time& delay) {
         auto rank =
             static_cast<std::size_t>(ControllerExtension::getRank(trans)); // relative to the channel
@@ -113,7 +113,7 @@ public:
         uint8_t* data = trans.get_data_ptr();                  // Can be nullptr if no data
         auto datasize = trans.get_data_length() * 8; // Is always set
 
-        DRAMPower::LPDDR6Command command(cycle, phaseToDRAMPowerCommand(phase), target, data, datasize);
+        DRAMPower::LPDDR6Command command(cycle, dramCommand.toDRAMPowerCommand(), target, data, datasize);
         doCommand(channel, command);
     }
 

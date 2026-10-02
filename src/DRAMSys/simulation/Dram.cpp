@@ -61,7 +61,7 @@ void Dram::b_transport(int id, tlm_generic_payload& trans, [[maybe_unused]] sc_t
 #ifdef USE_DRAMPOWER
     if (power)
     {
-        (*DRAMPowerMappings)[id]->handleTransaction(id, trans, ext->command.toPhase(), delay);
+        (*DRAMPowerMappings)[id]->handleTransaction(id, trans, ext->command, delay);
     }
 #endif
 

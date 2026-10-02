@@ -106,12 +106,11 @@ void DRAMPowerAdapter::updateStats()
 
 void DRAMPowerAdapter::handleTransaction(std::size_t channel,
                                          const tlm::tlm_generic_payload& trans,
-                                         const tlm::tlm_phase& phase,
+                                         Command command,
                                          const sc_core::sc_time& delay)
 {
-    assert(phase >= BEGIN_RD && phase <= END_SREF);
-    std::visit([channel, &trans, &phase, &delay](auto& var) {
-        return var.doCommand(channel, trans, phase, delay);
+    std::visit([&](auto& var) {
+        return var.doCommand(channel, trans, command, delay);
     }, DRAMPower);
 }
 

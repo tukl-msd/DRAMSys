@@ -42,51 +42,12 @@
 #include <systemc>
 #include <tlm>
 
+#ifdef USE_DRAMPOWER
+#include <DRAMPower/command/CmdType.h>
+#endif
+
 namespace DRAMSys
 {
-
-// DO NOT CHANGE THE ORDER!
-
-//                     BEGIN_REQ      // 1
-//                     END_REQ        // 2
-//                     BEGIN_RESP     // 3
-//                     END_RESP       // 4
-
-DECLARE_EXTENDED_PHASE(BEGIN_NOP);    // 5
-DECLARE_EXTENDED_PHASE(BEGIN_RD);     // 6
-DECLARE_EXTENDED_PHASE(BEGIN_WR);     // 7
-DECLARE_EXTENDED_PHASE(BEGIN_MWR);    // 8
-DECLARE_EXTENDED_PHASE(BEGIN_RDA);    // 9
-DECLARE_EXTENDED_PHASE(BEGIN_WRA);    // 10
-DECLARE_EXTENDED_PHASE(BEGIN_MWRA);   // 11
-DECLARE_EXTENDED_PHASE(BEGIN_ACT);    // 12
-DECLARE_EXTENDED_PHASE(BEGIN_PREPB);  // 13
-DECLARE_EXTENDED_PHASE(BEGIN_REFPB);  // 14
-DECLARE_EXTENDED_PHASE(BEGIN_RFMPB);  // 15
-DECLARE_EXTENDED_PHASE(BEGIN_REFP2B); // 16
-DECLARE_EXTENDED_PHASE(BEGIN_RFMP2B); // 17
-DECLARE_EXTENDED_PHASE(BEGIN_REFDB);  // 18
-DECLARE_EXTENDED_PHASE(BEGIN_RFMDB);  // 19
-DECLARE_EXTENDED_PHASE(BEGIN_PRESB);  // 20
-DECLARE_EXTENDED_PHASE(BEGIN_REFSB);  // 21
-DECLARE_EXTENDED_PHASE(BEGIN_RFMSB);  // 22
-DECLARE_EXTENDED_PHASE(BEGIN_PREAB);  // 23
-DECLARE_EXTENDED_PHASE(BEGIN_REFAB);  // 24
-DECLARE_EXTENDED_PHASE(BEGIN_RFMAB);  // 25
-
-DECLARE_EXTENDED_PHASE(BEGIN_PDNA); // 26
-DECLARE_EXTENDED_PHASE(BEGIN_PDNP); // 27
-DECLARE_EXTENDED_PHASE(BEGIN_SREF); // 28
-
-DECLARE_EXTENDED_PHASE(END_PDNA); // 29
-DECLARE_EXTENDED_PHASE(END_PDNP); // 30
-DECLARE_EXTENDED_PHASE(END_SREF); // 31
-
-bool phaseHasDataStrobe(tlm::tlm_phase phase);
-bool isPowerDownEntryPhase(tlm::tlm_phase phase);
-bool isPowerDownExitPhase(tlm::tlm_phase phase);
-bool isFixedCommandPhase(tlm::tlm_phase phase);
-bool isRefreshCommandPhase(tlm::tlm_phase phase);
 
 class Command
 {
@@ -129,10 +90,8 @@ private:
 public:
     Command() = default;
     Command(Type type);
-    Command(tlm::tlm_phase phase);
 
     [[nodiscard]] std::string toString() const;
-    [[nodiscard]] tlm::tlm_phase toPhase() const;
     static unsigned numberOfCommands();
     [[nodiscard]] bool isBankCommand() const;
     [[nodiscard]] bool is2BankCommand() const;
@@ -141,6 +100,10 @@ public:
     [[nodiscard]] bool isRankCommand() const;
     [[nodiscard]] bool isCasCommand() const;
     [[nodiscard]] bool isRasCommand() const;
+
+#ifdef USE_DRAMPOWER
+    [[nodiscard]] DRAMPower::CmdType toDRAMPowerCommand() const;
+#endif
 
     constexpr operator uint8_t() const { return type; }
 };

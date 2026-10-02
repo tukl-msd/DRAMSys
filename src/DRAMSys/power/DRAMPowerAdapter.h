@@ -100,7 +100,7 @@ private:
 public:
     void handleTransaction(std::size_t channel,
                            const tlm::tlm_generic_payload& trans,
-                           const tlm::tlm_phase& phase,
+                           Command command,
                            const sc_core::sc_time& delay);
     SC_HAS_PROCESS(DRAMPowerAdapter);
     DRAMPowerAdapter(const sc_core::sc_module_name& name,
