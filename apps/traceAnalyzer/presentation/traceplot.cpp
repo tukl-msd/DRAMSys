@@ -132,41 +132,6 @@ void TracePlot::setUpActions()
     deselectAll = new QAction("Deselect all", this);
     QObject::connect(deselectAll, SIGNAL(triggered()), this, SLOT(on_deselectAll()));
 
-    selectNextRefresh = new QAction("Select next refresh", this);
-    addAction(selectNextRefresh);
-    QObject::connect(selectNextRefresh, SIGNAL(triggered()), this, SLOT(on_selectNextRefresh()));
-
-    selectNextActivate = new QAction("Select next activate", this);
-    addAction(selectNextActivate);
-    QObject::connect(selectNextActivate, SIGNAL(triggered()), this, SLOT(on_selectNextActivate()));
-
-    selectNextPrecharge = new QAction("Select next precharge", this);
-    addAction(selectNextPrecharge);
-    QObject::connect(
-        selectNextPrecharge, SIGNAL(triggered()), this, SLOT(on_selectNextPrecharge()));
-
-    selectNextCommand = new QAction("Select next command", this);
-    addAction(selectNextCommand);
-    QObject::connect(selectNextCommand, SIGNAL(triggered()), this, SLOT(on_selectNextCommand()));
-
-    //     selectNextActb = new QAction("Select next atcb", this);
-    //     selectNextActb->setShortcut(QKeySequence("alt+b"));
-    //     addAction(selectNextActb);
-    //     QObject::connect(selectNextActb, SIGNAL(triggered()), this,
-    //                      SLOT(on_selectNextActb()));
-    //
-    //     selectNextPreb = new QAction("Select next preb", this);
-    //     selectNextPreb->setShortcut(QKeySequence("alt+q"));
-    //     addAction(selectNextPreb);
-    //     QObject::connect(selectNextPreb, SIGNAL(triggered()), this,
-    //                      SLOT(on_selectNextPreb()));
-    //
-    //     selectNextRefb = new QAction("Select next refb", this);
-    //     selectNextRefb->setShortcut(QKeySequence("alt+s"));
-    //     addAction(selectNextRefb);
-    //     QObject::connect(selectNextRefb, SIGNAL(triggered()), this,
-    //                      SLOT(on_selectNextRefb()));
-
     setColorGroupingPhase = new QAction("Group by Phase", this);
     setColorGroupingPhase->setCheckable(true);
     setColorGroupingPhase->setChecked(true);
@@ -231,15 +196,6 @@ void TracePlot::setUpContextMenu()
     QMenu* goToSubMenu = new QMenu("Go to", contextMenu);
     goToSubMenu->addActions({goToTransaction, goToTime});
     contextMenu->addMenu(goToSubMenu);
-
-    QMenu* selectSubMenu = new QMenu("Select", contextMenu);
-    selectSubMenu->addActions({
-        selectNextRefresh,
-        selectNextActivate,
-        selectNextPrecharge,
-        selectNextCommand,
-    });
-    contextMenu->addMenu(selectSubMenu);
 
     contextMenu->addActions({insertComment, exportToPdf, toggleCollapsedState});
 }
@@ -571,45 +527,6 @@ void TracePlot::commentsChanged()
     getAndDrawComments();
     replot();
 }
-
-void TracePlot::on_selectNextRefresh()
-{
-    traceTime time = invTransform(xBottom, contextMenuMouseDown.x());
-    navigator->selectNextRefresh(time);
-}
-
-void TracePlot::on_selectNextActivate()
-{
-    traceTime time = invTransform(xBottom, contextMenuMouseDown.x());
-    navigator->selectNextActivate(time);
-}
-
-void TracePlot::on_selectNextPrecharge()
-{
-    traceTime time = invTransform(xBottom, contextMenuMouseDown.x());
-    navigator->selectNextPrecharge(time);
-}
-
-void TracePlot::on_selectNextCommand()
-{
-    traceTime time = invTransform(xBottom, contextMenuMouseDown.x());
-    navigator->selectNextCommand(time);
-}
-
-// void TracePlot::on_selectNextActb()
-// {
-//     navigator->selectNextActb();
-// }
-//
-// void TracePlot::on_selectNextPreb()
-// {
-//     navigator->selectNextPreb();
-// }
-//
-// void TracePlot::on_selectNextRefb()
-// {
-//     navigator->selectNextRefb();
-// }
 
 void TracePlot::on_colorGroupingPhase()
 {

@@ -100,10 +100,6 @@ Q_SIGNALS:
     void colorGroupingChanged(ColorGrouping colorgrouping);
 
 private Q_SLOTS:
-    void on_selectNextRefresh();
-    void on_selectNextActivate();
-    void on_selectNextPrecharge();
-    void on_selectNextCommand();
     void on_colorGroupingPhase();
     void on_colorGroupingTransaction();
     void on_colorGroupingThread();
@@ -171,10 +167,6 @@ private:
     QAction* goToTransaction;
     QAction* insertComment;
     QAction* deselectAll;
-    QAction* selectNextRefresh;
-    QAction* selectNextActivate;
-    QAction* selectNextPrecharge;
-    QAction* selectNextCommand;
     QAction* setColorGroupingPhase;
     QAction* setColorGroupingTransaction;
     QAction* setColorGroupingThread;

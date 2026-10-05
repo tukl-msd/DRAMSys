@@ -78,13 +78,6 @@ public:
     void selectPreviousTransaction();
     void selectLastTransaction();
     void selectFirstTransaction();
-    void selectNextRefresh(traceTime time);
-    void selectNextActivate(traceTime time);
-    void selectNextPrecharge(traceTime time);
-    void selectNextCommand(traceTime time);
-    //     void selectNextActb();
-    //     void selectNextPreb();
-    //     void selectNextRefb();
 
     void addSelectedTransactions(const std::vector<std::shared_ptr<Transaction>>& transactions);
     const std::vector<std::shared_ptr<Transaction>>& SelectedTransactions()
