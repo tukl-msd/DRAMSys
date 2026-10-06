@@ -100,8 +100,8 @@ struct McConfig
         AllBank,
         PerBank,
         Per2Bank,
-        SameBank,
         DualBank,
+        SameBank,
     } refreshPolicy;
     unsigned int refreshMaxPostponed;
     unsigned int refreshMaxPulledin;
