@@ -37,6 +37,7 @@
  *    Lukas Steiner
  *    Derek Christ
  *    Marco Mörz
+ *    Thomas Zimmermann
  */
 
 #include "DRAMSys.h"
@@ -48,10 +49,20 @@
 #include "DRAMSys/common/utils.h"
 #include "DRAMSys/controller/Controller.h"
 #include "DRAMSys/controller/McConfig.h"
+#include "DRAMSys/controller/checker/CheckerDDR3.h"    // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerDDR4.h"    // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerGDDR5.h"   // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerGDDR5X.h"  // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerGDDR6.h"   // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerHBM2.h"    // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerLPDDR4.h"  // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerSTTMRAM.h" // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerWideIO.h"  // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerWideIO2.h" // IWYU pragma: keep
 #include "DRAMSys/simulation/AddressDecoder.h"
+#include "DRAMSys/simulation/AddressMapping.h"
 #include "DRAMSys/simulation/Arbiter.h"
 #include "DRAMSys/simulation/Dram.h"
-#include "DRAMSys/simulation/AddressMapping.h"
 #include "DRAMSys/simulation/SimConfig.h"
 
 #include "DRAMSys/configuration/memspec/MemSpecDDR3.h"    // IWYU pragma: keep
@@ -66,15 +77,19 @@
 #include "DRAMSys/configuration/memspec/MemSpecWideIO2.h" // IWYU pragma: keep
 #ifdef DDR5_SIM
 #include "DRAMSys/configuration/memspec/MemSpecDDR5.h" // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerDDR5.h"    // IWYU pragma: keep
 #endif
 #ifdef LPDDR5_SIM
 #include "DRAMSys/configuration/memspec/MemSpecLPDDR5.h" // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerLPDDR5.h"    // IWYU pragma: keep
 #endif
 #ifdef LPDDR6_SIM
 #include "DRAMSys/configuration/memspec/MemSpecLPDDR6.h" // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerLPDDR6.h"    // IWYU pragma: keep
 #endif
 #ifdef HBM3_4_SIM
 #include "DRAMSys/configuration/memspec/MemSpecHBM3_4.h" // IWYU pragma: keep
+#include "DRAMSys/controller/checker/CheckerHBM3_4.h"    // IWYU pragma: keep
 #endif
 
 #ifdef USE_DRAMPOWER
@@ -82,8 +97,10 @@
 #else
 namespace DRAMSys
 {
-    class DRAMPowerAdapter{};
-}
+class DRAMPowerAdapter
+{
+};
+} // namespace DRAMSys
 #endif
 
 #include <DRAMUtils/memspec/MemSpec.h>
@@ -138,6 +155,7 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
                                 &dramATRecorders,
                                 simconfig.powerAnalysis,
                                 &DRAMPowerMappings)),
+    checker(createChecker(*memSpec)),
     stats(*this)
 {
     printLogo();
@@ -159,6 +177,8 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
         SC_REPORT_FATAL("DRAMSys", "Power Analysis only supported when building with DRAMPower!");
 #endif
 
+    // Prepare TimingChecker for controllers
+
     // Instantiate all internal DRAMSys modules:
     if (simConfig->databaseRecording)
     {
@@ -169,16 +189,19 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
         // They need to be ready before creating some modules.
         setupTlmRecorders(traceName);
 
-        // Create controllers and DRAMs
+        // Create controllers and DRAM
         for (std::size_t i = 0; i < memSpec->numberOfChannels; i++)
         {
             controllers.emplace_back(
                 std::make_unique<Controller>(("controller" + std::to_string(i)).c_str(),
+                                             static_cast<int>(i),
                                              *mcConfig,
                                              *memSpec,
                                              *simConfig,
                                              *addressDecoder,
-                                             &tlmRecorders[i]));
+                                             *checker,
+                                             &tlmRecorders[i])
+            );
 
             // Not recording bandwidth between Arbiter - Controller
             tlmATRecorders.emplace_back(
@@ -203,11 +226,14 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
         {
             controllers.emplace_back(
                 std::make_unique<Controller>(("controller" + std::to_string(i)).c_str(),
+                                             static_cast<int>(i),
                                              *mcConfig,
                                              *memSpec,
                                              *simConfig,
                                              *addressDecoder,
-                                             nullptr));
+                                             *checker,
+                                             nullptr)
+            );
         }
     }
 
@@ -403,6 +429,85 @@ std::unique_ptr<Arbiter> DRAMSys::createArbiter(const SimConfig& simConfig,
 
     SC_REPORT_FATAL("DRAMSys", "Invalid Arbiter");
     return {};
+}
+
+std::unique_ptr<CheckerIF> DRAMSys::createChecker(MemSpec const& memSpec)
+{
+    std::unique_ptr<CheckerIF> checker;
+
+    // instantiate timing checker
+    if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecDDR3::id)
+    {
+        checker = std::make_unique<CheckerDDR3>(dynamic_cast<const MemSpecDDR3&>(memSpec));
+    }
+    else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecDDR4::id)
+    {
+        checker = std::make_unique<CheckerDDR4>(dynamic_cast<const MemSpecDDR4&>(memSpec));
+    }
+    else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecWideIO::id)
+    {
+        checker = std::make_unique<CheckerWideIO>(dynamic_cast<const MemSpecWideIO&>(memSpec));
+    }
+    else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecLPDDR4::id)
+    {
+        checker = std::make_unique<CheckerLPDDR4>(dynamic_cast<const MemSpecLPDDR4&>(memSpec));
+    }
+    else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecWideIO2::id)
+    {
+        checker = std::make_unique<CheckerWideIO2>(dynamic_cast<const MemSpecWideIO2&>(memSpec));
+    }
+    else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecHBM2::id)
+    {
+        checker = std::make_unique<CheckerHBM2>(dynamic_cast<const MemSpecHBM2&>(memSpec));
+    }
+    else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecGDDR5::id)
+    {
+        checker = std::make_unique<CheckerGDDR5>(dynamic_cast<const MemSpecGDDR5&>(memSpec));
+    }
+    else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecGDDR5X::id)
+    {
+        checker = std::make_unique<CheckerGDDR5X>(dynamic_cast<const MemSpecGDDR5X&>(memSpec));
+    }
+    else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecGDDR6::id)
+    {
+        checker = std::make_unique<CheckerGDDR6>(dynamic_cast<const MemSpecGDDR6&>(memSpec));
+    }
+    else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecSTTMRAM::id)
+    {
+        checker = std::make_unique<CheckerSTTMRAM>(dynamic_cast<const MemSpecSTTMRAM&>(memSpec));
+    }
+#ifdef DDR5_SIM
+    else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecDDR5::id)
+    {
+        checker = std::make_unique<CheckerDDR5>(dynamic_cast<const MemSpecDDR5&>(memSpec));
+    }
+#endif
+#ifdef LPDDR5_SIM
+    else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecLPDDR5::id)
+    {
+        checker = std::make_unique<CheckerLPDDR5>(dynamic_cast<const MemSpecLPDDR5&>(memSpec));
+    }
+#endif
+#ifdef LPDDR6_SIM
+    else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecLPDDR6::id)
+    {
+        checker = std::make_unique<CheckerLPDDR6>(dynamic_cast<const MemSpecLPDDR6&>(memSpec));
+    }
+#endif
+#ifdef HBM3_4_SIM
+    else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecHBM3::id ||
+             memSpec.memoryType == DRAMUtils::MemSpec::MemSpecHBM4::id)
+    {
+        checker = std::make_unique<CheckerHBM3_4>(dynamic_cast<const MemSpecHBM3_4&>(memSpec));
+    }
+#endif
+    else
+    {
+        SC_REPORT_FATAL("DRAMSys", "Wrong MemSpec chosen");
+        return nullptr;
+    }
+
+    return checker;
 }
 
 void DRAMSys::serialize(std::filesystem::path const& checkpointPath) const

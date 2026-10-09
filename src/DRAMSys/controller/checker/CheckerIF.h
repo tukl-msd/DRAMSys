@@ -30,6 +30,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Author: Lukas Steiner
+ *         Thomas Zimmermann
  */
 
 #ifndef CHECKERIF_H
@@ -55,8 +56,8 @@ public:
     virtual ~CheckerIF() = default;
 
     [[nodiscard]] virtual sc_core::sc_time
-    timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const = 0;
-    virtual void insert(Command command, const tlm::tlm_generic_payload& payload) = 0;
+    timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload, int controllerID) const = 0;
+    virtual void insert(Command command, const tlm::tlm_generic_payload& payload, int controllerID) = 0;
 };
 
 } // namespace DRAMSys

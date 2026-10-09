@@ -29,7 +29,10 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Author: Lukas Steiner
+ * Authors:
+ *    Lukas Steiner
+ *    Derek Christ
+ *    Thomas Zimmermann
  */
 
 #include "CheckerSTTMRAM.h"
@@ -44,18 +47,15 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-CheckerSTTMRAM::CheckerSTTMRAM(const MemSpecSTTMRAM& memSpec) :
-    memSpec(memSpec)
+CheckerSTTMRAM::CheckerSTTMRAM(const MemSpecSTTMRAM& memSpec) : memSpec(memSpec)
 {
-    lastScheduledByCommandAndBank = std::vector<ControllerVector<Bank, sc_time>>(
-        Command::numberOfCommands(),
-        ControllerVector<Bank, sc_time>(memSpec.banksPerChannel, sc_max_time()));
-    lastScheduledByCommandAndRank = std::vector<ControllerVector<Rank, sc_time>>(
-        Command::numberOfCommands(),
-        ControllerVector<Rank, sc_time>(memSpec.ranksPerChannel, sc_max_time()));
-    lastScheduledByCommand = std::vector<sc_time>(Command::numberOfCommands(), sc_max_time());
-    lastCommandOnBus = sc_max_time();
-    last4Activates = ControllerVector<Rank, std::queue<sc_time>>(memSpec.ranksPerChannel);
+    lastScheduledByCommandAndBank.fill(
+        {BankVector<sc_time>(memSpec.numberOfChannels * memSpec.banksPerChannel, sc_max_time())});
+    lastScheduledByCommandAndRank.fill(
+        {RankVector<sc_time>(memSpec.numberOfChannels * memSpec.ranksPerChannel, sc_max_time())});
+    lastScheduledByCommand.fill(sc_max_time());
+    lastCommandOnBus = std::vector<sc_time>(memSpec.numberOfChannels, sc_max_time());
+    last4ActivatesOnRank = RankVector<std::queue<sc_time>>(memSpec.numberOfChannels * memSpec.ranksPerChannel);
 
     tBURST = memSpec.defaultBurstLength / memSpec.dataRate * memSpec.tCK;
     tRDWR = memSpec.tRL + tBURST + 2 * memSpec.tCK - memSpec.tWL;
@@ -68,11 +68,10 @@ CheckerSTTMRAM::CheckerSTTMRAM(const MemSpecSTTMRAM& memSpec) :
     tWRAPDEN = memSpec.tWL + tBURST + memSpec.tWR + memSpec.tCK;
 }
 
-sc_time CheckerSTTMRAM::timeToSatisfyConstraints(Command command,
-                                                 const tlm_generic_payload& payload) const
+sc_time CheckerSTTMRAM::timeToSatisfyConstraints(Command command, const tlm_generic_payload& payload, int controllerID) const
 {
-    Rank rank = ControllerExtension::getRank(payload);
-    Bank bank = ControllerExtension::getBank(payload);
+    Rank rank = Rank(controllerID * memSpec.ranksPerChannel + static_cast<std::size_t>(ControllerExtension::getRank(payload)));
+    Bank bank = Bank(controllerID * memSpec.banksPerChannel + static_cast<std::size_t>(ControllerExtension::getBank(payload)));
 
     sc_time lastCommandStart;
     sc_time earliestTimeToStart = sc_time_stamp();
@@ -247,9 +246,9 @@ sc_time CheckerSTTMRAM::timeToSatisfyConstraints(Command command,
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXS);
 
-        if (last4Activates[rank].size() >= 4)
+        if (last4ActivatesOnRank[rank].size() >= 4)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, last4Activates[rank].front() + memSpec.tFAW);
+                std::max(earliestTimeToStart, last4ActivatesOnRank[rank].front() + memSpec.tFAW);
     }
     else if (command == Command::PREPB)
     {
@@ -416,16 +415,16 @@ sc_time CheckerSTTMRAM::timeToSatisfyConstraints(Command command,
     else
         SC_REPORT_FATAL("CheckerSTTMRAM", "Unknown command!");
 
-    if (lastCommandOnBus != sc_max_time())
-        earliestTimeToStart = std::max(earliestTimeToStart, lastCommandOnBus + memSpec.tCK);
+    if (lastCommandOnBus[controllerID] != sc_max_time())
+        earliestTimeToStart = std::max(earliestTimeToStart, lastCommandOnBus[controllerID] + memSpec.tCK);
 
     return earliestTimeToStart;
 }
 
-void CheckerSTTMRAM::insert(Command command, const tlm_generic_payload& payload)
+void CheckerSTTMRAM::insert(Command command, const tlm_generic_payload& payload, int controllerID)
 {
-    Rank rank = ControllerExtension::getRank(payload);
-    Bank bank = ControllerExtension::getBank(payload);
+    Rank rank = Rank(controllerID * memSpec.ranksPerChannel + static_cast<std::size_t>(ControllerExtension::getRank(payload)));
+    Bank bank = Bank(controllerID * memSpec.banksPerChannel + static_cast<std::size_t>(ControllerExtension::getBank(payload)));
 
     // Hack: Convert MWR to WR and MWRA to WRA
     if (command == Command::MWR)
@@ -433,21 +432,21 @@ void CheckerSTTMRAM::insert(Command command, const tlm_generic_payload& payload)
     else if (command == Command::MWRA)
         command = Command::WRA;
 
-    PRINTDEBUGMESSAGE("CheckerSTTMRAM",
-                      "Changing state on bank " + std::to_string(static_cast<std::size_t>(bank)) +
-                          " command is " + command.toString());
+    PRINTDEBUGMESSAGE("CheckerSTTMRAM", "Changing state on bank " + std::to_string(static_cast<std::size_t>(bank))
+                      + " (relative bank number: " + std::to_string(static_cast<std::size_t>(bank) - static_cast<std::size_t>(controllerID * memSpec.banksPerChannel)) + ")"
+                      + " command is " + command.toString());
 
     lastScheduledByCommandAndRank[command][rank] = sc_time_stamp();
     lastScheduledByCommandAndBank[command][bank] = sc_time_stamp();
     lastScheduledByCommand[command] = sc_time_stamp();
 
-    lastCommandOnBus = sc_time_stamp();
+    lastCommandOnBus[controllerID] = sc_time_stamp();
 
     if (command == Command::ACT)
     {
-        if (last4Activates[rank].size() == 4)
-            last4Activates[rank].pop();
-        last4Activates[rank].push(sc_time_stamp());
+        if (last4ActivatesOnRank[rank].size() == 4)
+            last4ActivatesOnRank[rank].pop();
+        last4ActivatesOnRank[rank].push(sc_time_stamp());
     }
 }
 

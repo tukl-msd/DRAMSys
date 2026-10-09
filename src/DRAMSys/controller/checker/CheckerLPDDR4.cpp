@@ -32,6 +32,7 @@
  * Authors:
  *    Lukas Steiner
  *    Derek Christ
+ *    Thomas Zimmermann
  */
 
 #include "CheckerLPDDR4.h"
@@ -49,9 +50,11 @@ namespace DRAMSys
 CheckerLPDDR4::CheckerLPDDR4(const MemSpecLPDDR4& memSpec) : memSpec(memSpec)
 {
     
-    nextCommandByBank.fill({BankVector<sc_time>(memSpec.banksPerChannel, SC_ZERO_TIME)});
-    nextCommandByRank.fill({RankVector<sc_time>(memSpec.ranksPerChannel, SC_ZERO_TIME)});
-    last4ActivatesOnRank = RankVector<std::queue<sc_time>>(memSpec.ranksPerChannel);
+
+    nextCommandByBank.fill({BankVector<sc_time>(memSpec.numberOfChannels * memSpec.banksPerChannel, SC_ZERO_TIME)});
+
+    nextCommandByRank.fill({RankVector<sc_time>(memSpec.numberOfChannels * memSpec.ranksPerChannel, SC_ZERO_TIME)});
+    last4ActivatesOnRank = RankVector<std::queue<sc_time>>(memSpec.numberOfChannels * memSpec.ranksPerChannel);
 
     tBURST = ((memSpec.defaultBurstLength / memSpec.dataRate) * memSpec.tCK);
     tRDWR = (((((memSpec.tRL + memSpec.tDQSCK) + tBURST) - memSpec.tWL) + memSpec.tWPRE) + memSpec.tRPST);
@@ -69,12 +72,13 @@ CheckerLPDDR4::CheckerLPDDR4(const MemSpecLPDDR4& memSpec) : memSpec(memSpec)
     tWRAPDEN = ((((((memSpec.tCK * 3) + memSpec.tWL) + ((std::ceil((memSpec.tDQSS / memSpec.tCK)) + std::ceil((memSpec.tDQS2DQ / memSpec.tCK))) * memSpec.tCK)) + tBURST) + memSpec.tWR) + (memSpec.tCK * 2));
     tREFPDEN = (memSpec.tCK + memSpec.tCMDCKE);
     
+    nextCommandOnBus = std::vector<sc_time>(memSpec.numberOfChannels, SC_ZERO_TIME);
 }
 
-sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, const tlm_generic_payload& payload) const
+sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, const tlm_generic_payload& payload, int controllerID) const
 {
-    Bank bank = ControllerExtension::getBank(payload);
-    Rank rank = ControllerExtension::getRank(payload);
+    Bank bank = Bank(controllerID * memSpec.banksPerChannel + static_cast<std::size_t>(ControllerExtension::getBank(payload)));
+    Rank rank = Rank(controllerID * memSpec.ranksPerChannel + static_cast<std::size_t>(ControllerExtension::getRank(payload)));
     
 
     sc_time earliestTimeToStart = sc_time_stamp();
@@ -82,18 +86,25 @@ sc_time CheckerLPDDR4::timeToSatisfyConstraints(Command command, const tlm_gener
     
     earliestTimeToStart = std::max(earliestTimeToStart, nextCommandByBank[command][bank]);
     earliestTimeToStart = std::max(earliestTimeToStart, nextCommandByRank[command][rank]);
-    earliestTimeToStart = std::max(earliestTimeToStart, nextCommandOnBus);
+    earliestTimeToStart = std::max(earliestTimeToStart, nextCommandOnBus[controllerID]);
 
     return earliestTimeToStart;
 }
 
-void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
+void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload, int controllerID)
 {
-    const Bank bank = ControllerExtension::getBank(payload);
-    const Rank rank = ControllerExtension::getRank(payload);
+    const size_t channelRelative = controllerID;
+    const size_t channelOffset = 0;
+    const size_t bankOffset = controllerID * memSpec.banksPerChannel;
+    const size_t bankRelative = static_cast<std::size_t>(ControllerExtension::getBank(payload));
+    const Bank bankAbsolute = Bank(bankOffset + bankRelative);
+    const size_t rankOffset = controllerID * memSpec.ranksPerChannel;
+    const size_t rankRelative = static_cast<std::size_t>(ControllerExtension::getRank(payload));
+    const Rank rankAbsolute = Rank(rankOffset + rankRelative);
     const unsigned burstLength = ControllerExtension::getBurstLength(payload);
 
-    PRINTDEBUGMESSAGE("CheckerLPDDR4", "Changing state on bank " + std::to_string(static_cast<std::size_t>(bank))
+    PRINTDEBUGMESSAGE("CheckerLPDDR4", "Changing state on bank " + std::to_string(static_cast<std::size_t>(bankRelative))  
+                      + " (relative bank number: " + std::to_string(bankRelative) + ")"
                       + " command is " + command.toString());
     
     const sc_time& currentTime = sc_time_stamp();
@@ -105,81 +116,81 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Bank (RD,PREPB) (memSpec.tRRD + (memSpec.tCK * 2)) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRRD + (memSpec.tCK * 2));
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::PREPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::PREPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RD,PREAB) tRDPRE [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDPRE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RD,PDEA) tRDPDEN [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDPDEN;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RD,PDEP) tRDPDEN [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDPDEN;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RD,RD) memSpec.tCCD [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RD,RDA) memSpec.tCCD [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RD,WR) tRDWR [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDWR;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RD,MWR) tRDWR [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDWR;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RD,WRA) tRDWR [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDWR;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RD,MWRA) tRDWR [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDWR;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Channel (RD,RD) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][currentRank];
@@ -190,11 +201,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (RD,RDA) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][currentRank];
@@ -205,11 +216,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (RD,WR) tRDWR_R [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + tRDWR_R;
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][currentRank];
@@ -220,11 +231,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (RD,MWR) tRDWR_R [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + tRDWR_R;
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][currentRank];
@@ -235,11 +246,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (RD,WRA) tRDWR_R [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + tRDWR_R;
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][currentRank];
@@ -250,11 +261,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (RD,MWRA) tRDWR_R [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + tRDWR_R;
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][currentRank];
@@ -270,7 +281,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Bank (WR,PREPB) tWRPRE [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRPRE;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::PREPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::PREPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -279,7 +290,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCDMW;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWR][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWR][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -289,7 +300,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCDMW;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWRA][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWRA][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -299,7 +310,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength == 32)
             {
             const sc_time constraint = currentTime + (memSpec.tCCDMW + (memSpec.tCK * 8));
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWR][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWR][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -309,7 +320,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength == 32)
             {
             const sc_time constraint = currentTime + (memSpec.tCCDMW + (memSpec.tCK * 8));
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWRA][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWRA][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -317,21 +328,21 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Bank (WR,RDA) std::max(tWRRD, (tWRPRE - tRDPRE)) [] SameComponent()
         {
             const sc_time constraint = currentTime + std::max(tWRRD, (tWRPRE - tRDPRE));
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::RDA][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::RDA][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WR,PREAB) tWRPRE [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRPRE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WR,PDEA) tWRPDEN [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRPDEN;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -340,7 +351,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -350,7 +361,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -360,7 +371,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -370,7 +381,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -380,7 +391,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength == 32)
             {
             const sc_time constraint = currentTime + (memSpec.tCCD + (memSpec.tCK * 8));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -390,7 +401,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength == 32)
             {
             const sc_time constraint = currentTime + (memSpec.tCCD + (memSpec.tCK * 8));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -400,7 +411,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength == 32)
             {
             const sc_time constraint = currentTime + (memSpec.tCCD + (memSpec.tCK * 8));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -410,7 +421,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength == 32)
             {
             const sc_time constraint = currentTime + (memSpec.tCCD + (memSpec.tCK * 8));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -418,25 +429,25 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Rank (WR,RD) tWRRD [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WR,RDA) tWRRD [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Channel (WR,WR) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][currentRank];
@@ -447,11 +458,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (WR,MWR) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][currentRank];
@@ -462,11 +473,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (WR,WRA) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][currentRank];
@@ -477,11 +488,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (WR,MWRA) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][currentRank];
@@ -492,11 +503,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (WR,RD) tWRRD_R [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + tWRRD_R;
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][currentRank];
@@ -507,11 +518,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (WR,RDA) tWRRD_R [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + tWRRD_R;
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][currentRank];
@@ -527,7 +538,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Bank (MWR,PREPB) tWRPRE [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRPRE;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::PREPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::PREPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -536,7 +547,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCDMW;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWR][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWR][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -546,7 +557,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCDMW;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWRA][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWRA][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -554,21 +565,21 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Bank (MWR,RDA) std::max(tWRRD, (tWRPRE - tRDPRE)) [] SameComponent()
         {
             const sc_time constraint = currentTime + std::max(tWRRD, (tWRPRE - tRDPRE));
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::RDA][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::RDA][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWR,PREAB) tWRPRE [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRPRE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWR,PDEA) tWRPDEN [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRPDEN;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -577,7 +588,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -587,7 +598,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -597,7 +608,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -607,7 +618,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -615,25 +626,25 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Rank (MWR,RD) tWRRD [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWR,RDA) tWRRD [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Channel (MWR,WR) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][currentRank];
@@ -644,11 +655,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (MWR,MWR) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][currentRank];
@@ -659,11 +670,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (MWR,WRA) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][currentRank];
@@ -674,11 +685,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (MWR,MWRA) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][currentRank];
@@ -689,11 +700,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (MWR,RD) tWRRD_R [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + tWRRD_R;
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][currentRank];
@@ -704,11 +715,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (MWR,RDA) tWRRD_R [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + tWRRD_R;
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][currentRank];
@@ -724,102 +735,102 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Bank (RDA,ACT) tRDAACT [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDAACT;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (RDA,REFPB) (tRDPRE + memSpec.tRPpb) [] SameComponent()
         {
             const sc_time constraint = currentTime + (tRDPRE + memSpec.tRPpb);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,PREAB) tRDPRE [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDPRE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,PDEA) tRDPDEN [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDPDEN;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,PDEP) tRDPDEN [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDPDEN;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,RD) memSpec.tCCD [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,RDA) memSpec.tCCD [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,WR) tRDWR [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDWR;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,MWR) tRDWR [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDWR;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,WRA) tRDWR [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDWR;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,MWRA) tRDWR [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDWR;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,REFAB) (tRDPRE + memSpec.tRPpb) [] SameComponent()
         {
             const sc_time constraint = currentTime + (tRDPRE + memSpec.tRPpb);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,SREFEN) std::max(tRDPDEN, (tRDPRE + memSpec.tRPpb)) [] SameComponent()
         {
             const sc_time constraint = currentTime + std::max(tRDPDEN, (tRDPRE + memSpec.tRPpb));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Channel (RDA,RD) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][currentRank];
@@ -830,11 +841,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (RDA,RDA) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][currentRank];
@@ -845,11 +856,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (RDA,WR) tRDWR_R [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + tRDWR_R;
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][currentRank];
@@ -860,11 +871,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (RDA,MWR) tRDWR_R [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + tRDWR_R;
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][currentRank];
@@ -875,11 +886,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (RDA,WRA) tRDWR_R [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + tRDWR_R;
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][currentRank];
@@ -890,11 +901,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (RDA,MWRA) tRDWR_R [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + tRDWR_R;
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][currentRank];
@@ -912,7 +923,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCDMW;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWR][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWR][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -922,7 +933,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCDMW;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWRA][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWRA][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -932,7 +943,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength == 32)
             {
             const sc_time constraint = currentTime + (memSpec.tCCDMW + (memSpec.tCK * 8));
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWR][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWR][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -942,7 +953,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength == 32)
             {
             const sc_time constraint = currentTime + (memSpec.tCCDMW + (memSpec.tCK * 8));
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWRA][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWRA][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -950,35 +961,35 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Bank (WRA,ACT) tWRAACT [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRAACT;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (WRA,REFPB) (tWRPRE + memSpec.tRPpb) [] SameComponent()
         {
             const sc_time constraint = currentTime + (tWRPRE + memSpec.tRPpb);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WRA,PREAB) tWRPRE [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRPRE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WRA,PDEA) tWRAPDEN [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRAPDEN;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WRA,PDEP) tWRAPDEN [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRAPDEN;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -987,7 +998,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -997,7 +1008,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -1007,7 +1018,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -1017,7 +1028,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -1027,7 +1038,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength == 32)
             {
             const sc_time constraint = currentTime + (memSpec.tCCD + (memSpec.tCK * 8));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -1037,7 +1048,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength == 32)
             {
             const sc_time constraint = currentTime + (memSpec.tCCD + (memSpec.tCK * 8));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -1047,7 +1058,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength == 32)
             {
             const sc_time constraint = currentTime + (memSpec.tCCD + (memSpec.tCK * 8));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -1057,7 +1068,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength == 32)
             {
             const sc_time constraint = currentTime + (memSpec.tCCD + (memSpec.tCK * 8));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -1065,39 +1076,39 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Rank (WRA,RD) tWRRD [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WRA,RDA) tWRRD [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WRA,REFAB) (tWRPRE + memSpec.tRPpb) [] SameComponent()
         {
             const sc_time constraint = currentTime + (tWRPRE + memSpec.tRPpb);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WRA,SREFEN) std::max(tWRAPDEN, (tWRPRE + memSpec.tRPpb)) [] SameComponent()
         {
             const sc_time constraint = currentTime + std::max(tWRAPDEN, (tWRPRE + memSpec.tRPpb));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Channel (WRA,WR) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][currentRank];
@@ -1108,11 +1119,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (WRA,MWR) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][currentRank];
@@ -1123,11 +1134,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (WRA,WRA) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][currentRank];
@@ -1138,11 +1149,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (WRA,MWRA) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][currentRank];
@@ -1153,11 +1164,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (WRA,RD) tWRRD_R [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + tWRRD_R;
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][currentRank];
@@ -1168,11 +1179,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (WRA,RDA) tWRRD_R [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + tWRRD_R;
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][currentRank];
@@ -1190,7 +1201,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCDMW;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWR][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWR][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -1200,7 +1211,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCDMW;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWRA][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWRA][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -1208,35 +1219,35 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Bank (MWRA,ACT) tWRAACT [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRAACT;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (MWRA,REFPB) (tWRPRE + memSpec.tRPpb) [] SameComponent()
         {
             const sc_time constraint = currentTime + (tWRPRE + memSpec.tRPpb);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWRA,PREAB) tWRPRE [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRPRE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWRA,PDEA) tWRAPDEN [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRAPDEN;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWRA,PDEP) tWRAPDEN [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRAPDEN;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -1245,7 +1256,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -1255,7 +1266,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -1265,7 +1276,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -1275,7 +1286,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
             if (burstLength != 32)
             {
             const sc_time constraint = currentTime + memSpec.tCCD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
@@ -1283,39 +1294,39 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Rank (MWRA,RD) tWRRD [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWRA,RDA) tWRRD [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWRA,REFAB) (tWRPRE + memSpec.tRPpb) [] SameComponent()
         {
             const sc_time constraint = currentTime + (tWRPRE + memSpec.tRPpb);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWRA,SREFEN) std::max(tWRAPDEN, (tWRPRE + memSpec.tRPpb)) [] SameComponent()
         {
             const sc_time constraint = currentTime + std::max(tWRAPDEN, (tWRPRE + memSpec.tRPpb));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Channel (MWRA,WR) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][currentRank];
@@ -1326,11 +1337,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (MWRA,MWR) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][currentRank];
@@ -1341,11 +1352,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (MWRA,WRA) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][currentRank];
@@ -1356,11 +1367,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (MWRA,MWRA) (tBURST + memSpec.tRTRS) [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + (tBURST + memSpec.tRTRS);
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][currentRank];
@@ -1371,11 +1382,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (MWRA,RD) tWRRD_R [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + tWRRD_R;
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][currentRank];
@@ -1386,11 +1397,11 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Channel (MWRA,RDA) tWRRD_R [] Different(level=<ComponentLevel.Rank: 3>)
         {
             const sc_time constraint = currentTime + tWRRD_R;
-            for (unsigned int i = memSpec.ranksPerChannel * static_cast<unsigned>(0); i < memSpec.ranksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.ranksPerChannel * channelRelative; i < channelOffset + memSpec.ranksPerChannel * (1 + channelRelative); i++)
             {
                 Rank currentRank{i};
                 
-                if (currentRank == rank)
+                if (currentRank == rankAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][currentRank];
@@ -1406,123 +1417,123 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Bank (ACT,PREPB) (memSpec.tRAS + (memSpec.tCK * 2)) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRAS + (memSpec.tCK * 2));
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::PREPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::PREPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (ACT,RD) memSpec.tRCD [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRCD;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::RD][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::RD][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (ACT,WR) memSpec.tRCD [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRCD;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::WR][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::WR][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (ACT,MWR) memSpec.tRCD [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRCD;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWR][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWR][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (ACT,RDA) memSpec.tRCD [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRCD;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::RDA][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::RDA][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (ACT,WRA) memSpec.tRCD [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRCD;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::WRA][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::WRA][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (ACT,MWRA) memSpec.tRCD [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRCD;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWRA][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWRA][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (ACT,ACT) memSpec.tRCpb [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRCpb;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (ACT,REFPB) (memSpec.tRCpb + (memSpec.tCK * 2)) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRCpb + (memSpec.tCK * 2));
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (ACT,PREAB) (memSpec.tRAS + (memSpec.tCK * 2)) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRAS + (memSpec.tCK * 2));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (ACT,ACT) memSpec.tRRD [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRRD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (ACT,REFAB) (memSpec.tRCpb + (memSpec.tCK * 2)) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRCpb + (memSpec.tCK * 2));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (ACT,SREFEN) (memSpec.tRCpb + (memSpec.tCK * 2)) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRCpb + (memSpec.tCK * 2));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (ACT,REFPB) (memSpec.tRRD + (memSpec.tCK * 2)) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRRD + (memSpec.tCK * 2));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (ACT,PDEA) tACTPDEN [] SameComponent()
         {
             const sc_time constraint = currentTime + tACTPDEN;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
-        last4ActivatesOnRank[rank].push(currentTime + memSpec.getCommandLength(command));
+        last4ActivatesOnRank[rankAbsolute].push(currentTime + memSpec.getCommandLength(command));
 
-        if (last4ActivatesOnRank[rank].size() >= 4)
+        if (last4ActivatesOnRank[rankAbsolute].size() >= 4)
         {
-            sc_time constraint = last4ActivatesOnRank[rank].front() - memSpec.getCommandLength(command) + memSpec.tFAW;
+            sc_time constraint = last4ActivatesOnRank[rankAbsolute].front() - memSpec.getCommandLength(command) + memSpec.tFAW;
             {
-                sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rank];
+                sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rankAbsolute];
                 earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
             {
-                sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+                sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
                 earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
 
-            last4ActivatesOnRank[rank].pop();
+            last4ActivatesOnRank[rankAbsolute].pop();
         }
 
         break;
@@ -1532,56 +1543,56 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Bank (PREPB,ACT) (memSpec.tRPpb - (memSpec.tCK * 2)) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRPpb - (memSpec.tCK * 2));
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (PREPB,REFPB) memSpec.tRPpb [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRPpb;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PREPB,PREPB) memSpec.tPPD [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tPPD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREPB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREPB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PREPB,PREAB) memSpec.tPPD [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tPPD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PREPB,REFAB) memSpec.tRPpb [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRPpb;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PREPB,SREFEN) memSpec.tRPpb [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRPpb;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PREPB,PDEA) tPRPDEN [] SameComponent()
         {
             const sc_time constraint = currentTime + tPRPDEN;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PREPB,PDEP) tPRPDEN [] SameComponent()
         {
             const sc_time constraint = currentTime + tPRPDEN;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -1593,74 +1604,74 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Bank (REFPB,ACT) (memSpec.tRFCpb - (memSpec.tCK * 2)) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRFCpb - (memSpec.tCK * 2));
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (REFPB,REFAB) memSpec.tRFCpb [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRFCpb;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (REFPB,REFPB) memSpec.tRFCpb [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRFCpb;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (REFPB,ACT) (memSpec.tRRD - (memSpec.tCK * 2)) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRRD - (memSpec.tCK * 2));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (REFPB,PREAB) memSpec.tRFCpb [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRFCpb;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (REFPB,SREFEN) memSpec.tRFCpb [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRFCpb;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (REFPB,PDEA) tREFPDEN [] SameComponent()
         {
             const sc_time constraint = currentTime + tREFPDEN;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (REFPB,PDEP) tREFPDEN [] SameComponent()
         {
             const sc_time constraint = currentTime + tREFPDEN;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
-        last4ActivatesOnRank[rank].push(currentTime + memSpec.getCommandLength(command));
+        last4ActivatesOnRank[rankAbsolute].push(currentTime + memSpec.getCommandLength(command));
 
-        if (last4ActivatesOnRank[rank].size() >= 4)
+        if (last4ActivatesOnRank[rankAbsolute].size() >= 4)
         {
-            sc_time constraint = last4ActivatesOnRank[rank].front() - memSpec.getCommandLength(command) + memSpec.tFAW;
+            sc_time constraint = last4ActivatesOnRank[rankAbsolute].front() - memSpec.getCommandLength(command) + memSpec.tFAW;
             {
-                sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rank];
+                sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rankAbsolute];
                 earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
             {
-                sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+                sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
                 earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
 
-            last4ActivatesOnRank[rank].pop();
+            last4ActivatesOnRank[rankAbsolute].pop();
         }
 
         break;
@@ -1670,35 +1681,35 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Rank (PREAB,ACT) (memSpec.tRPab - (memSpec.tCK * 2)) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRPab - (memSpec.tCK * 2));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PREAB,REFAB) memSpec.tRPab [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRPab;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PREAB,SREFEN) memSpec.tRPab [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRPab;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PREAB,REFPB) memSpec.tRPab [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRPab;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PREAB,PDEP) tPRPDEN [] SameComponent()
         {
             const sc_time constraint = currentTime + tPRPDEN;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -1710,35 +1721,35 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Rank (REFAB,ACT) (memSpec.tRFCab - (memSpec.tCK * 2)) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRFCab - (memSpec.tCK * 2));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (REFAB,PDEP) tREFPDEN [] SameComponent()
         {
             const sc_time constraint = currentTime + tREFPDEN;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (REFAB,REFAB) memSpec.tRFCab [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRFCab;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (REFAB,REFPB) memSpec.tRFCab [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRFCab;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (REFAB,SREFEN) memSpec.tRFCab [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRFCab;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -1750,7 +1761,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Rank (PDEA,PDXA) memSpec.tCKE [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCKE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDXA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDXA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -1762,7 +1773,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Rank (PDEP,PDXP) memSpec.tCKE [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCKE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDXP][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDXP][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -1774,7 +1785,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Rank (SREFEN,SREFEX) memSpec.tSR [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tSR;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEX][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEX][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -1786,63 +1797,63 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Rank (PDXA,PDEA) memSpec.tCKE [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCKE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXA,ACT) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXA,PREPB) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREPB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREPB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXA,PREAB) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXA,RD) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXA,RDA) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXA,WR) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXA,WRA) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXA,REFPB) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -1854,35 +1865,35 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Rank (PDXP,PDEP) memSpec.tCKE [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCKE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXP,REFAB) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXP,REFPB) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXP,SREFEN) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXP,ACT) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -1894,35 +1905,35 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
         // Rank (SREFEX,ACT) (memSpec.tXSR - (memSpec.tCK * 2)) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tXSR - (memSpec.tCK * 2));
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (SREFEX,REFAB) memSpec.tXSR [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXSR;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (SREFEX,REFPB) memSpec.tXSR [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXSR;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (SREFEX,PDEP) memSpec.tXSR [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXSR;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (SREFEX,SREFEN) memSpec.tXSR [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXSR;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -1931,7 +1942,7 @@ void CheckerLPDDR4::insert(Command command, const tlm_generic_payload& payload)
     }
     
     }
-    nextCommandOnBus = std::max(nextCommandOnBus, currentTime + memSpec.getCommandLength(command));
+    nextCommandOnBus[controllerID] = std::max(nextCommandOnBus[controllerID], currentTime + memSpec.getCommandLength(command));
 }
 
 } // namespace DRAMSys

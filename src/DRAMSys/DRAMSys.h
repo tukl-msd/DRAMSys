@@ -60,6 +60,7 @@ class AddressDecoder;
 class AddressMapping;
 class Arbiter;
 class Controller;
+class CheckerIF;
 class Dram;
 class DRAMPowerAdapter;
 class DramATRecorder;
@@ -135,6 +136,8 @@ private:
                                                   const MemSpec& memSpec,
                                                   const AddressDecoder& addressDecoder);
     void createDRAMPowers(const DRAMUtils::MemSpec::MemSpecVariant& memSpecVar);
+    static std::unique_ptr<CheckerIF>
+    createChecker(MemSpec const& memSpec);
 
     void end_of_simulation() override;
 
@@ -154,6 +157,7 @@ private:
     std::vector<std::unique_ptr<Controller>> controllers;
 
     std::unique_ptr<Dram> dram;
+    std::unique_ptr<CheckerIF> checker;
     unsigned char* backingStore = nullptr;
 
     std::vector<std::unique_ptr<DRAMPowerAdapter>> DRAMPowers;
