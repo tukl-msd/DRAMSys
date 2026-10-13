@@ -35,6 +35,7 @@
 
 #include "ListInitiator.h"
 
+#include <algorithm>
 #include <gtest/gtest.h>
 
 #include <DRAMSys/DRAMSys.h>
@@ -121,4 +122,36 @@ TEST_F(StorageTests, Block)
         initiator.appendTestTransaction(readTrans);
     }
     sc_core::sc_start();
+}
+
+TEST_F(StorageTests, SplitTransactions)
+{
+    using Command = ListInitiator::TestTransactionData::Command;
+    const auto spacing = 100 * dramsys.getMemSpec().tCK;
+
+    // This configuration has 32-byte bursts. Use different data in each half.
+    std::vector<uint8_t> first(64, 0xAA);
+    std::fill(first.begin() + 32, first.end(), 0xBB);
+    std::vector<uint8_t> second(64, 0xCC);
+    std::fill(second.begin() + 32, second.end(), 0xDD);
+    std::fill(physicalStorage.data(), physicalStorage.data() + 96, 0x55);
+
+    std::vector<ListInitiator::TestTransactionData> list{
+        {0 * spacing, Command::Write, 0, first},
+        {1 * spacing, Command::Read, 0, {first.begin(), first.begin() + 32}},
+        {2 * spacing, Command::Read, 32, {first.begin() + 32, first.end()}},
+        {3 * spacing, Command::Write, 0, {second.begin(), second.begin() + 32}},
+        {4 * spacing, Command::Write, 32, {second.begin() + 32, second.end()}},
+        {5 * spacing, Command::Read, 0, second},
+        {6 * spacing, Command::Write, 0, first},
+        {7 * spacing, Command::Read, 0, first}};
+
+    for (auto trans : list)
+        initiator.appendTestTransaction(trans);
+
+    sc_core::sc_start();
+
+    EXPECT_EQ(std::vector<uint8_t>(physicalStorage.data(), physicalStorage.data() + 64), first);
+    EXPECT_EQ(std::vector<uint8_t>(physicalStorage.data() + 64, physicalStorage.data() + 96),
+              std::vector<uint8_t>(32, 0x55));
 }

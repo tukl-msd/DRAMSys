@@ -868,6 +868,12 @@ void Controller::createChildTranses(tlm::tlm_generic_payload& parentTrans)
         childTrans->set_address(startAddress + childId * memSpec.maxBytesPerBurst);
         childTrans->set_data_ptr(startDataPtr + childId * memSpec.maxBytesPerBurst);
 
+        // Whether data is present follows the parent, not the child's buffer ownership.
+        if (parentTrans.get_extension<NoDataExtension>() == nullptr)
+            delete childTrans->set_extension<NoDataExtension>(nullptr);
+        else if (childTrans->get_extension<NoDataExtension>() == nullptr)
+            childTrans->set_auto_extension(new NoDataExtension);
+
         ChildExtension::setExtension(*childTrans, parentTrans);
         childTranses.push_back(childTrans);
     }
