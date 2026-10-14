@@ -62,8 +62,10 @@ private:
     std::unique_ptr<DRAMSys::Initiators::RequestIssuer>
     instantiateInitiator(const DRAMSys::Config::Initiator& initiator);
 
-    void simulationControlThread();
+    void printProgressBar() const;
     void progressBarThread();
+
+    sc_core::sc_event_or_list finishedList;
 
     bool storageEnabled;
 
@@ -73,12 +75,7 @@ private:
     std::vector<std::unique_ptr<DRAMSys::Initiators::RequestIssuer>> initiators;
 
     std::unique_ptr<DRAMSys::PhysicalStorage> physicalStorage;
-
-    std::function<void()> finishTransaction;
-
-    unsigned int terminatedInitiators = 0;
-    uint64_t totalTransactions{};
-    uint64_t transactionsFinished = 0;
+    uint64_t totalTransactions = 0;
 
     std::filesystem::path baseConfig;
 
