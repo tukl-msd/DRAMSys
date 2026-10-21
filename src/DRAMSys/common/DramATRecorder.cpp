@@ -9,7 +9,8 @@ DramATRecorder::DramATRecorder(const sc_core::sc_module_name& name,
                                const SimConfig& simConfig,
                                const MemSpec& memSpec,
                                TlmRecorder& tlmRecorder,
-                               bool enableBandwidth) :
+                               bool enableBandwidth,
+                               bool recordPhaseToTrace) :
     sc_module(name),
     tlmRecorder(tlmRecorder),
     enableWindowing(simConfig.enableWindowing),
@@ -18,7 +19,8 @@ DramATRecorder::DramATRecorder(const sc_core::sc_module_name& name,
     windowSizeTime(simConfig.windowSize * memSpec.tCK),
     numberOfBeatsServed(memSpec.ranksPerChannel, 0),
     activeTimeMultiplier(memSpec.tCK / memSpec.dataRate),
-    enableBandwidth(enableBandwidth)
+    enableBandwidth(enableBandwidth),
+    recordPhaseToTrace(recordPhaseToTrace)
 {
     if (enableBandwidth && enableWindowing)
     {
@@ -41,7 +43,8 @@ void DramATRecorder::record(tlm::tlm_generic_payload const& trans,
         }
     }
 
-    tlmRecorder.recordPhase(trans, phase, delay);
+    if (recordPhaseToTrace)
+        tlmRecorder.recordPhase(trans, phase, delay);
 }
 
 void DramATRecorder::recordBandwidth()

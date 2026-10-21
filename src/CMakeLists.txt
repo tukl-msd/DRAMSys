@@ -105,6 +105,7 @@ add_library(dramsys
     DRAMSys/simulation/AddressMapping.cpp
     DRAMSys/simulation/Arbiter.cpp
     DRAMSys/simulation/Dram.cpp
+    DRAMSys/simulation/Phy.cpp
     DRAMSys/simulation/SimConfig.cpp
     DRAMSys/statistics/Group.cpp
     DRAMSys/statistics/JsonFormat.cpp

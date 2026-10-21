@@ -22,7 +22,8 @@ public:
                    const SimConfig& simConfig,
                    const MemSpec& memspec,
                    TlmRecorder& tlmRecorder,
-                   bool enableBandwidth);
+                   bool enableBandwidth,
+                   bool recordPhaseToTrace = true);
 
     void record(tlm::tlm_generic_payload const& trans,
                 tlm::tlm_phase const& phase,
@@ -37,10 +38,11 @@ private:
     std::vector<uint64_t> numberOfBeatsServed;
     uint64_t lastNumberOfBeatsServed = 0;
     const sc_core::sc_time activeTimeMultiplier;
-
+    
     bool enableBandwidth = false;
-
     void recordBandwidth();
+    
+    bool recordPhaseToTrace;
 };
 
 } // namespace DRAMSys

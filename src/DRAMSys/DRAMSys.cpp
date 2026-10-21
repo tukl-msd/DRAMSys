@@ -63,6 +63,7 @@
 #include "DRAMSys/simulation/AddressMapping.h"
 #include "DRAMSys/simulation/Arbiter.h"
 #include "DRAMSys/simulation/Dram.h"
+#include "DRAMSys/simulation/Phy.h"
 #include "DRAMSys/simulation/SimConfig.h"
 
 #include "DRAMSys/configuration/memspec/MemSpecDDR3.h"    // IWYU pragma: keep
@@ -156,6 +157,7 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
                                 simconfig.powerAnalysis,
                                 &DRAMPowerMappings)),
     checker(createChecker(*memSpec)),
+    phy(std::make_unique<Phy>("Phy", &phyATRecorders, simconfig.databaseRecording, simconfig.efficiencyMode)),
     stats(*this)
 {
     printLogo();
@@ -211,7 +213,16 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
                                                 tlmRecorders[i],
                                                 false));
 
-            // Recording bandwidth between Controller - DRAM
+            // Recording bandwidth between Controller - PHY
+            phyATRecorders.emplace_back(
+                std::make_unique<DramATRecorder>(("phyATRecorder" + std::to_string(i)).c_str(),
+                                                 *simConfig,
+                                                 *memSpec,
+                                                 tlmRecorders[i],
+                                                 true,
+                                                 false));
+
+            // Recording bandwidth between PHY - DRAM
             dramATRecorders.emplace_back(
                 std::make_unique<DramATRecorder>(("DramATRecorder" + std::to_string(i)).c_str(),
                                                  *simConfig,
@@ -261,7 +272,9 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
             arbiter->iSocket.bind(controllers[i]->tSocket);
         }
 
-        controllers[i]->iSocket.bind(dram->tSocket);
+        controllers[i]->iSocket.bind(phy->tSocket);
+        phy->iSocket.bind(dram->tSocket);
+        
     }
 }
 

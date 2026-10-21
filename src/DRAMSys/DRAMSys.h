@@ -62,6 +62,7 @@ class Arbiter;
 class Controller;
 class CheckerIF;
 class Dram;
+class Phy;
 class DRAMPowerAdapter;
 class DramATRecorder;
 class McConfig;
@@ -158,6 +159,7 @@ private:
 
     std::unique_ptr<Dram> dram;
     std::unique_ptr<CheckerIF> checker;
+    std::unique_ptr<Phy> phy;
     unsigned char* backingStore = nullptr;
 
     std::vector<std::unique_ptr<DRAMPowerAdapter>> DRAMPowers;
@@ -168,6 +170,7 @@ private:
     std::vector<TlmRecorder> tlmRecorders;
 
     std::vector<std::unique_ptr<TlmATRecorder>> tlmATRecorders;
+    std::vector<std::unique_ptr<DramATRecorder>> phyATRecorders;
     std::vector<std::unique_ptr<DramATRecorder>> dramATRecorders;
 
     class DRAMSysStats : public Stats::Group
