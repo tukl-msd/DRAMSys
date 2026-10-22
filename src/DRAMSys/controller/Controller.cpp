@@ -868,6 +868,9 @@ void Controller::createChildTranses(tlm::tlm_generic_payload& parentTrans)
         childTrans->set_address(startAddress + childId * memSpec.maxBytesPerBurst);
         childTrans->set_data_ptr(startDataPtr + childId * memSpec.maxBytesPerBurst);
 
+        if (!parentTrans.get_extension<NoDataExtension>())
+            childTrans->clear_extension<NoDataExtension>();
+
         ChildExtension::setExtension(*childTrans, parentTrans);
         auto* arbiterExt = parentTrans.get_extension<ArbiterExtension>();
         childTrans->set_auto_extension(static_cast<ArbiterExtension*>(arbiterExt->clone()));
