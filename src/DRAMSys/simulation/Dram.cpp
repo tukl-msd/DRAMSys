@@ -70,7 +70,7 @@ void Dram::b_transport(int id, tlm_generic_payload& trans, [[maybe_unused]] sc_t
     }
 #endif
 
-    if (trans.get_extension<NoDataExtension>() != nullptr)
+    if (trans.get_extension<NoDataExtension>() != nullptr || trans.get_data_length() == 0)
         return;
 
     assert(*backingStore != nullptr);
@@ -86,8 +86,6 @@ void Dram::b_transport(int id, tlm_generic_payload& trans, [[maybe_unused]] sc_t
             executeWrite(trans);
         }
     }
-
-    trans.set_response_status(TLM_OK_RESPONSE);
 }
 
 unsigned int Dram::transport_dbg([[maybe_unused]] int id, tlm::tlm_generic_payload& trans)
