@@ -99,6 +99,7 @@ public:
     [[nodiscard]] bool isRankCommand() const;
     [[nodiscard]] bool isCasCommand() const;
     [[nodiscard]] bool isRasCommand() const;
+    [[nodiscard]] bool isPowerDownOrSelfRefreshCommand() const;
 
 #ifdef USE_DRAMPOWER
     [[nodiscard]] DRAMPower::CmdType toDRAMPowerCommand() const;

@@ -128,6 +128,12 @@ bool Command::isRasCommand() const
     return (type >= ACT);
 }
 
+bool Command::isPowerDownOrSelfRefreshCommand() const
+{
+    assert(type >= NOP && type <= SREFEX);
+    return (type >= PDEA && type <= SREFEX);
+}
+
 [[nodiscard]] DRAMPower::CmdType Command::toDRAMPowerCommand() const
 {
     static std::array<DRAMPower::CmdType, Command::Type::END_ENUM> lut = {

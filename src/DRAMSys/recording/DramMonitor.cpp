@@ -78,9 +78,16 @@ void DramMonitor::b_transport(tlm::tlm_generic_payload& trans, sc_core::sc_time&
         static_cast<unsigned>(controller_ext.column),
     });
 
+    // Power-down commands have no fixed execution time. The state is recorded
+    // for the duration of the command bus transfer instead, analogous to the
+    // special handling of power-down phases in the old TlmRecorder.
+    const auto command_end = ext->command.isPowerDownOrSelfRefreshCommand()
+                                 ? command_begin + memspec->getCommandLength(ext->command)
+                                 : command_begin + memspec->getExecutionTime(ext->command, trans);
+
     recorder->record(DramStateRecord{
         command_begin.value(),
-        (command_begin + memspec->getExecutionTime(ext->command, trans)).value(),
+        command_end.value(),
         command_strobe_id,
     });
 
