@@ -105,8 +105,8 @@ private:
     [[nodiscard]] Bank getPairedBank(Bank bank) const;
     [[nodiscard]] sc_core::sc_time activate2Bound(const PendingActivate& activate, const std::deque<PendingActivate>& pending,
                                                   const std::vector<sc_core::sc_time>& times) const;
-    [[nodiscard]] bool placeActivates(const sc_core::sc_time& slot, const PendingActivate* newActivate, int controllerID,
-                                      std::vector<sc_core::sc_time>& times) const;
+    [[nodiscard]] bool placeActivates(const sc_core::sc_time& slot, const PendingActivate* newActivate,
+                                      bool columnCommand, int controllerID, std::vector<sc_core::sc_time>& times) const;
     [[nodiscard]] bool slotAllowed(Command command, Bank bank, BankGroup bankGroup, Rank rank, const sc_core::sc_time& slot,
                                    int controllerID) const;
     [[nodiscard]] std::optional<sc_core::sc_time> activateDelay(Command command, bool sameBank, bool samePair,

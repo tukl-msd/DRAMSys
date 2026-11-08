@@ -72,7 +72,8 @@ public:
     const sc_core::sc_time tRCpb;
     const sc_core::sc_time tRCab;
     const sc_core::sc_time tPPD;
-    const sc_core::sc_time tRCD;
+    const sc_core::sc_time tRCDRD; // ACT-2 to READ (memspec RCD_L)
+    const sc_core::sc_time tRCDWR; // ACT-2 to WRITE (memspec RCD_S), shorter on LPDDR5X
     const sc_core::sc_time tFAW;
     const sc_core::sc_time tRRD;
     const sc_core::sc_time tRL;

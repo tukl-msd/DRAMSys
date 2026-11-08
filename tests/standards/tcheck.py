@@ -68,6 +68,7 @@ def check_lpddr5(ms, clk, rows):
     data_busy = []      # (start, end, kind)
     pend_pre = {}       # bank -> (earliest internal precharge time) for RDA/WRA
     faw_events = defaultdict(list)      # rank -> ACT-2 and REFpb times
+    last_act2 = -1
     AAD, DQO = 8, t["WCK2DQO"]
 
     # ACT-2: each ACTIVATE needs a CA cycle within (ACT-1, ACT-1 + tAAD] that no command or earlier ACT-2 uses and
@@ -105,8 +106,12 @@ def check_lpddr5(ms, clk, rows):
         bus_free = tn + 1
         # bank state
         if name == "ACT":
-            # timings that end or start at an ACTIVATE refer to its ACT-2
+            # timings that end or start at an ACTIVATE refer to its ACT-2; no ACT-1 between another
+            # ACTIVATE's ACT-1 and ACT-2 (JESD209-5C 7.3.1)
+            if last_act2 > tn:
+                c.bad("ACT-1 before previous ACT-2", tn, f"previous ACT-2 at {last_act2}")
             a2 = place_act2(tn, bank, rank)
+            last_act2 = a2
             ca_used.add(a2)
             if bank in open_row:
                 c.bad("state", tn, f"ACT to open bank {bank}")
@@ -128,7 +133,8 @@ def check_lpddr5(ms, clk, rows):
             if open_row.get(bank) != row:
                 c.bad("state", tn, f"{name} bank {bank} row {row} not open (open={open_row.get(bank)})")
             rd = name.startswith("RD")
-            c.need("ACT->RD/WR tRCD", tn, last[("ACT", bank)], t["RCD_S"])
+            # tRCD: ACT-2 to READ RCD_L, to WRITE RCD_S (equal on LPDDR5, JESD209-5C Table 396 on LPDDR5X)
+            c.need("ACT->RD tRCD" if rd else "ACT->WR tRCD", tn, last[("ACT", bank)], t["RCD_L" if rd else "RCD_S"])
             for prev in ("RD", "WR"):
                 for pbl in (16, 32):
                     pt_bg = last[(prev, "bg", bank // bpg, pbl)]

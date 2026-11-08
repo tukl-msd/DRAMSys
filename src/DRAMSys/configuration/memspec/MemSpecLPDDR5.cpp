@@ -95,7 +95,8 @@ MemSpecLPDDR5::MemSpecLPDDR5(const DRAMUtils::MemSpec::MemSpecLPDDR5& memSpec) :
     tRCpb(tCK * memSpec.memtimingspec.RCpb),
     tRCab(tCK * memSpec.memtimingspec.RCab),
     tPPD(tCK * memSpec.memtimingspec.PPD),
-    tRCD(tCK * memSpec.memtimingspec.RCD_S),
+    tRCDRD(tCK * memSpec.memtimingspec.RCD_L),
+    tRCDWR(tCK * memSpec.memtimingspec.RCD_S),
     tFAW(tCK * memSpec.memtimingspec.FAW),
     tRRD(tCK * memSpec.memtimingspec.RRD),
     tRL(tCK * memSpec.memtimingspec.RL),
@@ -126,8 +127,9 @@ MemSpecLPDDR5::MemSpecLPDDR5(const DRAMUtils::MemSpec::MemSpecLPDDR5& memSpec) :
     dataRate = memSpec.memarchitecturespec.dataRate * wckToCkRatio;
     burstDuration = tCK * (static_cast<double>(defaultBurstLength) / static_cast<double>(dataRate));
 
-    if (memSpec.memtimingspec.RCD_L != memSpec.memtimingspec.RCD_S)
-        SC_REPORT_FATAL("MemSpecLPDDR5", "RCD_L and RCD_S must be equal (single tRCD)");
+    // tRCD differs for READ and WRITE on LPDDR5X (JESD209-5C Table 396); LPDDR5 has one tRCD
+    if (memSpec.memtimingspec.RCD_S > memSpec.memtimingspec.RCD_L)
+        SC_REPORT_FATAL("MemSpecLPDDR5", "RCD_S (ACT-2 to WRITE) must not exceed RCD_L (ACT-2 to READ)");
 
     if (bankArchitecture == BankArchitecture::BG && maxBurstLength == 32)
         SC_REPORT_FATAL("MemSpecLPDDR5", "BL32 in BG mode is not supported");
@@ -218,7 +220,7 @@ sc_time MemSpecLPDDR5::getExecutionTime(Command command, const tlm_generic_paylo
         return tRPab;
 
     if (command == Command::ACT)
-        return tRCD;
+        return tRCDRD;
 
     if (command == Command::RD)
         return tRL + tWCK2DQO + getBurstDuration(payload);

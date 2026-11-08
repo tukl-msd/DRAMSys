@@ -179,7 +179,8 @@ for c, bl in (("BL16", "16"), ("BL32", "32")):
         ("Rank", ["WRA"], ["REFAB"], f"(tWRPRE{bl} + memSpec.tRPpb)", c),
     ]
 LP5 += [
-    ("Bank", ["ACT"], RD + WR, "memSpec.tRCD", None),
+    ("Bank", ["ACT"], RD, "memSpec.tRCDRD", None),
+    ("Bank", ["ACT"], WR, "memSpec.tRCDWR", None),
     ("Bank", ["ACT"], ["PREPB"], "memSpec.tRAS", None),
     ("Bank", ["ACT"], ["ACT"], "memSpec.tRCpb", None),
     ("BankPair", ["ACT"], ["REFP2B"], "memSpec.tRCpb", None),
@@ -456,8 +457,8 @@ private:
     [[nodiscard]] Bank getPairedBank(Bank bank) const;
     [[nodiscard]] sc_core::sc_time activate2Bound(const PendingActivate& activate, const std::deque<PendingActivate>& pending,
                                                   const std::vector<sc_core::sc_time>& times) const;
-    [[nodiscard]] bool placeActivates(const sc_core::sc_time& slot, const PendingActivate* newActivate, int controllerID,
-                                      std::vector<sc_core::sc_time>& times) const;
+    [[nodiscard]] bool placeActivates(const sc_core::sc_time& slot, const PendingActivate* newActivate,
+                                      bool columnCommand, int controllerID, std::vector<sc_core::sc_time>& times) const;
     [[nodiscard]] bool slotAllowed(Command command, Bank bank, BankGroup bankGroup, Rank rank, const sc_core::sc_time& slot,
                                    int controllerID) const;
     [[nodiscard]] std::optional<sc_core::sc_time> activateDelay(Command command, bool sameBank, bool samePair,
@@ -552,11 +553,12 @@ sc_time CheckerLPDDR5::activate2Bound(const PendingActivate& activate, const std
     return bound;
 }}
 
-bool CheckerLPDDR5::placeActivates(const sc_time& slot, const PendingActivate* newActivate, int controllerID,
-                                   std::vector<sc_time>& times) const
+bool CheckerLPDDR5::placeActivates(const sc_time& slot, const PendingActivate* newActivate, bool columnCommand,
+                                   int controllerID, std::vector<sc_time>& times) const
 {{
-    // ACT-2s take free CA cycles in order, each at its earliest time: idle cycles before slot, then cycles after
-    // slot (slot itself is taken by the command). Fails if an ACT-2 would miss its tAAD deadline.
+    // ACT-2s take CA cycles in order, each at its earliest time: idle cycles before slot, then cycles after slot.
+    // A pending ACT-2 that can go in slot gives it up only to a READ or WRITE (columnCommand) and moves on;
+    // any other command does not fit there. Fails as well if an ACT-2 would miss its tAAD deadline.
     const std::deque<PendingActivate>& pending = pendingActivate2[controllerID];
     times.clear();
     sc_time cycle = nextCommandOnBus[controllerID];
@@ -564,7 +566,11 @@ bool CheckerLPDDR5::placeActivates(const sc_time& slot, const PendingActivate* n
     {{
         sc_time time = std::max({{cycle, notBefore, activate2Bound(activate, pending, times)}});
         if (time == slot)
+        {{
+            if (!columnCommand)
+                return false;
             time += memSpec.tCK;
+        }}
         if (time > activate.deadline)
             return false;
         times.push_back(time);
@@ -576,7 +582,12 @@ bool CheckerLPDDR5::placeActivates(const sc_time& slot, const PendingActivate* n
         if (!place(activate, SC_ZERO_TIME))
             return false;
     }}
-    return newActivate == nullptr || place(*newActivate, slot + memSpec.tCK);
+    if (newActivate == nullptr)
+        return true;
+    // No ACT-1 between another ACTIVATE's ACT-1 and ACT-2 (JESD209-5C 7.3.1)
+    if (!times.empty() && times.back() > slot)
+        return false;
+    return place(*newActivate, slot + memSpec.tCK);
 }}
 
 bool CheckerLPDDR5::slotAllowed(Command command, Bank bank, BankGroup bankGroup, Rank rank, const sc_time& slot,
@@ -587,9 +598,9 @@ bool CheckerLPDDR5::slotAllowed(Command command, Bank bank, BankGroup bankGroup,
     {{
         // ACT-1 itself has no timing; its ACT-2 needs a free CA cycle within tAAD that meets all constraints
         const PendingActivate activate{{slot + memSpec.tAAD, bank, bankGroup, rank}};
-        return placeActivates(slot, &activate, controllerID, times);
+        return placeActivates(slot, &activate, false, controllerID, times);
     }}
-    if (!placeActivates(slot, nullptr, controllerID, times))
+    if (!placeActivates(slot, nullptr, command.isCasCommand(), controllerID, times))
         return false;
 
     // Timings that start at a pending ACT-2
@@ -639,11 +650,12 @@ sc_time CheckerLPDDR5::timeToSatisfyConstraints(Command command, const tlm_gener
 
     if (command == Command::ACT)
     {{
-        // the constraints bound ACT-2, which may follow ACT-1 by up to tAAD
+        // The constraints bound ACT-2. ACT-1 goes one CA cycle before the earliest ACT-2, not earlier: while its
+        // ACT-2 is pending no other ACTIVATE may start (JESD209-5C 7.3.1); the tAAD window absorbs CA conflicts.
         const sc_time activate2 = std::max({{nextCommandByBank[command][bank], nextCommandByBankGroup[command][bankGroup],
                                             nextCommandByRank[command][rank]}});
-        if (activate2 > memSpec.tAAD)
-            earliestTimeToStart = std::max(earliestTimeToStart, activate2 - memSpec.tAAD);
+        if (activate2 > memSpec.tCK)
+            earliestTimeToStart = std::max(earliestTimeToStart, activate2 - memSpec.tCK);
     }}
     else
     {{
@@ -681,7 +693,8 @@ void CheckerLPDDR5::insert(Command command, const tlm_generic_payload& payload, 
     // timings that start at an ACTIVATE start there
     const PendingActivate activate{{currentTime + memSpec.tAAD, bank, bankGroup, rank}};
     std::vector<sc_time> activate2Times;
-    if (!placeActivates(currentTime, command == Command::ACT ? &activate : nullptr, controllerID, activate2Times))
+    if (!placeActivates(currentTime, command == Command::ACT ? &activate : nullptr, command.isCasCommand(), controllerID,
+                        activate2Times))
         SC_REPORT_FATAL("CheckerLPDDR5", "ACT-2 missed its tAAD window");
     for (const sc_time& activate2 : activate2Times)
     {{
