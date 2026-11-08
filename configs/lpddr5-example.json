@@ -1,0 +1,20 @@
+{
+    "simulation": {
+        "addressmapping": "addressmapping/am_lpddr5_16Gbx16_bg_robacobgc.json",
+        "mcconfig": "mcconfig/fr_fcfs.json",
+        "memspec": "memspec/JEDEC_16Gb_LPDDR5-6400_16bit_BG.json",
+        "simconfig": "simconfig/example.json",
+        "simulationid": "lpddr5-example",
+        "tracesetup": [
+            {
+                "clkMhz": 800,
+                "dataLength": 32,
+                "type": "generator",
+                "name": "gen0",
+                "numRequests": 2000,
+                "rwRatio": 0.85,
+                "addressDistribution": "sequential"
+            }
+        ]
+    }
+}

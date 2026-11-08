@@ -114,6 +114,22 @@ add_library(dramsys
 
 add_library(DRAMSys::DRAMSys ALIAS dramsys)
 
+if (DRAMSYS_ENABLE_LPDDR5)
+    target_sources(dramsys PRIVATE
+        DRAMSys/configuration/memspec/MemSpecLPDDR5.cpp
+        DRAMSys/controller/checker/CheckerLPDDR5.cpp
+    )
+    target_compile_definitions(dramsys PUBLIC LPDDR5_SIM)
+endif()
+
+if (DRAMSYS_ENABLE_HBM3_4)
+    target_sources(dramsys PRIVATE
+        DRAMSys/configuration/memspec/MemSpecHBM3_4.cpp
+        DRAMSys/controller/checker/CheckerHBM3_4.cpp
+    )
+    target_compile_definitions(dramsys PUBLIC HBM3_4_SIM)
+endif()
+
 set_target_properties(dramsys PROPERTIES
     EXPORT_NAME DRAMSys
 )
