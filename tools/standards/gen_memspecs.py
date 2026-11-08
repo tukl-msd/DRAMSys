@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 """Write the LPDDR5 and HBM4 memspec JSONs for DRAMSys. Every number carries its source tag.
 
-LPDDR5 sources (all public):
-  [CB]  coreboot util/spd_tools/src/spd_gen/lp5.go (61dc9a49): JESD209-5B Table 220 MaxCASLatency (CKR 4:1,
-        RL Set 0), Table 372 tRCD/tRPab/tRPpb, Tables 235/236 tRFCab/tRFCpb, Tables 6-11 row address bits
-  [R5C] CMU-SAFARI/ramulator2 main (7bead6c) python/ramulator/dram/lpddr5.py, LPDDR5_6400 preset and secondary
-        timings with their JESD209-5C citations
-  [G5]  gem5 src/python/gem5/components/memory/dram_interfaces/lpddr5.py (LPDDR5_6400_1x16_BG_BL32)
+LPDDR5/LPDDR5X sources: JESD209-5C, tables cited per value in each memspec's "sources" block and in
+lpddr5() below. The LPDDR5-6400 values equal Ramulator2's LPDDR5_6400 preset (CMU-SAFARI/ramulator2 7bead6c,
+checked below).
 HBM4 sources:
   [J]   JESD270-4A Table 107 (8.0 Gbps bin, p.192), Table 108 (p.194-198), Table 4 (p.6), Table 5/6 (p.7),
         Tables 36/38 (p.52/60), MR1-MR3 (p.21-22)
@@ -25,43 +22,64 @@ def ru(t_ns, tck_ns):
     return int(math.ceil(t_ns / tck_ns - 1e-9))
 
 
-def lpddr5_6400():
-    tck = 1.25                              # ns; CK = 6400 MT/s / 8 (WCK:CK 4:1, DDR on WCK)
-    rl, wl = 17, 9                          # [CB] MaxCASLatency(6400), [R5C] nCL 17 / nCWL 9
+# JESD209-5C (LPDDR5/5X), CKR 4:1, x16, BG mode, DVFSC / Enhanced DVFSC / link ECC / DBI disabled:
+#   tCK, RL Set 0 and nRBTP: Table 225 (7.4.8.1); WL Set A: Table 229 (7.4.8.2); nWR (x16, no DVFSC, no write
+#   link ECC): Table 230 (7.4.8.3); core timing: Table 381 (9.2.1, LPDDR5) and Table 396 (9.3.1, LPDDR5X);
+#   tRBTP: Table 221; BL/n: Table 339; tRTW: Tables 347/348 (8.2.2.1); tWCK2DQO_HF(max) 1600 ps: Table 462
+#   (15.3); refresh: Table 240 (16Gb); tAAD: 7.3.1; organisation: Table 6
+LP5_BINS = {
+    # rate: (device, tCK ps = RU(1 / upper CK limit of Table 225), RL, WL, nRBTP, nWR)
+    6400: ("LPDDR5", 1250, 17, 9, 4, 28),
+    7500: ("LPDDR5X", 1067, 20, 11, 6, 32),
+    8533: ("LPDDR5X", 938, 23, 12, 6, 37),
+}
+CORE = {
+    # ns: tRCD (ACT-2 to READ), tRCD (ACT-2 to WRITE), tRRD, tFAW; the rest is equal in Tables 381 and 396
+    "LPDDR5": dict(RCD_RD=18, RCD_WR=18, RRD=5, FAW=20, table="Table 381"),
+    "LPDDR5X": dict(RCD_RD=18, RCD_WR=8, RRD=3.75, FAW=15, table="Table 396"),
+}
+
+
+def lpddr5(rate):
+    device, tck_ps, rl, wl, nrbtp, nwr = LP5_BINS[rate]
+    core = CORE[device]
+    tck = tck_ps / 1000.0
+    assert nrbtp == ru(max(7.5, 2 * tck) - 2 * tck, tck)        # Table 221 / Table 225 note 2
+    assert nwr == max(3, ru(34, tck))                             # Table 230 = RU(tWR / tCK), tWR = max(34 ns, 3nCK)
     t = {
-        "tCK": tck * 1e-9,
-        "RCD_S": ru(18, tck), "RCD_L": ru(18, tck),
-        "RPpb": ru(18, tck), "RPab": ru(21, tck), "RAS": ru(42, tck),
-        "WR": ru(34, tck),
-        "RBTP": ru(7.5 - 2 * tck, tck),     # [G5] tRTP = 7.5 ns - 2 tCK; [R5C] nRBTP 4
-        "RL": rl, "WL": wl, "PPD": 2,
-        "FAW": ru(20, tck), "RRD": max(2, ru(5, tck)),
-        "WTR_L": ru(12, tck), "WTR_S": ru(6.25, tck),
+        "tCK": tck_ps * 1e-12,
+        "RCD_L": max(2, ru(core["RCD_RD"], tck)), "RCD_S": max(2, ru(core["RCD_WR"], tck)),
+        "RPpb": max(2, ru(18, tck)), "RPab": max(2, ru(21, tck)), "RAS": max(3, ru(42, tck)),
+        "WR": nwr, "RBTP": nrbtp, "RL": rl, "WL": wl, "PPD": 2,
+        "FAW": ru(core["FAW"], tck), "RRD": max(2, ru(core["RRD"], tck)),
+        "WTR_L": max(4, ru(12, tck)), "WTR_S": max(4, ru(6.25, tck)),
         "BL_n_min_16": 2, "BL_n_max_16": 4, "BL_n_L_16": 4, "BL_n_S_16": 2,
         "BL_n_min_32": 0, "BL_n_max_32": 0, "BL_n_L_32": 0, "BL_n_S_32": 0,
         "RTW_L_32": 0, "RTW_S_32": 0,
-        "RTRS": 0, "WCK2CK": 4, "WCK2DQO": 2,
+        "RTRS": 0, "WCK2CK": 4, "WCK2DQO": ru(1.6, tck),
         "REFI": int(3906 / tck), "REFIpb": int(488 / tck),
         "RFCab": ru(280, tck), "RFCpb": ru(140, tck),
         "pbR2pbR": ru(90, tck), "pbR2act": ru(7.5, tck),
     }
     t["RCpb"] = t["RAS"] + t["RPpb"]
     t["RCab"] = t["RAS"] + t["RPab"]
-    t["RTW_L_16"] = rl + t["BL_n_max_16"] + 2 - wl
-    t["RTW_S_16"] = rl + t["BL_n_min_16"] + 2 - wl
-    # the same values as Ramulator2's LPDDR5_6400 preset (nCK)
-    ram = dict(nCL=17, nRCD=15, nRP=15, nRPab=17, nRAS=34, nRC=49, nWR=28, nRTP=6, nCWL=9, nWTRS=5, nWTRL=10)
-    ours = dict(nCL=t["RL"], nRCD=t["RCD_S"], nRP=t["RPpb"], nRPab=t["RPab"], nRAS=t["RAS"], nRC=t["RCpb"],
-                nWR=t["WR"], nRTP=t["BL_n_min_16"] + t["RBTP"], nCWL=t["WL"], nWTRS=t["WTR_S"], nWTRL=t["WTR_L"])
-    assert ours == ram, (ours, ram)
+    t["RTW_L_16"] = rl + t["BL_n_max_16"] + t["WCK2DQO"] - wl
+    t["RTW_S_16"] = rl + t["BL_n_min_16"] + t["WCK2DQO"] - wl
+    if rate == 6400:
+        # the same values as Ramulator2's LPDDR5_6400 preset (nCK)
+        ram = dict(nCL=17, nRCD=15, nRP=15, nRPab=17, nRAS=34, nRC=49, nWR=28, nRTP=6, nCWL=9, nWTRS=5, nWTRL=10)
+        ours = dict(nCL=t["RL"], nRCD=t["RCD_L"], nRP=t["RPpb"], nRPab=t["RPab"], nRAS=t["RAS"], nRC=t["RCpb"],
+                    nWR=t["WR"], nRTP=t["BL_n_min_16"] + t["RBTP"], nCWL=t["WL"], nWTRS=t["WTR_S"],
+                    nWTRL=t["WTR_L"])
+        assert ours == ram, (ours, ram)
     order = ["tCK", "REFI", "REFIpb", "RFCab", "RFCpb", "RAS", "RPab", "RPpb", "RCpb", "RCab", "PPD",
              "RCD_L", "RCD_S", "FAW", "RRD", "RL", "RBTP", "WL", "WR", "RTRS",
              "BL_n_min_16", "BL_n_max_16", "BL_n_L_16", "BL_n_S_16",
              "BL_n_min_32", "BL_n_max_32", "BL_n_L_32", "BL_n_S_32",
              "WTR_L", "WTR_S", "RTW_L_32", "RTW_L_16", "RTW_S_32", "RTW_S_16",
              "WCK2DQO", "WCK2CK", "pbR2act", "pbR2pbR"]
-    # No public LPDDR5 currents, supply voltages or I/O impedances: zero placeholders, so DRAMPower reports 0 J
-    # for this memspec until device values are filled in.
+    # No public currents, supply voltages or I/O impedances: zero placeholders, so DRAMPower reports 0 J
+    # for these memspecs until device values are filled in.
     power = {k: 0.0 for k in (
         "vdd1", "idd01", "idd2n1", "idd3n1", "idd4r1", "idd4w1", "idd51", "idd5pb1", "idd61", "idd6ds1", "idd2p1",
         "idd3p1", "vdd2h", "idd02h", "idd2n2h", "idd3n2h", "idd4r2h", "idd4w2h", "idd52h", "idd5pb2h", "idd62h",
@@ -72,7 +90,7 @@ def lpddr5_6400():
         imp.update({f"{line}_termination": False, f"{line}_R_eq": 0.0, f"{line}_dyn_E": 0.0})
     spec = {
         "memspec": {
-            "memoryId": "JEDEC_16Gb_LPDDR5-6400_16bit_BG",
+            "memoryId": memspec_name(rate),
             "memoryType": "LPDDR5",
             "memarchitecturespec": {
                 "nbrOfDevices": 1, "nbrOfChannels": 1, "nbrOfRanks": 1,
@@ -84,35 +102,44 @@ def lpddr5_6400():
             "mempowerspec": power,
             "memtimingspec": {k: t[k] for k in order},
             "memimpedancespec": imp,
-            "sources": LPDDR5_SOURCES,
+            "sources": lpddr5_sources(rate),
         }
     }
     return spec, t
 
 
-LPDDR5_SOURCES = {
-    "architecture": "[R5C] LPDDR5_16Gb_x16 (JESD209-5C Table 6): 16Gb x16 BG mode, 4 BG x 4 banks, 65,536 rows, 1024 columns (64 x BL16); [CB] 16 row address bits for 16Gb x16; per2BankOffset 8: REFpb refreshes banks n and n+8 [R5C] (JESD209-5C 7.5.1, Table 235)",
-    "tCK": "data rate / 8 (WCK:CK 4:1, DDR WCK): 1.25 ns [R5C][G5]",
-    "RL/WL": "RL 17 (Set 0): [CB] MaxCASLatency(6400), [R5C] nCL; WL 9 (Set A): [R5C] nCWL",
-    "RCD/RPpb/RPab/RAS": "18/18/21/42 ns [CB][R5C][G5]; RCD_L = RCD_S = tRCD (single tRCD)",
-    "RCpb/RCab": "RAS + RPpb / RAS + RPab ([R5C] nRC = nRAS + nRP)",
-    "RBTP": "RU((7.5 ns - 2 tCK) / tCK) = 4 [G5] tRTP; [R5C] nRTP = BL/n_min (2) + nRBTP (4)",
-    "WR": "34 ns [R5C][G5]",
-    "WTR_L/WTR_S": "12 / 6.25 ns [R5C][G5]",
-    "RRD": "5 ns [R5C] (BG mode tRRD_S = tRRD_L), [G5] (single tRRD in the DRAMUtils LPDDR5 schema)",
-    "FAW": "20 ns [R5C] (JESD209-5C Tables 381-383), [G5]",
-    "PPD": "2 nCK [R5C], [G5] tPPD = 2 tCK",
-    "BL_n_16": "BL16 at 4:1, WCK > 1600 MHz: BL/n_min 2, BL/n_max 4; tCCD_S = 2, tCCD_L = 4 [R5C] (JESD209-5C Table 339)",
-    "BL_n_32/RTW_32": "0 = unused: BL32 in BG mode is rejected by MemSpecLPDDR5",
-    "RTW_16": "same BG: RL + BL/n_max + 2 - WL, different BG: RL + BL/n_min + 2 - WL; 2 = RU(tWCK2DQO_HF(max)/tCK) [R5C] (JESD209-5C Tables 347/348, 350/351)",
-    "RTRS": "0 = unused, single rank",
-    "WCK2DQO": "2 nCK, the RU(tWCK2DQO_HF(max)/tCK) term of [R5C]; read data starts at RL + WCK2DQO",
-    "ACT-1/ACT-2": "ACT-1 takes one CA cycle, ACT-2 any free CA cycle within tAAD = 8 nCK ([R5C] nAAD, JESD209-5C 7.3.1; [G5] tAAD); timings that start at an ACTIVATE run from ACT-2 [R5C]; tAAD is fixed in MemSpecLPDDR5 (not in the DRAMUtils schema)",
-    "REFI/REFIpb": "3906 / 488 ns [R5C] (JESD209-5C Table 240), rounded down",
-    "RFCab/RFCpb": "280 / 140 ns for 16Gb [CB] (JESD209-5B Tables 235/236), [R5C] (JESD209-5C Table 240)",
-    "pbR2pbR/pbR2act": "90 / 7.5 ns [R5C] (JESD209-5C Tables 240/241)",
-    "mempowerspec/memimpedancespec": "no public source for LPDDR5 currents, supply voltages or I/O impedances: all zero, so DRAMPower reports 0 J; fill in device values for energy results",
-}
+def memspec_name(rate):
+    return f"JEDEC_16Gb_{LP5_BINS[rate][0]}-{rate}_16bit_BG"
+
+
+def lpddr5_sources(rate):
+    device, tck_ps, rl, wl, nrbtp, nwr = LP5_BINS[rate]
+    core = CORE[device]
+    tab = core["table"]
+    mr = {6400: "1011B", 7500: "1100B", 8533: "1101B"}[rate]
+    return {
+        "standard": f"JESD209-5C, {device} SDRAM, x16, BG mode, WCK:CK 4:1, DVFSC/Enhanced DVFSC, link ECC and DBI disabled",
+        "architecture": "Table 6 (16Gb x16 BG mode): 4 BG x 4 banks, 65,536 rows, 1024 columns (64 x BL16); per2BankOffset 8: REFpb refreshes banks n and n+8 (7.5.1, Table 235)",
+        "tCK": f"{tck_ps} ps = 1 / upper CK limit of the {rate} row of Table 225 (MR2 OP[3:0] = {mr}), rounded up to 1 ps",
+        "RL/RBTP": f"Table 225 (7.4.8.1), MR2 OP[3:0] = {mr}: RL Set 0 = {rl}, nRBTP = {nrbtp} = RU(tRBTP/tCK), tRBTP = max(7.5 ns, 2nCK) - 2nCK (Table 221)",
+        "WL": f"Table 229 (7.4.8.2), MR1 OP[7:4] = {mr}: WL Set A = {wl}",
+        "WR": f"Table 230 (7.4.8.3), x16 without DVFSC and write link ECC: nWR = {nwr} = RU(tWR/tCK), tWR = max(34 ns, 3nCK) ({tab})",
+        "RCD_L/RCD_S": f"{tab}: tRCD ACT-2 to READ max({core['RCD_RD']} ns, 2nCK) (RCD_L), ACT-2 to WRITE max({core['RCD_WR']} ns, 2nCK) (RCD_S)",
+        "RPpb/RPab/RAS": f"{tab}: max(18 ns, 2nCK) / max(21 ns, 2nCK) / max(42 ns, 3nCK)",
+        "RCpb/RCab": f"{tab}: tRAS + tRPpb / tRAS + tRPab",
+        "RRD/FAW": f"{tab}: tRRD max({core['RRD']} ns, 2nCK), tFAW {core['FAW']} ns",
+        "WTR_L/WTR_S": f"{tab}: max(12 ns, 4nCK) / max(6.25 ns, 4nCK)",
+        "PPD": f"{tab}: 2 nCK",
+        "BL_n_16": "Table 339, BG mode, 4:1, WCK > 1600 MHz, BL16: BL/n_min 2, BL/n_max 4; same BG 4, different BG 2",
+        "BL_n_32/RTW_32": "0 = unused: BL32 in BG mode is rejected by MemSpecLPDDR5",
+        "RTW_16": "Tables 347/348 (8.2.2.1, RDQS on, NT-ODT and DQ ODT off): RL + BL/n_max (same BG) or BL/n_min (different BG) + RU(tWCK2DQO(max)/tCK) - WL",
+        "WCK2DQO": "RU(tWCK2DQO_HF(max) / tCK), tWCK2DQO_HF(max) = 1600 ps (Table 462, 15.3); read data starts at RL + WCK2DQO",
+        "ACT-1/ACT-2": "ACT-2 within tAAD = 8 nCK of ACT-1 (7.3.1); timings that end or start at an ACTIVATE refer to ACT-2; tAAD is fixed in MemSpecLPDDR5 (not in the DRAMUtils schema)",
+        "RTRS": "0 = unused, single rank",
+        "REFI/REFIpb": "Table 240: 3.906 us / 488 ns, rounded down",
+        "RFCab/RFCpb/pbR2pbR/pbR2act": "Table 240, 16Gb: 280 / 140 / 90 / 7.5 ns",
+        "mempowerspec/memimpedancespec": "no public source for currents, supply voltages or I/O impedances: all zero, so DRAMPower reports 0 J; fill in device values for energy results",
+    }
 
 
 def hbm4():
@@ -173,9 +200,10 @@ HBM4_SOURCES = {
 
 if __name__ == "__main__":
     out = sys.argv[1]
-    spec, t = lpddr5_6400()
-    json.dump(spec, open(f"{out}/JEDEC_16Gb_LPDDR5-6400_16bit_BG.json", "w"), indent=4)
-    print("LPDDR5-6400", {k: v for k, v in t.items() if k != "tCK"})
+    for rate in LP5_BINS:
+        spec, t = lpddr5(rate)
+        json.dump(spec, open(f"{out}/{memspec_name(rate)}.json", "w"), indent=4)
+        print(memspec_name(rate), {k: v for k, v in t.items() if k != "tCK"})
     spec, t = hbm4()
     json.dump(spec, open(f"{out}/JEDEC_HBM4_32Gb_8H_8000.json", "w"), indent=4)
     print("HBM4", t)

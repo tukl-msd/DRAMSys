@@ -35,6 +35,14 @@ STD = {
                    am=f"{CFG}/addressmapping/am_lpddr5_16Gbx16_bg_robacobgc.json",
                    ram=("LPDDR5", "LPDDR5_16Gb_x16", "LPDDR5_6400", "LPDDR5"), ram_tick_ns=1.25,
                    n=32768, clk=800),
+    "lp7500": dict(memspec=f"{CFG}/memspec/JEDEC_16Gb_LPDDR5X-7500_16bit_BG.json",
+                   am=f"{CFG}/addressmapping/am_lpddr5_16Gbx16_bg_robacobgc.json",
+                   ram=("LPDDR5", "LPDDR5_16Gb_x16", "LPDDR5X_7500", "LPDDR5"), ram_tick_ns=1.067,
+                   n=32768, clk=937),
+    "lp8533": dict(memspec=f"{CFG}/memspec/JEDEC_16Gb_LPDDR5X-8533_16bit_BG.json",
+                   am=f"{CFG}/addressmapping/am_lpddr5_16Gbx16_bg_robacobgc.json",
+                   ram=("LPDDR5", "LPDDR5_16Gb_x16", "LPDDR5X_8533", "LPDDR5"), ram_tick_ns=0.938,
+                   n=32768, clk=1066),
     "hbm4": dict(memspec=f"{CFG}/memspec/JEDEC_HBM4_32Gb_8H_8000.json",
                  am=f"{CFG}/addressmapping/am_hbm4_32Gb-8H_pc_robacosibgpc.json",
                  ram=("HBM4", "HBM4_32Gb_8Hi", "HBM4_8000Mbps", "HBM34"), ram_tick_ns=0.25,
@@ -362,7 +370,7 @@ def codepath_job(out, name, mode, bl, refresh, n=16384):
 
 def jobs():
     js = []
-    for std in ("lp6400", "hbm4"):
+    for std in ("lp6400", "lp7500", "lp8533", "hbm4"):
         for pat in ("sr", "sw", "rr", "rm"):
             js.append(dict(name=f"{std}_{pat}_noref", std=std, pattern=pat, ram="none"))
             js.append(dict(name=f"{std}_{pat}_ref", std=std, pattern=pat, refresh="AllBank", ram="allbank"))
@@ -370,7 +378,7 @@ def jobs():
     js.append(dict(name="lp6400_rr_noref_reorder", std="lp6400", pattern="rr", resp="Reorder"))
     js.append(dict(name="hbm4_rr_noref_reorder", std="hbm4", pattern="rr", resp="Reorder"))
     # unloaded latency: one random read every 1000 initiator clocks
-    for std in ("lp6400", "hbm4"):
+    for std in ("lp6400", "lp8533", "hbm4"):
         js.append(dict(name=f"{std}_ul", std=std, pattern="ul", gap=1000, n=2000))
     # HBM4 refresh: DRAMSys staggers REFab of the two pseudo channels by tREFI/2, Ramulator refreshes both at once
     js.append(dict(name="hbm4_sr_ref_ramscatter", std="hbm4", pattern="sr", refresh="AllBank",
@@ -391,12 +399,13 @@ def jobs():
     # mixed traffic with Ramulator's write-drain policy (separate 32/32 read/write buffers, watermarks 0.8/0.2)
     wm = {"Scheduler": "GrpFrFcfsWm", "SchedulerBuffer": "ReadWrite", "RequestBufferSizeRead": 32,
           "RequestBufferSizeWrite": 32, "HighWatermark": 25, "LowWatermark": 6}
-    for std in ("lp6400", "hbm4"):
+    for std in ("lp6400", "lp8533", "hbm4"):
         js.append(dict(name=f"{std}_rm_noref_wm", std=std, pattern="rm", mc=wm))
         js.append(dict(name=f"{std}_sw_noref_wm", std=std, pattern="sw", mc=wm))
     js.append(dict(name="hbm4_rm_refpb", std="hbm4", pattern="rm", refresh="PerBank"))
-    js.append(dict(name="lp6400_rm_refp2b", std="lp6400", pattern="rm", refresh="Per2Bank"))
-    js.append(dict(name="lp6400_sr_refp2b", std="lp6400", pattern="sr", refresh="Per2Bank"))
+    for std in ("lp6400", "lp8533"):
+        js.append(dict(name=f"{std}_rm_refp2b", std=std, pattern="rm", refresh="Per2Bank"))
+        js.append(dict(name=f"{std}_sr_refp2b", std=std, pattern="sr", refresh="Per2Bank"))
     # (d) planted wrong timings: DRAMSys runs with a too-small value, the checker uses the true memspec
     js.append(dict(name="plant_lp6400_RCD", std="lp6400", pattern="rr", refresh="AllBank",
                    mutate={"RCD_S": 12, "RCD_L": 12}))
@@ -406,6 +415,12 @@ def jobs():
     js.append(dict(name="plant_lp6400_RFCpb", std="lp6400", pattern="rm", refresh="Per2Bank",
                    mutate={"RFCpb": 60}))
     js.append(dict(name="plant_lp6400_RTW_L", std="lp6400", pattern="rm", mutate={"RTW_L_16": 12}))
+    js.append(dict(name="plant_lp8533_RCD_RD", std="lp8533", pattern="rr", refresh="AllBank", mutate={"RCD_L": 17}))
+    js.append(dict(name="plant_lp8533_RCD_WR", std="lp8533", pattern="rm", mutate={"RCD_S": 6}))
+    js.append(dict(name="plant_lp8533_RRD_FAW", std="lp8533", pattern="rr", mutate={"RRD": 2, "FAW": 8}))
+    js.append(dict(name="plant_lp8533_RRD", std="lp8533", pattern="rr", mutate={"RRD": 2}))
+    js.append(dict(name="plant_lp8533_RFCpb", std="lp8533", pattern="rm", refresh="Per2Bank", mutate={"RFCpb": 60}))
+    js.append(dict(name="plant_lp8533_RTW_L", std="lp8533", pattern="rm", mutate={"RTW_L_16": 15}))
     js.append(dict(name="plant_hbm4_CCDL", std="hbm4", pattern="sr", mutate={"CCDL": 4}))
     js.append(dict(name="plant_hbm4_RFC", std="hbm4", pattern="rm", refresh="AllBank", mutate={"RFC": 800}))
     js.append(dict(name="plant_hbm4_RREFD", std="hbm4", pattern="rm", refresh="PerBank", mutate={"RREFD": 8}))
