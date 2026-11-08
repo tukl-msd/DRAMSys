@@ -73,9 +73,11 @@ option(DRAMSYS_USE_LEGACY_SYSTEMC_INSTALLATION "Use SystemC installed with autot
 option(DRAMSYS_USE_EXTENSIONS "Enable internal DRAMSys extensions" OFF)
 option(DRAMSYS_INSTALL "Install DRAMSys" OFF)
 
-# Open LPDDR5/LPDDR5X model; the internal extensions provide their own
+# Open LPDDR5/LPDDR5X and HBM3/HBM4 models; the internal extensions provide their own
 include(CMakeDependentOption)
 cmake_dependent_option(DRAMSYS_ENABLE_LPDDR5 "Build the LPDDR5/LPDDR5X standard (MemSpecLPDDR5, CheckerLPDDR5)" ON
+                       "NOT DRAMSYS_USE_EXTENSIONS" OFF)
+cmake_dependent_option(DRAMSYS_ENABLE_HBM3_4 "Build the HBM3/HBM4 standard (MemSpecHBM3_4, CheckerHBM3_4)" ON
                        "NOT DRAMSYS_USE_EXTENSIONS" OFF)
 
 if(DRAMSYS_BUILD_TESTS)
