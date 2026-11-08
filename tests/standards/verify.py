@@ -169,10 +169,10 @@ def run_dramsys(d):
                      ("bw_max", r"controller0::MaximumTheoreticalBandwidth:\s+([\d.]+)"),
                      ("util", r"controller0::AverageUtilization:\s+([\d.]+)"),
                      ("sim_time_s", r"Simulator::SimulationTime:\s+([\d.e+-]+)"),
-                     ("energy_J", r"drampoweradapter0\s+Total Energy:\s+([\d.e+-]+)"),
-                     ("core_J", r"drampoweradapter0\s+Core Energy:\s+([\d.e+-]+)"),
-                     ("iface_J", r"drampoweradapter0\s+Interface Energy:\s+([\d.e+-]+)"),
-                     ("power_W", r"drampoweradapter0\s+Average Power:\s+([\d.e+-]+)")):
+                     ("energy_J", r"drampoweradapter0::TotalEnergy:\s+([\d.e+-]+)"),
+                     ("core_J", r"drampoweradapter0::CoreEnergy:\s+([\d.e+-]+)"),
+                     ("iface_J", r"drampoweradapter0::InterfaceEnergy:\s+([\d.e+-]+)"),
+                     ("power_W", r"drampoweradapter0::AveragePower:\s+([\d.e+-]+)")):
         m = re.search(pat, out)
         if m:
             r[key] = float(m.group(1))
