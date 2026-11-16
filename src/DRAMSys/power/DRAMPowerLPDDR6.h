@@ -26,16 +26,16 @@ class DRAMPowerLPDDR6 : public Deserialize, public Serialize {
 // Public type definitions
 public:
     static constexpr std::size_t NUMINTERFACES = 2;
-    using Standart_t = DRAMPower::LPDDR6Types;
-    using DRAMUtilsMemSpec_t = typename Standart_t::DRAMUtilsMemSpec_t;
-    using MemSpec_t = typename Standart_t::MemSpec_t;
-    using Core_t = typename Standart_t::Core_t;
-    using Interface_t = typename Standart_t::Interface_t;
-    using CalcCore_t = typename Standart_t::CalcCore_t;
-    using CalcInterface_t = typename Standart_t::CalcInterface_t;
+    using Standard_t = DRAMPower::LPDDR6Types;
+    using DRAMUtilsMemSpec_t = typename Standard_t::DRAMUtilsMemSpec_t;
+    using MemSpec_t = typename Standard_t::MemSpec_t;
+    using Core_t = typename Standard_t::Core_t;
+    using Interface_t = typename Standard_t::Interface_t;
+    using CalcCore_t = typename Standard_t::CalcCore_t;
+    using CalcInterface_t = typename Standard_t::CalcInterface_t;
 
 // Public constructors / assignment operators
-    DRAMPowerLPDDR6(const DRAMUtilsMemSpec_t& memSpec, const DRAMPower::config::SimConfig& config, EfficencyMode mode = EfficencyMode::NormalMode)
+    DRAMPowerLPDDR6(const DRAMUtilsMemSpec_t& memSpec, const DRAMPower::config::SimConfig& config, EfficiencyMode mode = EfficiencyMode::NormalMode)
         : memSpec(memSpec)
         , tCK(sc_core::sc_time(memSpec.memtimingspec.tCK, sc_core::SC_SEC))
         , groupsPerRank(memSpec.memarchitecturespec.nbrOfBankGroups)
@@ -46,20 +46,20 @@ public:
     {}
 
 // Public member functions:
-    void setEfficiencyMode(DRAMPower::timestamp_t timestamp, EfficencyMode mode) {
+    void setEfficiencyMode(DRAMPower::timestamp_t timestamp, EfficiencyMode mode) {
         this->mode = mode;
         Interface_t& interface = interfaces[1];
         switch(mode) {
-            case EfficencyMode::NormalMode:
+            case EfficiencyMode::NormalMode:
                 if (!interface.isEnabled()) interface.enable(timestamp);
                 break;
-            case EfficencyMode::EfficencyMode:
+            case EfficiencyMode::EfficiencyMode:
                 if (interface.isEnabled()) interface.disable(timestamp);
                 break;
         }
     }
 
-    EfficencyMode getEfficiencyMode() const {
+    EfficiencyMode getEfficiencyMode() const {
         return mode;
     }
 
@@ -71,10 +71,10 @@ public:
         channel %= NUMINTERFACES;
         cores[channel].doCommand(command);
         switch (mode) {
-            case EfficencyMode::NormalMode:
+            case EfficiencyMode::NormalMode:
                 interfaces[channel].doCommand(command);
                 break;
-            case EfficencyMode::EfficencyMode:
+            case EfficiencyMode::EfficiencyMode:
                 interfaces[0].doCommand(command);
                 break;
         }
@@ -107,7 +107,7 @@ public:
         target.rank = rank;
         target.row = row;
         target.column = column;
-        target.subChannel = EfficencyMode::EfficencyMode == mode  ? channel % NUMINTERFACES : 0;
+        target.subChannel = EfficiencyMode::EfficiencyMode == mode  ? channel % NUMINTERFACES : 0;
 
         // TODO read, write data for interface calculation
         uint8_t* data = trans.get_data_ptr();                  // Can be nullptr if no data
@@ -225,7 +225,7 @@ private:
     uint64_t banksPerRank{};
     std::array<Core_t, NUMINTERFACES> cores;
     std::array<Interface_t, NUMINTERFACES> interfaces;
-    EfficencyMode mode;
+    EfficiencyMode mode;
 };
 
 } // namespace DRAMSys

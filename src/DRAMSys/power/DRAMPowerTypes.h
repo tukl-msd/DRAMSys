@@ -8,9 +8,9 @@
 
 namespace DRAMSys {
 
-enum class EfficencyMode : char {
+enum class EfficiencyMode : char {
     NormalMode,
-    EfficencyMode
+    EfficiencyMode
 };
 
 [[nodiscard]] inline DRAMPower::CmdType phaseToDRAMPowerCommand(tlm::tlm_phase phase)
