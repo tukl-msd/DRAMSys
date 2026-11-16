@@ -51,6 +51,11 @@
 #include <systemc>
 #include <tlm>
 
+namespace DRAMSys::Recording
+{
+class DatabaseRecorder;
+}
+
 namespace DRAMSys
 {
 
@@ -69,6 +74,8 @@ private:
     sc_core::sc_time powerWindowSize;
 
     DRAMPowerVariant DRAMPower;
+
+    Recording::DatabaseRecorder* recorder;
 
     // This Thread is only triggered when Power Simulation is enabled.
     // It estimates the current average power which will be stored in the trace database for
@@ -106,7 +113,8 @@ public:
     DRAMPowerAdapter(const sc_core::sc_module_name& name,
                      DRAMPowerVariant DRAMPower,
                      const SimConfig& simConfig,
-                     const MemSpec& memSpec);
+                     const MemSpec& memSpec,
+                     Recording::DatabaseRecorder* recorder);
 
     DRAMPowerAdapter(const DRAMPowerAdapter&) = delete;
     DRAMPowerAdapter(DRAMPowerAdapter&&) = delete;

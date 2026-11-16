@@ -183,7 +183,18 @@ void TraceFileTab::initNavigatorAndItsDependentWidgets()
 
     ui->bandwidthPlot->canvas()->installEventFilter(this);
     ui->powerPlot->canvas()->installEventFilter(this);
-    ui->bufferPlot->canvas()->installEventFilter(this);
+
+#ifdef EXTENSION_ENABLED
+    // The bandwidth plot always shows the bandwidth of the selected channel.
+    connect(navigator,
+            &TraceNavigator::channelChanged,
+            this,
+            [this](unsigned channel)
+            {
+                QSqlDatabase db = navigator->TraceFile().getDatabase();
+                TraceAnalyzerExtension::bandwidthAnalysis(db, channel, ui->bandwidthPlot);
+            });
+#endif
 }
 
 void TraceFileTab::setUpFileWatcher(QString path)
@@ -236,7 +247,6 @@ void TraceFileTab::addDisclaimer()
     ui->startPowerAnalysis->setEnabled(false);
     ui->powerBox->setEnabled(false);
     ui->bandwidthBox->setEnabled(false);
-    ui->bufferBox->setEnabled(false);
 }
 
 void TraceFileTab::tracefileChanged()
@@ -379,6 +389,8 @@ void TraceFileTab::on_startPowerAnalysis_clicked()
 {
 #ifdef EXTENSION_ENABLED
     QSqlDatabase db = navigator->TraceFile().getDatabase();
-    TraceAnalyzerExtension::powerAnalysis(db, ui->powerPlot, ui->bandwidthPlot, ui->bufferPlot);
+    TraceAnalyzerExtension::powerAnalysis(db, ui->powerPlot);
+    TraceAnalyzerExtension::bandwidthAnalysis(
+        db, navigator->TraceFile().getCurrentChannel(), ui->bandwidthPlot);
 #endif
 }

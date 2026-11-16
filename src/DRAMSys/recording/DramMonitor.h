@@ -59,6 +59,7 @@ public:
     DramMonitor(sc_core::sc_module_name const& name,
                 unsigned command_bus_id,
                 unsigned data_bus_id,
+                sc_core::sc_time windowSize,
                 MemSpec const* memspec,
                 DatabaseRecorder* recorder);
 
@@ -67,6 +68,11 @@ public:
 
 private:
     void b_transport(tlm::tlm_generic_payload& trans, sc_core::sc_time& delay);
+
+    void recordBandwidth();
+
+    sc_core::sc_time windowSize;
+    uint64_t bytesServedInWindow;
 
     unsigned command_bus_id;
     unsigned data_bus_id;

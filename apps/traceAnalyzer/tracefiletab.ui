@@ -404,18 +404,6 @@
             </layout>
            </widget>
           </item>
-          <item>
-           <widget class="QGroupBox" name="bufferBox">
-            <property name="title">
-             <string>Buffer Analysis:</string>
-            </property>
-            <layout class="QVBoxLayout" name="verticalLayout_8">
-             <item>
-              <widget class="QwtPlot" name="bufferPlot"/>
-             </item>
-            </layout>
-           </widget>
-          </item>
          </layout>
         </item>
        </layout>

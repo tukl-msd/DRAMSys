@@ -46,15 +46,19 @@ namespace DRAMSys::Recording
 DramMonitor::DramMonitor(sc_core::sc_module_name const& name,
                          unsigned command_bus_id,
                          unsigned data_bus_id,
+                         sc_core::sc_time windowSize,
                          MemSpec const* memspec,
                          DatabaseRecorder* recorder) :
     sc_core::sc_module(name),
     command_bus_id(command_bus_id),
     data_bus_id(data_bus_id),
+    windowSize(windowSize),
     memspec(memspec),
     recorder(recorder)
 {
     tSocket.register_b_transport(this, &DramMonitor::b_transport);
+
+    SC_THREAD(recordBandwidth);
 }
 
 void DramMonitor::b_transport(tlm::tlm_generic_payload& trans, sc_core::sc_time& delay)
@@ -101,9 +105,24 @@ void DramMonitor::b_transport(tlm::tlm_generic_payload& trans, sc_core::sc_time&
             data_bus_id,
             static_cast<unsigned>(command_strobe_id),
         });
+
+        bytesServedInWindow += trans.get_data_length();
     }
 
     iSocket->b_transport(trans, delay);
+}
+
+void DramMonitor::recordBandwidth()
+{
+    while (true)
+    {
+        wait(windowSize);
+
+        double bandwidth = static_cast<double>(bytesServedInWindow) / windowSize.to_seconds();
+
+        recorder->record(BandwidthRecord{sc_core::sc_time_stamp().value(), data_bus_id, bandwidth});
+        bytesServedInWindow = 0;
+    }
 }
 
 } // namespace DRAMSys::Recording

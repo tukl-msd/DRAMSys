@@ -237,6 +237,7 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
             std::make_unique<Recording::DramMonitor>(("dramMonitor" + std::to_string(i)).c_str(),
                                                      command_bus_id,
                                                      data_bus_id,
+                                                     simconfig.windowSize * memSpec->tCK,
                                                      memSpec.get(),
                                                      &databaseRecorder);
         controllers[i]->iSocket.bind(phy->tSocket);
@@ -363,7 +364,8 @@ void DRAMSys::createDRAMPowers(
                         ("drampoweradapter" + std::to_string(channel)).c_str(),
                         Impl(var, drampowerSimConfig),
                         *simConfig,
-                        *memSpec);
+                        *memSpec,
+                        &databaseRecorder);
                 }
                 SC_REPORT_FATAL("DRAMSys", "Standard does not support the power analysis");
                 return nullptr;

@@ -46,6 +46,8 @@ namespace DRAMSys::Recording
 
 DatabaseRecorder::DatabaseRecorder(Database& database) :
     generalInfoTable(database),
+    bandwidthTable(database),
+    powerTable(database),
     transactionTable(database),
     nbTransportTable(database),
     dataStrobeTable(database),
@@ -151,6 +153,18 @@ uint64_t DatabaseRecorder::record(DramStateRecord const& record)
     return id;
 }
 
+uint64_t DatabaseRecorder::record(BandwidthRecord const& record)
+{
+    enqueue(record);
+    return 0;
+}
+
+uint64_t DatabaseRecorder::record(PowerRecord const& record)
+{
+    enqueue(record);
+    return 0;
+}
+
 void DatabaseRecorder::consumerThread()
 {
     std::vector<AsyncRecord> batch;
@@ -242,6 +256,14 @@ void DatabaseRecorder::persist(AsyncRecord& record)
             else if constexpr (std::is_same_v<T, DataStrobeRecord>)
             {
                 dataStrobeTable.record(entry);
+            }
+            else if constexpr (std::is_same_v<T, BandwidthRecord>)
+            {
+                bandwidthTable.record(entry);
+            }
+            else if constexpr (std::is_same_v<T, PowerRecord>)
+            {
+                powerTable.record(entry);
             }
             else
             {

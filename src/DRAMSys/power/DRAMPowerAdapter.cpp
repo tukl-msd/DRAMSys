@@ -38,6 +38,7 @@
 #include "DRAMSys/power/DRAMPowerAdapter.h"
 #include "DRAMSys/common/DebugManager.h"
 #include "DRAMSys/power/DRAMPowerVariant.h"
+#include "DRAMSys/recording/database/DatabaseRecorder.h"
 
 #include <DRAMPower/command/Command.h>
 #include <DRAMPower/simconfig/simconfig.h>
@@ -52,11 +53,13 @@ namespace DRAMSys
 DRAMPowerAdapter::DRAMPowerAdapter(const sc_core::sc_module_name& name,
                                    DRAMPowerVariant DRAMPower,
                                    const SimConfig& simConfig,
-                                   const MemSpec& memSpec) :
+                                   const MemSpec& memSpec,
+                                   Recording::DatabaseRecorder* recorder) :
     sc_module(name),
     tCK(memSpec.tCK),
     powerWindowSize(memSpec.tCK * simConfig.windowSize),
     DRAMPower(std::move(DRAMPower)),
+    recorder(recorder),
     stats(*this)
 {
     assert(simConfig.powerAnalysis && "DRAMPowerObject created for simConfig.powerAnalysis=false");
@@ -145,6 +148,9 @@ void DRAMPowerAdapter::powerWindow()
 
         // During operation the energy should never be zero since the device is always consuming
         assert(!(windowEnergy < MINENERGYPERWINDOW));
+
+        recorder->record(Recording::PowerRecord{sc_core::sc_time_stamp().value(),
+                                                windowEnergy / powerWindowSizeSeconds});
 
         // Here considering that DRAMPower provides the energy in J and the power in W
         PRINTDEBUGMESSAGE(this->name(),

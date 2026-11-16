@@ -107,6 +107,8 @@ add_library(dramsys
     DRAMSys/statistics/Group.cpp
     DRAMSys/statistics/JsonFormat.cpp
     DRAMSys/statistics/PrettyFormat.cpp
+    DRAMSys/recording/database/BandwidthTable.cpp
+    DRAMSys/recording/database/PowerTable.cpp
     DRAMSys/recording/database/CommandTable.cpp
     DRAMSys/recording/database/CommandStrobeTable.cpp
     DRAMSys/recording/database/Database.cpp

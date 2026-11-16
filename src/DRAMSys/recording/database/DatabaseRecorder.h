@@ -35,6 +35,7 @@
 
 #pragma once
 
+#include "BandwidthTable.h"
 #include "CommandStrobeTable.h"
 #include "CommandTable.h"
 #include "DataStrobeTable.h"
@@ -42,6 +43,7 @@
 #include "GeneralInfoTable.h"
 #include "NBTransportTable.h"
 #include "PhaseTable.h"
+#include "PowerTable.h"
 #include "SignalTable.h"
 #include "TransactionTable.h"
 
@@ -96,6 +98,8 @@ public:
     uint64_t record(CommandStrobeRecord const& record);
     uint64_t record(DataStrobeRecord const& record);
     uint64_t record(DramStateRecord const& record);
+    uint64_t record(BandwidthRecord const& record);
+    uint64_t record(PowerRecord const& record);
 
 private:
     using AsyncRecord = std::variant<GeneralInfoRecord,
@@ -106,7 +110,9 @@ private:
                                      CommandRecord,
                                      CommandStrobeRecord,
                                      DataStrobeRecord,
-                                     DramStateRecord>;
+                                     DramStateRecord,
+                                     BandwidthRecord,
+                                     PowerRecord>;
 
     /// Backpressure: the producer blocks while at least this many records are pending.
     static constexpr std::size_t MAX_QUEUE_ENTRIES = 1024;
@@ -143,6 +149,8 @@ private:
     uint64_t currentSignalRecordId = 1;
 
     GeneralInfoTable generalInfoTable;
+    BandwidthTable bandwidthTable;
+    PowerTable powerTable;
     TransactionTable transactionTable;
     NBTransportTable nbTransportTable;
     DataStrobeTable dataStrobeTable;
