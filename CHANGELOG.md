@@ -1,3 +1,81 @@
+## [5.7.0] - 2026-11-17
+
+### 🚀 Features
+
+- Implement power simulation support for LPDDR6
+- Specialize instantiation of DRAMPower for LPDDR6
+- *(stats)* Add ratio stat type
+- *(stats)* Add CAS/ACT command ratio stat
+- *(stats)* Add CAS commands per rw switch ratio stat
+- Add JMU to DRAMSys logo
+- *(refresh)* Implement dual-bank refresh
+- *(ta)* Add support for dual bank refresh
+- Add dual bank refresh mcconfig
+- *(configs)* Add sample mempowerspec for HBM2
+- *(HBM2)* Add support for power simulation
+- *(stats)* Integrate DRAMPower output in stats framework
+- Add new efficiency mode
+- *(controller)* Replace per-controller timing checkers with shared checker
+- Add Phy module to enable remapping of controllers to DRAMs
+- *(initiators)* Implement pause function
+- *(db)* Remove old database recorders
+- *(db)* Implement new database recorders
+- *(ta)* Draft for support of new database format
+- *(ta)* Add channel combo box selector
+- *(ta)* Implement channel selector
+- *(ta)* Remove select next * command action
+- *(db)* Implement windowed bandwidth and power tables
+- Add missing extensions for blocking and debug paths
+
+### 🐛 Bug Fixes
+
+- *(test)* Replace non-standard datatype
+- *(cmdmux)* Fix UB by comparing wrong iterators
+- Prevent invalid free of child transaction data
+- *(stats)* Capitalize new statistic
+- Calculate bandwidth reports correctly after stats reset
+- Assign second precharge to correct transaction
+- *(stats)* Fix overflowing in stats print
+- Resolve issue DualBank and SameBank refresh config
+- Add missing ArbiterExtension to child transactions
+- Remove NoDataExtension for child transactions if not carried by parent
+- *(dram)* Skip copying data when length is 0
+- *(ta)* Show refreshes without transaction ids
+- *(db)* Do not use fixed exeuction time for PD commands
+
+### 💼 Other
+
+- Disable libfmt FetchContent in vcpkg preset
+- *(vcpkg)* Add nlohmann_json as vcpkg dependency
+- *(ta)* Clean up in preparation for new db format
+
+### 🚜 Refactor
+
+- Introduce intermediate AddressMapping struct
+- Match logic of REFP2B manager to REFDB manager
+- *(mm)* Add dummy region for data pointer when storage is disabled
+- *(dram)* Do not write data when NoDataExtension is set
+- *(initiators)* Implement json-independent construction using descriptors
+- Remove dependency from json-based configs for sim components
+- *(dram)* Model DRAM commands using b_transport
+- *(initiators)* Use a sc_event-based system
+- *(simulator)* Print progress bar in separate SC_THREAD
+- Fix misspelling in LPDDR6 Implementation
+- Deprecate command phases
+- *(ta)* Speed up queries significantly
+- *(ta)* Match channel from signals table
+
+### 📚 Documentation
+
+- Remove deprecated TraceAnalyzer readme
+
+### 🧪 Testing
+
+- Update regression tests for new db format
+
+### ⚙️ Miscellaneous Tasks
+
+- *(tests)* Bumb regression test version
 ## [5.6.0] - 2026-07-08
 
 ### 🚀 Features
