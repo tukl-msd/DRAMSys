@@ -57,6 +57,7 @@ DramMonitor::DramMonitor(sc_core::sc_module_name const& name,
     recorder(recorder)
 {
     tSocket.register_b_transport(this, &DramMonitor::b_transport);
+    tSocket.register_transport_dbg(this, &DramMonitor::transport_dbg);
 
     SC_THREAD(recordBandwidth);
 }
@@ -110,6 +111,11 @@ void DramMonitor::b_transport(tlm::tlm_generic_payload& trans, sc_core::sc_time&
     }
 
     iSocket->b_transport(trans, delay);
+}
+
+unsigned int DramMonitor::transport_dbg(tlm::tlm_generic_payload& trans)
+{
+    return iSocket->transport_dbg(trans);
 }
 
 void DramMonitor::recordBandwidth()

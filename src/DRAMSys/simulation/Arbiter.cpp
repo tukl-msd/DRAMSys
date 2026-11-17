@@ -220,7 +220,21 @@ void Arbiter::b_transport([[maybe_unused]] int id,
     trans.set_address(trans.get_address() - addressOffset);
 
     DecodedAddress decodedAddress = addressDecoder.decodeAddress(trans.get_address());
+    auto transactionId = totalTransactions++;
+    ArbiterExtension arbiterExt{Thread(id), Channel(decodedAddress.channel), transactionId};
+    trans.set_extension<ArbiterExtension>(&arbiterExt);
+
+    // Record
+    databaseRecorder.record(Recording::TransactionRecord{
+        transactionId,
+        trans.get_address(),
+        trans.get_data_length(),
+        trans.get_command(),
+        static_cast<unsigned>(id),
+    });
+
     iSocket[static_cast<int>(decodedAddress.channel)]->b_transport(trans, delay);
+    trans.clear_extension<ArbiterExtension>();
 }
 
 unsigned int Arbiter::transport_dbg([[maybe_unused]] int id, tlm::tlm_generic_payload& trans)

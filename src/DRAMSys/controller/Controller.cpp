@@ -564,11 +564,27 @@ void Controller::b_transport(tlm_generic_payload& trans, sc_time& delay)
 
     delay += trans.is_write() ? config.blockingWriteDelay : config.blockingReadDelay;
 
+    DecodedAddress decodedAddress = addressDecoder.decodeAddress(trans.get_address());
+    const unsigned burstLength = trans.get_data_length() == memSpec.maxDataBytesPerBurst
+                                     ? memSpec.maxBurstLength
+                                     : memSpec.defaultBurstLength;
+    ControllerExtension controllerExt{nextChannelPayloadIDToAppend++,
+                                      Rank(decodedAddress.rank),
+                                      Stack(decodedAddress.stack),
+                                      BankGroup(decodedAddress.bankgroup),
+                                      Bank(decodedAddress.bank),
+                                      Row(decodedAddress.row),
+                                      Column(decodedAddress.column),
+                                      burstLength,
+                                      Bank(0)};
+    trans.set_extension<ControllerExtension>(&controllerExt);
+
     // Create dummy command for b_transport
     CommandExtension ext{trans.is_write() ? Command::WR : Command::RD};
     trans.set_extension<CommandExtension>(&ext);
     iSocket->b_transport(trans, delay);
     trans.clear_extension<CommandExtension>();
+    trans.clear_extension<ControllerExtension>();
 }
 
 unsigned int Controller::transport_dbg(tlm_generic_payload& trans)

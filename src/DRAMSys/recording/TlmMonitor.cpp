@@ -51,6 +51,8 @@ TlmMonitor<Recorder>::TlmMonitor(sc_core::sc_module_name const& name,
 {
     iSocket.register_nb_transport_bw(this, &TlmMonitor::nb_transport_bw);
     tSocket.register_nb_transport_fw(this, &TlmMonitor::nb_transport_fw);
+    tSocket.register_b_transport(this, &TlmMonitor::b_transport);
+    tSocket.register_transport_dbg(this, &TlmMonitor::transport_dbg);
 }
 
 template <typename Recorder>

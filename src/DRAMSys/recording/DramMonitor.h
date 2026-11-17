@@ -68,6 +68,7 @@ public:
 
 private:
     void b_transport(tlm::tlm_generic_payload& trans, sc_core::sc_time& delay);
+    unsigned int transport_dbg(tlm::tlm_generic_payload& trans);
 
     void recordBandwidth();
 
