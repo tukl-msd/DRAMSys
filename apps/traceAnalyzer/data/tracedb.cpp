@@ -390,7 +390,7 @@ std::vector<std::shared_ptr<Transaction>> TraceDB::parseTransactionsFromQuery(QS
         unsigned int dataLength = query.value(2).toUInt();
         unsigned int thread = query.value(4).toUInt();
         unsigned int channel = query.value(5).toUInt();
-        QString command = (query.value(6).toUInt() == 1) ? "R" : "W"; // 1 == TLM_READ_COMMAND
+        QString command = (query.value(6).toUInt() == 0) ? "R" : "W"; // 0 == TLM_READ_COMMAND, 1 == TLM_WRITE_COMMAND
 
         auto transaction = std::make_shared<Transaction>(id,
                                                          std::move(command),
