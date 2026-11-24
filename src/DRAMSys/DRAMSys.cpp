@@ -253,8 +253,8 @@ DRAMSys::DRAMSys(const sc_core::sc_module_name& name,
     databaseRecorder.record(
         Recording::GeneralInfoRecord{"NumberOfRanks", memSpec->ranksPerChannel});
     databaseRecorder.record(
-        Recording::GeneralInfoRecord{"NumberOfBankgroups", memSpec->groupsPerRank});
-    databaseRecorder.record(Recording::GeneralInfoRecord{"NumberOfBanks", memSpec->banksPerRank});
+        Recording::GeneralInfoRecord{"NumberOfBankgroups", memSpec->groupsPerRank * memSpec->ranksPerChannel});
+    databaseRecorder.record(Recording::GeneralInfoRecord{"NumberOfBanks", memSpec->banksPerRank * memSpec->ranksPerChannel});
     databaseRecorder.record(
         Recording::GeneralInfoRecord{"Per2BankOffset", memSpec->getPer2BankOffset()});
     databaseRecorder.record(
