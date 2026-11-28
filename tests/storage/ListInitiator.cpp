@@ -65,6 +65,16 @@ void ListInitiator::process()
         auto* trans = memoryManager.allocate(testTransactionData.data.size());
         trans->acquire();
 
+        if (testTransactionData.timingOnly)
+        {
+            if (trans->get_extension<DRAMSys::NoDataExtension>() == nullptr)
+                trans->set_auto_extension(new DRAMSys::NoDataExtension);
+        }
+        else
+        {
+            delete trans->set_extension<DRAMSys::NoDataExtension>(nullptr);
+        }
+
         TestExtension* ext = new TestExtension(testTransactionData);
         trans->set_auto_extension(ext);
 
