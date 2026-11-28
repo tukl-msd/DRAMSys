@@ -32,6 +32,7 @@
  * Authors:
  *    Lukas Steiner
  *    Derek Christ
+ *    Thomas Zimmermann
  */
 
 #ifndef CHECKERDDR3_H
@@ -41,7 +42,6 @@
 #include "DRAMSys/configuration/memspec/MemSpecDDR3.h"
 
 #include <queue>
-#include <vector>
 
 namespace DRAMSys
 {
@@ -50,8 +50,8 @@ class CheckerDDR3 final : public CheckerIF
 {
 public:
     explicit CheckerDDR3(const MemSpecDDR3& memSpec);
-    [[nodiscard]] sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const override;
-    void insert(Command command, const tlm::tlm_generic_payload& payload) override;
+    [[nodiscard]] sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload, int controllerID) const override;
+    void insert(Command command, const tlm::tlm_generic_payload& payload, int controllerID) override;
 
 private:
     const MemSpecDDR3& memSpec;
@@ -77,7 +77,7 @@ private:
     CommandArray<RankVector<sc_core::sc_time>> nextCommandByRank;
     
     RankVector<std::queue<sc_core::sc_time>> last4ActivatesOnRank;
-    sc_core::sc_time nextCommandOnBus = sc_core::SC_ZERO_TIME;
+    std::vector<sc_core::sc_time> nextCommandOnBus;
 };
 
 } // namespace DRAMSys

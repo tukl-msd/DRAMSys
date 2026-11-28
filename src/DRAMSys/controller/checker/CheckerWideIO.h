@@ -29,15 +29,19 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Author: Lukas Steiner
+ * Authors:
+ *    Lukas Steiner
+ *    Derek Christ
+ *    Thomas Zimmermann
  */
 
 #ifndef CHECKERWIDEIO_H
 #define CHECKERWIDEIO_H
 
-#include "DRAMSys/configuration/memspec/MemSpecWideIO.h"
 #include "DRAMSys/controller/checker/CheckerIF.h"
+#include "DRAMSys/configuration/memspec/MemSpecWideIO.h"
 
+#include <array>
 #include <queue>
 #include <vector>
 
@@ -48,21 +52,11 @@ class CheckerWideIO final : public CheckerIF
 {
 public:
     explicit CheckerWideIO(const MemSpecWideIO& memSpec);
-    [[nodiscard]] sc_core::sc_time
-    timeToSatisfyConstraints(Command command,
-                             const tlm::tlm_generic_payload& payload) const override;
-    void insert(Command command, const tlm::tlm_generic_payload& payload) override;
+    [[nodiscard]] sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload, int controllerID) const override;
+    void insert(Command command, const tlm::tlm_generic_payload& payload, int controllerID) override;
 
 private:
     const MemSpecWideIO& memSpec;
-
-    std::vector<ControllerVector<Bank, sc_core::sc_time>> lastScheduledByCommandAndBank;
-    std::vector<ControllerVector<Rank, sc_core::sc_time>> lastScheduledByCommandAndRank;
-    std::vector<sc_core::sc_time> lastScheduledByCommand;
-    sc_core::sc_time lastCommandOnBus;
-
-    // Four activate window
-    ControllerVector<Rank, std::queue<sc_core::sc_time>> last2Activates;
 
     sc_core::sc_time tBURST;
     sc_core::sc_time tRDWR;
@@ -73,6 +67,22 @@ private:
     sc_core::sc_time tRDPDEN;
     sc_core::sc_time tWRPDEN;
     sc_core::sc_time tWRAPDEN;
+
+    template<typename T>
+    using CommandArray = std::array<T, Command::END_ENUM>;
+    template<typename T>
+    using BankVector = ControllerVector<Bank, T>;
+    template<typename T>
+    using RankVector = ControllerVector<Rank, T>;
+
+    CommandArray<BankVector<sc_core::sc_time>> lastScheduledByCommandAndBank;
+    CommandArray<RankVector<sc_core::sc_time>> lastScheduledByCommandAndRank;
+    CommandArray<sc_core::sc_time> lastScheduledByCommand;
+
+    std::vector<sc_core::sc_time> lastCommandOnBus;
+
+    // Four activate window
+    RankVector<std::queue<sc_core::sc_time>> last2ActivatesOnRank;
 };
 
 } // namespace DRAMSys

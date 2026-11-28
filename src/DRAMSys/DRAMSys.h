@@ -43,6 +43,11 @@
 #define DRAMSYS_H
 
 #include "DRAMSys/configuration/json/DRAMSysConfiguration.h"
+#include "DRAMSys/recording/TlmMonitor.h"
+#include "DRAMSys/recording/DramMonitor.h"
+#include "DRAMSys/recording/database/Database.h"
+#include "DRAMSys/recording/database/DatabaseRecorder.h"
+#include "DRAMSys/simulation/Dram.h"
 #include "DRAMSys/statistics/Group.h"
 #include "DRAMSys/statistics/StatsProvider.h"
 
@@ -60,7 +65,9 @@ class AddressDecoder;
 class AddressMapping;
 class Arbiter;
 class Controller;
+class CheckerIF;
 class Dram;
+class Phy;
 class DRAMPowerAdapter;
 class DramATRecorder;
 class McConfig;
@@ -135,11 +142,12 @@ private:
                                                   const MemSpec& memSpec,
                                                   const AddressDecoder& addressDecoder);
     void createDRAMPowers(const DRAMUtils::MemSpec::MemSpecVariant& memSpecVar);
+    static std::unique_ptr<CheckerIF>
+    createChecker(MemSpec const& memSpec);
 
-    void end_of_simulation() override;
+    std::unique_ptr<Arbiter> createArbiter();
 
     void setupDebugManager(const std::string& traceName) const;
-    void setupTlmRecorders(const std::string& traceName);
 
     std::unique_ptr<const MemSpec> memSpec;
     std::unique_ptr<SimConfig> simConfig;
@@ -154,17 +162,17 @@ private:
     std::vector<std::unique_ptr<Controller>> controllers;
 
     std::unique_ptr<Dram> dram;
+    std::unique_ptr<CheckerIF> checker;
+    std::unique_ptr<Phy> phy;
     unsigned char* backingStore = nullptr;
 
     std::vector<std::unique_ptr<DRAMPowerAdapter>> DRAMPowers;
     std::vector<DRAMPowerAdapter*> DRAMPowerMappings;
 
-    // Transaction Recorders (one per channel).
-    // They generate the output databases.
-    std::vector<TlmRecorder> tlmRecorders;
-
-    std::vector<std::unique_ptr<TlmATRecorder>> tlmATRecorders;
-    std::vector<std::unique_ptr<DramATRecorder>> dramATRecorders;
+    std::vector<std::unique_ptr<Recording::TlmMonitor<Recording::DatabaseRecorder>>> monitors;
+    std::vector<std::unique_ptr<Recording::DramMonitor>> dramMonitors;
+    Recording::Database database;
+    Recording::DatabaseRecorder databaseRecorder;
 
     class DRAMSysStats : public Stats::Group
     {

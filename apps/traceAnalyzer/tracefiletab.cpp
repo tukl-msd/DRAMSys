@@ -48,14 +48,11 @@
 
 #include <qwt_plot_canvas.h>
 
-#include <fstream>
-
 #ifdef EXTENSION_ENABLED
 #include <plots.h>
 #endif
 
-TraceFileTab::TraceFileTab(std::string_view traceFilePath,
-                           QWidget* parent) :
+TraceFileTab::TraceFileTab(std::string_view traceFilePath, QWidget* parent) :
     QWidget(parent),
     traceFilePath(traceFilePath),
     ui(new Ui::TraceFileTab),
@@ -70,8 +67,6 @@ TraceFileTab::TraceFileTab(std::string_view traceFilePath,
 {
     ui->setupUi(this);
 
-    std::cout << "Opening new tab for \"" << traceFilePath << "\"" << std::endl;
-
     ui->mcConfigView->setModel(mcConfigModel);
     ui->mcConfigView->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
 
@@ -83,6 +78,21 @@ TraceFileTab::TraceFileTab(std::string_view traceFilePath,
     setUpFileWatcher(traceFilePath.data());
     setUpTraceplotScrollbar();
     setUpCommentView();
+
+    for (unsigned channel : navigator->TraceFile().getDistinctChannels())
+    {
+        // Store the actual channel number as item data, so that the combo
+        // index does not need to match the channel number.
+        ui->channelSelector->addItem(QString("Channel %1").arg(channel), channel);
+    }
+
+    connect(ui->channelSelector,
+            QOverload<int>::of(&QComboBox::currentIndexChanged),
+            [this](int index)
+            { navigator->setCurrentChannel(ui->channelSelector->itemData(index).toUInt()); });
+
+    if (ui->channelSelector->count() > 0)
+        navigator->setCurrentChannel(ui->channelSelector->itemData(0).toUInt());
 
 #ifndef EXTENSION_ENABLED
     addDisclaimer();
@@ -173,7 +183,18 @@ void TraceFileTab::initNavigatorAndItsDependentWidgets()
 
     ui->bandwidthPlot->canvas()->installEventFilter(this);
     ui->powerPlot->canvas()->installEventFilter(this);
-    ui->bufferPlot->canvas()->installEventFilter(this);
+
+#ifdef EXTENSION_ENABLED
+    // The bandwidth plot always shows the bandwidth of the selected channel.
+    connect(navigator,
+            &TraceNavigator::channelChanged,
+            this,
+            [this](unsigned channel)
+            {
+                QSqlDatabase db = navigator->TraceFile().getDatabase();
+                TraceAnalyzerExtension::bandwidthAnalysis(db, channel, ui->bandwidthPlot);
+            });
+#endif
 }
 
 void TraceFileTab::setUpFileWatcher(QString path)
@@ -226,7 +247,6 @@ void TraceFileTab::addDisclaimer()
     ui->startPowerAnalysis->setEnabled(false);
     ui->powerBox->setEnabled(false);
     ui->bandwidthBox->setEnabled(false);
-    ui->bufferBox->setEnabled(false);
 }
 
 void TraceFileTab::tracefileChanged()
@@ -369,6 +389,8 @@ void TraceFileTab::on_startPowerAnalysis_clicked()
 {
 #ifdef EXTENSION_ENABLED
     QSqlDatabase db = navigator->TraceFile().getDatabase();
-    TraceAnalyzerExtension::powerAnalysis(db, ui->powerPlot, ui->bandwidthPlot, ui->bufferPlot);
+    TraceAnalyzerExtension::powerAnalysis(db, ui->powerPlot);
+    TraceAnalyzerExtension::bandwidthAnalysis(
+        db, navigator->TraceFile().getCurrentChannel(), ui->bandwidthPlot);
 #endif
 }

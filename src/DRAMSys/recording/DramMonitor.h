@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2026, Julius-Maximilians-Universität Würzburg
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,40 +30,58 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Janik Schlemminger
- *    Robert Gernhardt
- *    Matthias Jung
+ *    Derek Christ
  */
 
-#include "testlight.h"
-#include <QPainter>
+#pragma once
 
-TestLight::TestLight(QWidget* parent) : QWidget(parent)
+#include <systemc>
+#include <tlm_utils/simple_initiator_socket.h>
+#include <tlm_utils/simple_target_socket.h>
+
+namespace DRAMSys
 {
-    setGray();
+class MemSpec;
 }
 
-void TestLight::setGray()
+namespace DRAMSys::Recording
 {
-    lightColor = QColor(Qt::gray);
-    update();
-}
 
-void TestLight::setGreen()
-{
-    lightColor = QColor(Qt::green);
-    update();
-}
+class DatabaseRecorder;
 
-void TestLight::setRed()
+/**
+ * A pass-through module placed between a Controller and a DRAM that records
+ * everything passing over the channel's command and data bus.
+ */
+class DramMonitor : sc_core::sc_module
 {
-    lightColor = QColor(Qt::red);
-    update();
-}
+public:
+    DramMonitor(sc_core::sc_module_name const& name,
+                unsigned command_bus_id,
+                unsigned data_bus_id,
+                sc_core::sc_time windowSize,
+                MemSpec const* memspec,
+                DatabaseRecorder* recorder);
 
-void TestLight::paintEvent(QPaintEvent* /*paintEvent*/)
-{
-    QPainter painter(this);
-    painter.fillRect(this->rect(), lightColor);
-    painter.drawRect(this->rect());
-}
+    auto& targetSocket() { return tSocket; }
+    auto& initiatorSocket() { return iSocket; }
+
+private:
+    void b_transport(tlm::tlm_generic_payload& trans, sc_core::sc_time& delay);
+    unsigned int transport_dbg(tlm::tlm_generic_payload& trans);
+
+    void recordBandwidth();
+
+    sc_core::sc_time windowSize;
+    uint64_t bytesServedInWindow;
+
+    unsigned command_bus_id;
+    unsigned data_bus_id;
+    MemSpec const* memspec;
+    DatabaseRecorder* recorder;
+
+    tlm_utils::simple_target_socket<DramMonitor> tSocket;
+    tlm_utils::simple_initiator_socket<DramMonitor> iSocket;
+};
+
+} // namespace DRAMSys::Recording

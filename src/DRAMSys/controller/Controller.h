@@ -41,9 +41,7 @@
 #include "DRAMSys/common/Deserialize.h"
 #include "DRAMSys/common/MemoryManager.h"
 #include "DRAMSys/common/Serialize.h"
-#include "DRAMSys/common/TlmRecorder.h"
 #include "DRAMSys/controller/BankMachine.h"
-#include "DRAMSys/controller/Command.h"
 #include "DRAMSys/controller/McConfig.h"
 #include "DRAMSys/controller/checker/CheckerIF.h"
 #include "DRAMSys/controller/cmdmux/CmdMuxIF.h"
@@ -55,8 +53,6 @@
 #include "DRAMSys/statistics/Group.h"
 #include "DRAMSys/statistics/Stat.h"
 #include "DRAMSys/statistics/StatsProvider.h"
-
-#include <DRAMUtils/memspec/MemSpec.h>
 
 #include <functional>
 #include <memory>
@@ -79,11 +75,12 @@ public:
 
     SC_HAS_PROCESS(Controller);
     Controller(const sc_core::sc_module_name& name,
+               const int controllerID,
                const McConfig& config,
                const MemSpec& memSpec,
                const SimConfig& simConfig,
                const AddressDecoder& addressDecoder,
-               TlmRecorder* tlmRecorder);
+               CheckerIF& checker);
 
     [[nodiscard]] bool idle() const { return totalNumberOfPayloads == 0; }
 
@@ -118,14 +115,16 @@ private:
     const MemSpec& memSpec;
     const SimConfig& simConfig;
     const AddressDecoder& addressDecoder;
-    TlmRecorder* const tlmRecorder;
+
+    CheckerIF& checker;
+    const int controllerID;
 
     std::unique_ptr<SchedulerIF> scheduler;
 
     /**
      * @brief The gearing determines the divider for the controller frontend frequency.
      * @note If set to 1, the controller is aligned with the command clock (tCK).
-    */
+     */
     unsigned gearing;
 
     sc_core::sc_time lastTimeCalled = sc_core::SC_ZERO_TIME;
@@ -141,7 +140,6 @@ private:
     ControllerVector<Bank, std::unique_ptr<BankMachine>> bankMachines;
     ControllerVector<Rank, ControllerVector<Bank, BankMachine*>> bankMachinesOnRank;
     std::unique_ptr<CmdMuxIF> cmdMux;
-    std::unique_ptr<CheckerIF> checker;
     std::unique_ptr<RespQueueIF> respQueue;
     ControllerVector<Rank, std::unique_ptr<RefreshManagerIF>> refreshManagers;
     ControllerVector<Rank, std::unique_ptr<PowerDownManagerIF>> powerDownManagers;
@@ -203,7 +201,8 @@ private:
 
     sc_core::sc_time activeStatsWindow = sc_core::SC_ZERO_TIME;
 
-    enum class AccessType {
+    enum class AccessType
+    {
         Read,
         Write,
         Unknown

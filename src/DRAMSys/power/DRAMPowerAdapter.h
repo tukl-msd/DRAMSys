@@ -38,7 +38,6 @@
 
 #include "DRAMSys/common/Deserialize.h"
 #include "DRAMSys/common/Serialize.h"
-#include "DRAMSys/common/TlmRecorder.h"
 #include "DRAMSys/configuration/memspec/MemSpec.h"
 #include "DRAMSys/power/DRAMPowerVariant.h"
 #include "DRAMSys/simulation/SimConfig.h"
@@ -51,6 +50,11 @@
 
 #include <systemc>
 #include <tlm>
+
+namespace DRAMSys::Recording
+{
+class DatabaseRecorder;
+}
 
 namespace DRAMSys
 {
@@ -67,10 +71,11 @@ private:
     sc_core::sc_time tCK;
 
     // Data Storage:
-    TlmRecorder* const tlmRecorder;
     sc_core::sc_time powerWindowSize;
 
     DRAMPowerVariant DRAMPower;
+
+    Recording::DatabaseRecorder* recorder;
 
     // This Thread is only triggered when Power Simulation is enabled.
     // It estimates the current average power which will be stored in the trace database for
@@ -102,23 +107,20 @@ private:
 public:
     void handleTransaction(std::size_t channel,
                            const tlm::tlm_generic_payload& trans,
-                           const tlm::tlm_phase& phase,
+                           Command command,
                            const sc_core::sc_time& delay);
     SC_HAS_PROCESS(DRAMPowerAdapter);
     DRAMPowerAdapter(const sc_core::sc_module_name& name,
                      DRAMPowerVariant DRAMPower,
                      const SimConfig& simConfig,
                      const MemSpec& memSpec,
-                     TlmRecorder* tlmRecorder);
+                     Recording::DatabaseRecorder* recorder);
 
     DRAMPowerAdapter(const DRAMPowerAdapter&) = delete;
     DRAMPowerAdapter(DRAMPowerAdapter&&) = delete;
     DRAMPowerAdapter& operator=(const DRAMPowerAdapter&) = delete;
     DRAMPowerAdapter& operator=(DRAMPowerAdapter&&) = delete;
     ~DRAMPowerAdapter() override = default;
-
-    void reportPower();
-    const DRAMPowerVariant& getDRAMPowerVariant() const;
 
     void updateStats() override;
     Stats::Group const& getStatGroup() const override { return stats; }

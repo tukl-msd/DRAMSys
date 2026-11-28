@@ -15,6 +15,16 @@
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <item row="0" column="0">
+    <widget class="QComboBox" name="channelSelector">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0">
     <widget class="QSplitter" name="splitter_2">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -390,18 +400,6 @@
             <layout class="QVBoxLayout" name="verticalLayout_5">
              <item>
               <widget class="QwtPlot" name="bandwidthPlot"/>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item>
-           <widget class="QGroupBox" name="bufferBox">
-            <property name="title">
-             <string>Buffer Analysis:</string>
-            </property>
-            <layout class="QVBoxLayout" name="verticalLayout_8">
-             <item>
-              <widget class="QwtPlot" name="bufferPlot"/>
              </item>
             </layout>
            </widget>

@@ -4,7 +4,6 @@
 #include "DRAMSys/common/Deserialize.h"
 #include "DRAMSys/common/Serialize.h"
 #include "DRAMSys/common/dramExtensions.h"
-#include "DRAMSys/power/DRAMPowerTypes.h"
 
 #include <DRAMUtils/memspec/standards/MemSpecHBM2.h>
 
@@ -55,7 +54,7 @@ public:
     void doCommandImpl(MemSpecTag<DRAMUtilsMemSpec>,
                      [[maybe_unused]] std::size_t channel,
                      const tlm::tlm_generic_payload& trans,
-                     const tlm::tlm_phase& phase,
+                     Command dramCommand,
                      const sc_core::sc_time& delay) {
         auto rank =
             static_cast<std::size_t>(ControllerExtension::getRank(trans)); // relative to the channel
@@ -77,14 +76,14 @@ public:
         uint8_t* data = trans.get_data_ptr();                  // Can be nullptr if no data
         auto datasize = trans.get_data_length() * 8; // Is always set
 
-        DRAMPower::Command command(cycle, phaseToDRAMPowerCommand(phase), target, data, datasize);
+        DRAMPower::Command command(cycle, dramCommand.toDRAMPowerCommand(), target, data, datasize);
         doCommand(command);
     }
 
     void doCommandImpl(MemSpecTag<DRAMUtils::MemSpec::MemSpecHBM2>,
                     [[maybe_unused]] std::size_t channel,
                      const tlm::tlm_generic_payload& trans,
-                     const tlm::tlm_phase& phase,
+                     Command dramCommand,
                      const sc_core::sc_time& delay) {
         auto pseudoChannel =
             static_cast<std::size_t>(ControllerExtension::getRank(trans)); // relative to the channel
@@ -110,15 +109,15 @@ public:
         uint8_t* data = trans.get_data_ptr();                  // Can be nullptr if no data
         auto datasize = trans.get_data_length() * 8; // Is always set
 
-        DRAMPower::HBM2Command command(cycle, phaseToDRAMPowerCommand(phase), target, data, datasize);
+        DRAMPower::HBM2Command command(cycle, dramCommand.toDRAMPowerCommand(), target, data, datasize);
         doCommand(command);
     }
 
     void doCommand([[maybe_unused]] std::size_t channel,
                      const tlm::tlm_generic_payload& trans,
-                     const tlm::tlm_phase& phase,
+                     Command dramCommand,
                      const sc_core::sc_time& delay) {
-        doCommandImpl(MemSpecTag<DRAMUtilsMemSpec_t>{}, channel, trans, phase, delay);
+        doCommandImpl(MemSpecTag<DRAMUtilsMemSpec_t>{}, channel, trans, dramCommand, delay);
     }
 
     void getWindowStats(DRAMPower::timestamp_t timestamp, DRAMPower::SimulationStats& stats) {

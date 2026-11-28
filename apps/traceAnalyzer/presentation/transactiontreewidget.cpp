@@ -36,10 +36,8 @@
  */
 
 #include "transactiontreewidget.h"
-#include "data/tracedb.h"
 #include <QHeaderView>
 #include <memory>
-#include <vector>
 
 using namespace std;
 
@@ -65,8 +63,7 @@ void TransactionTreeWidget::init(TraceNavigator* _navigator)
 
 void TransactionTreeWidget::AppendTransaction(const shared_ptr<Transaction>& transaction)
 {
-    QTreeWidgetItem* node =
-        new TransactionTreeItem(this, transaction, navigator->GeneralTraceInfo());
+    QTreeWidgetItem* node = new TransactionTreeItem(this, transaction);
     addTopLevelItem(node);
 }
 
@@ -89,37 +86,30 @@ void TransactionTreeWidget::ContextMenuRequested(QPoint point)
 }
 
 TransactionTreeWidget::TransactionTreeItem::TransactionTreeItem(
-    QTreeWidget* parent,
-    const shared_ptr<Transaction>& transaction,
-    const GeneralInfo& generalInfo) :
+    QTreeWidget* parent, const shared_ptr<Transaction>& transaction) :
     QTreeWidgetItem(parent, transactionTreeItemType)
 {
     this->setText(0, QString::number(transaction->id));
     this->id = transaction->id;
 
-    bool isControllerTransaction = (transaction->thread == generalInfo.controllerThread);
-
     auto* time = new QTreeWidgetItem({"Timespan"});
     AppendTimespan(time, transaction->span);
     this->addChild(time);
-    if (!isControllerTransaction)
-    {
-        if (transaction->command == "R")
-            this->addChild(new QTreeWidgetItem({"Command", "Read"}));
-        else // if (transaction->command == "W")
-            this->addChild(new QTreeWidgetItem({"Command", "Write"}));
-    }
+
+    if (transaction->command == "R")
+        this->addChild(new QTreeWidgetItem({"Command", "Read"}));
+    else // if (transaction->command == "W")
+        this->addChild(new QTreeWidgetItem({"Command", "Write"}));
     this->addChild(
         new QTreeWidgetItem({"Length", prettyFormatTime(transaction->span.timeCovered())}));
-    if (!isControllerTransaction)
-        this->addChild(new QTreeWidgetItem(
-            {"Address", QString("0x") + QString::number(transaction->address, 16)}));
-    if (!isControllerTransaction)
-        this->addChild(
-            new QTreeWidgetItem({"Data Length", QString::number(transaction->dataLength)}));
+
+    this->addChild(new QTreeWidgetItem(
+        {"Address", QString("0x") + QString::number(transaction->address, 16)}));
+
+    this->addChild(new QTreeWidgetItem({"Data Length", QString::number(transaction->dataLength)}));
     this->addChild(new QTreeWidgetItem({"Channel", QString::number(transaction->channel)}));
-    if (!isControllerTransaction)
-        this->addChild(new QTreeWidgetItem({"Thread", QString::number(transaction->thread)}));
+
+    this->addChild(new QTreeWidgetItem({"Thread", QString::number(transaction->thread)}));
 
     auto* phasesNode = new QTreeWidgetItem(this);
     phasesNode->setText(0, "Phases");
@@ -133,7 +123,7 @@ void TransactionTreeWidget::TransactionTreeItem::AppendPhase(QTreeWidgetItem* pa
                                                              const Phase& phase)
 {
     auto* node = new QTreeWidgetItem(parent);
-    node->setText(0, phase.Name() + QString(" [") + QString::number(phase.Id()) + QString("]"));
+    node->setText(0, phase.Name());
 
     AppendTimespan(node, phase.Span());
 

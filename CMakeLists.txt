@@ -38,7 +38,7 @@
 ###############################################
 cmake_minimum_required(VERSION 3.25)
 
-project(DRAMSys VERSION 5.6.0)
+project(DRAMSys VERSION 5.7.0)
 
 if(POLICY CMP0135)
     cmake_policy(SET CMP0135 NEW)
@@ -253,7 +253,7 @@ if (DRAMSYS_USE_EXTENSIONS)
         endif()
         FetchContent_Declare(DRAMSysExtensions
             GIT_REPOSITORY "https://${EXTENSIONS_AUTH}erbenschell.iese.fraunhofer.de/dramsys/dramsys-extensions.git"
-            GIT_TAG v5.1.8
+            GIT_TAG v5.3.1
         )
         FetchContent_MakeAvailable(DRAMSysExtensions)
     endif()

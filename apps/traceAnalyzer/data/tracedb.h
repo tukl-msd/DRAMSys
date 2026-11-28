@@ -40,22 +40,21 @@
 #ifndef TRACEDB_H
 #define TRACEDB_H
 
-#include "QueryTexts.h"
-
-#include "businessObjects/commandlengths.h"
 #include "businessObjects/commentmodel.h"
 #include "businessObjects/generalinfo.h"
 #include "businessObjects/phases/phasefactory.h"
 #include "businessObjects/transaction.h"
+
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QSqlTableModel>
 #include <QString>
 #include <exception>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
-/*  TraceDB handles the connection to a SQLLite database containing trace data.
+/*  TraceDB handles the connection to an SQLite database containing trace data.
  *  A TraceDB object always holds an open connection to a valid database.
  */
 
@@ -64,72 +63,204 @@ class TraceDB : public QObject
     Q_OBJECT
 
 public:
-    TraceDB(const QString& path, bool openExisting);
-    const QString& getPathToDB() const { return pathToDB; }
+    TraceDB(QString path);
 
     void updateComments(const std::vector<CommentModel::Comment>& comments);
-    void updateFileDescription(const QString& description);
     void refreshData();
 
     const GeneralInfo& getGeneralInfo() const { return generalInfo; }
-    const CommandLengths& getCommandLengths() const { return commandLengths; }
+    const std::unordered_map<std::string, double>& getCommandLengths() const
+    {
+        return commandLengths;
+    }
 
     std::vector<std::shared_ptr<Transaction>>
     getTransactionsWithCustomQuery(const QString& queryText);
-    std::vector<std::shared_ptr<Transaction>>
-    getTransactionsInTimespan(const Timespan& span, bool updateVisiblePhases = false);
-    std::shared_ptr<Transaction> getNextPrecharge(traceTime time);
-    std::shared_ptr<Transaction> getNextActivate(traceTime time);
-    std::shared_ptr<Transaction> getNextRefresh(traceTime time);
-    std::shared_ptr<Transaction> getNextCommand(traceTime time);
-    //     std::shared_ptr<Transaction> getNextPreb(ID currentTransactionId);
-    //     std::shared_ptr<Transaction> getNextActb(ID currentTransactionId);
-    //     std::shared_ptr<Transaction> getNextRefb(ID currentTransactionId);
+    std::vector<std::shared_ptr<Transaction>> getTransactionsInTimespan(const Timespan& span);
 
     std::shared_ptr<Transaction> getTransactionByID(ID id);
-    ID getTransactionIDFromPhaseID(ID phaseID);
+    std::vector<unsigned> getDistinctChannels();
+    unsigned getCurrentChannel() const { return currentChannel; }
+    void setCurrentChannel(unsigned channel) { currentChannel = channel; }
+
+    // Returns the transaction ID directly after (forward == true) or before
+    // (forward == false) the given ID on the given channel.
+    // Returns 0 if there is no such transaction.
+    ID getAdjacentTransactionID(unsigned channel, ID id, bool forward);
 
     std::vector<CommentModel::Comment> getComments();
-    std::vector<CommentModel::Comment> getDebugMessagesInTimespan(const Timespan& span);
-    std::vector<CommentModel::Comment> getDebugMessagesInTimespan(const Timespan& span,
-                                                                  unsigned int limit);
 
     QSqlDatabase getDatabase() const;
 
 private:
+    unsigned currentChannel = 0;
+
     QString pathToDB;
     QSqlDatabase database;
     GeneralInfo generalInfo;
-    CommandLengths commandLengths;
+    std::unordered_map<std::string, double> commandLengths;
 
-    QSqlQuery insertPhaseQuery;
-    QSqlQuery insertTransactionQuery;
     QSqlQuery selectTransactionsByTimespan;
     QSqlQuery selectTransactionById;
-    QSqlQuery selectDebugMessagesByTimespan;
-    QSqlQuery selectDebugMessagesByTimespanWithLimit;
 
-    TransactionQueryTexts queryTexts;
+    QString transactionQueryHead = R"(
+SELECT
+    t.id,
+	t.address,
+    t.data_length,
+	n.signal_id,
+    t.thread,
+    s.channel,
+	t.tlm_command,
+
+    MAX(n.timestamp) FILTER (WHERE p.stage='REQ' AND p.type='BEGIN') AS req_begin,
+    MAX(n.timestamp) FILTER (WHERE p.stage='REQ' AND p.type='END') AS req_end,
+    MAX(n.timestamp) FILTER (WHERE p.stage='RESP' AND p.type='BEGIN') AS resp_begin,
+    MAX(n.timestamp) FILTER (WHERE p.stage='RESP' AND p.type='END') AS resp_end
+
+FROM nb_transports AS n
+JOIN phases AS p
+    ON n.phase_id = p.id
+JOIN transactions as t
+    ON n.transaction_id = t.id
+JOIN signals AS s
+    ON s.id = n.signal_id
+)";
+
+    // Timeline list: initiator transactions plus the internal commands (refresh,
+    // power-down, ...) that the memory controller issues on its own. Those have no
+    // transaction, so they are listed under their command_strobe ID (with the high
+    // bit set, so the ID can never collide with a real transaction ID) and flagged
+    // with is_internal = 1 (their phase rows are looked up by the raw command_strobe
+    // ID).
+    QString transactionQueryHeadByTimespan = R"(
+SELECT
+    t.id,
+	t.address,
+    t.data_length,
+	n.signal_id,
+    t.thread,
+    s.channel,
+	t.tlm_command,
+
+    MAX(n.timestamp) FILTER (WHERE p.stage='REQ' AND p.type='BEGIN') AS req_begin,
+    MAX(n.timestamp) FILTER (WHERE p.stage='REQ' AND p.type='END') AS req_end,
+    MAX(n.timestamp) FILTER (WHERE p.stage='RESP' AND p.type='BEGIN') AS resp_begin,
+    MAX(n.timestamp) FILTER (WHERE p.stage='RESP' AND p.type='END') AS resp_end,
+    0 AS is_internal
+
+FROM nb_transports AS n
+JOIN phases AS p
+    ON n.phase_id = p.id
+JOIN transactions as t
+    ON n.transaction_id = t.id
+JOIN signals AS s
+    ON s.id = n.signal_id
+WHERE
+    n.timestamp >= :begin AND n.timestamp <= :end
+AND
+    s.channel = :channel
+GROUP BY t.id
+
+UNION ALL
+
+SELECT
+    cs.id + 2147483648,
+    0,
+    0,
+    0,
+    0,
+    sig.channel,
+    c.id,
+
+    state.begin,
+    state.end,
+    state.begin,
+    state.end,
+    1 AS is_internal
+
+FROM command_strobes AS cs
+JOIN commands AS c
+    ON cs.command_id = c.id
+JOIN dram_states AS state
+    ON state.command_strobe_id = cs.id
+JOIN signals AS sig
+    ON sig.id = cs.signal_id
+WHERE
+    cs.transaction_id IS NULL
+AND
+    sig.channel = :channel
+AND
+    state.end >= :begin AND state.begin <= :end
+)";
+
+    // The caller appends a list of transaction IDs after "IN", e.g. "(1, 2, 3)".
+    QString phaseQuery = R"(
+SELECT
+    b.transaction_id,
+	pb.stage AS PhaseName,
+    b.timestamp AS PhaseBegin,
+    e.timestamp AS PhaseEnd
+FROM nb_transports AS b
+JOIN nb_transports AS e
+    ON e.transaction_id = b.transaction_id
+JOIN phases AS pb
+    ON b.phase_id = pb.id
+JOIN phases AS pe
+    ON e.phase_id = pe.id
+   AND pe.stage = pb.stage
+   AND pe.type = 'END'
+WHERE
+    pb.type = 'BEGIN'
+AND
+    b.transaction_id IN
+)";
+
+    // SELECT part of the command phase lookup. The first column resolves to the
+    // transaction ID for real transactions and to the command_strobe ID for internal
+    // commands (which have no transaction). commandPhasesReal / commandPhasesInternal
+    // are assembled in prepareQueries() by appending the matching WHERE clause;
+    // the caller appends a parenthesized ID list, e.g. "(1, 2, 3)".
+    QString commandPhaseQuerySelect = R"(
+SELECT
+    COALESCE(cs.transaction_id, cs.id) AS transaction_id,
+	c.name AS PhaseName,
+	state.begin as DramStateBegin,
+	state.end as DramStateEnd,
+	ds.begin AS DataStrobeBegin,
+	ds.end AS DataStrobeEnd,
+	cs.rank,
+	cs.bank_group,
+	cs.bank,
+	cs.dual_bank,
+	cs.row,
+	cs.column,
+	ds.burst_length
+FROM command_strobes AS cs
+JOIN commands AS c
+    ON cs.command_id == c.id
+LEFT JOIN data_strobes as ds
+    ON ds.command_strobe_id == cs.id
+JOIN dram_states as state
+    ON cs.id == state.command_strobe_id
+)";
+    QString commandPhasesReal;
+    QString commandPhasesInternal;
+
     void prepareQueries();
+    void prepareTables();
     void executeQuery(QSqlQuery query);
-    static QString queryToString(const QSqlQuery& query);
     std::shared_ptr<Transaction> parseTransactionFromQuery(QSqlQuery& query);
-    std::vector<std::shared_ptr<Transaction>>
-    parseTransactionsFromQuery(QSqlQuery& query, bool updateVisiblePhases = false);
+    std::vector<std::shared_ptr<Transaction>> parseTransactionsFromQuery(QSqlQuery& query);
+    void attachCommandPhases(QSqlQuery& query,
+                             std::unordered_map<ID, std::shared_ptr<Transaction>>& transactionsByID);
     static std::vector<CommentModel::Comment> parseCommentsFromQuery(QSqlQuery& query);
-
-    void executeScriptFile(const QString& fileName);
-    void dropAndCreateTables();
 
     uint64_t getTraceLength();
     uint64_t getNumberOfTransactions();
-    uint64_t getNumberOfPhases();
     GeneralInfo getGeneralInfoFromDB();
-    CommandLengths getCommandLengthsFromDB();
-    QVariant getParameterFromTable(const std::string& parameter, const std::string& table);
-
-    std::map<unsigned int, std::shared_ptr<Phase>>
-        _visiblePhases; // Updated at parseTransactionsFromQuery
+    std::unordered_map<std::string, double> getCommandLengthsFromDB();
+    QVariant getParameterFromGeneralInfo(const std::string& parameter);
 };
 
 class sqlException : public std::exception

@@ -42,7 +42,6 @@
 #ifndef DRAM_H
 #define DRAM_H
 
-#include <DRAMSys/common/DramATRecorder.h>
 #include <DRAMSys/configuration/memspec/MemSpec.h>
 #include <DRAMSys/controller/Command.h>
 
@@ -67,15 +66,11 @@ public:
     Dram(sc_core::sc_module_name const& name,
          unsigned char** backingStore,
          MemSpec const* memspec,
-         bool recording,
-         std::vector<std::unique_ptr<DramATRecorder>>* dramATRecorders,
          bool power,
          std::vector<DRAMPowerAdapter*>* DRAMPowerMappings) :
         sc_core::sc_module(name),
         backingStore(backingStore),
         memspec(memspec),
-        recording(recording),
-        dramATRecorders(dramATRecorders),
         power(power),
         DRAMPowerMappings(DRAMPowerMappings)
     {
@@ -93,9 +88,6 @@ private:
     unsigned char** backingStore;
     MemSpec const* memspec;
 
-    bool recording;
-    std::vector<std::unique_ptr<DramATRecorder>>* dramATRecorders;
-
     bool power;
     std::vector<DRAMPowerAdapter*>* DRAMPowerMappings;
 };
@@ -103,3 +95,4 @@ private:
 } // namespace DRAMSys
 
 #endif // DRAM_H
+

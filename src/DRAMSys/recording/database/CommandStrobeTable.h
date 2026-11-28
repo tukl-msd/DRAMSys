@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2026, Julius-Maximilians-Universität Würzburg
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,48 +30,49 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Janik Schlemminger
- *    Robert Gernhardt
- *    Matthias Jung
+ *    Derek Christ
  */
 
-#include "queryeditor.h"
-#include "ui_queryeditor.h"
-#include <QMessageBox>
-#include <vector>
+#pragma once
 
-QueryEditor::QueryEditor(QWidget* parent) : QWidget(parent), ui(new Ui::QueryEditor)
-{
-    ui->setupUi(this);
-    ui->queryHead->setText(queryTexts.queryHead);
-}
+#include <cstdint>
 
-QueryEditor::~QueryEditor()
-{
-    delete ui;
-}
+class sqlite3_stmt;
 
-void QueryEditor::init(TraceNavigator* _navigator)
+namespace DRAMSys::Recording
 {
-    this->navigator = _navigator;
-    ui->transactiontreeWidget->init(_navigator);
-}
 
-void QueryEditor::on_executeQuery_clicked()
+class Database;
+
+struct CommandStrobeRecord
 {
-    try
-    {
-        std::vector<std::shared_ptr<Transaction>> result =
-            navigator->TraceFile().getTransactionsWithCustomQuery(queryTexts.queryHead + " " +
-                                                                  ui->queryEdit->toPlainText());
-        ui->transactiontreeWidget->clear();
-        for (const auto& trans : result)
-        {
-            ui->transactiontreeWidget->AppendTransaction(trans);
-        }
-    }
-    catch (const sqlException& ex)
-    {
-        QMessageBox::warning(this, "Query failed", ex.what());
-    }
-}
+    std::uint64_t begin{};
+    unsigned command_id{};
+    unsigned signal_id{};
+    unsigned transaction_id{};
+    unsigned rank;
+    unsigned bank_group;
+    unsigned bank;
+    unsigned dual_bank;
+    unsigned row;
+    unsigned column;
+};
+
+class CommandStrobeTable
+{
+public:
+    CommandStrobeTable(Database& database);
+    CommandStrobeTable(const CommandStrobeTable&) = delete;
+    CommandStrobeTable(CommandStrobeTable&&) = delete;
+    CommandStrobeTable& operator=(const CommandStrobeTable&) = delete;
+    CommandStrobeTable& operator=(CommandStrobeTable&&) = delete;
+    ~CommandStrobeTable();
+
+    void record(CommandStrobeRecord const& record);
+
+private:
+    sqlite3_stmt* insertCommandStrobeStatement{};
+    Database& database;
+};
+
+} // namespace DRAMSys::Recording

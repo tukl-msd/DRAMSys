@@ -32,6 +32,7 @@
  * Authors:
  *    Lukas Steiner
  *    Derek Christ
+ *    Thomas Zimmermann
  */
 
 #ifndef CHECKERHBM2_H
@@ -49,8 +50,8 @@ class CheckerHBM2 final : public CheckerIF
 {
 public:
     explicit CheckerHBM2(const MemSpecHBM2& memSpec);
-    [[nodiscard]] sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload) const override;
-    void insert(Command command, const tlm::tlm_generic_payload& payload) override;
+    [[nodiscard]] sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload, int controllerID) const override;
+    void insert(Command command, const tlm::tlm_generic_payload& payload, int controllerID) override;
 
 private:
     const MemSpecHBM2& memSpec;
@@ -82,8 +83,8 @@ private:
     
     RankVector<std::queue<sc_core::sc_time>> last4ActivatesOnRank;
     ControllerVector<Rank, unsigned> bankwiseRefreshCounter;
-    sc_core::sc_time nextCommandOnRasBus = sc_core::SC_ZERO_TIME;
-    sc_core::sc_time nextCommandOnCasBus = sc_core::SC_ZERO_TIME;
+    std::vector<sc_core::sc_time> nextCommandOnRasBus;
+    std::vector<sc_core::sc_time> nextCommandOnCasBus;
 };
 
 } // namespace DRAMSys

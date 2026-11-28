@@ -46,18 +46,17 @@ namespace DRAMSys
 
 ArbiterExtension::ArbiterExtension(Thread thread,
                                    Channel channel,
-                                   uint64_t threadPayloadID,
-                                   const sc_core::sc_time& timeOfGeneration) :
+                                   uint64_t threadPayloadID) :
     thread(thread),
     channel(channel),
-    threadPayloadID(threadPayloadID),
-    timeOfGeneration(timeOfGeneration)
+    transactionId(threadPayloadID)
 {
 }
 
 void ArbiterExtension::setAutoExtension(tlm::tlm_generic_payload& trans,
                                         Thread thread,
-                                        Channel channel)
+                                        Channel channel,
+                                        uint64_t transactionId)
 {
     auto* extension = trans.get_extension<ArbiterExtension>();
 
@@ -65,12 +64,11 @@ void ArbiterExtension::setAutoExtension(tlm::tlm_generic_payload& trans,
     {
         extension->thread = thread;
         extension->channel = channel;
-        extension->threadPayloadID = 0;
-        extension->timeOfGeneration = SC_ZERO_TIME;
+        extension->transactionId = transactionId;
     }
     else
     {
-        extension = new ArbiterExtension(thread, channel, 0, SC_ZERO_TIME);
+        extension = new ArbiterExtension(thread, channel, transactionId);
         trans.set_auto_extension(extension);
     }
 }
@@ -78,28 +76,16 @@ void ArbiterExtension::setAutoExtension(tlm::tlm_generic_payload& trans,
 void ArbiterExtension::setExtension(tlm::tlm_generic_payload& trans,
                                     Thread thread,
                                     Channel channel,
-                                    uint64_t threadPayloadID,
-                                    const sc_core::sc_time& timeOfGeneration)
+                                    uint64_t transactionId)
 {
     assert(trans.get_extension<ArbiterExtension>() == nullptr);
-    auto* extension = new ArbiterExtension(thread, channel, threadPayloadID, timeOfGeneration);
+    auto* extension = new ArbiterExtension(thread, channel, transactionId);
     trans.set_extension(extension);
-}
-
-void ArbiterExtension::setIDAndTimeOfGeneration(tlm::tlm_generic_payload& trans,
-                                                uint64_t threadPayloadID,
-                                                const sc_core::sc_time& timeOfGeneration)
-{
-    assert(trans.get_extension<ArbiterExtension>() != nullptr);
-
-    auto* extension = trans.get_extension<ArbiterExtension>();
-    extension->threadPayloadID = threadPayloadID;
-    extension->timeOfGeneration = timeOfGeneration;
 }
 
 tlm_extension_base* ArbiterExtension::clone() const
 {
-    return new ArbiterExtension(thread, channel, threadPayloadID, timeOfGeneration);
+    return new ArbiterExtension(thread, channel, transactionId);
 }
 
 void ArbiterExtension::copy_from(const tlm_extension_base& ext)
@@ -107,8 +93,7 @@ void ArbiterExtension::copy_from(const tlm_extension_base& ext)
     const auto& cpyFrom = dynamic_cast<const ArbiterExtension&>(ext);
     thread = cpyFrom.thread;
     channel = cpyFrom.channel;
-    threadPayloadID = cpyFrom.threadPayloadID;
-    timeOfGeneration = cpyFrom.timeOfGeneration;
+    transactionId = cpyFrom.transactionId;
 }
 
 Thread ArbiterExtension::getThread() const
@@ -121,14 +106,9 @@ Channel ArbiterExtension::getChannel() const
     return channel;
 }
 
-uint64_t ArbiterExtension::getThreadPayloadID() const
+uint64_t ArbiterExtension::getTransactionId() const
 {
-    return threadPayloadID;
-}
-
-sc_core::sc_time ArbiterExtension::getTimeOfGeneration() const
-{
-    return timeOfGeneration;
+    return transactionId;
 }
 
 const ArbiterExtension& ArbiterExtension::getExtension(const tlm::tlm_generic_payload& trans)
@@ -146,14 +126,9 @@ Channel ArbiterExtension::getChannel(const tlm::tlm_generic_payload& trans)
     return trans.get_extension<ArbiterExtension>()->channel;
 }
 
-uint64_t ArbiterExtension::getThreadPayloadID(const tlm::tlm_generic_payload& trans)
+uint64_t ArbiterExtension::getTransactionId(const tlm::tlm_generic_payload& trans)
 {
-    return trans.get_extension<ArbiterExtension>()->threadPayloadID;
-}
-
-sc_time ArbiterExtension::getTimeOfGeneration(const tlm::tlm_generic_payload& trans)
-{
-    return trans.get_extension<ArbiterExtension>()->timeOfGeneration;
+    return trans.get_extension<ArbiterExtension>()->transactionId;
 }
 
 ControllerExtension::ControllerExtension(uint64_t channelPayloadID,

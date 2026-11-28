@@ -33,6 +33,7 @@
  *    Lukas Steiner
  *    Derek Christ
  *    Marco Mörz
+ *    Thomas Zimmermann
  */
 
 #include "MemSpec.h"
@@ -131,6 +132,11 @@ bool MemSpec::hasRasAndCasBus() const
 }
 
 bool MemSpec::pseudoChannelMode() const
+{
+    return false;
+}
+
+bool MemSpec::hasEfficiencyMode() const
 {
     return false;
 }

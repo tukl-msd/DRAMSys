@@ -32,6 +32,7 @@
  * Authors:
  *    Derek Christ
  *    Marco Mörz
+ *    Thomas Zimmermann
  */
 
 #ifndef SIM_CONFIG_H
@@ -60,6 +61,7 @@ struct SimConfig
     unsigned long long int addressOffset;
     bool storageEnabled = DEFAULT_STORAGE_ENABLED;
     std::optional<DRAMUtils::Config::ToggleRateDefinition> togglingRate;
+    bool efficiencyMode;
 
     static constexpr std::string_view DEFAULT_SIMULATION_NAME = "default";
     static constexpr bool DEFAULT_DATABASE_RECORDING = false;
@@ -70,6 +72,7 @@ struct SimConfig
     static constexpr bool DEFAULT_SIMULATION_PROGRESS_BAR = false;
     static constexpr unsigned long long int DEFAULT_ADDRESS_OFFSET = 0;
     static constexpr bool DEFAULT_STORAGE_ENABLED = false;
+    static constexpr bool DEFAULT_EFFICIENCY_MODE = false;
 };
 
 } // namespace DRAMSys

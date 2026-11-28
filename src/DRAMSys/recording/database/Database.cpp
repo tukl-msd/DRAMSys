@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2026, Julius-Maximilians-Universität Würzburg
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,33 +30,63 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Janik Schlemminger
- *    Robert Gernhardt
- *    Matthias Jung
+ *    Derek Christ
  */
 
-#ifndef TESTRESULT_H
-#define TESTRESULT_H
-#include <QString>
+#include "Database.h"
 
-class TestResult
+#include <sqlite3.h>
+#include <systemc>
+
+namespace DRAMSys::Recording
 {
-public:
-    TestResult(const QString& testName, bool passed, QString& message) :
-        testName(testName),
-        passed(passed),
-        message(message)
+
+Database::Database(std::filesystem::path const& path)
+{
+    if (std::filesystem::exists(path))
     {
+        SC_REPORT_WARNING("Database", "Removing already existing database file");
+        std::filesystem::remove(path);
     }
 
-    QString getTestName() const { return testName; }
-    QString getMessage() const { return message; }
-    bool hasPassed() const { return passed; }
+    if (sqlite3_open(path.c_str(), &db) != SQLITE_OK)
+    {
+        sqlite3_close(db);
+        auto const* errmsg = sqlite3_errmsg(db);
+        SC_REPORT_FATAL("Database", errmsg);
+    }
 
-private:
-    QString testName;
-    bool passed;
-    QString message;
+    execute("PRAGMA main.page_size=4096");
+    execute("PRAGMA main.cache_size=10000");
+    execute("PRAGMA main.locking_mode=EXCLUSIVE");
+    execute("PRAGMA main.synchronous=OFF");
+    execute("PRAGMA journal_mode=OFF");
+}
+
+Database::~Database()
+{
+    sqlite3_close(db);
+}
+
+void Database::execute(const char* query)
+{
+    char* errmsg{};
+    if (sqlite3_exec(db, query, nullptr, nullptr, &errmsg) != SQLITE_OK)
+    {
+        SC_REPORT_WARNING("Database", errmsg);
+        sqlite3_free(errmsg);
+    }
 };
 
-#endif // TESTRESULT_H
+void Database::executeStatement(sqlite3_stmt* statement)
+{
+    int rc = sqlite3_step(statement);
+    if (rc != SQLITE_DONE && rc != SQLITE_ROW)
+    {
+        SC_REPORT_WARNING("Database", sqlite3_errstr(rc));
+    }
+
+    sqlite3_reset(statement);
+}
+
+} // namespace DRAMSys::Recording

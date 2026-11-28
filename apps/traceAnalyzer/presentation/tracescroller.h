@@ -85,6 +85,7 @@ public Q_SLOTS:
     void tracePlotZoomChanged();
     void selectedTransactionsChanged();
     void colorGroupingChanged(ColorGrouping colorgrouping);
+    void channelChanged();
 
 private Q_SLOTS:
     void updateAxis();

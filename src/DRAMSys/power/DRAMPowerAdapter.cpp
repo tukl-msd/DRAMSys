@@ -37,8 +37,8 @@
 
 #include "DRAMSys/power/DRAMPowerAdapter.h"
 #include "DRAMSys/common/DebugManager.h"
-#include "DRAMSys/common/TlmRecorder.h"
 #include "DRAMSys/power/DRAMPowerVariant.h"
+#include "DRAMSys/recording/database/DatabaseRecorder.h"
 
 #include <DRAMPower/command/Command.h>
 #include <DRAMPower/simconfig/simconfig.h>
@@ -54,33 +54,18 @@ DRAMPowerAdapter::DRAMPowerAdapter(const sc_core::sc_module_name& name,
                                    DRAMPowerVariant DRAMPower,
                                    const SimConfig& simConfig,
                                    const MemSpec& memSpec,
-                                   TlmRecorder* tlmRecorder) :
+                                   Recording::DatabaseRecorder* recorder) :
     sc_module(name),
     tCK(memSpec.tCK),
-    tlmRecorder(tlmRecorder),
     powerWindowSize(memSpec.tCK * simConfig.windowSize),
     DRAMPower(std::move(DRAMPower)),
+    recorder(recorder),
     stats(*this)
 {
     assert(simConfig.powerAnalysis && "DRAMPowerObject created for simConfig.powerAnalysis=false");
 
     if (simConfig.powerAnalysis && simConfig.enableWindowing)
         SC_THREAD(powerWindow);
-}
-
-const DRAMPowerVariant& DRAMPowerAdapter::getDRAMPowerVariant() const
-{
-    return DRAMPower;
-}
-
-void DRAMPowerAdapter::reportPower()
-{
-    // Record the final average power of the whole simulation into the trace database:
-    if (tlmRecorder != nullptr)
-    {
-        tlmRecorder->recordPower(sc_core::sc_time_stamp().to_seconds(),
-                                 computePowerData().averagePower);
-    }
 }
 
 DRAMPowerAdapter::PowerData DRAMPowerAdapter::computePowerData()
@@ -124,13 +109,10 @@ void DRAMPowerAdapter::updateStats()
 
 void DRAMPowerAdapter::handleTransaction(std::size_t channel,
                                          const tlm::tlm_generic_payload& trans,
-                                         const tlm::tlm_phase& phase,
+                                         Command command,
                                          const sc_core::sc_time& delay)
 {
-    assert(phase >= BEGIN_RD && phase <= END_SREF);
-    std::visit([channel, &trans, &phase, &delay](auto& var) {
-        return var.doCommand(channel, trans, phase, delay);
-    }, DRAMPower);
+    std::visit([&](auto& var) { return var.doCommand(channel, trans, command, delay); }, DRAMPower);
 }
 
 void DRAMPowerAdapter::serialize(std::ostream& stream) const
@@ -167,12 +149,8 @@ void DRAMPowerAdapter::powerWindow()
         // During operation the energy should never be zero since the device is always consuming
         assert(!(windowEnergy < MINENERGYPERWINDOW));
 
-        if (nullptr != tlmRecorder)
-        {
-            // Store the time (in seconds) and the current average power (in mW) into the database
-            tlmRecorder->recordPower(sc_core::sc_time_stamp().to_seconds(),
-                                     windowEnergy / powerWindowSizeSeconds);
-        }
+        recorder->record(Recording::PowerRecord{sc_core::sc_time_stamp().value(),
+                                                windowEnergy / powerWindowSizeSeconds});
 
         // Here considering that DRAMPower provides the energy in J and the power in W
         PRINTDEBUGMESSAGE(this->name(),

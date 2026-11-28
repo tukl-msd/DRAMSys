@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2026, Julius-Maximilians-Universität Würzburg
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,34 +30,36 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Janik Schlemminger
- *    Robert Gernhardt
- *    Matthias Jung
- *    Iron Prando da Silva
+ *    Derek Christ
  */
 
-#ifndef QUERYTEXTS_H
-#define QUERYTEXTS_H
-#include <QString>
+#pragma once
 
-struct TransactionQueryTexts
+#include <filesystem>
+
+class sqlite3;
+class sqlite3_stmt;
+
+namespace DRAMSys::Recording
 {
-    QString queryHead;
-    QString selectTransactionsByTimespan, selectTransactionById;
 
-    TransactionQueryTexts()
-    {
-        queryHead = "SELECT Transactions.ID AS TransactionID, Ranges.begin, Ranges.end, Address, "
-                    "DataLength, Thread, Channel, Command, Phases.ID AS PhaseID, PhaseName, "
-                    "PhaseBegin, PhaseEnd, DataStrobeBegin, DataStrobeEnd, Rank, BankGroup, Bank, "
-                    "Row, Column, BurstLength, DualBank "
-                    " FROM Transactions INNER JOIN Phases ON Phases.Transact = Transactions.ID "
-                    "INNER JOIN Ranges ON Transactions.Range = Ranges.ID ";
+class Database
+{
+public:
+    Database(std::filesystem::path const& path);
+    Database(const Database&) = delete;
+    Database(Database&&) = delete;
+    Database& operator=(const Database&) = delete;
+    Database& operator=(Database&&) = delete;
+    ~Database();
 
-        selectTransactionsByTimespan =
-            queryHead + " WHERE Ranges.end >= :begin AND Ranges.begin <= :end";
-        selectTransactionById = queryHead + " WHERE Transactions.ID = :id";
-    }
+    static void executeStatement(sqlite3_stmt* statement);
+
+    void execute(const char* query);
+    auto* getDb() { return db; }
+
+private:
+    sqlite3* db{};
 };
 
-#endif // QUERYTEXTS_H
+} // namespace DRAMSys::Recording

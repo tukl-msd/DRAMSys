@@ -32,6 +32,7 @@
  * Authors:
  *    Lukas Steiner
  *    Derek Christ
+ *    Thomas Zimmermann
  */
 
 #include "CheckerHBM2.h"
@@ -49,11 +50,15 @@ namespace DRAMSys
 CheckerHBM2::CheckerHBM2(const MemSpecHBM2& memSpec) : memSpec(memSpec)
 {
     
-    nextCommandByBank.fill({BankVector<sc_time>(memSpec.banksPerChannel, SC_ZERO_TIME)});
-    nextCommandByBankGroup.fill({BankGroupVector<sc_time>(memSpec.bankGroupsPerChannel, SC_ZERO_TIME)});
-    nextCommandByRank.fill({RankVector<sc_time>(memSpec.ranksPerChannel, SC_ZERO_TIME)});
-    nextCommandByStack.fill({StackVector<sc_time>(memSpec.stacksPerChannel, SC_ZERO_TIME)});
-    last4ActivatesOnRank = RankVector<std::queue<sc_time>>(memSpec.ranksPerChannel);
+
+    nextCommandByBank.fill({BankVector<sc_time>(memSpec.numberOfChannels * memSpec.banksPerChannel, SC_ZERO_TIME)});
+
+    nextCommandByBankGroup.fill({BankGroupVector<sc_time>(memSpec.numberOfChannels * memSpec.bankGroupsPerChannel, SC_ZERO_TIME)});
+
+    nextCommandByRank.fill({RankVector<sc_time>(memSpec.numberOfChannels * memSpec.ranksPerChannel, SC_ZERO_TIME)});
+
+    nextCommandByStack.fill({StackVector<sc_time>(memSpec.numberOfChannels * memSpec.stacksPerChannel, SC_ZERO_TIME)});
+    last4ActivatesOnRank = RankVector<std::queue<sc_time>>(memSpec.numberOfChannels * memSpec.ranksPerChannel);
 
     tBURST = ((memSpec.defaultBurstLength / memSpec.dataRate) * memSpec.tCK);
     tRDPDE = (((memSpec.tRL + memSpec.tPL) + tBURST) + memSpec.tCK);
@@ -64,15 +69,17 @@ CheckerHBM2::CheckerHBM2(const MemSpecHBM2& memSpec) : memSpec(memSpec)
     tWRRDS = ((memSpec.tWL + tBURST) + memSpec.tWTRS);
     tWRRDL = ((memSpec.tWL + tBURST) + memSpec.tWTRL);
     
-    bankwiseRefreshCounter = ControllerVector<Rank, unsigned>(memSpec.ranksPerChannel);
+    bankwiseRefreshCounter = ControllerVector<Rank, unsigned>(memSpec.numberOfChannels * memSpec.ranksPerChannel);
+    nextCommandOnRasBus = std::vector<sc_time>(memSpec.numberOfChannels, SC_ZERO_TIME);
+    nextCommandOnCasBus = std::vector<sc_time>(memSpec.numberOfChannels, SC_ZERO_TIME);
 }
 
-sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, const tlm_generic_payload& payload) const
+sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, const tlm_generic_payload& payload, int controllerID) const
 {
-    Bank bank = ControllerExtension::getBank(payload);
-    BankGroup bankGroup = ControllerExtension::getBankGroup(payload);
-    Rank rank = ControllerExtension::getRank(payload);
-    Stack stack = ControllerExtension::getStack(payload);
+    Bank bank = Bank(controllerID * memSpec.banksPerChannel + static_cast<std::size_t>(ControllerExtension::getBank(payload)));
+    BankGroup bankGroup = BankGroup(controllerID * memSpec.bankGroupsPerChannel + static_cast<std::size_t>(ControllerExtension::getBankGroup(payload)));
+    Rank rank = Rank(controllerID * memSpec.ranksPerChannel + static_cast<std::size_t>(ControllerExtension::getRank(payload)));
+    Stack stack = Stack(controllerID * memSpec.stacksPerChannel + static_cast<std::size_t>(ControllerExtension::getStack(payload)));
     
 
     sc_time earliestTimeToStart = sc_time_stamp();
@@ -84,31 +91,42 @@ sc_time CheckerHBM2::timeToSatisfyConstraints(Command command, const tlm_generic
     earliestTimeToStart = std::max(earliestTimeToStart, nextCommandByStack[command][stack]);
     if (command.isRasCommand())
     {
-        earliestTimeToStart = std::max(earliestTimeToStart, nextCommandOnRasBus);
+        earliestTimeToStart = std::max(earliestTimeToStart, nextCommandOnRasBus[controllerID]);
     }
     if (command.isCasCommand())
     {
-        earliestTimeToStart = std::max(earliestTimeToStart, nextCommandOnCasBus);
+        earliestTimeToStart = std::max(earliestTimeToStart, nextCommandOnCasBus[controllerID]);
     }
 
     return earliestTimeToStart;
 }
 
-void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
+void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload, int controllerID)
 {
-    const Bank bank = ControllerExtension::getBank(payload);
-    const BankGroup bankGroup = ControllerExtension::getBankGroup(payload);
-    const Rank rank = ControllerExtension::getRank(payload);
-    const Stack stack = ControllerExtension::getStack(payload);
+    const size_t channelRelative = controllerID;
+    const size_t channelOffset = 0;
+    const size_t bankOffset = controllerID * memSpec.banksPerChannel;
+    const size_t bankRelative = static_cast<std::size_t>(ControllerExtension::getBank(payload));
+    const Bank bankAbsolute = Bank(bankOffset + bankRelative);
+    const size_t bankGroupOffset = controllerID * memSpec.bankGroupsPerChannel;
+    const size_t bankGroupRelative = static_cast<std::size_t>(ControllerExtension::getBankGroup(payload));
+    const BankGroup bankGroupAbsolute = BankGroup(bankGroupOffset + bankGroupRelative);
+    const size_t rankOffset = controllerID * memSpec.ranksPerChannel;
+    const size_t rankRelative = static_cast<std::size_t>(ControllerExtension::getRank(payload));
+    const Rank rankAbsolute = Rank(rankOffset + rankRelative);
+    const size_t stackOffset = controllerID * memSpec.stacksPerChannel;
+    const size_t stackRelative = static_cast<std::size_t>(ControllerExtension::getStack(payload));
+    const Stack stackAbsolute = Stack(stackOffset + stackRelative);
     
 
-    PRINTDEBUGMESSAGE("CheckerHBM2", "Changing state on bank " + std::to_string(static_cast<std::size_t>(bank))
+    PRINTDEBUGMESSAGE("CheckerHBM2", "Changing state on bank " + std::to_string(static_cast<std::size_t>(bankRelative))  
+                      + " (relative bank number: " + std::to_string(bankRelative) + ")"
                       + " command is " + command.toString());
     
     const sc_time& currentTime = sc_time_stamp();
     if (command == Command::REFPB || command == Command::RFMPB)
     {
-        bankwiseRefreshCounter[rank] = (bankwiseRefreshCounter[rank] + 1) % memSpec.banksPerRank;
+        bankwiseRefreshCounter[rankAbsolute] = (bankwiseRefreshCounter[rankAbsolute] + 1) % memSpec.banksPerRank;
     }
     
     switch (command)
@@ -118,95 +136,95 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
         // Bank (RD,PREPB) memSpec.tRTP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRTP;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::PREPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::PREPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (RD,RD) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RD][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RD][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (RD,RDA) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RDA][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RDA][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RD,PREAB) memSpec.tRTP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRTP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RD,PDEA) tRDPDE [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDPDE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RD,PDEP) tRDPDE [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDPDE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RD,RD) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RD,RDA) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RD,WR) memSpec.tRTW [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRTW;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RD,MWR) memSpec.tRTW [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRTW;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RD,WRA) memSpec.tRTW [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRTW;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RD,MWRA) memSpec.tRTW [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRTW;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
-        // Channel (RD,RD) memSpec.tCCDR [] Different(level=<ComponentLevel.Stack: 7>)
+        // Channel (RD,RD) memSpec.tCCDR [] Different(level=<ComponentLevel.Stack: 8>)
         {
             const sc_time constraint = currentTime + memSpec.tCCDR;
-            for (unsigned int i = memSpec.stacksPerChannel * static_cast<unsigned>(0); i < memSpec.stacksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.stacksPerChannel * channelRelative; i < channelOffset + memSpec.stacksPerChannel * (1 + channelRelative); i++)
             {
                 Stack currentStack{i};
                 
-                if (currentStack == stack)
+                if (currentStack == stackAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByStack[Command::RD][currentStack];
@@ -214,14 +232,14 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
             }
         }
         
-        // Channel (RD,RDA) memSpec.tCCDR [] Different(level=<ComponentLevel.Stack: 7>)
+        // Channel (RD,RDA) memSpec.tCCDR [] Different(level=<ComponentLevel.Stack: 8>)
         {
             const sc_time constraint = currentTime + memSpec.tCCDR;
-            for (unsigned int i = memSpec.stacksPerChannel * static_cast<unsigned>(0); i < memSpec.stacksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.stacksPerChannel * channelRelative; i < channelOffset + memSpec.stacksPerChannel * (1 + channelRelative); i++)
             {
                 Stack currentStack{i};
                 
-                if (currentStack == stack)
+                if (currentStack == stackAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByStack[Command::RDA][currentStack];
@@ -237,112 +255,112 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
         // Bank (WR,PREPB) tWRPRE [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRPRE;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::PREPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::PREPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (WR,RDA) ((memSpec.tWL + tBURST) + std::max((memSpec.tWR - memSpec.tRTP), memSpec.tWTRL)) [] SameComponent()
         {
             const sc_time constraint = currentTime + ((memSpec.tWL + tBURST) + std::max((memSpec.tWR - memSpec.tRTP), memSpec.tWTRL));
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::RDA][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::RDA][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (WR,WR) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::WR][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::WR][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (WR,MWR) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::MWR][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::MWR][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (WR,WRA) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::WRA][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::WRA][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (WR,MWRA) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::MWRA][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::MWRA][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (WR,RD) tWRRDL [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RD][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RD][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (WR,RDA) tWRRDL [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RDA][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RDA][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WR,PREAB) tWRPRE [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRPRE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WR,PDEA) tWRPDE [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRPDE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WR,WR) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WR,MWR) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WR,WRA) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WR,MWRA) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WR,RD) tWRRDS [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WR,RDA) tWRRDS [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -354,112 +372,112 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
         // Bank (MWR,PREPB) tWRPRE [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRPRE;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::PREPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::PREPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (MWR,RDA) ((memSpec.tWL + tBURST) + std::max((memSpec.tWR - memSpec.tRTP), memSpec.tWTRL)) [] SameComponent()
         {
             const sc_time constraint = currentTime + ((memSpec.tWL + tBURST) + std::max((memSpec.tWR - memSpec.tRTP), memSpec.tWTRL));
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::RDA][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::RDA][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (MWR,WR) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::WR][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::WR][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (MWR,MWR) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::MWR][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::MWR][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (MWR,WRA) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::WRA][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::WRA][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (MWR,MWRA) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::MWRA][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::MWRA][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (MWR,RD) tWRRDL [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RD][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RD][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (MWR,RDA) tWRRDL [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RDA][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RDA][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWR,PREAB) tWRPRE [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRPRE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWR,PDEA) tWRPDE [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRPDE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWR,WR) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWR,MWR) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWR,WRA) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWR,MWRA) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWR,RD) tWRRDS [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWR,RDA) tWRRDS [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -471,116 +489,116 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
         // Bank (RDA,ACT) ((memSpec.tRTP + memSpec.tRP) - memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + ((memSpec.tRTP + memSpec.tRP) - memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (RDA,REFPB) (memSpec.tRTP + memSpec.tRP) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRTP + memSpec.tRP);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (RDA,RD) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RD][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RD][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (RDA,RDA) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RDA][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RDA][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,PDEA) tRDPDE [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDPDE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,PDEP) tRDPDE [] SameComponent()
         {
             const sc_time constraint = currentTime + tRDPDE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,RD) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,RDA) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,WR) memSpec.tRTW [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRTW;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,MWR) memSpec.tRTW [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRTW;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,WRA) memSpec.tRTW [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRTW;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,MWRA) memSpec.tRTW [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRTW;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,REFAB) (memSpec.tRTP + memSpec.tRP) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRTP + memSpec.tRP);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,PREAB) memSpec.tRTP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRTP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (RDA,SREFEN) std::max((memSpec.tRTP + memSpec.tRP), tRDSRE) [] SameComponent()
         {
             const sc_time constraint = currentTime + std::max((memSpec.tRTP + memSpec.tRP), tRDSRE);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
-        // Channel (RDA,RD) memSpec.tCCDR [] Different(level=<ComponentLevel.Stack: 7>)
+        // Channel (RDA,RD) memSpec.tCCDR [] Different(level=<ComponentLevel.Stack: 8>)
         {
             const sc_time constraint = currentTime + memSpec.tCCDR;
-            for (unsigned int i = memSpec.stacksPerChannel * static_cast<unsigned>(0); i < memSpec.stacksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.stacksPerChannel * channelRelative; i < channelOffset + memSpec.stacksPerChannel * (1 + channelRelative); i++)
             {
                 Stack currentStack{i};
                 
-                if (currentStack == stack)
+                if (currentStack == stackAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByStack[Command::RD][currentStack];
@@ -588,14 +606,14 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
             }
         }
         
-        // Channel (RDA,RDA) memSpec.tCCDR [] Different(level=<ComponentLevel.Stack: 7>)
+        // Channel (RDA,RDA) memSpec.tCCDR [] Different(level=<ComponentLevel.Stack: 8>)
         {
             const sc_time constraint = currentTime + memSpec.tCCDR;
-            for (unsigned int i = memSpec.stacksPerChannel * static_cast<unsigned>(0); i < memSpec.stacksPerChannel * (1 + static_cast<unsigned>(0)); i++)
+            for (unsigned int i = channelOffset + memSpec.stacksPerChannel * channelRelative; i < channelOffset + memSpec.stacksPerChannel * (1 + channelRelative); i++)
             {
                 Stack currentStack{i};
                 
-                if (currentStack == stack)
+                if (currentStack == stackAbsolute)
                     continue;
                 
                 sc_time &earliestTimeToStart = nextCommandByStack[Command::RDA][currentStack];
@@ -611,133 +629,133 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
         // Bank (WRA,ACT) ((tWRPRE + memSpec.tRP) - memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + ((tWRPRE + memSpec.tRP) - memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (WRA,REFPB) (tWRPRE + memSpec.tRP) [] SameComponent()
         {
             const sc_time constraint = currentTime + (tWRPRE + memSpec.tRP);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (WRA,WR) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::WR][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::WR][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (WRA,MWR) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::MWR][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::MWR][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (WRA,WRA) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::WRA][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::WRA][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (WRA,MWRA) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::MWRA][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::MWRA][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (WRA,RD) tWRRDL [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RD][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RD][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (WRA,RDA) tWRRDL [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RDA][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RDA][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WRA,PDEA) tWRAPDE [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRAPDE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WRA,PDEP) tWRAPDE [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRAPDE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WRA,WR) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WRA,MWR) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WRA,WRA) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WRA,MWRA) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WRA,RD) tWRRDS [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WRA,RDA) tWRRDS [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WRA,REFAB) (tWRPRE + memSpec.tRP) [] SameComponent()
         {
             const sc_time constraint = currentTime + (tWRPRE + memSpec.tRP);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WRA,PREAB) tWRPRE [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRPRE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (WRA,SREFEN) (tWRPRE + memSpec.tRP) [] SameComponent()
         {
             const sc_time constraint = currentTime + (tWRPRE + memSpec.tRP);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -749,133 +767,133 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
         // Bank (MWRA,ACT) ((tWRPRE + memSpec.tRP) - memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + ((tWRPRE + memSpec.tRP) - memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (MWRA,REFPB) (tWRPRE + memSpec.tRP) [] SameComponent()
         {
             const sc_time constraint = currentTime + (tWRPRE + memSpec.tRP);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (MWRA,WR) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::WR][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::WR][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (MWRA,MWR) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::MWR][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::MWR][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (MWRA,WRA) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::WRA][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::WRA][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (MWRA,MWRA) memSpec.tCCDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::MWRA][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::MWRA][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (MWRA,RD) tWRRDL [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RD][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RD][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (MWRA,RDA) tWRRDL [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RDA][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::RDA][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWRA,PDEA) tWRAPDE [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRAPDE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWRA,PDEP) tWRAPDE [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRAPDE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWRA,WR) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWRA,MWR) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWRA,WRA) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWRA,MWRA) memSpec.tCCDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCCDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::MWRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWRA,RD) tWRRDS [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWRA,RDA) tWRRDS [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRRDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWRA,REFAB) (tWRPRE + memSpec.tRP) [] SameComponent()
         {
             const sc_time constraint = currentTime + (tWRPRE + memSpec.tRP);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWRA,PREAB) tWRPRE [] SameComponent()
         {
             const sc_time constraint = currentTime + tWRPRE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (MWRA,SREFEN) (tWRPRE + memSpec.tRP) [] SameComponent()
         {
             const sc_time constraint = currentTime + (tWRPRE + memSpec.tRP);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -887,130 +905,130 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
         // Bank (ACT,PREPB) (memSpec.tRAS + memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRAS + memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::PREPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::PREPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (ACT,RD) (memSpec.tRCDRD + memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRCDRD + memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::RD][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::RD][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (ACT,RDA) (memSpec.tRCDRD + memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRCDRD + memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::RDA][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::RDA][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (ACT,WR) (memSpec.tRCDWR + memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRCDWR + memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::WR][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::WR][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (ACT,MWR) (memSpec.tRCDWR + memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRCDWR + memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWR][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWR][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (ACT,WRA) (memSpec.tRCDWR + memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRCDWR + memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::WRA][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::WRA][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (ACT,MWRA) (memSpec.tRCDWR + memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRCDWR + memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWRA][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::MWRA][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (ACT,ACT) memSpec.tRC [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRC;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (ACT,REFPB) (memSpec.tRC + memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRC + memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (ACT,ACT) memSpec.tRRDL [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRRDL;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::ACT][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::ACT][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (ACT,REFPB) (memSpec.tRRDL + memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRRDL + memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::REFPB][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::REFPB][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (ACT,ACT) memSpec.tRRDS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRRDS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (ACT,REFAB) (memSpec.tRC + memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRC + memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (ACT,SREFEN) (memSpec.tRC + memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRC + memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (ACT,PREAB) (memSpec.tRAS + memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRAS + memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (ACT,REFPB) (memSpec.tRRDS + memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRRDS + memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
-        last4ActivatesOnRank[rank].push(currentTime + memSpec.getCommandLength(command));
+        last4ActivatesOnRank[rankAbsolute].push(currentTime + memSpec.getCommandLength(command));
 
-        if (last4ActivatesOnRank[rank].size() >= 4)
+        if (last4ActivatesOnRank[rankAbsolute].size() >= 4)
         {
-            sc_time constraint = last4ActivatesOnRank[rank].front() - memSpec.getCommandLength(command) + memSpec.tFAW;
+            sc_time constraint = last4ActivatesOnRank[rankAbsolute].front() - memSpec.getCommandLength(command) + memSpec.tFAW;
             {
-                sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rank];
+                sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rankAbsolute];
                 earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
             {
-                sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+                sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
                 earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
 
-            last4ActivatesOnRank[rank].pop();
+            last4ActivatesOnRank[rankAbsolute].pop();
         }
 
         break;
@@ -1020,28 +1038,28 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
         // Bank (PREPB,ACT) (memSpec.tRP - memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRP - memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (PREPB,REFPB) memSpec.tRP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRP;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PREPB,REFAB) memSpec.tRP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PREPB,SREFEN) memSpec.tRP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -1053,87 +1071,87 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
         // Bank (REFPB,ACT) (memSpec.tRFCSB - memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRFCSB - memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::ACT][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Bank (REFPB,REFPB) memSpec.tRFCSB [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRFCSB;
-            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bank];
+            sc_time &earliestTimeToStart = nextCommandByBank[Command::REFPB][bankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (REFPB,REFPB) memSpec.tRREFD [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRREFD;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::REFPB][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::REFPB][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (REFPB,REFAB) memSpec.tRFCSB [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRFCSB;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::REFAB][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::REFAB][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (REFPB,PREAB) memSpec.tRFCSB [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRFCSB;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::PREAB][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::PREAB][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // BankGroup (REFPB,SREFEN) memSpec.tRFCSB [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRFCSB;
-            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::SREFEN][bankGroup];
+            sc_time &earliestTimeToStart = nextCommandByBankGroup[Command::SREFEN][bankGroupAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (REFPB,ACT) (memSpec.tRREFD - memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRREFD - memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (REFPB,REFPB) memSpec.tRFCSB [BankwiseRefreshCounter(counter=0, inversed=False)] SameComponent()
         {
-            if (bankwiseRefreshCounter[rank] == 0)
+            if (bankwiseRefreshCounter[rankAbsolute] == 0)
             {
             const sc_time constraint = currentTime + memSpec.tRFCSB;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
         
         // Rank (REFPB,REFPB) memSpec.tRREFD [BankwiseRefreshCounter(counter=0, inversed=True)] SameComponent()
         {
-            if (bankwiseRefreshCounter[rank] != 0)
+            if (bankwiseRefreshCounter[rankAbsolute] != 0)
             {
             const sc_time constraint = currentTime + memSpec.tRREFD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
         }
         
-        last4ActivatesOnRank[rank].push(currentTime + memSpec.getCommandLength(command));
+        last4ActivatesOnRank[rankAbsolute].push(currentTime + memSpec.getCommandLength(command));
 
-        if (last4ActivatesOnRank[rank].size() >= 4)
+        if (last4ActivatesOnRank[rankAbsolute].size() >= 4)
         {
-            sc_time constraint = last4ActivatesOnRank[rank].front() - memSpec.getCommandLength(command) + memSpec.tFAW;
+            sc_time constraint = last4ActivatesOnRank[rankAbsolute].front() - memSpec.getCommandLength(command) + memSpec.tFAW;
             {
-                sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rank];
+                sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rankAbsolute];
                 earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
             {
-                sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+                sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
                 earliestTimeToStart = std::max(earliestTimeToStart, constraint);
             }
 
-            last4ActivatesOnRank[rank].pop();
+            last4ActivatesOnRank[rankAbsolute].pop();
         }
 
         break;
@@ -1143,28 +1161,28 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
         // Rank (PREAB,ACT) (memSpec.tRP - memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRP - memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PREAB,REFAB) memSpec.tRP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PREAB,REFPB) memSpec.tRP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PREAB,SREFEN) memSpec.tRP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -1176,28 +1194,28 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
         // Rank (REFAB,ACT) (memSpec.tRFC - memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tRFC - memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (REFAB,REFAB) memSpec.tRFC [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRFC;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (REFAB,REFPB) memSpec.tRFC [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRFC;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (REFAB,SREFEN) memSpec.tRFC [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tRFC;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -1209,7 +1227,7 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
         // Rank (PDEA,PDXA) memSpec.tPD [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tPD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDXA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDXA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -1221,7 +1239,7 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
         // Rank (PDEP,PDXP) memSpec.tPD [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tPD;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDXP][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDXP][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -1233,63 +1251,63 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
         // Rank (PDXA,PDEA) memSpec.tCKE [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCKE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXA,REFPB) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXA,PREPB) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREPB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREPB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXA,PREAB) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PREAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXA,RD) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RD][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXA,RDA) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::RDA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXA,WR) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WR][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXA,WRA) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::WRA][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXA,ACT) (memSpec.tXP - memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tXP - memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -1301,35 +1319,35 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
         // Rank (PDXP,PDEP) memSpec.tCKE [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCKE;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXP,REFAB) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXP,REFPB) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXP,SREFEN) memSpec.tXP [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXP;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (PDXP,ACT) (memSpec.tXP - memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tXP - memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -1341,42 +1359,42 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
         // Rank (SREFEX,ACT) (memSpec.tXS - memSpec.tCK) [] SameComponent()
         {
             const sc_time constraint = currentTime + (memSpec.tXS - memSpec.tCK);
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::ACT][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (SREFEX,REFPB) memSpec.tXS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFPB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (SREFEX,REFAB) memSpec.tXS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::REFAB][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (SREFEX,PDEP) memSpec.tXS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::PDEP][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (SREFEX,SREFEN) memSpec.tXS [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tXS;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEN][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
         // Rank (SREFEX,SREFEX) memSpec.tCKESR [] SameComponent()
         {
             const sc_time constraint = currentTime + memSpec.tCKESR;
-            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEX][rank];
+            sc_time &earliestTimeToStart = nextCommandByRank[Command::SREFEX][rankAbsolute];
             earliestTimeToStart = std::max(earliestTimeToStart, constraint);
         }
         
@@ -1387,11 +1405,11 @@ void CheckerHBM2::insert(Command command, const tlm_generic_payload& payload)
     }
     if (command.isRasCommand())
     {
-        nextCommandOnRasBus = std::max(nextCommandOnRasBus, currentTime + memSpec.getCommandLength(command));
+        nextCommandOnRasBus[controllerID] = std::max(nextCommandOnRasBus[controllerID], currentTime + memSpec.getCommandLength(command));
     }
     if (command.isCasCommand())
     {
-        nextCommandOnCasBus = std::max(nextCommandOnCasBus, currentTime + memSpec.getCommandLength(command));
+        nextCommandOnCasBus[controllerID] = std::max(nextCommandOnCasBus[controllerID], currentTime + memSpec.getCommandLength(command));
     }
 }
 

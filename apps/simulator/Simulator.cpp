@@ -68,13 +68,16 @@ Simulator::Simulator(sc_core::sc_module_name const& name,
     baseConfig(std::move(baseConfig)),
     stats(*this)
 {
-    SC_THREAD(progressBarThread);
-    SC_THREAD(simulationControlThread);
+    if (dramSys->getSimConfig().simulationProgressBar)
+        SC_THREAD(progressBarThread);
 
     dramSys->registerIdleCallback(
         [this]()
         {
-            if (terminatedInitiators == initiators.size() && dramSys->idle())
+            if (std::all_of(initiators.cbegin(),
+                            initiators.cend(),
+                            [](auto const& issuer) { return issuer->isFinished(); }) &&
+                dramSys->idle())
             {
                 sc_core::sc_stop();
             }
@@ -96,47 +99,26 @@ Simulator::Simulator(sc_core::sc_module_name const& name,
 
         initiator->iSocket.bind(dramSys->tSocket);
         initiator->start();
+        finishedList |= initiator->finishedEvent;
         initiators.push_back(std::move(initiator));
     }
 }
 
-void Simulator::simulationControlThread()
+void Simulator::printProgressBar() const
 {
-    while (true)
-    {
-        sc_core::sc_event_or_list initiatorFinishedEvents;
+    uint64_t transactionsFinished = 0;
+    for (auto const& initiator : initiators)
+        transactionsFinished += initiator->completedRequests();
 
-        for (auto const& initiator : initiators)
-            initiatorFinishedEvents |= initiator->finishedEvent;
-
-        wait(initiatorFinishedEvents);
-
-        terminatedInitiators =
-            std::count_if(initiators.cbegin(),
-                          initiators.cend(),
-                          [](auto& initiator) { return initiator->isFinished(); });
-
-        if (terminatedInitiators == initiators.size() && dramSys->idle())
-        {
-            sc_core::sc_stop();
-        }
-    }
+    loadBar(transactionsFinished, totalTransactions);
 }
 
 void Simulator::progressBarThread()
 {
     while (true)
     {
-        sc_core::sc_event_or_list transactionFinishedEvents;
-
-        for (auto const& initiator : initiators)
-            transactionFinishedEvents |= initiator->transactionCompletedEvent;
-
-        wait(transactionFinishedEvents);
-
-        transactionsFinished++;
-        if (dramSys->getSimConfig().simulationProgressBar)
-            loadBar(transactionsFinished, totalTransactions);
+        wait(finishedList);
+        printProgressBar();
     }
 }
 
@@ -276,7 +258,13 @@ void Simulator::run()
     // Store the starting of the simulation in wall-clock time:
     startTime = std::chrono::high_resolution_clock::now();
 
-    sc_core::sc_start();
+    while (!std::all_of(initiators.cbegin(),
+                        initiators.cend(),
+                        [](auto const& issuer) { return issuer->isFinished(); }) ||
+           !dramSys->idle())
+    {
+        sc_core::sc_start();
+    }
 
     std::stringstream stats;
     DRAMSys::Stats::PrettyFormat::collectStats(this, stats);

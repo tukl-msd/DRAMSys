@@ -66,6 +66,9 @@ public:
     void navigateToTime(traceTime time);
     void navigateToTransaction(ID id);
 
+    unsigned currentChannel() const;
+    void setCurrentChannel(unsigned channel);
+
     /* Transaction selection
      * (selecting a single transactions also navigates to that transaction)
      */
@@ -75,13 +78,6 @@ public:
     void selectPreviousTransaction();
     void selectLastTransaction();
     void selectFirstTransaction();
-    void selectNextRefresh(traceTime time);
-    void selectNextActivate(traceTime time);
-    void selectNextPrecharge(traceTime time);
-    void selectNextCommand(traceTime time);
-    //     void selectNextActb();
-    //     void selectNextPreb();
-    //     void selectNextRefb();
 
     void addSelectedTransactions(const std::vector<std::shared_ptr<Transaction>>& transactions);
     const std::vector<std::shared_ptr<Transaction>>& SelectedTransactions()
@@ -107,6 +103,7 @@ public:
 Q_SIGNALS:
     void currentTraceTimeChanged();
     void selectedTransactionsChanged();
+    void channelChanged(unsigned channel);
 
 public Q_SLOTS:
     void traceFileModified();

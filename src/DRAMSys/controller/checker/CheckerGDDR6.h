@@ -29,15 +29,19 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Author: Lukas Steiner
+ * Authors:
+ *    Lukas Steiner
+ *    Derek Christ
+ *    Thomas Zimmermann
  */
 
 #ifndef CHECKERGDDR6_H
 #define CHECKERGDDR6_H
 
-#include "DRAMSys/configuration/memspec/MemSpecGDDR6.h"
 #include "DRAMSys/controller/checker/CheckerIF.h"
+#include "DRAMSys/configuration/memspec/MemSpecGDDR6.h"
 
+#include <array>
 #include <queue>
 #include <vector>
 
@@ -47,25 +51,12 @@ namespace DRAMSys
 class CheckerGDDR6 final : public CheckerIF
 {
 public:
-    explicit CheckerGDDR6(const MemSpecGDDR6 &memSpec);
-    [[nodiscard]] sc_core::sc_time
-    timeToSatisfyConstraints(Command command,
-                             const tlm::tlm_generic_payload& payload) const override;
-    void insert(Command command, const tlm::tlm_generic_payload& payload) override;
+    explicit CheckerGDDR6(const MemSpecGDDR6& memSpec);
+    [[nodiscard]] sc_core::sc_time timeToSatisfyConstraints(Command command, const tlm::tlm_generic_payload& payload, int controllerID) const override;
+    void insert(Command command, const tlm::tlm_generic_payload& payload, int controllerID) override;
 
 private:
     const MemSpecGDDR6& memSpec;
-
-    std::vector<ControllerVector<Bank, sc_core::sc_time>> lastScheduledByCommandAndBank;
-    std::vector<ControllerVector<BankGroup, sc_core::sc_time>> lastScheduledByCommandAndBankGroup;
-    std::vector<ControllerVector<Rank, sc_core::sc_time>> lastScheduledByCommandAndRank;
-    std::vector<sc_core::sc_time> lastScheduledByCommand;
-    sc_core::sc_time lastCommandOnBus;
-
-    // four activate window
-    ControllerVector<Rank, std::queue<sc_core::sc_time>> last4Activates;
-
-    ControllerVector<Rank, unsigned> bankwiseRefreshCounter;
 
     sc_core::sc_time tBURST;
     sc_core::sc_time tRDSRE;
@@ -75,6 +66,27 @@ private:
     sc_core::sc_time tWRRD_L;
     sc_core::sc_time tWRRD_R;
     sc_core::sc_time tWRPRE;
+
+    template<typename T>
+    using CommandArray = std::array<T, Command::END_ENUM>;
+    template<typename T>
+    using BankVector = ControllerVector<Bank, T>;
+    template<typename T>
+    using BankGroupVector = ControllerVector<BankGroup, T>;
+    template<typename T>
+    using RankVector = ControllerVector<Rank, T>;
+
+    CommandArray<BankVector<sc_core::sc_time>> lastScheduledByCommandAndBank;
+    CommandArray<BankGroupVector<sc_core::sc_time>> lastScheduledByCommandAndBankGroup;
+    CommandArray<RankVector<sc_core::sc_time>> lastScheduledByCommandAndRank;
+    CommandArray<sc_core::sc_time> lastScheduledByCommand;
+
+    std::vector<sc_core::sc_time> lastCommandOnBus;
+
+    // four activate window
+    RankVector<std::queue<sc_core::sc_time>> last4ActivatesOnRank;
+
+    ControllerVector<Rank, unsigned> bankwiseRefreshCounter;
 };
 
 } // namespace DRAMSys

@@ -35,8 +35,7 @@
 ###             tests_regression            ###
 ###############################################
 
-test_standard(DDR3 ${CMAKE_CURRENT_SOURCE_DIR}/ddr3-example.json DRAMSys_ddr3-dual-rank_ddr3_ch0.tdb DRAMSys_ddr3-dual-rank_ddr3_ch0.tdb)
-test_standard(DDR4 ${CMAKE_CURRENT_SOURCE_DIR}/ddr4-example.json DRAMSys_ddr4-bankgrp_ddr4_ch0.tdb DRAMSys_ddr4-bankgrp_ddr4_ch0.tdb)
-test_standard(LPDDR4 ${CMAKE_CURRENT_SOURCE_DIR}/lpddr4-example.json DRAMSys_lpddr4-example_lpddr4_ch0.tdb DRAMSys_lpddr4-example_lpddr4_ch0.tdb)
-test_standard(HBM2.Ch0 ${CMAKE_CURRENT_SOURCE_DIR}/hbm2-example.json DRAMSys_hbm2-example_hbm2_ch0.tdb DRAMSys_hbm2-example_hbm2_ch0.tdb)
-test_standard(HBM2.Ch1 ${CMAKE_CURRENT_SOURCE_DIR}/hbm2-example.json DRAMSys_hbm2-example_hbm2_ch1.tdb DRAMSys_hbm2-example_hbm2_ch1.tdb)
+test_standard(DDR3 ${CMAKE_CURRENT_SOURCE_DIR}/ddr3-example.json ddr3-dual-rank.tdb ddr3-dual-rank.tdb)
+test_standard(DDR4 ${CMAKE_CURRENT_SOURCE_DIR}/ddr4-example.json ddr4-bankgrp.tdb ddr4-bankgrp.tdb)
+test_standard(LPDDR4 ${CMAKE_CURRENT_SOURCE_DIR}/lpddr4-example.json lpddr4-example.tdb lpddr4-example.tdb)
+test_standard(HBM2 ${CMAKE_CURRENT_SOURCE_DIR}/hbm2-example.json hbm2-example.tdb hbm2-example.tdb)

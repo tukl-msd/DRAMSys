@@ -29,7 +29,10 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Author: Lukas Steiner
+ * Authors:
+ *    Lukas Steiner
+ *    Derek Christ
+ *    Thomas Zimmermann
  */
 
 #include "CheckerGDDR6.h"
@@ -44,23 +47,19 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-CheckerGDDR6::CheckerGDDR6(const MemSpecGDDR6& memSpec) :
-    memSpec(memSpec)
+CheckerGDDR6::CheckerGDDR6(const MemSpecGDDR6& memSpec) : memSpec(memSpec)
 {
-    lastScheduledByCommandAndBank = std::vector<ControllerVector<Bank, sc_time>>(
-        Command::numberOfCommands(),
-        ControllerVector<Bank, sc_time>(memSpec.banksPerChannel, sc_max_time()));
-    lastScheduledByCommandAndBankGroup = std::vector<ControllerVector<BankGroup, sc_time>>(
-        Command::numberOfCommands(),
-        ControllerVector<BankGroup, sc_time>(memSpec.bankGroupsPerChannel, sc_max_time()));
-    lastScheduledByCommandAndRank = std::vector<ControllerVector<Rank, sc_time>>(
-        Command::numberOfCommands(),
-        ControllerVector<Rank, sc_time>(memSpec.ranksPerChannel, sc_max_time()));
-    lastScheduledByCommand = std::vector<sc_time>(Command::numberOfCommands(), sc_max_time());
-    lastCommandOnBus = sc_max_time();
-    last4Activates = ControllerVector<Rank, std::queue<sc_time>>(memSpec.ranksPerChannel);
+    lastScheduledByCommandAndBank.fill(
+        {BankVector<sc_time>(memSpec.numberOfChannels * memSpec.banksPerChannel, sc_max_time())});
+    lastScheduledByCommandAndBankGroup.fill(
+        {BankGroupVector<sc_time>(memSpec.numberOfChannels * memSpec.bankGroupsPerChannel, sc_max_time())});
+    lastScheduledByCommandAndRank.fill(
+        {RankVector<sc_time>(memSpec.numberOfChannels * memSpec.ranksPerChannel, sc_max_time())});
+    lastScheduledByCommand.fill(sc_max_time());
+    lastCommandOnBus = std::vector<sc_time>(memSpec.numberOfChannels, sc_max_time());
+    last4ActivatesOnRank = RankVector<std::queue<sc_time>>(memSpec.numberOfChannels * memSpec.ranksPerChannel);
 
-    bankwiseRefreshCounter = ControllerVector<Rank, unsigned>(memSpec.ranksPerChannel);
+    bankwiseRefreshCounter = ControllerVector<Rank, unsigned>(memSpec.numberOfChannels * memSpec.ranksPerChannel);
 
     tBURST = memSpec.defaultBurstLength / memSpec.dataRate * memSpec.tCK;
     tRDSRE = memSpec.tRL + memSpec.tWCK2CKPIN + memSpec.tWCK2CK + memSpec.tWCK2DQO + tBURST;
@@ -72,12 +71,11 @@ CheckerGDDR6::CheckerGDDR6(const MemSpecGDDR6& memSpec) :
     tWRPRE = memSpec.tWL + tBURST + memSpec.tWR;
 }
 
-sc_time CheckerGDDR6::timeToSatisfyConstraints(Command command,
-                                               const tlm_generic_payload& payload) const
+sc_time CheckerGDDR6::timeToSatisfyConstraints(Command command, const tlm_generic_payload& payload, int controllerID) const
 {
-    Rank rank = ControllerExtension::getRank(payload);
-    BankGroup bankGroup = ControllerExtension::getBankGroup(payload);
-    Bank bank = ControllerExtension::getBank(payload);
+    Rank rank = Rank(controllerID * memSpec.ranksPerChannel + static_cast<std::size_t>(ControllerExtension::getRank(payload)));
+    BankGroup bankGroup = BankGroup(controllerID * memSpec.bankGroupsPerChannel + static_cast<std::size_t>(ControllerExtension::getBankGroup(payload)));
+    Bank bank = Bank(controllerID * memSpec.banksPerChannel + static_cast<std::size_t>(ControllerExtension::getBank(payload)));
 
     sc_time lastCommandStart;
     sc_time earliestTimeToStart = sc_time_stamp();
@@ -294,9 +292,9 @@ sc_time CheckerGDDR6::timeToSatisfyConstraints(Command command,
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXS);
 
-        if (last4Activates[rank].size() >= 4)
+        if (last4ActivatesOnRank[rank].size() >= 4)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, last4Activates[rank].front() + memSpec.tFAW);
+                std::max(earliestTimeToStart, last4ActivatesOnRank[rank].front() + memSpec.tFAW);
     }
     else if (command == Command::PREPB)
     {
@@ -457,9 +455,9 @@ sc_time CheckerGDDR6::timeToSatisfyConstraints(Command command,
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXS);
 
-        if (last4Activates[rank].size() >= 4)
+        if (last4ActivatesOnRank[rank].size() >= 4)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, last4Activates[rank].front() + memSpec.tFAW);
+                std::max(earliestTimeToStart, last4ActivatesOnRank[rank].front() + memSpec.tFAW);
     }
     else if (command == Command::PDEA)
     {
@@ -607,33 +605,33 @@ sc_time CheckerGDDR6::timeToSatisfyConstraints(Command command,
         SC_REPORT_FATAL("CheckerGDDR6", "Unknown command!");
 
     // Check if command bus is free
-    if (lastCommandOnBus != sc_max_time())
-        earliestTimeToStart = std::max(earliestTimeToStart, lastCommandOnBus + memSpec.tCK);
+    if (lastCommandOnBus[controllerID] != sc_max_time())
+        earliestTimeToStart = std::max(earliestTimeToStart, lastCommandOnBus[controllerID] + memSpec.tCK);
 
     return earliestTimeToStart;
 }
 
-void CheckerGDDR6::insert(Command command, const tlm_generic_payload& payload)
+void CheckerGDDR6::insert(Command command, const tlm_generic_payload& payload, int controllerID)
 {
-    Rank rank = ControllerExtension::getRank(payload);
-    BankGroup bankGroup = ControllerExtension::getBankGroup(payload);
-    Bank bank = ControllerExtension::getBank(payload);
+    Rank rank = Rank(controllerID * memSpec.ranksPerChannel + static_cast<std::size_t>(ControllerExtension::getRank(payload)));
+    BankGroup bankGroup = BankGroup(controllerID * memSpec.bankGroupsPerChannel + static_cast<std::size_t>(ControllerExtension::getBankGroup(payload)));
+    Bank bank = Bank(controllerID * memSpec.banksPerChannel + static_cast<std::size_t>(ControllerExtension::getBank(payload)));
 
-    PRINTDEBUGMESSAGE("CheckerGDDR6",
-                      "Changing state on bank " + std::to_string(static_cast<std::size_t>(bank)) +
-                          " command is " + command.toString());
+    PRINTDEBUGMESSAGE("CheckerGDDR6", "Changing state on bank " + std::to_string(static_cast<std::size_t>(bank))
+                      + " (relative bank number: " + std::to_string(static_cast<std::size_t>(bank) - static_cast<std::size_t>(controllerID * memSpec.banksPerChannel)) + ")"
+                      + " command is " + command.toString());
 
     lastScheduledByCommandAndBank[command][bank] = sc_time_stamp();
     lastScheduledByCommandAndBankGroup[command][bankGroup] = sc_time_stamp();
     lastScheduledByCommandAndRank[command][rank] = sc_time_stamp();
     lastScheduledByCommand[command] = sc_time_stamp();
-    lastCommandOnBus = sc_time_stamp();
+    lastCommandOnBus[controllerID] = sc_time_stamp();
 
     if (command == Command::ACT || command == Command::REFPB)
     {
-        if (last4Activates[rank].size() == 4)
-            last4Activates[rank].pop();
-        last4Activates[rank].push(lastCommandOnBus);
+        if (last4ActivatesOnRank[rank].size() == 4)
+            last4ActivatesOnRank[rank].pop();
+        last4ActivatesOnRank[rank].push(lastCommandOnBus[controllerID]);
     }
 
     if (command == Command::REFPB)

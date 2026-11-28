@@ -52,25 +52,22 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-void Dram::b_transport(int id, tlm_generic_payload& trans, [[maybe_unused]] sc_time& delay)
+void Dram::b_transport([[maybe_unused]] int id,
+                       tlm_generic_payload& trans,
+                       [[maybe_unused]] sc_time& delay)
 {
     trans.set_response_status(tlm::TLM_OK_RESPONSE);
 
     auto* ext = trans.get_extension<CommandExtension>();
 
-    if (recording)
-    {
-        (*dramATRecorders)[id]->record(trans, ext->command.toPhase(), delay);
-    }
-
 #ifdef USE_DRAMPOWER
     if (power)
     {
-        (*DRAMPowerMappings)[id]->handleTransaction(id, trans, ext->command.toPhase(), delay);
+        (*DRAMPowerMappings)[id]->handleTransaction(id, trans, ext->command, delay);
     }
 #endif
 
-    if (trans.get_extension<NoDataExtension>() != nullptr)
+    if (trans.get_extension<NoDataExtension>() != nullptr || trans.get_data_length() == 0)
         return;
 
     assert(*backingStore != nullptr);
@@ -86,8 +83,6 @@ void Dram::b_transport(int id, tlm_generic_payload& trans, [[maybe_unused]] sc_t
             executeWrite(trans);
         }
     }
-
-    trans.set_response_status(TLM_OK_RESPONSE);
 }
 
 unsigned int Dram::transport_dbg([[maybe_unused]] int id, tlm::tlm_generic_payload& trans)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2026, Julius-Maximilians-Universität Würzburg
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,32 +30,44 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Janik Schlemminger
- *    Robert Gernhardt
- *    Matthias Jung
+ *    Derek Christ
  */
 
-#ifndef TESTLIGHT_H
-#define TESTLIGHT_H
-#include <QColor>
-#include <QPaintEvent>
-#include <QWidget>
+#pragma once
 
-class TestLight : public QWidget
+#include <cstdint>
+
+class sqlite3_stmt;
+
+namespace DRAMSys::Recording
 {
-    Q_OBJECT
 
-public:
-    TestLight(QWidget* parent = 0);
-    void setGreen();
-    void setRed();
-    void setGray();
+class Database;
 
-protected:
-    void paintEvent(QPaintEvent* paintEvent);
-
-private:
-    QColor lightColor;
+struct DataStrobeRecord
+{
+    std::uint64_t begin{};
+    std::uint64_t end{};
+    unsigned burst_length{};
+    unsigned signal_id{};
+    unsigned command_strobe_id{};
 };
 
-#endif // TESTLIGHT_H
+class DataStrobeTable
+{
+public:
+    DataStrobeTable(Database& database);
+    DataStrobeTable(const DataStrobeTable&) = delete;
+    DataStrobeTable(DataStrobeTable&&) = delete;
+    DataStrobeTable& operator=(const DataStrobeTable&) = delete;
+    DataStrobeTable& operator=(DataStrobeTable&&) = delete;
+    ~DataStrobeTable();
+
+    void record(DataStrobeRecord const& record);
+
+private:
+    sqlite3_stmt* insertDataStrobeStatement{};
+    Database& database;
+};
+
+} // namespace DRAMSys::Recording

@@ -57,7 +57,6 @@ class RequestIssuer : public sc_core::sc_module
 public:
     tlm_utils::simple_initiator_socket<RequestIssuer> iSocket;
 
-    sc_core::sc_event transactionCompletedEvent;
     sc_core::sc_event finishedEvent;
 
     RequestIssuer(sc_core::sc_module_name const& name,
@@ -67,12 +66,16 @@ public:
                   std::optional<unsigned int> maxPendingWriteRequests);
 
     uint64_t totalRequests() { return producer->totalRequests(); };
+    uint64_t completedRequests() const { return transactionsReceived; };
 
     void start()
     {
         shouldStart = true;
         startEvent.notify(sc_core::SC_ZERO_TIME);
     }
+
+    void pause() { paused = true; }
+    void resume() { paused = false; }
 
     [[nodiscard]] bool isFinished() const { return finished; }
 
@@ -103,6 +106,7 @@ private:
 
     bool requestInProgress = false;
     bool transactionPostponed = false;
+    bool paused = false;
     bool finished = false;
 
     uint64_t transactionsSent = 0;

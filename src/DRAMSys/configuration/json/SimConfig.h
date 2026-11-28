@@ -85,6 +85,7 @@ struct SimConfig
     std::optional<unsigned int> WindowSize;
     std::optional<double> SimulationTime;
     std::optional<DRAMUtils::Config::ToggleRateDefinition> TogglingRate;
+    std::optional<bool> EfficiencyMode;
 };
 
 NLOHMANN_JSONIFY_ALL_THINGS(SimConfig,
@@ -99,6 +100,7 @@ NLOHMANN_JSONIFY_ALL_THINGS(SimConfig,
                             ThermalSimulation,
                             WindowSize,
                             SimulationTime,
-                            TogglingRate)
+                            TogglingRate,
+                            EfficiencyMode)
 
 } // namespace DRAMSys::Config

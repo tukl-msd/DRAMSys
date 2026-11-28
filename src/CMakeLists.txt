@@ -39,9 +39,6 @@
 add_library(dramsys
     DRAMSys/DRAMSys.cpp
     DRAMSys/common/DebugManager.cpp
-    DRAMSys/common/TlmRecorder.cpp
-    DRAMSys/common/TlmATRecorder.cpp
-    DRAMSys/common/DramATRecorder.cpp
     DRAMSys/common/dramExtensions.cpp
     DRAMSys/common/PhysicalStorage.cpp
     DRAMSys/common/utils.cpp
@@ -105,10 +102,26 @@ add_library(dramsys
     DRAMSys/simulation/AddressMapping.cpp
     DRAMSys/simulation/Arbiter.cpp
     DRAMSys/simulation/Dram.cpp
+    DRAMSys/simulation/Phy.cpp
     DRAMSys/simulation/SimConfig.cpp
     DRAMSys/statistics/Group.cpp
     DRAMSys/statistics/JsonFormat.cpp
     DRAMSys/statistics/PrettyFormat.cpp
+    DRAMSys/recording/database/BandwidthTable.cpp
+    DRAMSys/recording/database/PowerTable.cpp
+    DRAMSys/recording/database/CommandTable.cpp
+    DRAMSys/recording/database/CommandStrobeTable.cpp
+    DRAMSys/recording/database/Database.cpp
+    DRAMSys/recording/database/DatabaseRecorder.cpp
+    DRAMSys/recording/database/DramStateTable.cpp
+    DRAMSys/recording/database/DataStrobeTable.cpp
+    DRAMSys/recording/database/GeneralInfoTable.cpp
+    DRAMSys/recording/database/NBTransportTable.cpp
+    DRAMSys/recording/database/SignalTable.cpp
+    DRAMSys/recording/database/TransactionTable.cpp
+    DRAMSys/recording/database/PhaseTable.cpp
+    DRAMSys/recording/TlmMonitor.cpp
+    DRAMSys/recording/DramMonitor.cpp
 )
 
 add_library(DRAMSys::DRAMSys ALIAS dramsys)

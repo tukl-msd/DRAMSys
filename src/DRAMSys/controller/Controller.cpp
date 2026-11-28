@@ -38,9 +38,7 @@
 
 #include "Controller.h"
 
-#include "DRAMSys/common/StandardMapping.h"
 #include "DRAMSys/common/dramExtensions.h"
-#include "DRAMSys/configuration/json/McConfig.h"
 #include "DRAMSys/controller/McConfig.h"
 #include "DRAMSys/controller/checker/CheckerIF.h"
 #include "DRAMSys/controller/cmdmux/CmdMuxOldest.h"
@@ -48,9 +46,9 @@
 #include "DRAMSys/controller/powerdown/PowerDownManagerDummy.h"
 #include "DRAMSys/controller/powerdown/PowerDownManagerStaggered.h"
 #include "DRAMSys/controller/refresh/RefreshManagerAllBank.h"
+#include "DRAMSys/controller/refresh/RefreshManagerDualBank.h"
 #include "DRAMSys/controller/refresh/RefreshManagerDummy.h"
 #include "DRAMSys/controller/refresh/RefreshManagerPer2Bank.h"
-#include "DRAMSys/controller/refresh/RefreshManagerDualBank.h"
 #include "DRAMSys/controller/refresh/RefreshManagerPerBank.h"
 #include "DRAMSys/controller/refresh/RefreshManagerSameBank.h"
 #include "DRAMSys/controller/respqueue/RespQueueFifo.h"
@@ -99,24 +97,26 @@ namespace DRAMSys
 {
 
 Controller::Controller(const sc_module_name& name,
+                       int controllerID,
                        const McConfig& config,
                        const MemSpec& memSpec,
                        const SimConfig& simConfig,
                        const AddressDecoder& addressDecoder,
-                       TlmRecorder* tlmRecorder) :
+                       CheckerIF& checker) :
     sc_module(name),
     config(config),
     memSpec(memSpec),
     simConfig(simConfig),
     addressDecoder(addressDecoder),
-    tlmRecorder(tlmRecorder),
+    checker(checker),
+    controllerID(controllerID),
     gearing(config.gearing),
     windowSizeTime(simConfig.windowSize * memSpec.tCK),
     numberOfBeatsServed(memSpec.ranksPerChannel, 0),
     memoryManager(false),
     stats(*this)
 {
-    if (simConfig.databaseRecording && tlmRecorder != nullptr)
+    if (simConfig.databaseRecording)
     {
         SC_THREAD(recordBufferDepth);
     }
@@ -131,83 +131,6 @@ Controller::Controller(const sc_module_name& name,
     idleTimeCollector.start();
 
     ranksNumberOfPayloads = ControllerVector<Rank, unsigned>(memSpec.ranksPerChannel);
-
-
-    // instantiate timing checker
-    try
-    {
-        if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecDDR3::id)
-        {
-            checker = std::make_unique<CheckerDDR3>(dynamic_cast<const MemSpecDDR3&>(memSpec));
-        }
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecDDR4::id)
-        {
-            checker = std::make_unique<CheckerDDR4>(dynamic_cast<const MemSpecDDR4&>(memSpec));
-        }
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecWideIO::id)
-        {
-            checker = std::make_unique<CheckerWideIO>(dynamic_cast<const MemSpecWideIO&>(memSpec));
-        }
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecLPDDR4::id)
-        {
-            checker = std::make_unique<CheckerLPDDR4>(dynamic_cast<const MemSpecLPDDR4&>(memSpec));
-        }
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecWideIO2::id)
-        {
-            checker =
-                std::make_unique<CheckerWideIO2>(dynamic_cast<const MemSpecWideIO2&>(memSpec));
-        }
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecHBM2::id)
-        {
-            checker = std::make_unique<CheckerHBM2>(dynamic_cast<const MemSpecHBM2&>(memSpec));
-        }
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecGDDR5::id)
-        {
-            checker = std::make_unique<CheckerGDDR5>(dynamic_cast<const MemSpecGDDR5&>(memSpec));
-        }
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecGDDR5X::id)
-        {
-            checker = std::make_unique<CheckerGDDR5X>(dynamic_cast<const MemSpecGDDR5X&>(memSpec));
-        }
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecGDDR6::id)
-        {
-            checker = std::make_unique<CheckerGDDR6>(dynamic_cast<const MemSpecGDDR6&>(memSpec));
-        }
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecSTTMRAM::id)
-        {
-            checker =
-                std::make_unique<CheckerSTTMRAM>(dynamic_cast<const MemSpecSTTMRAM&>(memSpec));
-        }
-#ifdef DDR5_SIM
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecDDR5::id)
-        {
-            checker = std::make_unique<CheckerDDR5>(dynamic_cast<const MemSpecDDR5&>(memSpec));
-        }
-#endif
-#ifdef LPDDR5_SIM
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecLPDDR5::id)
-        {
-            checker = std::make_unique<CheckerLPDDR5>(dynamic_cast<const MemSpecLPDDR5&>(memSpec));
-        }
-#endif
-#ifdef LPDDR6_SIM
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecLPDDR6::id)
-        {
-            checker = std::make_unique<CheckerLPDDR6>(dynamic_cast<const MemSpecLPDDR6&>(memSpec));
-        }
-#endif
-#ifdef HBM3_4_SIM
-        else if (memSpec.memoryType == DRAMUtils::MemSpec::MemSpecHBM3::id ||
-                 memSpec.memoryType == DRAMUtils::MemSpec::MemSpecHBM4::id)
-        {
-            checker = std::make_unique<CheckerHBM3_4>(dynamic_cast<const MemSpecHBM3_4&>(memSpec));
-        }
-#endif
-    }
-    catch (const std::bad_cast& e)
-    {
-        SC_REPORT_FATAL(sc_module::name(), "Wrong MemSpec chosen");
-    }
 
     // instantiate scheduler and command mux
     if (config.scheduler == McConfig::Scheduler::Fifo)
@@ -383,8 +306,6 @@ void Controller::recordBufferDepth()
             windowAverageBufferDepth[index] = slidingAverageBufferDepth[index] / windowSizeTime;
             slidingAverageBufferDepth[index] = SC_ZERO_TIME;
         }
-
-        tlmRecorder->recordBufferDepth(sc_time_stamp().to_seconds(), windowAverageBufferDepth);
     }
 }
 
@@ -446,7 +367,7 @@ void Controller::controllerMethod()
 
     for (auto& it : readyCommands)
     {
-        it.readyTime = checker->timeToSatisfyConstraints(it.command, *it.trans);
+        it.readyTime = checker.timeToSatisfyConstraints(it.command, *it.trans, controllerID);
     }
 
     // (5) Select some of the ready commands and issue it to the DRAM
@@ -500,7 +421,7 @@ void Controller::controllerMethod()
 
             refreshManagers[rank]->update(command);
             powerDownManagers[rank]->update(command);
-            checker->insert(command, *trans);
+            checker.insert(command, *trans, controllerID);
 
             if (command == Command::ACT)
             {
@@ -557,7 +478,8 @@ void Controller::controllerMethod()
         auto nextCommand = it->getNextCommand();
         if (nextCommand.command != Command::NOP)
         {
-            localTime = checker->timeToSatisfyConstraints(nextCommand.command, *nextCommand.trans);
+            localTime = checker.timeToSatisfyConstraints(
+                nextCommand.command, *nextCommand.trans, controllerID);
             if (!(localTime == sc_time_stamp() && readyCmdBlocked))
                 timeForNextTrigger = std::min(timeForNextTrigger, localTime);
         }
@@ -568,7 +490,8 @@ void Controller::controllerMethod()
         auto nextCommand = it->getNextCommand();
         if (nextCommand.command != Command::NOP)
         {
-            localTime = checker->timeToSatisfyConstraints(nextCommand.command, *nextCommand.trans);
+            localTime = checker.timeToSatisfyConstraints(
+                nextCommand.command, *nextCommand.trans, controllerID);
             if (!(localTime == sc_time_stamp() && readyCmdBlocked))
                 timeForNextTrigger = std::min(timeForNextTrigger, localTime);
         }
@@ -585,7 +508,8 @@ void Controller::controllerMethod()
         auto nextCommand = it->getNextCommand();
         if (nextCommand.command != Command::NOP)
         {
-            localTime = checker->timeToSatisfyConstraints(nextCommand.command, *nextCommand.trans);
+            localTime = checker.timeToSatisfyConstraints(
+                nextCommand.command, *nextCommand.trans, controllerID);
             if (!(localTime == sc_time_stamp() && readyCmdBlocked))
                 timeForNextTrigger = std::min(timeForNextTrigger, localTime);
         }
@@ -640,11 +564,27 @@ void Controller::b_transport(tlm_generic_payload& trans, sc_time& delay)
 
     delay += trans.is_write() ? config.blockingWriteDelay : config.blockingReadDelay;
 
+    DecodedAddress decodedAddress = addressDecoder.decodeAddress(trans.get_address());
+    const unsigned burstLength = trans.get_data_length() == memSpec.maxDataBytesPerBurst
+                                     ? memSpec.maxBurstLength
+                                     : memSpec.defaultBurstLength;
+    ControllerExtension controllerExt{nextChannelPayloadIDToAppend++,
+                                      Rank(decodedAddress.rank),
+                                      Stack(decodedAddress.stack),
+                                      BankGroup(decodedAddress.bankgroup),
+                                      Bank(decodedAddress.bank),
+                                      Row(decodedAddress.row),
+                                      Column(decodedAddress.column),
+                                      burstLength,
+                                      Bank(0)};
+    trans.set_extension<ControllerExtension>(&controllerExt);
+
     // Create dummy command for b_transport
     CommandExtension ext{trans.is_write() ? Command::WR : Command::RD};
     trans.set_extension<CommandExtension>(&ext);
     iSocket->b_transport(trans, delay);
     trans.clear_extension<CommandExtension>();
+    trans.clear_extension<ControllerExtension>();
 }
 
 unsigned int Controller::transport_dbg(tlm_generic_payload& trans)
@@ -875,6 +815,8 @@ void Controller::createChildTranses(tlm::tlm_generic_payload& parentTrans)
             childTrans->set_auto_extension(new NoDataExtension);
 
         ChildExtension::setExtension(*childTrans, parentTrans);
+        auto* arbiterExt = parentTrans.get_extension<ArbiterExtension>();
+        childTrans->set_auto_extension(static_cast<ArbiterExtension*>(arbiterExt->clone()));
         childTranses.push_back(childTrans);
     }
 

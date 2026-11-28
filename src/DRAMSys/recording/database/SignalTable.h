@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2026, Julius-Maximilians-Universität Würzburg
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,51 +30,50 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Janik Schlemminger
- *    Robert Gernhardt
- *    Matthias Jung
+ *    Derek Christ
  */
 
-#ifndef DEBUGMESSAGELISTWIDGET_H
-#define DEBUGMESSAGELISTWIDGET_H
-#include "businessObjects/commentmodel.h"
-#include "tracenavigator.h"
-#include "traceplot.h"
-#include <QMouseEvent>
-#include <QRegularExpression>
-#include <QString>
-#include <QTreeWidget>
-#include <vector>
+#pragma once
 
-class DebugMessageTreeWidget : public QTreeWidget
+#include <cstdint>
+#include <string>
+
+class sqlite3_stmt;
+
+namespace DRAMSys::Recording
 {
-    Q_OBJECT
 
-public:
-    DebugMessageTreeWidget(QWidget* parent = 0) :
-        QTreeWidget(parent),
-        isInitialized(false),
-        timeAnnotationMatcher(QString("@[0-9]+ n?s")),
-        hexAdressMatcher(QString("0x[0-9,a-f]+"))
-    {
-    }
-    void init(TraceNavigator* navigator, TracePlot* traceplot);
+class Database;
 
-    void showDebugMessages(const std::vector<CommentModel::Comment>& comments);
-    void arrangeUiSettings();
-
-public Q_SLOTS:
-    void currentTraceTimeChanged();
-    void selectedTransactionChanged();
-
-private:
-    bool isInitialized;
-    TracePlot* traceplot;
-    TraceNavigator* navigator;
-    QRegularExpression timeAnnotationMatcher;
-    QRegularExpression hexAdressMatcher;
-    QString formatDebugMessage(const QString& message);
-    void mousePressEvent(QMouseEvent* event);
+enum SignalType : std::uint8_t
+{
+    TLMBus,
+    CommandBus,
+    DataBus
 };
 
-#endif // DEBUGMESSAGELISTWIDGET_H
+struct SignalRecord
+{
+    std::string name;
+    SignalType type;
+    unsigned channel{};
+};
+
+class SignalTable
+{
+public:
+    SignalTable(Database& database);
+    SignalTable(const SignalTable&) = delete;
+    SignalTable(SignalTable&&) = delete;
+    SignalTable& operator=(const SignalTable&) = delete;
+    SignalTable& operator=(SignalTable&&) = delete;
+    ~SignalTable();
+
+    uint64_t record(SignalRecord const& record);
+
+private:
+    Database& database;
+    sqlite3_stmt* insertBusStatement{};
+};
+
+} // namespace DRAMSys::Recording

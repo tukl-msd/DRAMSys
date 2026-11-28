@@ -105,6 +105,7 @@ public:
 
     [[nodiscard]] virtual bool hasRasAndCasBus() const;
     [[nodiscard]] virtual bool pseudoChannelMode() const;
+    [[nodiscard]] virtual bool hasEfficiencyMode() const;
 
     [[nodiscard]] virtual sc_core::sc_time
     getExecutionTime(Command command, const tlm::tlm_generic_payload& payload) const = 0;

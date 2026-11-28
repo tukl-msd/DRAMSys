@@ -29,7 +29,10 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Author: Lukas Steiner
+ * Authors:
+ *    Lukas Steiner
+ *    Derek Christ
+ *    Thomas Zimmermann
  */
 
 #include "CheckerWideIO.h"
@@ -44,18 +47,15 @@ using namespace tlm;
 namespace DRAMSys
 {
 
-CheckerWideIO::CheckerWideIO(const MemSpecWideIO& memSpec) :
-    memSpec(memSpec)
+CheckerWideIO::CheckerWideIO(const MemSpecWideIO& memSpec) : memSpec(memSpec)
 {
-    lastScheduledByCommandAndBank = std::vector<ControllerVector<Bank, sc_time>>(
-        Command::numberOfCommands(),
-        ControllerVector<Bank, sc_time>(memSpec.banksPerChannel, sc_max_time()));
-    lastScheduledByCommandAndRank = std::vector<ControllerVector<Rank, sc_time>>(
-        Command::numberOfCommands(),
-        ControllerVector<Rank, sc_time>(memSpec.ranksPerChannel, sc_max_time()));
-    lastScheduledByCommand = std::vector<sc_time>(Command::numberOfCommands(), sc_max_time());
-    lastCommandOnBus = sc_max_time();
-    last2Activates = ControllerVector<Rank, std::queue<sc_time>>(memSpec.ranksPerChannel);
+    lastScheduledByCommandAndBank.fill(
+        {BankVector<sc_time>(memSpec.numberOfChannels * memSpec.banksPerChannel, sc_max_time())});
+    lastScheduledByCommandAndRank.fill(
+        {RankVector<sc_time>(memSpec.numberOfChannels * memSpec.ranksPerChannel, sc_max_time())});
+    lastScheduledByCommand.fill(sc_max_time());
+    lastCommandOnBus = std::vector<sc_time>(memSpec.numberOfChannels, sc_max_time());
+    last2ActivatesOnRank = RankVector<std::queue<sc_time>>(memSpec.numberOfChannels * memSpec.ranksPerChannel);
 
     tBURST = memSpec.defaultBurstLength * memSpec.tCK;
     tRDWR = memSpec.tRL + tBURST + memSpec.tCK;
@@ -68,11 +68,10 @@ CheckerWideIO::CheckerWideIO(const MemSpecWideIO& memSpec) :
     tWRAPDEN = memSpec.tWL + tBURST + memSpec.tWR; // + memSpec.tCK; ??
 }
 
-sc_time CheckerWideIO::timeToSatisfyConstraints(Command command,
-                                                const tlm_generic_payload& payload) const
+sc_time CheckerWideIO::timeToSatisfyConstraints(Command command, const tlm_generic_payload& payload, int controllerID) const
 {
-    Rank rank = ControllerExtension::getRank(payload);
-    Bank bank = ControllerExtension::getBank(payload);
+    Rank rank = Rank(controllerID * memSpec.ranksPerChannel + static_cast<std::size_t>(ControllerExtension::getRank(payload)));
+    Bank bank = Bank(controllerID * memSpec.banksPerChannel + static_cast<std::size_t>(ControllerExtension::getBank(payload)));
 
     sc_time lastCommandStart;
     sc_time earliestTimeToStart = sc_time_stamp();
@@ -250,9 +249,9 @@ sc_time CheckerWideIO::timeToSatisfyConstraints(Command command,
         if (lastCommandStart != sc_max_time())
             earliestTimeToStart = std::max(earliestTimeToStart, lastCommandStart + memSpec.tXSR);
 
-        if (last2Activates[rank].size() >= 2)
+        if (last2ActivatesOnRank[rank].size() >= 2)
             earliestTimeToStart =
-                std::max(earliestTimeToStart, last2Activates[rank].front() + memSpec.tTAW);
+                std::max(earliestTimeToStart, last2ActivatesOnRank[rank].front() + memSpec.tTAW);
     }
     else if (command == Command::PREPB)
     {
@@ -436,16 +435,16 @@ sc_time CheckerWideIO::timeToSatisfyConstraints(Command command,
         SC_REPORT_FATAL("CheckerWideIO", "Unknown command!");
 
     // Check if command bus is free
-    if (lastCommandOnBus != sc_max_time())
-        earliestTimeToStart = std::max(earliestTimeToStart, lastCommandOnBus + memSpec.tCK);
+    if (lastCommandOnBus[controllerID] != sc_max_time())
+        earliestTimeToStart = std::max(earliestTimeToStart, lastCommandOnBus[controllerID] + memSpec.tCK);
 
     return earliestTimeToStart;
 }
 
-void CheckerWideIO::insert(Command command, const tlm_generic_payload& payload)
+void CheckerWideIO::insert(Command command, const tlm_generic_payload& payload, int controllerID)
 {
-    Rank rank = ControllerExtension::getRank(payload);
-    Bank bank = ControllerExtension::getBank(payload);
+    Rank rank = Rank(controllerID * memSpec.ranksPerChannel + static_cast<std::size_t>(ControllerExtension::getRank(payload)));
+    Bank bank = Bank(controllerID * memSpec.banksPerChannel + static_cast<std::size_t>(ControllerExtension::getBank(payload)));
 
     // Hack: Convert MWR to WR and MWRA to WRA
     if (command == Command::MWR)
@@ -453,20 +452,20 @@ void CheckerWideIO::insert(Command command, const tlm_generic_payload& payload)
     else if (command == Command::MWRA)
         command = Command::WRA;
 
-    PRINTDEBUGMESSAGE("CheckerWideIO",
-                      "Changing state on bank " + std::to_string(static_cast<std::size_t>(bank)) +
-                          " command is " + command.toString());
+    PRINTDEBUGMESSAGE("CheckerWideIO", "Changing state on bank " + std::to_string(static_cast<std::size_t>(bank))
+                      + " (relative bank number: " + std::to_string(static_cast<std::size_t>(bank) - static_cast<std::size_t>(controllerID * memSpec.banksPerChannel)) + ")"
+                      + " command is " + command.toString());
 
     lastScheduledByCommandAndBank[command][bank] = sc_time_stamp();
     lastScheduledByCommandAndRank[command][rank] = sc_time_stamp();
     lastScheduledByCommand[command] = sc_time_stamp();
-    lastCommandOnBus = sc_time_stamp();
+    lastCommandOnBus[controllerID] = sc_time_stamp();
 
     if (command == Command::ACT)
     {
-        if (last2Activates[rank].size() == 2)
-            last2Activates[rank].pop();
-        last2Activates[rank].push(sc_time_stamp());
+        if (last2ActivatesOnRank[rank].size() == 2)
+            last2ActivatesOnRank[rank].pop();
+        last2ActivatesOnRank[rank].push(sc_time_stamp());
     }
 }
 

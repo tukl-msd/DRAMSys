@@ -154,6 +154,10 @@ void TraceScroller::connectNavigatorQ_SIGNALS()
                      SIGNAL(selectedTransactionsChanged()),
                      this,
                      SLOT(selectedTransactionsChanged()));
+    QObject::connect(navigator,
+                     &TraceNavigator::channelChanged,
+                     this,
+                     &TraceScroller::channelChanged);
 }
 
 Timespan TraceScroller::GetCurrentTimespan()
@@ -204,6 +208,14 @@ void TraceScroller::selectedTransactionsChanged()
     replot();
 }
 
+void TraceScroller::channelChanged()
+{
+    // The transaction cache is keyed by timespan only. Since the channel
+    // filter may have changed, invalidate the cache and reload the data.
+    loadedTimespan = Timespan(0, 0);
+    currentTraceTimeChanged();
+}
+
 void TraceScroller::colorGroupingChanged(ColorGrouping colorGrouping)
 {
     drawingProperties.colorGrouping = colorGrouping;
@@ -219,8 +231,9 @@ void TraceScroller::currentTraceTimeChanged()
 
     if (!loadedTimespan.contains(newTimespan))
     {
-        loadedTimespan = Timespan{newTimespan.Begin() - newTimespan.timeCovered(),
-                                  newTimespan.End() + newTimespan.timeCovered()};
+        // Cache a span wider than the visible one to avoid re-queries while scrolling.
+        loadedTimespan = Timespan{newTimespan.Begin() - 2 * newTimespan.timeCovered(),
+                                  newTimespan.End() + 2 * newTimespan.timeCovered()};
 
         transactions =
             navigator->TraceFile().getTransactionsInTimespan(loadedTimespan);

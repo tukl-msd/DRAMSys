@@ -40,10 +40,8 @@
 #include "businessObjects/transaction.h"
 #include "data/tracedb.h"
 #include "phase.h"
-#include <exception>
 
-std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
-                                                 const QString& dbPhaseName,
+std::shared_ptr<Phase> PhaseFactory::createPhase(const QString& dbPhaseName,
                                                  Timespan span,
                                                  Timespan spanOnDataStrobe,
                                                  unsigned int rank,
@@ -59,12 +57,11 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
     auto clk = static_cast<traceTime>(database.getGeneralInfo().clkPeriod);
     unsigned int groupsPerRank = database.getGeneralInfo().groupsPerRank;
     unsigned int banksPerGroup = database.getGeneralInfo().banksPerGroup;
-    const CommandLengths& cl = database.getCommandLengths();
+    auto const& cl = database.getCommandLengths();
 
     if (dbPhaseName == "REQ")
-        return std::shared_ptr<Phase>(new REQ(id,
-                                              span,
-                                              spanOnDataStrobe,
+        return std::shared_ptr<Phase>(new REQ(span,
+                                              Timespan{},
                                               rank,
                                               bankGroup,
                                               bank,
@@ -79,9 +76,8 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                                               banksPerGroup));
 
     if (dbPhaseName == "RESP")
-        return std::shared_ptr<Phase>(new RESP(id,
-                                               span,
-                                               spanOnDataStrobe,
+        return std::shared_ptr<Phase>(new RESP(span,
+                                               Timespan{},
                                                rank,
                                                bankGroup,
                                                bank,
@@ -97,9 +93,8 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
 
     if (dbPhaseName == "PREPB")
         return std::shared_ptr<Phase>(
-            new PREPB(id,
-                      span,
-                      spanOnDataStrobe,
+            new PREPB(span,
+                      Timespan{},
                       rank,
                       bankGroup,
                       bank,
@@ -109,14 +104,13 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                       dualBank,
                       clk,
                       trans,
-                      {Timespan(span.Begin(), span.Begin() + clk * cl.PREPB)},
+                      {Timespan(span.Begin(), span.Begin() + cl.at("PREPB"))},
                       groupsPerRank,
                       banksPerGroup));
 
     if (dbPhaseName == "ACT")
-        return std::shared_ptr<Phase>(new ACT(id,
-                                              span,
-                                              spanOnDataStrobe,
+        return std::shared_ptr<Phase>(new ACT(span,
+                                              Timespan{},
                                               rank,
                                               bankGroup,
                                               bank,
@@ -126,15 +120,14 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                                               dualBank,
                                               clk,
                                               trans,
-                                              {Timespan(span.Begin(), span.Begin() + clk * cl.ACT)},
+                                              {Timespan(span.Begin(), span.Begin() + cl.at("ACT"))},
                                               groupsPerRank,
                                               banksPerGroup));
 
     if (dbPhaseName == "PREAB")
         return std::shared_ptr<Phase>(
-            new PREAB(id,
-                      span,
-                      spanOnDataStrobe,
+            new PREAB(span,
+                      Timespan{},
                       rank,
                       bankGroup,
                       bank,
@@ -144,15 +137,14 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                       dualBank,
                       clk,
                       trans,
-                      {Timespan(span.Begin(), span.Begin() + clk * cl.PREAB)},
+                      {Timespan(span.Begin(), span.Begin() + cl.at("PREAB"))},
                       groupsPerRank,
                       banksPerGroup));
 
     if (dbPhaseName == "REFAB")
         return std::shared_ptr<Phase>(
-            new REFAB(id,
-                      span,
-                      spanOnDataStrobe,
+            new REFAB(span,
+                      Timespan{},
                       rank,
                       bankGroup,
                       bank,
@@ -162,15 +154,14 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                       dualBank,
                       clk,
                       trans,
-                      {Timespan(span.Begin(), span.Begin() + clk * cl.REFAB)},
+                      {Timespan(span.Begin(), span.Begin() + cl.at("REFAB"))},
                       groupsPerRank,
                       banksPerGroup));
 
     if (dbPhaseName == "RFMAB")
         return std::shared_ptr<Phase>(
-            new RFMAB(id,
-                      span,
-                      spanOnDataStrobe,
+            new RFMAB(span,
+                      Timespan{},
                       rank,
                       bankGroup,
                       bank,
@@ -180,15 +171,14 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                       dualBank,
                       clk,
                       trans,
-                      {Timespan(span.Begin(), span.Begin() + clk * cl.RFMAB)},
+                      {Timespan(span.Begin(), span.Begin() + cl.at("RFMAB"))},
                       groupsPerRank,
                       banksPerGroup));
 
     if (dbPhaseName == "REFPB")
         return std::shared_ptr<Phase>(
-            new REFPB(id,
-                      span,
-                      spanOnDataStrobe,
+            new REFPB(span,
+                      Timespan{},
                       rank,
                       bankGroup,
                       bank,
@@ -198,15 +188,14 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                       dualBank,
                       clk,
                       trans,
-                      {Timespan(span.Begin(), span.Begin() + clk * cl.REFPB)},
+                      {Timespan(span.Begin(), span.Begin() + cl.at("REFPB"))},
                       groupsPerRank,
                       banksPerGroup));
 
     if (dbPhaseName == "RFMPB")
         return std::shared_ptr<Phase>(
-            new RFMPB(id,
-                      span,
-                      spanOnDataStrobe,
+            new RFMPB(span,
+                      Timespan{},
                       rank,
                       bankGroup,
                       bank,
@@ -216,15 +205,14 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                       dualBank,
                       clk,
                       trans,
-                      {Timespan(span.Begin(), span.Begin() + clk * cl.RFMPB)},
+                      {Timespan(span.Begin(), span.Begin() + cl.at("RFMPB"))},
                       groupsPerRank,
                       banksPerGroup));
 
     if (dbPhaseName == "REFP2B")
         return std::shared_ptr<Phase>(
-            new REFP2B(id,
-                       span,
-                       spanOnDataStrobe,
+            new REFP2B(span,
+                       Timespan{},
                        rank,
                        bankGroup,
                        bank,
@@ -234,15 +222,14 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                        dualBank,
                        clk,
                        trans,
-                       {Timespan(span.Begin(), span.Begin() + clk * cl.REFP2B)},
+                       {Timespan(span.Begin(), span.Begin() + cl.at("REFP2B"))},
                        groupsPerRank,
                        banksPerGroup));
 
     if (dbPhaseName == "RFMP2B")
         return std::shared_ptr<Phase>(
-            new RFMP2B(id,
-                       span,
-                       spanOnDataStrobe,
+            new RFMP2B(span,
+                       Timespan{},
                        rank,
                        bankGroup,
                        bank,
@@ -252,51 +239,14 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                        dualBank,
                        clk,
                        trans,
-                       {Timespan(span.Begin(), span.Begin() + clk * cl.RFMP2B)},
+                       {Timespan(span.Begin(), span.Begin() + cl.at("RFMP2B"))},
                        groupsPerRank,
                        banksPerGroup));
 
     if (dbPhaseName == "REFDB")
         return std::shared_ptr<Phase>(
-            new REFDB(id,
-                       span,
-                       spanOnDataStrobe,
-                       rank,
-                       bankGroup,
-                       bank,
-                       row,
-                       column,
-                       burstLength,
-                       dualBank,
-                       clk,
-                       trans,
-                       {Timespan(span.Begin(), span.Begin() + clk * cl.REFDB)},
-                       groupsPerRank,
-                       banksPerGroup));
-
-    if (dbPhaseName == "RFMDB")
-        return std::shared_ptr<Phase>(
-            new RFMDB(id,
-                       span,
-                       spanOnDataStrobe,
-                       rank,
-                       bankGroup,
-                       bank,
-                       row,
-                       column,
-                       burstLength,
-                       dualBank,
-                       clk,
-                       trans,
-                       {Timespan(span.Begin(), span.Begin() + clk * cl.RFMDB)},
-                       groupsPerRank,
-                       banksPerGroup));
-
-    if (dbPhaseName == "PRESB")
-        return std::shared_ptr<Phase>(
-            new PRESB(id,
-                      span,
-                      spanOnDataStrobe,
+            new REFDB(span,
+                      Timespan{},
                       rank,
                       bankGroup,
                       bank,
@@ -306,15 +256,48 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                       dualBank,
                       clk,
                       trans,
-                      {Timespan(span.Begin(), span.Begin() + clk * cl.PRESB)},
+                      {Timespan(span.Begin(), span.Begin() + cl.at("REFDB"))},
+                      groupsPerRank,
+                      banksPerGroup));
+
+    if (dbPhaseName == "RFMDB")
+        return std::shared_ptr<Phase>(
+            new RFMDB(span,
+                      Timespan{},
+                      rank,
+                      bankGroup,
+                      bank,
+                      row,
+                      column,
+                      burstLength,
+                      dualBank,
+                      clk,
+                      trans,
+                      {Timespan(span.Begin(), span.Begin() + cl.at("RFMDB"))},
+                      groupsPerRank,
+                      banksPerGroup));
+
+    if (dbPhaseName == "PRESB")
+        return std::shared_ptr<Phase>(
+            new PRESB(span,
+                      Timespan{},
+                      rank,
+                      bankGroup,
+                      bank,
+                      row,
+                      column,
+                      burstLength,
+                      dualBank,
+                      clk,
+                      trans,
+                      {Timespan(span.Begin(), span.Begin() + cl.at("PRESB"))},
                       groupsPerRank,
                       banksPerGroup));
 
     if (dbPhaseName == "REFSB")
         return std::shared_ptr<Phase>(
-            new REFSB(id,
-                      span,
-                      spanOnDataStrobe,
+            new REFSB(span,
+                      Timespan{},
                       rank,
                       bankGroup,
                       bank,
@@ -324,15 +307,14 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                       dualBank,
                       clk,
                       trans,
-                      {Timespan(span.Begin(), span.Begin() + clk * cl.REFSB)},
+                      {Timespan(span.Begin(), span.Begin() + cl.at("REFSB"))},
                       groupsPerRank,
                       banksPerGroup));
 
     if (dbPhaseName == "RFMSB")
         return std::shared_ptr<Phase>(
-            new RFMSB(id,
-                      span,
-                      spanOnDataStrobe,
+            new RFMSB(span,
+                      Timespan{},
                       rank,
                       bankGroup,
                       bank,
@@ -342,13 +324,12 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                       dualBank,
                       clk,
                       trans,
-                      {Timespan(span.Begin(), span.Begin() + clk * cl.RFMSB)},
+                      {Timespan(span.Begin(), span.Begin() + cl.at("RFMSB"))},
                       groupsPerRank,
                       banksPerGroup));
 
     if (dbPhaseName == "RD")
-        return std::shared_ptr<Phase>(new RD(id,
-                                             span,
+        return std::shared_ptr<Phase>(new RD(span,
                                              spanOnDataStrobe,
                                              rank,
                                              bankGroup,
@@ -359,13 +340,12 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                                              dualBank,
                                              clk,
                                              trans,
-                                             {Timespan(span.Begin(), span.Begin() + clk * cl.RD)},
+                                             {Timespan(span.Begin(), span.Begin() + cl.at("RD"))},
                                              groupsPerRank,
                                              banksPerGroup));
 
     if (dbPhaseName == "RDA")
-        return std::shared_ptr<Phase>(new RDA(id,
-                                              span,
+        return std::shared_ptr<Phase>(new RDA(span,
                                               spanOnDataStrobe,
                                               rank,
                                               bankGroup,
@@ -376,13 +356,12 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                                               dualBank,
                                               clk,
                                               trans,
-                                              {Timespan(span.Begin(), span.Begin() + clk * cl.RDA)},
+                                              {Timespan(span.Begin(), span.Begin() + cl.at("RDA"))},
                                               groupsPerRank,
                                               banksPerGroup));
 
     if (dbPhaseName == "WR")
-        return std::shared_ptr<Phase>(new WR(id,
-                                             span,
+        return std::shared_ptr<Phase>(new WR(span,
                                              spanOnDataStrobe,
                                              rank,
                                              bankGroup,
@@ -393,13 +372,12 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                                              dualBank,
                                              clk,
                                              trans,
-                                             {Timespan(span.Begin(), span.Begin() + clk * cl.WR)},
+                                             {Timespan(span.Begin(), span.Begin() + cl.at("WR"))},
                                              groupsPerRank,
                                              banksPerGroup));
 
     if (dbPhaseName == "MWR")
-        return std::shared_ptr<Phase>(new MWR(id,
-                                              span,
+        return std::shared_ptr<Phase>(new MWR(span,
                                               spanOnDataStrobe,
                                               rank,
                                               bankGroup,
@@ -410,13 +388,12 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                                               dualBank,
                                               clk,
                                               trans,
-                                              {Timespan(span.Begin(), span.Begin() + clk * cl.WR)},
+                                              {Timespan(span.Begin(), span.Begin() + cl.at("WR"))},
                                               groupsPerRank,
                                               banksPerGroup));
 
     if (dbPhaseName == "WRA")
-        return std::shared_ptr<Phase>(new WRA(id,
-                                              span,
+        return std::shared_ptr<Phase>(new WRA(span,
                                               spanOnDataStrobe,
                                               rank,
                                               bankGroup,
@@ -427,13 +404,12 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                                               dualBank,
                                               clk,
                                               trans,
-                                              {Timespan(span.Begin(), span.Begin() + clk * cl.WRA)},
+                                              {Timespan(span.Begin(), span.Begin() + cl.at("WRA"))},
                                               groupsPerRank,
                                               banksPerGroup));
 
     if (dbPhaseName == "MWRA")
-        return std::shared_ptr<Phase>(new MWRA(id,
-                                               span,
+        return std::shared_ptr<Phase>(new MWRA(span,
                                                spanOnDataStrobe,
                                                rank,
                                                bankGroup,
@@ -444,15 +420,14 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                                                dualBank,
                                                clk,
                                                trans,
-                                               {Timespan(span.Begin(), span.Begin() + clk * cl.WR)},
+                                               {Timespan(span.Begin(), span.Begin() + cl.at("WR"))},
                                                groupsPerRank,
                                                banksPerGroup));
 
     if (dbPhaseName == "PDNA")
         return std::shared_ptr<Phase>(
-            new PDNA(id,
-                     span,
-                     spanOnDataStrobe,
+            new PDNA(span,
+                     Timespan{},
                      rank,
                      bankGroup,
                      bank,
@@ -462,16 +437,15 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                      dualBank,
                      clk,
                      trans,
-                     {Timespan(span.Begin(), span.Begin() + clk * cl.PDEA),
-                      Timespan(span.End() - clk * cl.PDXA, span.End())},
+                     {Timespan(span.Begin(), span.Begin() + cl.at("PDEA")),
+                      Timespan(span.End() - cl.at("PDXA"), span.End())},
                      groupsPerRank,
                      banksPerGroup));
 
     if (dbPhaseName == "PDNP")
         return std::shared_ptr<Phase>(
-            new PDNP(id,
-                     span,
-                     spanOnDataStrobe,
+            new PDNP(span,
+                     Timespan{},
                      rank,
                      bankGroup,
                      bank,
@@ -481,16 +455,15 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                      dualBank,
                      clk,
                      trans,
-                     {Timespan(span.Begin(), span.Begin() + clk * cl.PDEP),
-                      Timespan(span.End() - clk * cl.PDXP, span.End())},
+                     {Timespan(span.Begin(), span.Begin() + cl.at("PDEP")),
+                      Timespan(span.End() - cl.at("PDXP"), span.End())},
                      groupsPerRank,
                      banksPerGroup));
 
     if (dbPhaseName == "SREF")
         return std::shared_ptr<Phase>(
-            new SREF(id,
-                     span,
-                     spanOnDataStrobe,
+            new SREF(span,
+                     Timespan{},
                      rank,
                      bankGroup,
                      bank,
@@ -500,8 +473,8 @@ std::shared_ptr<Phase> PhaseFactory::createPhase(ID id,
                      dualBank,
                      clk,
                      trans,
-                     {Timespan(span.Begin(), span.Begin() + clk * cl.SREFEN),
-                      Timespan(span.End() - clk * cl.SREFEX, span.End())},
+                     {Timespan(span.Begin(), span.Begin() + cl.at("SREFEN")),
+                      Timespan(span.End() - cl.at("SREFEX"), span.End())},
                      groupsPerRank,
                      banksPerGroup));
 

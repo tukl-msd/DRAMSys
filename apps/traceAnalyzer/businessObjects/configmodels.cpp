@@ -41,16 +41,22 @@
 McConfigModel::McConfigModel(const TraceDB& traceFile, QObject* parent) :
     QAbstractTableModel(parent)
 {
+    addAdditionalInfos(traceFile.getGeneralInfo());
+
     QSqlDatabase db = traceFile.getDatabase();
-    QString query = "SELECT MCconfig FROM GeneralInfo";
+    QString query = "SELECT value FROM general_info WHERE key = \"MCconfig\"";
     QSqlQuery sqlQuery = db.exec(query);
 
     // The whole configuration is stored in a single cell.
-    sqlQuery.next();
-    QString mcConfigJson = sqlQuery.value(0).toString();
-
-    addAdditionalInfos(traceFile.getGeneralInfo());
-    parseJson(mcConfigJson);
+    if (sqlQuery.next())
+    {
+        QString mcConfigJson = sqlQuery.value(0).toString();
+        parseJson(mcConfigJson);
+    }
+    else
+    {
+        qWarning() << "MCconfig not present in generalInfo table";
+    }
 }
 
 void McConfigModel::parseJson(const QString& jsonString)
@@ -79,15 +85,13 @@ void McConfigModel::parseJson(const QString& jsonString)
 
 void McConfigModel::addAdditionalInfos(const GeneralInfo& generalInfo)
 {
-    auto addEntry = [this](const QString& key, const QString& value) {
-        entries.push_back({key, value});
-    };
+    auto addEntry = [this](const QString& key, const QString& value)
+    { entries.push_back({key, value}); };
 
     addEntry("Number of Transactions", QString::number(generalInfo.numberOfTransactions));
     addEntry("Clock period",
              QString::number(generalInfo.clkPeriod) + " " + generalInfo.unitOfTime.toLower());
     addEntry("Length of trace", prettyFormatTime(generalInfo.span.End()));
-    addEntry("Window size", QString::number(generalInfo.windowSize));
 }
 
 int McConfigModel::rowCount(const QModelIndex& parent) const
@@ -146,14 +150,19 @@ QVariant McConfigModel::headerData(int section, Qt::Orientation orientation, int
 MemSpecModel::MemSpecModel(const TraceDB& traceFile, QObject* parent) : QAbstractItemModel(parent)
 {
     QSqlDatabase db = traceFile.getDatabase();
-    QString query = "SELECT Memspec FROM GeneralInfo";
+    QString query = "SELECT value FROM general_info WHERE key = \"Memspec\"";
     QSqlQuery sqlQuery = db.exec(query);
 
     // The whole configuration is stored in a single cell.
-    sqlQuery.next();
-    QString memSpecJson = sqlQuery.value(0).toString();
-
-    parseJson(memSpecJson);
+    if (sqlQuery.next())
+    {
+        QString memSpecJson = sqlQuery.value(0).toString();
+        parseJson(memSpecJson);
+    }
+    else
+    {
+        qWarning() << "Memspec not present in generalInfo table";
+    }
 }
 
 int MemSpecModel::Node::getRow() const

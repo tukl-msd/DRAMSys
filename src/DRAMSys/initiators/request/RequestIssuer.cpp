@@ -121,6 +121,11 @@ bool RequestIssuer::nextRequestSendable() const
         pendingWriteRequests >= maxPendingWriteRequests.value())
         return false;
 
+    if (paused)
+    {
+        return false;
+    }
+
     return true;
 }
 
@@ -139,7 +144,6 @@ void RequestIssuer::peqCallback(tlm::tlm_generic_payload& payload, const tlm::tl
     else if (phase == tlm::BEGIN_RESP)
     {
         transactionsReceived++;
-        transactionCompletedEvent.notify();
 
         if (payload.get_command() == tlm::TLM_READ_COMMAND)
             pendingReadRequests--;
@@ -157,7 +161,7 @@ void RequestIssuer::peqCallback(tlm::tlm_generic_payload& payload, const tlm::tl
         // If all answers were received:
         if (finished && transactionsSent == transactionsReceived)
         {
-            finishedEvent.notify();
+            finishedEvent.notify(sc_core::SC_ZERO_TIME);
         }
     }
     else

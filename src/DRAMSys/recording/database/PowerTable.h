@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, RPTU Kaiserslautern-Landau
+ * Copyright (c) 2026, Julius-Maximilians-Universität Würzburg
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,39 +30,41 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * Authors:
- *    Janik Schlemminger
- *    Robert Gernhardt
- *    Matthias Jung
+ *    Derek Christ
  */
 
-#ifndef QUERYEDITOR_H
-#define QUERYEDITOR_H
+#pragma once
 
-#include "data/QueryTexts.h"
-#include "presentation/tracenavigator.h"
-#include <QWidget>
+#include <cstdint>
 
-namespace Ui
+class sqlite3_stmt;
+
+namespace DRAMSys::Recording
 {
-class QueryEditor;
-}
 
-class QueryEditor : public QWidget
+class Database;
+
+struct PowerRecord
 {
-    Q_OBJECT
-
-public:
-    explicit QueryEditor(QWidget* parent = 0);
-    ~QueryEditor();
-    void init(TraceNavigator* _navigator);
-
-private Q_SLOTS:
-    void on_executeQuery_clicked();
-
-private:
-    Ui::QueryEditor* ui;
-    TraceNavigator* navigator;
-    TransactionQueryTexts queryTexts;
+    std::uint64_t window{};
+    double power{};
 };
 
-#endif // QUERYEDITOR_H
+class PowerTable
+{
+public:
+    PowerTable(Database& database);
+    PowerTable(const PowerTable&) = delete;
+    PowerTable(PowerTable&&) = delete;
+    PowerTable& operator=(const PowerTable&) = delete;
+    PowerTable& operator=(PowerTable&&) = delete;
+    ~PowerTable();
+
+    void record(PowerRecord const& record);
+
+private:
+    Database& database;
+    sqlite3_stmt* insertPowerStatement{};
+};
+
+} // namespace DRAMSys::Recording
