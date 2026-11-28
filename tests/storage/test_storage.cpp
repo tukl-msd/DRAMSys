@@ -144,14 +144,19 @@ TEST_F(StorageTests, SplitTransactions)
         {4 * spacing, Command::Write, 32, {second.begin() + 32, second.end()}},
         {5 * spacing, Command::Read, 0, second},
         {6 * spacing, Command::Write, 0, first},
-        {7 * spacing, Command::Read, 0, first}};
+        {7 * spacing, Command::Read, 0, first},
+        // Reuse the controller's children for a timing-only write, then for data again.
+        {8 * spacing, Command::Write, 0, second, true},
+        {9 * spacing, Command::Read, 0, first},
+        {10 * spacing, Command::Write, 0, second},
+        {11 * spacing, Command::Read, 0, second}};
 
     for (auto trans : list)
         initiator.appendTestTransaction(trans);
 
     sc_core::sc_start();
 
-    EXPECT_EQ(std::vector<uint8_t>(physicalStorage.data(), physicalStorage.data() + 64), first);
+    EXPECT_EQ(std::vector<uint8_t>(physicalStorage.data(), physicalStorage.data() + 64), second);
     EXPECT_EQ(std::vector<uint8_t>(physicalStorage.data() + 64, physicalStorage.data() + 96),
               std::vector<uint8_t>(32, 0x55));
 }

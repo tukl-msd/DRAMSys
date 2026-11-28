@@ -57,6 +57,7 @@ public:
 
         uint64_t address;
         std::vector<uint8_t> data;
+        bool timingOnly = false;
     };
 
     void appendTestTransaction(TestTransactionData testTransaction)
